@@ -1,7 +1,8 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>prepOS v1</title>
 
 <style>
@@ -37,7 +38,8 @@ margin-top:10px;
 
 <div id="creator">
 <h3>Paste Quiz</h3>
-<textarea id="input"></textarea><br>
+<label for="input">Quiz Content</label>
+<textarea id="input" placeholder="Paste your quiz questions here"></textarea><br>
 <button onclick="cleanQCP()">Clean (QCP)</button>
 <button onclick="generate()">Generate Quiz</button>
 </div>
@@ -46,6 +48,30 @@ margin-top:10px;
 <div id="result"></div>
 
 <script>
+
+async function createExam(title, questions) {
+
+  const res = await fetch(
+    "https://bcqjfosxneuyoyuzhdiq.functions.supabase.co/create-exam",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer sb_publishable_kfDe3v11dym0FsU1XWudaA_pePCLDMR"
+      },
+      body: JSON.stringify({ title, questions }),
+    }
+  )
+
+  const data = await res.json()
+
+  if (data.error) {
+    alert("Error creating exam: " + data.error)
+    return
+  }
+
+  return data.examLink
+}
 
 /* ---------- SAFE TEXT RENDER ---------- */
 function escapeHTML(text){
@@ -134,23 +160,34 @@ document.getElementById("input").value=text;
 alert("Cleaned with QCP");
 }
 /* ---------- GENERATE ---------- */
-function generate(){
+async function generate(){
 
-const text=document.getElementById("input").value;
+const text = document.getElementById("input").value;
 
-const data=parseQuiz(text);
+const data = parseQuiz(text);
 
 if(!data.length){
 alert("No valid questions detected.");
 return;
 }
 
+// 👉 CALL BACKEND HERE
+const title = "PrepOS Quiz";
+
+const examLink = await createExam(title, data);
+
+if (examLink) {
+alert("Exam link: " + examLink);
+}
+
+// existing local preview logic (keep this)
 const encoded = btoa(
 encodeURIComponent(JSON.stringify(data))
 .replace(/%([0-9A-F]{2})/g,
 (_,p)=>String.fromCharCode("0x"+p))
 );
-location.hash=encoded;
+
+location.hash = encoded;
 
 loadQuiz();
 }
