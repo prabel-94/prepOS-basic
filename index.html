@@ -134,25 +134,22 @@ function cleanQCP(){
 
 let text = document.getElementById("input").value;
 
-// remove emojis and symbols
+// remove emojis
 text = text.replace(/[✅✔️💡⭐✨🔥]/g,"");
 
 // remove dashes
 text = text.replace(/-+/g,"");
 
-// normalize Answer formats (SAFE — no partial word bug)
+// normalize Answer formats (SAFE)
 text = text.replace(/\b(Ans|Correct option)\b\s*[:\-]?\s*/gi,"Answer: ");
 
-// prevent duplicate labels
-text = text.replace(/Answer:\s*Answer:/gi,"Answer: ");
-
-// normalize Explanation label
+// normalize Explanation
 text = text.replace(/\bExplanation\b\s*[:\-]?\s*/gi,"Explanation: ");
 
-// fix multiple spaces
+// fix spaces
 text = text.replace(/[ \t]+/g," ");
 
-// ensure blank line before each Q
+// blank line before each Q
 text = text.replace(/\n(?=Q\d+\.)/g,"\n\n");
 
 // trim
