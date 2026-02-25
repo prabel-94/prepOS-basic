@@ -132,30 +132,33 @@ explanation:explanation
 
 function cleanQCP(){
 
-let text=document.getElementById("input").value;
+let text = document.getElementById("input").value;
 
 // remove emojis and symbols
-text=text.replace(/[✅✔️💡⭐✨🔥]/g,"");
-// remove dashes
-text=text.replace(/-+/g,"");
+text = text.replace(/[✅✔️💡⭐✨🔥]/g,"");
 
-// normalize Answer formats
-text=text.replace(/Ans\s*[:\-]?\s*/gi,"Answer: ");
-text=text.replace(/Correct option\s*/gi,"Answer: ");
+// remove dashes
+text = text.replace(/-+/g,"");
+
+// normalize Answer formats (SAFE — no partial word bug)
+text = text.replace(/\b(Ans|Answer|Correct option)\b\s*[:\-]?\s*/gi,"Answer: ");
+
+// prevent duplicate labels
+text = text.replace(/Answer:\s*Answer:/gi,"Answer: ");
 
 // normalize Explanation label
-text=text.replace(/Explanation\s*[:\-]?\s*/gi,"Explanation: ");
+text = text.replace(/\bExplanation\b\s*[:\-]?\s*/gi,"Explanation: ");
 
 // fix multiple spaces
-text=text.replace(/[ \t]+/g," ");
+text = text.replace(/[ \t]+/g," ");
 
 // ensure blank line before each Q
-text=text.replace(/\n(?=Q\d+\.)/g,"\n\n");
+text = text.replace(/\n(?=Q\d+\.)/g,"\n\n");
 
 // trim
-text=text.trim();
+text = text.trimью text.trim();
 
-document.getElementById("input").value=text;
+document.getElementById("input").value = text;
 
 alert("Cleaned with QCP");
 }
