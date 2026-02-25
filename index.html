@@ -141,7 +141,7 @@ text = text.replace(/[✅✔️💡⭐✨🔥]/g,"");
 text = text.replace(/-+/g,"");
 
 // normalize Answer formats (SAFE — no partial word bug)
-text = text.replace(/\b(Ans|Answer|Correct option)\b\s*[:\-]?\s*/gi,"Answer: ");
+text = text.replace(/\b(Ans|Correct option)\b\s*[:\-]?\s*/gi,"Answer: ");
 
 // prevent duplicate labels
 text = text.replace(/Answer:\s*Answer:/gi,"Answer: ");
