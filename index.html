@@ -51,35 +51,37 @@ margin-top:10px;
 
 async function createExam(title, questions) {
 
-  const res = await fetch(
-    "https://bcqjfosxneuyoyuzhdiq.functions.supabase.co/create-exam",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer sb_publishable_kfDe3v11dym0FsU1XWudaA_pePCLDMR"
-      },
-      body: JSON.stringify({ title, questions }),
+  try {
+
+    const res = await fetch(
+      "https://bcqjfosxneuyoyuzhdiq.functions.supabase.co/create-exam",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer sb_publishable_kfDe3v11dym0FsU1XWudaA_pePCLDMR"
+        },
+        body: JSON.stringify({ title, questions }),
+      }
+    )
+
+    console.log("Status:", res.status)
+
+    const data = await res.json()
+
+    console.log("Response:", data)
+
+    if (data.error) {
+      alert("Error creating exam: " + data.error)
+      return
     }
-  )
 
-  const data = await res.json()
+    return data.examLink
 
-  if (data.error) {
-    alert("Error creating exam: " + data.error)
-    return
+  } catch (e) {
+    console.error("Fetch failed:", e)
+    alert("Fetch failed — see console")
   }
-
-  return data.examLink
-}
-
-/* ---------- SAFE TEXT RENDER ---------- */
-function escapeHTML(text){
-if(!text) return "";
-return text
-.replace(/&/g,"&amp;")
-.replace(/</g,"&lt;")
-.replace(/>/g,"&gt;");
 }
 
 
