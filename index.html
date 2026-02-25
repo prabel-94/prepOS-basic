@@ -54,7 +54,7 @@ async function createExam(title, questions) {
   try {
 
     const res = await fetch(
-      "https://bcqjfosxneuyoyuzhdiq.functions.supabase.co/create-exam",
+      "https://bcqjfosxneuyoyuzhdiq.supabase.co/functions/v1/create-exam",
       {
         method: "POST",
         headers: {
