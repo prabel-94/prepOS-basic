@@ -241,12 +241,6 @@ ${String.fromCharCode(65+idx)}. ${escapeHTML(o)}
 `<div id="exp-${i}" style="display:none;margin-top:8px;color:#555;">
 ${escapeHTML(q.explanation)}
 </div>`;
-q.options.map((o,idx)=>
-`<label>
-<input type="radio" name="q${i}" value="${String.fromCharCode(65+idx)}">
-${String.fromCharCode(65+idx)}. ${escapeHTML(o)}
-</label><br>`
-).join("");
 
 container.appendChild(div);
 });
