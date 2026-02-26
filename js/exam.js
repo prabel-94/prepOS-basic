@@ -15,6 +15,8 @@ return String(str)
 /* ---------- get exam id ---------- */
 const params = new URLSearchParams(location.search)
 const examId = params.get("id")
+const ATTEMPT_KEY = `prepos-attempt-${examId}`;
+const ATTEMPT_ID_KEY = `prepos-attempt-id-${examId}`;
 
 /* ---------- attempt id ---------- */
 console.log("ExamId:", examId)
@@ -24,25 +26,32 @@ function createAttemptId(examId){
   return `${examId}-${rand}`
 }
 
-let attemptId = localStorage.getItem("prepos-attempt")
+let attemptId = localStorage.getItem(ATTEMPT_ID_KEY)
 
 if(!attemptId){
   attemptId = createAttemptId(examId)
-  localStorage.setItem("prepos-attempt", attemptId)
+  localStorage.setItem(ATTEMPT_ID_KEY, attemptId)
 }
 
 console.log("Attempt:", attemptId)
 
 let attemptState = JSON.parse(
-  localStorage.getItem("prepos-attempt-state") || "null"
+  localStorage.getItem(ATTEMPT_KEY) || "null"
 );
 
 if(!attemptState || attemptState.attemptId !== attemptId){
   attemptState = {
-    attemptId,
-    examId,
-    answers:{}
-  };
+  attemptId,
+  examId,
+  answers:{},
+  status: "in_progress"
+};
+
+  // ✅ save initial attempt immediately
+  localStorage.setItem(
+    ATTEMPT_KEY,
+    JSON.stringify(attemptState)
+  );
 }
 
 if(!examId){
@@ -103,7 +112,7 @@ document.querySelectorAll('input[type="radio"]').forEach(r=>{
     attemptState.answers[name] = e.target.value;
 
     localStorage.setItem(
-      "prepos-attempt-state",
+      ATTEMPT_KEY,
       JSON.stringify(attemptState)
     );
 
@@ -131,6 +140,10 @@ container.appendChild(btn)
 /* ---------- submit ---------- */
 async function submitExam(){
 
+if(attemptState.status === "submitted"){
+  console.log("Already submitted");
+  return;
+}
 /* ---- student name ---- */
 const studentName = document.getElementById("studentName").value.trim()
 
@@ -180,6 +193,23 @@ score
 })
 }
 )
+// mark attempt submitted HERE
+attemptState.status = "submitted";
+
+localStorage.setItem(
+  ATTEMPT_KEY,
+  JSON.stringify(attemptState)
+);
+
+// optional UX lock
+document
+.querySelectorAll('input[type="radio"]')
+.forEach(el=>el.disabled=true);
+
+// disable answers HERE
+document
+.querySelectorAll('input[type="radio"]')
+.forEach(el=>el.disabled=true);
 
 /* ---- show result ---- */
 document.getElementById("result").innerHTML =
