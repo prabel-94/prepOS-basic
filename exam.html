@@ -5,14 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0" />
 <title>PrepOS Exam</title>
 
-<style>
-body{font-family:Arial;padding:20px;max-width:800px;margin:auto}
-.question{margin-bottom:20px;padding:10px;border:1px solid #ddd;border-radius:6px}
-button{padding:10px 20px;margin-top:20px}
-#studentName{width:100%;padding:8px;margin-bottom:15px}
-</style>
-
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="css/style.css">
 
 </head>
 
@@ -41,6 +34,22 @@ return String(str)
 /* ---------- get exam id ---------- */
 const params = new URLSearchParams(location.search)
 const examId = params.get("id")
+
+/* ---------- attempt id ---------- */
+
+function createAttemptId(examId){
+  const rand = Math.random().toString(36).slice(2,7)
+  return `${examId}-${rand}`
+}
+
+let attemptId = localStorage.getItem("prepos-attempt")
+
+if(!attemptId){
+  attemptId = createAttemptId(examId)
+  localStorage.setItem("prepos-attempt", attemptId)
+}
+
+console.log("Attempt:", attemptId)
 
 if(!examId){
 document.getElementById("quiz").innerText="Invalid exam link"
@@ -145,6 +154,7 @@ Prefer: "return=minimal"
 },
 body: JSON.stringify({
 exam_id: examId,
+attempt_id: attemptId,
 student_name: studentName,
 answers,
 score
