@@ -1,6 +1,6 @@
 console.log("SCRIPT STARTED")
 const SUPABASE_URL = "https://bcqjfosxneuyoyuzhdiq.supabase.co"
-const ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJjcWpmb3N4bmV1eW95dXpoZGlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE5NDI2OTIsImV4cCI6MjA4NzUxODY5Mn0.mPvlN_JEov6cxCXjMlARrzd5zyFHPH131whlB1cQClA"
+const ANOSUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJjcWpmb3N4bmV1eW95dXpoZGlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE5NDI2OTIsImV4cCI6MjA4NzUxODY5Mn0.mPvlN_JEov6cxCXjMlARrzd5zyFHPH131whlB1cQClA"
 
 /* ---------- helpers ---------- */
 function escapeHTML(str){
@@ -62,11 +62,11 @@ document.getElementById("quiz").innerText="Invalid exam link"
 async function loadExam(){
 
 const res = await fetch(
-`${SUPABASE_URL}/rest/v1/quizzes?id=eq.${examId}`,
+`${SUPABASE_URL}/rest/v1/exams?id=eq.${examId}`,
 {
 headers:{
-apikey:ANON,
-Authorization:`Bearer ${ANON}`
+apikey: SUPABASE_ANON_KEY,
+Authorization: `Bearer ${SUPABASE_ANON_KEY}`
 }
 }
 )
@@ -179,8 +179,8 @@ await fetch(
 {
 method: "POST",
 headers:{
-apikey: ANON,
-Authorization: `Bearer ${ANON}`,
+apikey: SUPABASE_ANON_KEY,
+Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
 "Content-Type": "application/json",
 Prefer: "return=minimal"
 },
