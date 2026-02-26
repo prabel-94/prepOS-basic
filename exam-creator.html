@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>prepOS v1</title>
+
+<style>
+body{
+font-family:Arial;
+padding:20px;
+max-width:800px;
+margin:auto;
+}
+
+textarea{
+width:100%;
+height:240px;
+}
+
+.question{
+margin-bottom:20px;
+padding:10px;
+border:1px solid #ddd;
+border-radius:6px;
+}
+
+button{
+padding:10px 20px;
+margin-top:10px;
+}
+</style>
+</head>
+
+<body>
+
+<h2>prepOS v1</h2>
+
+<div id="creator">
+<h3>Paste Quiz</h3>
+<label for="input">Quiz Content</label>
+<textarea id="input" placeholder="Paste your quiz questions here"></textarea><br>
+<button onclick="cleanQCP()">Clean (QCP)</button>
+<button onclick="generate()">Generate Quiz</button>
+</div>
+
+<div id="quiz"></div>
+<div id="result"></div>
+
+<script>
+
+function escapeHTML(str){
+return String(str)
+.replace(/&/g,"&amp;")
+.replace(/</g,"&lt;")
+.replace(/>/g,"&gt;")
+.replace(/"/g,"&quot;")
+.replace(/'/g,"&#039;");
+}
+
+async function createExam(title, questions) {
+
+  try {
+
+    const res = await fetch(
+      "https://bcqjfosxneuyoyuzhdiq.supabase.co/functions/v1/create-exam",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJjcWpmb3N4bmV1eW95dXpoZGlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE5NDI2OTIsImV4cCI6MjA4NzUxODY5Mn0.mPvlN_JEov6cxCXjMlARrzd5zyFHPH131whlB1cQClA",
+          "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJjcWpmb3N4bmV1eW95dXpoZGlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE5NDI2OTIsImV4cCI6MjA4NzUxODY5Mn0.mPvlN_JEov6cxCXjMlARrzd5zyFHPH131whlB1cQClA"
+        },
+        body: JSON.stringify({ title, questions }),
+      }
+    )
+
+    console.log("Status:", res.status)
+
+    const data = await res.json()
+
+    console.log("Response:", data)
+
+    if (data.error) {
+      alert("Error creating exam: " + data.error)
+      return
+    }
+
+    return data.examLink
+
+  } catch (e) {
+    console.error("Fetch failed:", e)
+    alert("Fetch failed — see console")
+  }
+}
+
+
+/* ---------- PARSER WITH EXPLANATIONS ---------- */
+function parseQuiz(text){
+
+const blocks = text
+.split(/\n(?=Q\d+\.)/g)
+.map(b=>b.trim())
+.filter(Boolean);
+
+return blocks.map(block=>{
+
+const lines = block.split("\n").map(l=>l.trim()).filter(Boolean);
+
+// find answer
+const answerIndex = lines.findIndex(l=>/^Answer\s*:/i.test(l));
+if(answerIndex===-1) return null;
+
+const answer = (lines[answerIndex].split(":")[1]||"").trim();
+
+// find explanation (optional)
+const explanationIndex = lines.findIndex(l=>/^Explanation\s*:/i.test(l));
+
+let explanation="";
+if(explanationIndex!==-1){
+explanation = lines
+.slice(explanationIndex)
+.join("\n")
+.replace(/^Explanation\s*:/i,"")
+.trim();
+}
+
+// options = 4 before answer
+const options = lines.slice(answerIndex-4,answerIndex);
+if(options.length!==4) return null;
+
+// question text
+const question = lines.slice(0,answerIndex-4).join("\n");
+
+return{
+q:question,
+options:options.map(o=>o.replace(/^[A-D]\.\s*/,"")),
+answer:answer,
+explanation:explanation
+};
+
+}).filter(Boolean);
+}
+
+function cleanQCP(){
+
+let text = document.getElementById("input").value;
+
+// remove emojis
+text = text.replace(/[✅✔️💡⭐✨🔥]/g,"");
+
+// remove dashes
+text = text.replace(/-+/g,"");
+
+// normalize Answer formats (SAFE)
+text = text.replace(/\b(Ans|Correct option)\b\s*[:\-]?\s*/gi,"Answer: ");
+
+// normalize Explanation
+text = text.replace(/\bExplanation\b\s*[:\-]?\s*/gi,"Explanation: ");
+
+// fix spaces
+text = text.replace(/[ \t]+/g," ");
+
+// blank line before each Q
+text = text.replace(/\n(?=Q\d+\.)/g,"\n\n");
+
+// trim
+text = text.trim();
+
+document.getElementById("input").value = text;
+
+alert("Cleaned with QCP");
+}
+/* ---------- GENERATE ---------- */
+async function generate(){
+
+const text = document.getElementById("input").value;
+
+const data = parseQuiz(text);
+
+if(!data.length){
+alert("No valid questions detected.");
+return;
+}
+
+// 👉 CALL BACKEND HERE
+const title = "PrepOS Quiz";
+
+const examLink = await createExam(title, data);
+
+if (examLink) {
+alert("Exam link: " + examLink);
+}
+
+// existing local preview logic (keep this)
+const encoded = btoa(
+encodeURIComponent(JSON.stringify(data))
+.replace(/%([0-9A-F]{2})/g,
+(_,p)=>String.fromCharCode("0x"+p))
+);
+
+location.hash = encoded;
+
+loadQuiz();
+}
+
+
+/* ---------- LOAD QUIZ ---------- */
+function loadQuiz(){
+
+if(!location.hash) return;
+
+document.getElementById("creator").style.display="none";
+
+const decoded = decodeURIComponent(
+Array.prototype.map.call(atob(location.hash.slice(1)),c=>
+"%"+("00"+c.charCodeAt(0).toString(16)).slice(-2)
+).join("")
+);
+
+const data=JSON.parse(decoded);
+
+const container=document.getElementById("quiz");
+container.innerHTML="";
+
+data.forEach((q,i)=>{
+
+const div=document.createElement("div");
+div.className="question";
+
+div.innerHTML=
+`<p style="white-space:pre-line">${escapeHTML(q.q)}</p>`+
+
+q.options.map((o,idx)=>
+`<label>
+<input type="radio" name="q${i}" value="${String.fromCharCode(65+idx)}">
+${String.fromCharCode(65+idx)}. ${escapeHTML(o)}
+</label><br>`
+).join("")+
+
+`<div id="exp-${i}" style="display:none;margin-top:8px;color:#555;">
+${escapeHTML(q.explanation)}
+</div>`;
+
+container.appendChild(div);
+});
+
+window.quizData=data;
+
+const btn=document.createElement("button");
+btn.innerText="Submit";
+btn.onclick=submitQuiz;
+container.appendChild(btn);
+}
+
+
+/* ---------- SUBMIT ---------- */
+function submitQuiz(){
+
+let score=0;
+let answerKey="";
+
+window.quizData.forEach((q,i)=>{
+
+const selected=document.querySelector(`input[name=q${i}]:checked`);
+const chosen=selected?selected.value:"-";
+
+if(chosen===q.answer) score++;
+
+answerKey+=`
+<p>
+<b>Q${i+1}</b> — Your answer ${chosen} | Correct ${q.answer}<br>
+<i>${escapeHTML(q.explanation)}</i>
+</p>`;
+});
+
+document.getElementById("result").innerHTML=
+`<h3>Score: ${score}/${window.quizData.length}</h3>`+answerKey;
+}
+
+loadQuiz();
+
+</script>
+
+</body>
+</html>
