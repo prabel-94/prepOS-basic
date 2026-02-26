@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PrepOS Draft Editor</title>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 0 20px;
+    }
+
+    input, textarea {
+      width: 100%;
+      margin-bottom: 16px;
+      padding: 8px;
+      font-size: 14px;
+    }
+
+    .question-card {
+      border: 1px solid #ddd;
+      padding: 12px;
+      margin-bottom: 16px;
+      border-radius: 6px;
+    }
+
+    .draft-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    button {
+      padding: 10px 14px;
+      cursor: pointer;
+    }
+
+    #status {
+      margin-top: 10px;
+      font-size: 13px;
+      color: #555;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h2>Draft Editor</h2>
+
+  <label for="title">Title</label>
+  <input id="title" type="text" placeholder="Enter title" />
+
+  <label for="duration">Duration (minutes)</label>
+  <input id="duration" type="number" placeholder="Enter duration in minutes" />
+
+  <h3>Questions</h3>
+  <div id="questions"></div>
+
+  <!-- ⭐ Actions -->
+  <div class="draft-actions">
+    <button onclick="saveDraft()">Save Draft</button>
+    <button onclick="cloneDraft()">Clone</button>
+    <button onclick="publishDraft()">Publish Exam</button>
+  </div>
+
+  <!-- ⭐ Status feedback -->
+  <div id="status"></div>
+
+  <!-- ⭐ Scripts moved to end (best practice) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="draft.js"></script>
+
+</body>
+</html>
