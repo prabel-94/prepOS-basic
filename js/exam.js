@@ -37,6 +37,18 @@ if(!attemptId){
 
 console.log("Attempt:", attemptId)
 
+let attemptState = JSON.parse(
+  localStorage.getItem("prepos-attempt-state") || "null"
+);
+
+if(!attemptState || attemptState.attemptId !== attemptId){
+  attemptState = {
+    attemptId,
+    examId,
+    answers:{}
+  };
+}
+
 if(!examId){
 document.getElementById("quiz").innerText="Invalid exam link"
 }
@@ -87,6 +99,31 @@ ${String.fromCharCode(65+idx)}. ${escapeHTML(o)}
 container.appendChild(div)
 })
 
+/* ---------- autosave answers ---------- */
+
+document.querySelectorAll('input[type="radio"]').forEach(r=>{
+  r.addEventListener("change", e=>{
+    const name = e.target.name;   // q0 q1 q2
+    attemptState.answers[name] = e.target.value;
+
+    localStorage.setItem(
+      "prepos-attempt-state",
+      JSON.stringify(attemptState)
+    );
+
+    console.log("Autosaved:", attemptState.answers);
+  });
+});
+/* ---------- restore answers ---------- */
+
+if(attemptState.answers){
+  Object.entries(attemptState.answers).forEach(([name,val])=>{
+    const el = container.querySelector(
+      `input[name="${name}"][value="${val}"]`
+    );
+    if(el) el.checked = true;
+  });
+}
 window.examQuestions=questions
 
 const btn=document.createElement("button")
