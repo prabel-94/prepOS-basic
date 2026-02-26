@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0" />
+<title>PrepOS Exam</title>
+
+<style>
+body{font-family:Arial;padding:20px;max-width:800px;margin:auto}
+.question{margin-bottom:20px;padding:10px;border:1px solid #ddd;border-radius:6px}
+button{padding:10px 20px;margin-top:20px}
+</style>
+</head>
+
+<body>
+
+<h2>Exam</h2>
+<div id="quiz">Loading…</div>
+<div id="result"></div>
+
+<script>
+const SUPABASE_URL = "https://bcqjfosxneuyoyuzhdiq.supabase.co"
+const ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJjcWpmb3N4bmV1eW95dXpoZGlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE5NDI2OTIsImV4cCI6MjA4NzUxODY5Mn0.mPvlN_JEov6cxCXjMlARrzd5zyFHPH131whlB1cQClA"
+
+/* ---------- helpers ---------- */
+function escapeHTML(str){
+return String(str)
+.replace(/&/g,"&amp;")
+.replace(/</g,"&lt;")
+.replace(/>/g,"&gt;")
+.replace(/"/g,"&quot;")
+.replace(/'/g,"&#039;");
+}
+
+/* ---------- get exam id ---------- */
+const params = new URLSearchParams(location.search)
+const examId = params.get("id")
+
+if(!examId){
+document.getElementById("quiz").innerText="Invalid exam link"
+}
+
+/* ---------- fetch quiz ---------- */
+async function loadExam(){
+
+const res = await fetch(
+`${SUPABASE_URL}/rest/v1/quizzes?id=eq.${examId}`,
+{
+headers:{
+apikey:ANON,
+Authorization:`Bearer ${ANON}`
+}
+}
+)
+
+const data = await res.json()
+
+if(!data.length){
+document.getElementById("quiz").innerText="Exam not found"
+return
+}
+
+renderQuiz(data[0].questions)
+}
+
+function renderQuiz(questions){
+
+const container=document.getElementById("quiz")
+container.innerHTML=""
+
+questions.forEach((q,i)=>{
+
+const div=document.createElement("div")
+div.className="question"
+
+div.innerHTML=
+`<p style="white-space:pre-line">${escapeHTML(q.q)}</p>`+
+
+q.options.map((o,idx)=>
+`<label>
+<input type="radio" name="q${i}" value="${String.fromCharCode(65+idx)}">
+${String.fromCharCode(65+idx)}. ${escapeHTML(o)}
+</label><br>`
+).join("")
+
+container.appendChild(div)
+})
+
+window.examQuestions=questions
+
+const btn=document.createElement("button")
+btn.innerText="Submit"
+btn.onclick=submitExam
+container.appendChild(btn)
+}
+
+/* ---------- submit ---------- */
+function submitExam(){
+
+let score=0
+
+window.examQuestions.forEach((q,i)=>{
+const selected=document.querySelector(`input[name=q${i}]:checked`)
+const chosen=selected?selected.value:"-"
+if(chosen===q.answer) score++
+})
+
+document.getElementById("result").innerHTML=
+`<h3>Score: ${score}/${window.examQuestions.length}</h3>`
+}
+
+loadExam()
+</script>
+
+</body>
+</html>

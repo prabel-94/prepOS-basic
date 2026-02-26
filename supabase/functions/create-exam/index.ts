@@ -35,7 +35,8 @@ Deno.serve(async (req) => {
     })
   }
 
-  const examLink = `${Deno.env.get("SITE_URL")}/exam.html?id=${data.id}`
+  const base = Deno.env.get("SITE_URL")!.replace(/\/$/,"")
+  const examLink = `${base}/exam.html?id=${data.id}`
 
   return new Response(
     JSON.stringify({ success: true, examLink }),
