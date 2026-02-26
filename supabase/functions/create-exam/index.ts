@@ -8,7 +8,6 @@ const corsHeaders = {
 
 Deno.serve(async (req) => {
 
-  // ✅ Handle preflight
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders })
   }
@@ -20,11 +19,28 @@ Deno.serve(async (req) => {
     Deno.env.get("SERVICE_ROLE_KEY")!
   )
 
-  const { title, questions } = body
+  const { title, questions, duration, instructions } = body
 
+  // ⭐ Build schema_json (wrap questions into sections)
+  const schema = {
+    sections: [
+      {
+        title: "Section 1",
+        questions
+      }
+    ]
+  }
+
+  // ⭐ Insert draft instead of quiz
   const { data, error } = await supabase
-    .from("quizzes")
-    .insert([{ title, questions }])
+    .from("exam_drafts")
+    .insert({
+      title: title || "Untitled Exam",
+      instructions: instructions || "",
+      duration: duration || 30,
+      schema_json: schema,
+      status: "draft"
+    })
     .select()
     .single()
 
@@ -35,11 +51,16 @@ Deno.serve(async (req) => {
     })
   }
 
+  // ⭐ Build draft link (editor)
   const base = Deno.env.get("SITE_URL")!.replace(/\/$/,"")
-  const examLink = `${base}/exam.html?id=${data.id}`
+  const draftLink = `${base}/draft.html?id=${data.id}`
 
   return new Response(
-    JSON.stringify({ success: true, examLink }),
+    JSON.stringify({
+      success: true,
+      draftId: data.id,
+      draftLink
+    }),
     { headers: { ...corsHeaders, "Content-Type": "application/json" } }
   )
 })
