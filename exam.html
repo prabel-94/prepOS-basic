@@ -36,6 +36,7 @@ const params = new URLSearchParams(location.search)
 const examId = params.get("id")
 
 /* ---------- attempt id ---------- */
+console.log("ExamId:", examId)
 
 function createAttemptId(examId){
   const rand = Math.random().toString(36).slice(2,7)
