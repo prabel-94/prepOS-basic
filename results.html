@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>PrepOS Results</title>
+
+<style>
+body{font-family:Arial;padding:20px;max-width:900px;margin:auto}
+.card{border:1px solid #ddd;padding:12px;margin-bottom:12px;border-radius:6px}
+.small{color:#666;font-size:14px}
+button{margin-top:6px}
+</style>
+</head>
+
+<body>
+
+<h2>Exam Results</h2>
+<div id="results">Loading…</div>
+
+<script>
+const SUPABASE_URL="https://bcqjfosxneuyoyuzhdiq.supabase.co"
+const ANON="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJjcWpmb3N4bmV1eW95dXpoZGlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE5NDI2OTIsImV4cCI6MjA4NzUxODY5Mn0.mPvlN_JEov6cxCXjMlARrzd5zyFHPH131whlB1cQClA"
+
+/* helpers */
+function escapeHTML(str){
+return String(str)
+.replace(/&/g,"&amp;")
+.replace(/</g,"&lt;")
+.replace(/>/g,"&gt;")
+.replace(/"/g,"&quot;")
+.replace(/'/g,"&#039;");
+}
+
+/* get exam id */
+const params=new URLSearchParams(location.search)
+const examId=params.get("id")
+
+async function loadResults(){
+
+const res=await fetch(
+`${SUPABASE_URL}/rest/v1/responses?exam_id=eq.${examId}&order=created_at.desc`,
+{
+headers:{
+apikey:ANON,
+Authorization:`Bearer ${ANON}`
+}
+}
+)
+
+const data=await res.json()
+
+const container=document.getElementById("results")
+container.innerHTML=""
+
+if(!data.length){
+container.innerText="No responses yet"
+return
+}
+
+data.forEach(r=>{
+
+const div=document.createElement("div")
+div.className="card"
+
+div.innerHTML=
+`<b>${escapeHTML(r.student_name||"Unknown")}</b>
+<div class="small">Score: ${r.score}</div>
+<div class="small">${new Date(r.created_at).toLocaleString()}</div>
+<button>View Answers</button>
+<div style="display:none;margin-top:8px;"></div>`
+
+const btn=div.querySelector("button")
+const answerBox=div.querySelector("div:last-child")
+
+btn.onclick=()=>{
+if(answerBox.style.display==="none"){
+
+answerBox.innerHTML=r.answers.map(a=>
+`Q${a.q+1}: chosen ${a.chosen} | correct ${a.correct}`
+).join("<br>")
+
+answerBox.style.display="block"
+btn.innerText="Hide Answers"
+
+}else{
+answerBox.style.display="none"
+btn.innerText="View Answers"
+}
+}
+
+container.appendChild(div)
+})
+}
+
+loadResults()
+</script>
+
+</body>
+</html>
