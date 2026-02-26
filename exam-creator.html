@@ -16,6 +16,10 @@
 <h3>Paste Quiz</h3>
 <label for="input">Quiz Content</label>
 <textarea id="input" placeholder="Paste your quiz questions here"></textarea><br>
+
+<label>Duration (minutes)</label>
+<input id="duration" type="number" value="10" min="1"><br>
+
 <button onclick="cleanQCP()">Clean (QCP)</button>
 <button onclick="generate()">Generate Quiz</button>
 </div>
@@ -34,7 +38,7 @@ return String(str)
 .replace(/'/g,"&#039;");
 }
 
-async function createExam(title, questions) {
+async function createExam(title, questions, duration) {
 
   try {
 
@@ -47,7 +51,11 @@ async function createExam(title, questions) {
           "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJjcWpmb3N4bmV1eW95dXpoZGlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE5NDI2OTIsImV4cCI6MjA4NzUxODY5Mn0.mPvlN_JEov6cxCXjMlARrzd5zyFHPH131whlB1cQClA",
           "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJjcWpmb3N4bmV1eW95dXpoZGlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE5NDI2OTIsImV4cCI6MjA4NzUxODY5Mn0.mPvlN_JEov6cxCXjMlARrzd5zyFHPH131whlB1cQClA"
         },
-        body: JSON.stringify({ title, questions }),
+        body: JSON.stringify({
+  title,
+  questions,
+  duration
+}),
       }
     )
 
@@ -162,7 +170,11 @@ return;
 // 👉 CALL BACKEND HERE
 const title = "PrepOS Quiz";
 
-const examLink = await createExam(title, data);
+const duration =
+parseInt(document.getElementById("duration").value) || 10;
+
+const examLink =
+await createExam(title, data, duration);
 
 if (examLink) {
 alert("Exam link: " + examLink);
