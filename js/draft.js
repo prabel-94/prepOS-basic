@@ -18,7 +18,7 @@ if (!draftId) {
 }
 
 // ⭐ Supabase client
-const supabase = window.supabase.createClient(
+const sb = window.sb.createClient(
   SUPABASE_URL,
   SUPABASE_ANON_KEY
 )
@@ -49,7 +49,7 @@ async function loadDraft() {
 
   try {
 
-    const { data, error } = await supabase
+    const { data, error } = await sb
       .from("exam_drafts")
       .select("*")
       .eq("id", draftId)
@@ -75,7 +75,7 @@ loadDraft()
 function renderDraft(draft) {
 
   console.log("DRAFT RECEIVED →", draft)   // ⭐ ADD THIS
-  
+
   currentDraft = draft
 
   // Meta
@@ -146,7 +146,7 @@ async function saveDraft(silent = false) {
 
     const durationVal = document.getElementById("duration").value
 
-    const { error } = await supabase
+    const { error } = await sb
       .from("exam_drafts")
       .update({
         title: document.getElementById("title").value,

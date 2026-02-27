@@ -1,0 +1,61 @@
+/* ===== Shared body styles ===== */
+body{
+  font-family: Arial, Helvetica, sans-serif;
+  padding: 30px;
+  max-width: 900px;
+  margin: auto;
+  background: #f7f7f7;
+}
+
+/* Creator page slightly narrower */
+body.creator{
+  max-width: 800px;
+  padding: 20px;
+}
+
+/* ===== Headings ===== */
+h1{
+  margin-bottom: 10px;
+}
+
+/* ===== Card (home page) ===== */
+.card{
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 15px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+}
+
+/* ===== Questions (creator preview) ===== */
+.question{
+  margin-bottom: 20px;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+}
+
+/* ===== Textarea ===== */
+textarea{
+  width: 100%;
+  height: 240px;
+}
+
+/* ===== Buttons ===== */
+button{
+  padding: 12px 18px;
+  margin-right: 10px;
+  margin-top: 10px;
+  cursor: pointer;
+}
+
+/* Creator button slightly different */
+.creator button{
+  padding: 10px 20px;
+}
+
+/* ===== Small text ===== */
+.small{
+  color:#666;
+  font-size:14px;
+}
