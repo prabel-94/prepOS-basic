@@ -282,6 +282,11 @@ async function publishDraft() {
 
     const data = await res.json()
     console.log(data)
+    if (data.examLink) {
+      navigator.clipboard.writeText(data.examLink)
+      alert("Exam link copied:\n" + data.examLink)
+      window.open(data.examLink, "_blank")
+    }
 
     if (!data.success) {
       alert(data.error || "Publish failed")
