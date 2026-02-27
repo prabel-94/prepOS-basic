@@ -70,6 +70,8 @@ Authorization: `Bearer ${SUPABASE_ANON_KEY}`
 )
 
 const data = await res.json()
+// For debugging: log raw data structure
+console.log("ROW STRUCTURE:", data[0])
 
 if(!data.length){
 document.getElementById("quiz").innerText="Exam not found"
