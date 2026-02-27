@@ -174,7 +174,14 @@ if(chosen === q.answer) score++
 
 /* ---- save to supabase ---- */
 try{
-
+  // For debugging: log the payload before sending
+console.log("RESPONSE BODY:", {
+exam_id: examId,
+attempt_id: attemptId,
+student_name: studentName,
+answers,
+score
+})
 await fetch(
 `${SUPABASE_URL}/rest/v1/responses`,
 {
