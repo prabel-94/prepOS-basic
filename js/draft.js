@@ -279,8 +279,9 @@ async function publishDraft() {
       },
       body: JSON.stringify({ draftId })
     })
-    
+
     const data = await res.json()
+    console.log(data)
 
     if (!data.success) {
       alert(data.error || "Publish failed")
