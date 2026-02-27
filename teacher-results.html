@@ -73,7 +73,7 @@ loadResponses(e.target.value)
 async function loadResponses(examId){
 
 const res=await fetch(
-`${SUPABASE_URL}/rest/v1/responses?exam_id=eq.${examId}&select=*`,
+`${SUPABASE_URL}/rest/v1/responses?exam_id=eq.${encodeURIComponent(examId)}&select=*&order=submitted_at.desc`,
 {
 headers:{
 apikey:SUPABASE_ANON_KEY,
