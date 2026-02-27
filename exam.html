@@ -6,18 +6,28 @@
 <title>PrepOS Exam</title>
 
 <link rel="stylesheet" href="css/style.css">
-
 </head>
 
 <body>
 
-<h2>Exam</h2>
-<label>Enter your name:</label>
-<input id="studentName" placeholder="Your name">
-<div id="quiz">Loading…</div>
-<div id="result"></div>
+<div class="exam-wrapper">
+
+  <h2>Exam</h2>
+
+  <!-- name -->
+  <label for="studentName">Enter your name:</label>
+  <input id="studentName" placeholder="Your name" autocomplete="off">
+
+  <!-- quiz renders here -->
+  <div id="quiz">Loading…</div>
+
+  <!-- result + review button -->
+  <div id="result"></div>
+
+</div>
 
 <script src="js/config.js"></script>
 <script src="js/exam.js"></script>
+
 </body>
 </html>
