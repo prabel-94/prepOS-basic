@@ -74,6 +74,8 @@ loadDraft()
 // ===============================
 function renderDraft(draft) {
 
+  console.log("DRAFT RECEIVED →", draft)   // ⭐ ADD THIS
+  
   currentDraft = draft
 
   // Meta
