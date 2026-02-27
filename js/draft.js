@@ -279,8 +279,11 @@ async function publishDraft() {
       },
       body: JSON.stringify({ draftId })
     })
+         // For debugging: log raw response
+    const text = await res.text()
+    console.log("PUBLISH RAW RESPONSE →", text)
 
-    const data = await res.json()
+    const data = JSON.parse(text)
 
     if (!data.success) {
       alert(data.error || "Publish failed")
