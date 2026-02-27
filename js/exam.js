@@ -52,36 +52,66 @@ if(!attemptState || attemptState.attemptId !== attemptId){
 ====================================================== */
 async function loadExam(){
 
-  const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/exams?id=eq.${examId}`,
-    {
-      headers:{
-        apikey: SUPABASE_ANON_KEY,
-        Authorization:`Bearer ${SUPABASE_ANON_KEY}`
+  try{
+
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/exams?id=eq.${examId}`,
+      {
+        headers:{
+          apikey: SUPABASE_ANON_KEY,
+          Authorization:`Bearer ${SUPABASE_ANON_KEY}`
+        }
       }
+    );
+
+    const data = await res.json();
+
+    console.log("Exam fetch result:", data);
+
+    if(!data.length){
+      document.getElementById("quiz").innerText="Exam not found";
+      return;
     }
-  );
 
-  const data = await res.json();
+    /* ---------- safe schema access ---------- */
+    const row = data[0];
 
-  if(!data.length){
-    document.getElementById("quiz").innerText="Exam not found";
-    return;
+    if(
+      !row.schema_json ||
+      !row.schema_json.sections ||
+      !row.schema_json.sections[0] ||
+      !row.schema_json.sections[0].questions
+    ){
+      document.getElementById("quiz").innerText="Exam data invalid";
+      console.error("Schema path broken:", row);
+      return;
+    }
+
+    const questions =
+      row.schema_json.sections[0].questions;
+
+    /* ---------- store RAW (review + scoring) ---------- */
+    window.examQuestionsRaw = questions;
+
+    /* ---------- sanitized attempt version ---------- */
+    window.examQuestionsAttempt =
+      questions.map(q=>({
+        question:q.question,
+        options:q.options
+      }));
+
+    /* ⭐ backward compatibility (IMPORTANT) */
+    window.examQuestions = window.examQuestionsAttempt;
+
+    /* ---------- render ---------- */
+    renderQuiz(window.examQuestionsAttempt);
+
+  }catch(err){
+
+    console.error("loadExam failed:", err);
+    document.getElementById("quiz").innerText="Failed to load exam";
+
   }
-
-  const questions = data[0].schema_json.sections[0].questions;
-
-  // ⭐ keep raw for scoring + review
-  window.examQuestionsRaw = questions;
-
-  // ⭐ attempt version (sanitized)
-  window.examQuestionsAttempt =
-    questions.map(q=>({
-      question:q.question,
-      options:q.options
-    }));
-
-  renderQuiz(window.examQuestionsAttempt);
 }
 
 /* ======================================================
