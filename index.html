@@ -4,9 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>PrepOS Home</title>
-
 <link rel="stylesheet" href="css/style.css">
-
 </head>
 
 <body>
@@ -21,10 +19,14 @@
 </div>
 
 <div class="card">
-<h3>Open Results</h3>
-<p>View attempts using exam id.</p>
-<input id="examId" placeholder="Paste exam id" style="width:100%;padding:8px;margin-top:6px;">
-<button onclick="openResults()">View Results</button>
+<h3>Recent Exams</h3>
+<div id="recentExams">Loading…</div>
+</div>
+
+<div class="card">
+<h3>Results Viewer</h3>
+<p>Browse submissions by exam.</p>
+<button onclick="location.href='teacher-results.html'">Open Viewer</button>
 </div>
 
 <div class="card">
@@ -34,18 +36,54 @@
 <button onclick="openExam()">Open Exam</button>
 </div>
 
-<script>
-function openResults(){
-const id=document.getElementById("examId").value.trim()
-if(!id) return alert("Enter exam id")
-location.href=`results.html?id=${id}`
-}
+<script src="js/config.js"></script>
 
+<script>
 function openExam(){
 const id=document.getElementById("examId2").value.trim()
 if(!id) return alert("Enter exam id")
 location.href=`exam.html?id=${id}`
 }
+
+async function loadRecentExams(){
+
+const res = await fetch(
+`${SUPABASE_URL}/rest/v1/exams?select=id,title,created_at&order=created_at.desc&limit=5`,
+{
+headers:{
+apikey:SUPABASE_ANON_KEY,
+Authorization:`Bearer ${SUPABASE_ANON_KEY}`
+}
+})
+
+const data=await res.json()
+const container=document.getElementById("recentExams")
+container.innerHTML=""
+
+if(!data.length){
+container.innerHTML="No exams yet"
+return
+}
+
+data.forEach(e=>{
+const div=document.createElement("div")
+div.className="recent-item"
+
+div.innerHTML=`
+<b>${e.title}</b><br>
+<button onclick="location.href='exam.html?id=${e.id}'">Open</button>
+<button onclick="viewResults('${e.id}')">Results</button>
+`
+container.appendChild(div)
+})
+}
+
+function viewResults(examId){
+localStorage.setItem("results_exam",examId)
+location.href="teacher-results.html"
+}
+
+loadRecentExams()
 </script>
 
 </body>

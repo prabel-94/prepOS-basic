@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>PrepOS Results</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+
+<div class="header">
+<button onclick="location.href='index.html'">← Home</button>
+<h2 style="margin:0;">Results Viewer</h2>
+</div>
+
+<div class="card">
+<label for="examSelect">Select exam</label>
+<select id="examSelect" title="Select an exam to view results"></select>
+<button onclick="exportCSV()">Export CSV</button>
+</div>
+
+<div class="card">
+<div id="results">Loading…</div>
+</div>
+
+<div id="historyModal" class="modal">
+<div id="historyContent"></div>
+<button onclick="closeHistory()">Close</button>
+</div>
+
+<script src="js/config.js"></script>
+
+<script>
+let currentResponses=[]
+
+async function loadExams(){
+
+const res=await fetch(
+`${SUPABASE_URL}/rest/v1/exams?select=id,title&order=created_at.desc`,
+{
+headers:{
+apikey:SUPABASE_ANON_KEY,
+Authorization:`Bearer ${SUPABASE_ANON_KEY}`
+}
+})
+
+const data=await res.json()
+const select=document.getElementById("examSelect")
+select.innerHTML=""
+
+data.forEach(e=>{
+const opt=document.createElement("option")
+opt.value=e.id
+opt.textContent=e.title
+select.appendChild(opt)
+})
+
+const saved=localStorage.getItem("results_exam")
+if(saved){
+select.value=saved
+loadResponses(saved)
+localStorage.removeItem("results_exam")
+}else if(data.length){
+loadResponses(data[0].id)
+}
+
+select.addEventListener("change",e=>{
+loadResponses(e.target.value)
+})
+}
+
+async function loadResponses(examId){
+
+const res=await fetch(
+`${SUPABASE_URL}/rest/v1/responses?exam_id=eq.${examId}&select=*`,
+{
+headers:{
+apikey:SUPABASE_ANON_KEY,
+Authorization:`Bearer ${SUPABASE_ANON_KEY}`
+}
+})
+
+currentResponses=await res.json()
+render(currentResponses)
+}
+
+function render(list){
+
+const container=document.getElementById("results")
+container.innerHTML=""
+
+if(!list.length){
+container.innerHTML="No submissions yet"
+return
+}
+
+const countMap={}
+list.forEach(r=>{
+countMap[r.student_name]=(countMap[r.student_name]||0)+1
+})
+
+const now=Date.now()
+
+list.sort((a,b)=>new Date(b.submitted_at)-new Date(a.submitted_at))
+
+list.forEach(r=>{
+
+const attempts=countMap[r.student_name]
+const isDuplicate=attempts>1
+const isRecent=now-new Date(r.submitted_at).getTime()<60000
+
+const div=document.createElement("div")
+div.className="result-item"+(isRecent?" recent":"")
+
+div.innerHTML=`
+<b>${r.student_name} ${isDuplicate?"⚠️":""}</b><br>
+Score: ${r.score}<br>
+Attempt: ${r.version}<br>
+Attempts total: ${attempts}<br>
+<button onclick="showHistory('${r.student_name}')">History</button><br>
+${new Date(r.submitted_at).toLocaleString()}
+`
+
+container.appendChild(div)
+})
+}
+
+function showHistory(name){
+
+const list=currentResponses
+.filter(r=>r.student_name===name)
+.sort((a,b)=>a.version-b.version)
+
+const content=document.getElementById("historyContent")
+content.innerHTML=`<h3>${name}</h3>`
+
+list.forEach(r=>{
+content.innerHTML+=`
+Attempt ${r.version} — Score ${r.score} — ${new Date(r.submitted_at).toLocaleString()}<br>
+`
+})
+
+document.getElementById("historyModal").style.display="block"
+}
+
+function closeHistory(){
+document.getElementById("historyModal").style.display="none"
+}
+
+function exportCSV(){
+
+if(!currentResponses.length) return
+
+const rows=[["name","score","version","submitted"]]
+
+currentResponses.forEach(r=>{
+rows.push([r.student_name,r.score,r.version,r.submitted_at])
+})
+
+const csv=rows.map(r=>r.join(",")).join("\n")
+const blob=new Blob([csv],{type:"text/csv"})
+const url=URL.createObjectURL(blob)
+
+const a=document.createElement("a")
+a.href=url
+a.download="results.csv"
+a.click()
+}
+
+setInterval(()=>{
+const examId=document.getElementById("examSelect").value
+if(examId) loadResponses(examId)
+},10000)
+
+loadExams()
+</script>
+
+</body>
+</html>
