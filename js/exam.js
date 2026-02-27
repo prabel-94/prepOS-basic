@@ -153,8 +153,16 @@ async function submitExam(){
 
   if(attemptState.status==="submitted") return;
 
-  const studentName =
-    document.getElementById("studentName").value.trim();
+  if(!window.examQuestionsRaw){
+    console.error("Raw questions missing");
+    alert("Exam not loaded properly");
+    return;
+  }
+
+  const studentInput =
+    document.getElementById("studentName");
+
+  const studentName = studentInput.value.trim();
 
   if(!studentName){
     alert("Please enter your name");
@@ -174,7 +182,7 @@ async function submitExam(){
     const correctLetter =
       String.fromCharCode(65 + q.correct);
 
-    answers.push({q:i,chosen}); // ⭐ corrected
+    answers.push({q:i,chosen});
 
     if(chosen===correctLetter) score++;
   });
@@ -199,13 +207,16 @@ async function submitExam(){
       })
     });
 
+    /* ---------- lock ---------- */
     attemptState.status="submitted";
     localStorage.setItem(ATTEMPT_KEY, JSON.stringify(attemptState));
 
     document.querySelectorAll('input[type="radio"]')
       .forEach(el=>el.disabled=true);
 
-    // ⭐ build review data
+    studentInput.disabled = true; // ⭐ polish
+
+    /* ---------- build review ---------- */
     window.reviewData =
       window.examQuestionsRaw.map((q,i)=>{
 
@@ -294,3 +305,5 @@ function renderReview(){
   });
 
 }
+
+document.addEventListener("DOMContentLoaded", loadExam);
