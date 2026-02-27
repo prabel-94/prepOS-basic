@@ -107,9 +107,29 @@ function renderDraft(draft) {
     div.className = "question-card"
 
     div.innerHTML = `
-      <p><b>Q${i + 1}</b></p>
-      <textarea data-i="${i}" class="qtext" rows="3">${q.question || ""}</textarea>
-    `
+  <p><b>Q${i + 1}</b></p>
+
+  <label>Question</label>
+  <textarea data-i="${i}" class="qtext" rows="3">${q.question || ""}</textarea>
+
+  <label>Options</label>
+  ${q.options.map((opt, oi) => `
+    <input class="opt"
+           data-i="${i}"
+           data-oi="${oi}"
+           value="${opt || ""}" />
+  `).join("")}
+
+  <label>Correct</label>
+  <select class="correct" data-i="${i}">
+    ${["A","B","C","D"].map((l, idx)=>`
+      <option value="${idx}" ${q.correct==idx?"selected":""}>${l}</option>
+    `).join("")}
+  </select>
+
+  <label>Explanation</label>
+  <textarea class="exp" data-i="${i}" rows="2">${q.explanation || ""}</textarea>
+`
 
     container.appendChild(div)
 
@@ -142,6 +162,21 @@ async function saveDraft(silent = false) {
       if (questions[i]) {
         questions[i].question = el.value
       }
+    })
+    document.querySelectorAll(".opt").forEach(el => {
+      const i = +el.dataset.i
+      const oi = +el.dataset.oi
+      if (questions[i]) questions[i].options[oi] = el.value
+    })
+
+    document.querySelectorAll(".correct").forEach(el => {
+      const i = +el.dataset.i
+      if (questions[i]) questions[i].correct = +el.value
+    })
+
+    document.querySelectorAll(".exp").forEach(el => {
+      const i = +el.dataset.i
+      if (questions[i]) questions[i].explanation = el.value
     })
 
     const durationVal = document.getElementById("duration").value
