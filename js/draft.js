@@ -74,11 +74,13 @@ loadDraft()
 // ===============================
 function renderDraft(draft) {
 
-  console.log("DRAFT RECEIVED →", draft)   // ⭐ ADD THIS
+  console.log("DRAFT RECEIVED →", draft)
 
   currentDraft = draft
 
+  // ===============================
   // Meta
+  // ===============================
   const titleEl = document.getElementById("title")
   const durationEl = document.getElementById("duration")
 
@@ -88,7 +90,9 @@ function renderDraft(draft) {
   titleEl.addEventListener("input", scheduleAutosave)
   durationEl.addEventListener("input", scheduleAutosave)
 
+  // ===============================
   // Questions
+  // ===============================
   const container = document.getElementById("questions")
   container.innerHTML = ""
 
@@ -103,40 +107,52 @@ function renderDraft(draft) {
 
   questions.forEach((q, i) => {
 
+    // ⭐ Normalize correct value (letter → index)
+    let correctIndex = q.correct
+
+    if (typeof correctIndex === "string") {
+      correctIndex = ["A","B","C","D"].indexOf(correctIndex)
+    }
+
+    if (correctIndex < 0 || correctIndex > 3) {
+      correctIndex = 0
+    }
+
+    const opts = q.options || ["", "", "", ""]
+
     const div = document.createElement("div")
     div.className = "question-card"
 
     div.innerHTML = `
-  <p><b>Q${i + 1}</b></p>
+      <p><b>Q${i + 1}</b></p>
 
-  <label>Question</label>
-  <textarea data-i="${i}" class="qtext" rows="3">${q.question || ""}</textarea>
+      <label>Question</label>
+      <textarea data-i="${i}" class="qtext" rows="3">${q.question || ""}</textarea>
 
-  <label>Options</label>
-  ${(q.options || ["", "", "", ""]).map((opt, oi) => `
-  <input class="opt"
-         data-i="${i}"
-         data-oi="${oi}"
-         value="${opt || ""}" />
-`).join("")}
+      <label>Options</label>
+      ${opts.map((opt, oi) => `
+        <input class="opt"
+               data-i="${i}"
+               data-oi="${oi}"
+               value="${opt || ""}" />
+      `).join("")}
 
-  <label>Correct</label>
-  <select class="correct" data-i="${i}">
-    ${["A","B","C","D"].map((l, idx)=>`
-      <option value="${idx}" ${Number(q.correct)===idx?"selected":""}>
-    `).join("")}
-  </select>
+      <label>Correct</label>
+      <select class="correct" data-i="${i}">
+        ${["A","B","C","D"].map((l, idx)=>`
+          <option value="${idx}" ${correctIndex===idx?"selected":""}>${l}</option>
+        `).join("")}
+      </select>
 
-  <label>Explanation</label>
-  <textarea class="exp" data-i="${i}" rows="2">${q.explanation || ""}</textarea>
-`
+      <label>Explanation</label>
+      <textarea class="exp" data-i="${i}" rows="2">${q.explanation || ""}</textarea>
+    `
 
     container.appendChild(div)
-    div.querySelectorAll(".opt, .correct, .exp")
-  .forEach(el => el.addEventListener("input", scheduleAutosave))
 
-    div.querySelector(".qtext")
-      .addEventListener("input", scheduleAutosave)
+    // ⭐ Autosave listeners
+    div.querySelectorAll(".qtext, .opt, .correct, .exp")
+      .forEach(el => el.addEventListener("input", scheduleAutosave))
   })
 }
 
