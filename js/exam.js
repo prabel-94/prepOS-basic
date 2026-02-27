@@ -234,18 +234,51 @@ function renderReview(){
 
   window.reviewData.forEach((q,i)=>{
 
-    const div=document.createElement("div");
+    const card=document.createElement("div");
+    card.className="review-card";
 
-    div.innerHTML=`
-      <h4>Q${i+1}. ${escapeHTML(q.question)}</h4>
-      <p>Your answer: <b>${q.student}</b></p>
-      <p>Correct: <b>${q.correct}</b></p>
-      <p>${escapeHTML(q.explanation||"")}</p>
-      <hr>
+    const optionsHTML = q.options.map((o,idx)=>{
+
+      const letter = String.fromCharCode(65+idx);
+
+      let cls="option";
+
+      if(letter===q.correct) cls+=" correct";
+      if(letter===q.student && letter!==q.correct) cls+=" wrong";
+      if(letter===q.student) cls+=" chosen";
+
+      return `
+        <div class="${cls}">
+          <b>${letter}.</b> ${escapeHTML(o)}
+        </div>
+      `;
+    }).join("");
+
+    card.innerHTML=`
+      <div class="review-q">
+        <b>Q${i+1}.</b> ${escapeHTML(q.question)}
+      </div>
+
+      <div class="review-options">
+        ${optionsHTML}
+      </div>
+
+      <button class="explain-btn">Explanation</button>
+      <div class="explanation" style="display:none">
+        ${escapeHTML(q.explanation||"No explanation provided")}
+      </div>
     `;
 
-    container.appendChild(div);
-  });
-}
+    /* accordion */
+    const btn=card.querySelector(".explain-btn");
+    const exp=card.querySelector(".explanation");
 
-loadExam();
+    btn.onclick=()=>{
+      exp.style.display =
+        exp.style.display==="none" ? "block":"none";
+    };
+
+    container.appendChild(card);
+  });
+
+}

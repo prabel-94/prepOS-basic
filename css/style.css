@@ -102,3 +102,73 @@ button:hover{
   width:320px;
   display:none;
 }
+/* ===== Exam page ===== */
+.exam-wrapper{
+max-width:800px;
+margin:auto;
+padding:20px;
+}
+
+#studentName{
+display:block;
+margin:10px 0 20px;
+padding:8px;
+width:100%;
+}
+
+#result{
+margin-top:30px;
+}
+
+/* ===== Review page ===== */
+.review-card{
+border:1px solid #ddd;
+border-radius:10px;
+padding:15px;
+margin-bottom:20px;
+background:#fff;
+box-shadow:0 2px 6px rgba(0,0,0,.05);
+}
+
+.review-q{
+margin-bottom:10px;
+font-size:16px;
+}
+
+.option{
+padding:8px;
+border-radius:6px;
+margin:5px 0;
+background:#f6f6f6;
+}
+
+.option.correct{
+background:#e7f7ec;
+border:1px solid #2ecc71;
+}
+
+.option.wrong{
+background:#fdeaea;
+border:1px solid #e74c3c;
+}
+
+.option.chosen{
+font-weight:600;
+}
+
+.explain-btn{
+margin-top:10px;
+padding:6px 10px;
+border:none;
+border-radius:6px;
+background:#eee;
+cursor:pointer;
+}
+
+.explanation{
+margin-top:10px;
+padding:10px;
+background:#f9f9f9;
+border-radius:6px;
+font-size:14px;
+}
