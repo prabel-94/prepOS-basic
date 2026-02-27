@@ -73,7 +73,7 @@ loadResponses(e.target.value)
 async function loadResponses(examId){
 
 const res=await fetch(
-`${SUPABASE_URL}/rest/v1/responses?exam_id=eq.${encodeURIComponent(examId)}&select=*&order=submitted_at.desc`,
+`${SUPABASE_URL}/rest/v1/responses?select=*`,
 {
 headers:{
 apikey:SUPABASE_ANON_KEY,
@@ -82,6 +82,7 @@ Authorization:`Bearer ${SUPABASE_ANON_KEY}`
 })
 
 currentResponses=await res.json()
+console.log("ALL responses:",currentResponses)
 render(currentResponses)
 }
 
