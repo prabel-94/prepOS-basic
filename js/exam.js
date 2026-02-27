@@ -22,9 +22,6 @@ if(!examId){
 const ATTEMPT_KEY = `prepos-attempt-${examId}`;
 const ATTEMPT_ID_KEY = `prepos-attempt-id-${examId}`;
 
-console.log("ExamId:", examId);
-
-/* ---------- attempt id ---------- */
 function createAttemptId(examId){
   const rand = Math.random().toString(36).slice(2,7);
   return `${examId}-${rand}`;
@@ -37,12 +34,8 @@ if(!attemptId){
   localStorage.setItem(ATTEMPT_ID_KEY, attemptId);
 }
 
-console.log("Attempt:", attemptId);
-
 /* ---------- attempt state ---------- */
-let attemptState = JSON.parse(
-  localStorage.getItem(ATTEMPT_KEY) || "null"
-);
+let attemptState = JSON.parse(localStorage.getItem(ATTEMPT_KEY) || "null");
 
 if(!attemptState || attemptState.attemptId !== attemptId){
   attemptState = {
@@ -51,14 +44,12 @@ if(!attemptState || attemptState.attemptId !== attemptId){
     answers:{},
     status:"in_progress"
   };
-
-  localStorage.setItem(
-    ATTEMPT_KEY,
-    JSON.stringify(attemptState)
-  );
+  localStorage.setItem(ATTEMPT_KEY, JSON.stringify(attemptState));
 }
 
-/* ---------- fetch exam ---------- */
+/* ======================================================
+   FETCH EXAM
+====================================================== */
 async function loadExam(){
 
   const res = await fetch(
@@ -73,20 +64,29 @@ async function loadExam(){
 
   const data = await res.json();
 
-  console.log("ROW STRUCTURE:", data[0]);
-
   if(!data.length){
     document.getElementById("quiz").innerText="Exam not found";
     return;
   }
 
   const questions = data[0].schema_json.sections[0].questions;
-  window.examQuestions = questions;
 
-  renderQuiz(questions);
+  // ⭐ keep raw for scoring + review
+  window.examQuestionsRaw = questions;
+
+  // ⭐ attempt version (sanitized)
+  window.examQuestionsAttempt =
+    questions.map(q=>({
+      question:q.question,
+      options:q.options
+    }));
+
+  renderQuiz(window.examQuestionsAttempt);
 }
 
-/* ---------- render quiz ---------- */
+/* ======================================================
+   RENDER QUIZ
+====================================================== */
 function renderQuiz(questions){
 
   const container=document.getElementById("quiz");
@@ -99,7 +99,6 @@ function renderQuiz(questions){
 
     div.innerHTML =
       `<p style="white-space:pre-line">${escapeHTML(q.question)}</p>`+
-
       q.options.map((o,idx)=>
         `<label>
         <input type="radio" name="q${i}" value="${String.fromCharCode(65+idx)}">
@@ -110,22 +109,16 @@ function renderQuiz(questions){
     container.appendChild(div);
   });
 
-  /* ---------- autosave ---------- */
+  /* autosave */
   document.querySelectorAll('input[type="radio"]').forEach(r=>{
     r.addEventListener("change", e=>{
       const name = e.target.name;
       attemptState.answers[name] = e.target.value;
-
-      localStorage.setItem(
-        ATTEMPT_KEY,
-        JSON.stringify(attemptState)
-      );
-
-      console.log("Autosaved:", attemptState.answers);
+      localStorage.setItem(ATTEMPT_KEY, JSON.stringify(attemptState));
     });
   });
 
-  /* ---------- restore ---------- */
+  /* restore */
   if(attemptState.answers){
     Object.entries(attemptState.answers).forEach(([name,val])=>{
       const el = container.querySelector(
@@ -141,13 +134,12 @@ function renderQuiz(questions){
   container.appendChild(btn);
 }
 
-/* ---------- submit ---------- */
+/* ======================================================
+   SUBMIT
+====================================================== */
 async function submitExam(){
 
-  if(attemptState.status==="submitted"){
-    console.log("Already submitted");
-    return;
-  }
+  if(attemptState.status==="submitted") return;
 
   const studentName =
     document.getElementById("studentName").value.trim();
@@ -160,7 +152,7 @@ async function submitExam(){
   let score=0;
   const answers=[];
 
-  window.examQuestions.forEach((q,i)=>{
+  window.examQuestionsRaw.forEach((q,i)=>{
 
     const selected =
       document.querySelector(`input[name=q${i}]:checked`);
@@ -170,71 +162,90 @@ async function submitExam(){
     const correctLetter =
       String.fromCharCode(65 + q.correct);
 
-    answers.push({
-      q:i,
-      chosen,
-      correct:correctLetter
-    });
+    answers.push({q:i,chosen}); // ⭐ corrected
 
-    if(chosen.trim() === correctLetter.trim()){
-      score++;
-    }
+    if(chosen===correctLetter) score++;
   });
 
   try{
 
-    console.log("RESPONSE BODY:",{
-      exam_id:examId,
-      attempt_id:attemptId,
-      student_name:studentName,
-      answers,
-      score
+    await fetch(`${SUPABASE_URL}/rest/v1/responses`,{
+      method:"POST",
+      headers:{
+        apikey:SUPABASE_ANON_KEY,
+        Authorization:`Bearer ${SUPABASE_ANON_KEY}`,
+        "Content-Type":"application/json",
+        Prefer:"return=minimal"
+      },
+      body:JSON.stringify({
+        exam_id:examId,
+        device_id:attemptId,
+        student_name:studentName,
+        answers,
+        score,
+        submitted_at:new Date().toISOString()
+      })
     });
 
-    await fetch(
-      `${SUPABASE_URL}/rest/v1/responses`,
-      {
-        method:"POST",
-        headers:{
-          apikey:SUPABASE_ANON_KEY,
-          Authorization:`Bearer ${SUPABASE_ANON_KEY}`,
-          "Content-Type":"application/json",
-          Prefer:"return=minimal"
-        },
-        body:JSON.stringify({
-          exam_id:examId,
-          slug:examId,
-          version:1,
-          device_id:attemptId,
-          student_name:studentName,
-          answers,
-          score,
-          time_taken:0,
-          submitted_at:new Date().toISOString()
-        })
-      }
-    );
-
-    /* ---------- lock attempt ---------- */
     attemptState.status="submitted";
+    localStorage.setItem(ATTEMPT_KEY, JSON.stringify(attemptState));
 
-    localStorage.setItem(
-      ATTEMPT_KEY,
-      JSON.stringify(attemptState)
-    );
-
-    document
-      .querySelectorAll('input[type="radio"]')
+    document.querySelectorAll('input[type="radio"]')
       .forEach(el=>el.disabled=true);
 
+    // ⭐ build review data
+    window.reviewData =
+      window.examQuestionsRaw.map((q,i)=>{
+
+        const student = answers[i]?.chosen || "-";
+        const correct =
+          String.fromCharCode(65 + q.correct);
+
+        return{
+          question:q.question,
+          options:q.options,
+          correct,
+          student,
+          explanation:q.explanation,
+          isCorrect:student===correct
+        };
+      });
+
     document.getElementById("result").innerHTML =
-      `<h3>${studentName}, your score: ${score}/${window.examQuestions.length}</h3>`;
+      `<h3>${studentName}, your score: ${score}/${window.examQuestionsRaw.length}</h3>
+       <button id="reviewBtn">View Answers</button>`;
+
+    document.getElementById("reviewBtn")
+      .onclick = renderReview;
 
   }catch(err){
-
     console.error(err);
     alert("Failed to save response");
   }
+}
+
+/* ======================================================
+   REVIEW MODE
+====================================================== */
+function renderReview(){
+
+  const container=document.getElementById("quiz");
+  container.innerHTML="";
+
+  window.reviewData.forEach((q,i)=>{
+
+    const div=document.createElement("div");
+
+    div.innerHTML=`
+      <h4>Q${i+1}. ${escapeHTML(q.question)}</h4>
+      <p>Your answer: <b>${q.student}</b></p>
+      <p>Correct: <b>${q.correct}</b></p>
+      <p>${escapeHTML(q.explanation||"")}</p>
+      <hr>
+    `;
+
+    container.appendChild(div);
+  });
 }
 
 loadExam();
