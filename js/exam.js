@@ -194,10 +194,14 @@ Prefer: "return=minimal"
 },
 body: JSON.stringify({
 exam_id: examId,
-attempt_id: attemptId,
+slug: examId,
+version: 1,
+device_id: attemptId,
 student_name: studentName,
 answers,
-score
+score,
+time_taken: 0,
+submitted_at: new Date().toISOString()
 })
 }
 )
