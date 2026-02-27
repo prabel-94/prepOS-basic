@@ -72,8 +72,8 @@ loadResponses(e.target.value)
 
 async function loadResponses(examId){
 
-const res=await fetch(
-`${SUPABASE_URL}/rest/v1/responses?select=*`,
+const res = await fetch(
+`${SUPABASE_URL}/rest/v1/responses?exam_id=eq.${examId}&select=*&order=submitted_at.desc`,
 {
 headers:{
 apikey:SUPABASE_ANON_KEY,
@@ -81,13 +81,16 @@ Authorization:`Bearer ${SUPABASE_ANON_KEY}`
 }
 })
 
-const data = await res.json()
+/* ⭐ place check HERE */
+if(!res.ok){
+console.error("Failed to load responses", res.status)
+return
+}
 
-console.log("RESPONSES RAW:", data)
+const data = await res.json()
 
 currentResponses = Array.isArray(data) ? data : []
 
-console.log("RESPONSES RECEIVED:", currentResponses)
 render(currentResponses)
 }
 
