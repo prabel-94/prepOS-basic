@@ -18,7 +18,7 @@ h1{
   margin-bottom: 10px;
 }
 
-/* ===== Card (home page) ===== */
+/* ===== Card ===== */
 .card{
   background: white;
   border-radius: 8px;
@@ -27,7 +27,7 @@ h1{
   box-shadow: 0 2px 6px rgba(0,0,0,0.08);
 }
 
-/* ===== Questions (creator preview) ===== */
+/* ===== Questions ===== */
 .question{
   margin-bottom: 20px;
   padding: 10px;
@@ -49,6 +49,10 @@ button{
   cursor: pointer;
 }
 
+button:hover{
+  opacity:0.9;
+}
+
 /* Creator button slightly different */
 .creator button{
   padding: 10px 20px;
@@ -58,4 +62,43 @@ button{
 .small{
   color:#666;
   font-size:14px;
+}
+
+/* ===== Recent exams ===== */
+.recent-item{
+  padding:8px 0;
+  border-bottom:1px solid #eee;
+}
+
+/* ===== Results header ===== */
+.header{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  margin-bottom:12px;
+}
+
+/* ===== Result row ===== */
+.result-item{
+  padding:10px;
+  border-bottom:1px solid #ddd;
+}
+
+.recent{
+  background:#e8f5e9;
+}
+
+/* ===== Modal ===== */
+.modal{
+  position:fixed;
+  top:10%;
+  left:50%;
+  transform:translateX(-50%);
+  background:white;
+  padding:20px;
+  border:1px solid #ccc;
+  max-height:70vh;
+  overflow:auto;
+  width:320px;
+  display:none;
 }
