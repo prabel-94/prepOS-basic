@@ -81,8 +81,11 @@ Authorization:`Bearer ${SUPABASE_ANON_KEY}`
 }
 })
 
-currentResponses=await res.json()
-console.log("ALL responses:",currentResponses)
+const data = await res.json()
+
+console.log("RESPONSES RAW:", data)
+
+currentResponses = Array.isArray(data) ? data : []
 render(currentResponses)
 }
 
@@ -91,7 +94,7 @@ function render(list){
 const container=document.getElementById("results")
 container.innerHTML=""
 
-if(!list.length){
+if(!list || !list.length){
 container.innerHTML="No submissions yet"
 return
 }
