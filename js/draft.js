@@ -113,17 +113,17 @@ function renderDraft(draft) {
   <textarea data-i="${i}" class="qtext" rows="3">${q.question || ""}</textarea>
 
   <label>Options</label>
-  ${q.options.map((opt, oi) => `
-    <input class="opt"
-           data-i="${i}"
-           data-oi="${oi}"
-           value="${opt || ""}" />
-  `).join("")}
+  ${(q.options || ["", "", "", ""]).map((opt, oi) => `
+  <input class="opt"
+         data-i="${i}"
+         data-oi="${oi}"
+         value="${opt || ""}" />
+`).join("")}
 
   <label>Correct</label>
   <select class="correct" data-i="${i}">
     ${["A","B","C","D"].map((l, idx)=>`
-      <option value="${idx}" ${q.correct==idx?"selected":""}>${l}</option>
+      <option value="${idx}" ${Number(q.correct)===idx?"selected":""}>
     `).join("")}
   </select>
 
@@ -132,6 +132,8 @@ function renderDraft(draft) {
 `
 
     container.appendChild(div)
+    div.querySelectorAll(".opt, .correct, .exp")
+  .forEach(el => el.addEventListener("input", scheduleAutosave))
 
     div.querySelector(".qtext")
       .addEventListener("input", scheduleAutosave)
