@@ -91,43 +91,59 @@ render(currentResponses)
 
 function render(list){
 
-const container=document.getElementById("results")
-container.innerHTML=""
+const container = document.getElementById("results")
+container.innerHTML = ""
 
-if(!list || !list.length){
-container.innerHTML="No submissions yet"
+/* guard */
+if(!Array.isArray(list) || list.length === 0){
+container.innerHTML = "No submissions yet"
 return
 }
 
-const countMap={}
+/* build attempt count map */
+const countMap = {}
+
 list.forEach(r=>{
-countMap[r.student_name]=(countMap[r.student_name]||0)+1
+const name = r.student_name || "Unknown"
+countMap[name] = (countMap[name] || 0) + 1
 })
 
-const now=Date.now()
+/* safe sort by submitted_at */
+list.sort((a,b)=>{
+const ta = a.submitted_at ? new Date(a.submitted_at).getTime() : 0
+const tb = b.submitted_at ? new Date(b.submitted_at).getTime() : 0
+return tb - ta
+})
 
-list.sort((a,b)=>new Date(b.submitted_at)-new Date(a.submitted_at))
+const now = Date.now()
 
+/* render rows */
 list.forEach(r=>{
 
-const attempts=countMap[r.student_name]
-const isDuplicate=attempts>1
-const isRecent=now-new Date(r.submitted_at).getTime()<60000
+const name = r.student_name || "Unknown"
+const attempts = countMap[name] || 1
+const isDuplicate = attempts > 1
 
-const div=document.createElement("div")
-div.className="result-item"+(isRecent?" recent":"")
+const isRecent = r.submitted_at
+? now - new Date(r.submitted_at).getTime() < 60000
+: false
 
-div.innerHTML=`
-<b>${r.student_name} ${isDuplicate?"⚠️":""}</b><br>
-Score: ${r.score}<br>
-Attempt: ${r.version}<br>
+const div = document.createElement("div")
+div.className = "result-item" + (isRecent ? " recent" : "")
+
+div.innerHTML = `
+<b>${name} ${isDuplicate ? "⚠️" : ""}</b><br>
+Score: ${r.score ?? "-"}<br>
+Attempt: ${r.version ?? "-"}<br>
 Attempts total: ${attempts}<br>
-<button onclick="showHistory('${r.student_name}')">History</button><br>
-${new Date(r.submitted_at).toLocaleString()}
+<button onclick="showHistory('${name}')">History</button><br>
+${r.submitted_at ? new Date(r.submitted_at).toLocaleString() : ""}
 `
 
 container.appendChild(div)
+
 })
+
 }
 
 function showHistory(name){
