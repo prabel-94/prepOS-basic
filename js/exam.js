@@ -78,7 +78,8 @@ document.getElementById("quiz").innerText="Exam not found"
 return
 }
 
-renderQuiz(data[0].questions)
+const questions = data[0].schema_json.sections[0].questions
+renderQuiz(questions)
 }
 
 function renderQuiz(questions){
@@ -92,7 +93,7 @@ const div=document.createElement("div")
 div.className="question"
 
 div.innerHTML=
-`<p style="white-space:pre-line">${escapeHTML(q.q)}</p>`+
+`<p style="white-space:pre-line">${escapeHTML(q.question)}</p>`+
 
 q.options.map((o,idx)=>
 `<label>
@@ -164,7 +165,7 @@ const chosen = selected ? selected.value : "-"
 answers.push({
 q: i,
 chosen,
-correct: q.answer
+correct: String.fromCharCode(65 + q.correct)
 })
 
 if(chosen === q.answer) score++
