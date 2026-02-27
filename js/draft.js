@@ -236,7 +236,11 @@ async function cloneDraft() {
 
     const res = await fetch(CLONE_FUNCTION_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": SUPABASE_ANON_KEY,
+        "Authorization": `Bearer ${SUPABASE_ANON_KEY}`
+      }
       body: JSON.stringify({ draftId })
     })
 
@@ -268,7 +272,11 @@ async function publishDraft() {
 
     const res = await fetch(PUBLISH_FUNCTION_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": SUPABASE_ANON_KEY,
+        "Authorization": `Bearer ${SUPABASE_ANON_KEY}`
+      },
       body: JSON.stringify({ draftId })
     })
 
