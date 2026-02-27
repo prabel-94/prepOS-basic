@@ -65,7 +65,6 @@ async function loadExam(){
     );
 
     const data = await res.json();
-
     console.log("Exam fetch result:", data);
 
     if(!data.length){
@@ -73,47 +72,30 @@ async function loadExam(){
       return;
     }
 
-    /* ---------- safe schema access ---------- */
-    const row = data[0];
-
-    if(
-      !row.schema_json ||
-      !row.schema_json.sections ||
-      !row.schema_json.sections[0] ||
-      !row.schema_json.sections[0].questions
-    ){
-      document.getElementById("quiz").innerText="Exam data invalid";
-      console.error("Schema path broken:", row);
-      return;
-    }
-
     const questions =
-      row.schema_json.sections[0].questions;
+      data[0].schema_json.sections[0].questions;
 
-    /* ---------- store RAW (review + scoring) ---------- */
+    /* RAW */
     window.examQuestionsRaw = questions;
 
-    /* ---------- sanitized attempt version ---------- */
+    /* ATTEMPT */
     window.examQuestionsAttempt =
       questions.map(q=>({
         question:q.question,
         options:q.options
       }));
 
-    /* ⭐ backward compatibility (IMPORTANT) */
-    window.examQuestions = window.examQuestionsAttempt;
+    /* ⭐ CRITICAL — restore legacy variable */
+    window.examQuestions = questions;
 
-    /* ---------- render ---------- */
+    /* render */
     renderQuiz(window.examQuestionsAttempt);
 
   }catch(err){
-
-    console.error("loadExam failed:", err);
+    console.error(err);
     document.getElementById("quiz").innerText="Failed to load exam";
-
   }
 }
-
 /* ======================================================
    RENDER QUIZ
 ====================================================== */
