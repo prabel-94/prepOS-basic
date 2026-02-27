@@ -114,8 +114,28 @@ alert("No valid questions detected.");
 return;
 }
 
-const title = "PrepOS Quiz";
-const duration = parseInt(document.getElementById("duration").value)||10;
+/* ⭐ build dynamic title */
+function buildExamTitle(base="PrepOS Quiz"){
+const d = new Date();
+
+const date =
+d.toLocaleDateString(undefined,{
+day:"2-digit",
+month:"short"
+});
+
+const time =
+d.toLocaleTimeString([],{
+hour:"2-digit",
+minute:"2-digit"
+});
+
+return `${base} — ${date} ${time}`;
+}
+
+const title = buildExamTitle();   // ✅ changed
+const duration =
+parseInt(document.getElementById("duration").value)||10;
 
 const draftLink = await createDraft(title,questions,duration);
 
