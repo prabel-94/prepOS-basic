@@ -10,6 +10,23 @@ function escapeHTML(str){
     .replace(/'/g,"&#039;");
 }
 
+/* ---------- scroll to result ---------- */
+function scrollToResult(){
+  const resultEl = document.getElementById("result")
+
+  if(!resultEl){
+    console.warn("Result container not found")
+    return
+  }
+
+  // Delay ensures DOM render completes
+  setTimeout(()=>{
+    resultEl.scrollIntoView({
+      behavior: "smooth",
+      block: "start"
+    })
+  }, 120)
+}
 /* ---------- get exam id ---------- */
 const params = new URLSearchParams(location.search);
 const examId = params.get("id");
