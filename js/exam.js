@@ -19,12 +19,21 @@ function scrollToResult(){
     return
   }
 
-  // Delay ensures DOM render completes
   setTimeout(()=>{
+
+    // ✅ ADD highlight class HERE
+    resultEl.classList.add("result-highlight")
+
     resultEl.scrollIntoView({
       behavior: "smooth",
       block: "start"
     })
+
+    // ✅ REMOVE highlight after animation
+    setTimeout(()=>{
+      resultEl.classList.remove("result-highlight")
+    }, 800)
+
   }, 120)
 }
 /* ---------- get exam id ---------- */
