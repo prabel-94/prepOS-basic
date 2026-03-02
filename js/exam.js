@@ -255,6 +255,8 @@ async function submitExam(){
       `<h3>${studentName}, your score: ${score}/${window.examQuestionsRaw.length}</h3>
        <button id="reviewBtn">View Answers</button>`;
 
+scrollToResult()
+
     document.getElementById("reviewBtn")
       .onclick = renderReview;
 
