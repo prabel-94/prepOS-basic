@@ -285,23 +285,23 @@ scrollToResult()
 ====================================================== */
 function renderReview(){
 
-  const container=document.getElementById("quiz");
-  container.innerHTML="";
+  const container = document.getElementById("quiz");
+  container.innerHTML = "";
 
   window.reviewData.forEach((q,i)=>{
 
-    const card=document.createElement("div");
-    card.className="review-card";
+    const card = document.createElement("div");
+    card.className = "review-card";
 
     const optionsHTML = q.options.map((o,idx)=>{
 
       const letter = String.fromCharCode(65+idx);
 
-      let cls="option";
+      let cls = "option";
 
-      if(letter===q.correct) cls+=" correct";
-      if(letter===q.student && letter!==q.correct) cls+=" wrong";
-      if(letter===q.student) cls+=" chosen";
+      if(letter === q.correct) cls += " correct";
+      if(letter === q.student && letter !== q.correct) cls += " wrong";
+      if(letter === q.student) cls += " chosen";
 
       return `
         <div class="${cls}">
@@ -310,9 +310,14 @@ function renderReview(){
       `;
     }).join("");
 
-    card.innerHTML=`
+    const cleanQuestion = stripLeadingNumber(q.question);
+
+    card.innerHTML = `
       <div class="review-q">
-        <b>Q${i+1}.</b> ${escapeHTML(q.question)}
+        <span class="question-number"><b>Q${i+1}.</b></span>
+        <span class="question-text">
+          ${escapeHTML(cleanQuestion)}
+        </span>
       </div>
 
       <div class="review-options">
@@ -321,17 +326,17 @@ function renderReview(){
 
       <button class="explain-btn">Explanation</button>
       <div class="explanation" style="display:none">
-        ${escapeHTML(q.explanation||"No explanation provided")}
+        ${escapeHTML(q.explanation || "No explanation provided")}
       </div>
     `;
 
     /* accordion */
-    const btn=card.querySelector(".explain-btn");
-    const exp=card.querySelector(".explanation");
+    const btn = card.querySelector(".explain-btn");
+    const exp = card.querySelector(".explanation");
 
-    btn.onclick=()=>{
+    btn.onclick = ()=>{
       exp.style.display =
-        exp.style.display==="none" ? "block":"none";
+        exp.style.display === "none" ? "block" : "none";
     };
 
     container.appendChild(card);
