@@ -9,7 +9,12 @@ function escapeHTML(str){
     .replace(/"/g,"&quot;")
     .replace(/'/g,"&#039;");
 }
-
+/* ---solves double question number -- */
+function stripLeadingNumber(text){
+  return String(text)
+    .replace(/^(Q?\d+[\).\s]+)/i, "")
+    .trim();
+}
 /* ---------- scroll to result ---------- */
 function scrollToResult(){
   const resultEl = document.getElementById("result")
