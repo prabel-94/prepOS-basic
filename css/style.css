@@ -172,3 +172,21 @@ background:#f9f9f9;
 border-radius:6px;
 font-size:14px;
 }
+/* ---------- Result Scroll + Highlight ---------- */
+
+#result {
+  scroll-margin-top: 20px; /* Prevents result from sticking to top edge */
+}
+
+.result-highlight {
+  animation: resultPulse 0.8s ease-in-out;
+}
+
+@keyframes resultPulse {
+  0% { 
+    background-color: #fff3cd; 
+  }
+  100% { 
+    background-color: transparent; 
+  }
+}
