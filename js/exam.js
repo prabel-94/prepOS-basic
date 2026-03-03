@@ -10,6 +10,32 @@ function escapeHTML(str){
     .replace(/'/g,"&#039;");
 }
 
+/* ---------- scroll to result ---------- */
+function scrollToResult(){
+  const resultEl = document.getElementById("result")
+
+  if(!resultEl){
+    console.warn("Result container not found")
+    return
+  }
+
+  setTimeout(()=>{
+
+    // ✅ ADD highlight class HERE
+    resultEl.classList.add("result-highlight")
+
+    resultEl.scrollIntoView({
+      behavior: "smooth",
+      block: "start"
+    })
+
+    // ✅ REMOVE highlight after animation
+    setTimeout(()=>{
+      resultEl.classList.remove("result-highlight")
+    }, 800)
+
+  }, 120)
+}
 /* ---------- get exam id ---------- */
 const params = new URLSearchParams(location.search);
 const examId = params.get("id");
@@ -237,6 +263,8 @@ async function submitExam(){
     document.getElementById("result").innerHTML =
       `<h3>${studentName}, your score: ${score}/${window.examQuestionsRaw.length}</h3>
        <button id="reviewBtn">View Answers</button>`;
+
+scrollToResult()
 
     document.getElementById("reviewBtn")
       .onclick = renderReview;
