@@ -360,13 +360,18 @@ if(pdfBtn){
 function expandAllExplanations(){
 
   const explanations = document.querySelectorAll(".explanation");
+  const buttons = document.querySelectorAll(".explain-btn");
 
   explanations.forEach(el=>{
     el.style.display = "block";
   });
 
-}
+  // hide buttons for PDF
+  buttons.forEach(btn=>{
+    btn.style.display = "none";
+  });
 
+}
 function downloadReviewPDF(){
 
   const element = document.getElementById("quiz");
