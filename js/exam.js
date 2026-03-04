@@ -396,12 +396,19 @@ function downloadReviewPDF(){
   });
 
 }
+
 function collapseAllExplanations(){
 
   const explanations = document.querySelectorAll(".explanation");
+  const buttons = document.querySelectorAll(".explain-btn");
 
   explanations.forEach(el=>{
     el.style.display = "none";
+  });
+
+  // restore buttons
+  buttons.forEach(btn=>{
+    btn.style.display = "inline-block";
   });
 
 }
