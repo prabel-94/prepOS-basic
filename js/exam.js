@@ -349,6 +349,16 @@ if(pdfBtn){
 }
 }
 
+function expandAllExplanations(){
+
+  const explanations = document.querySelectorAll(".explanation");
+
+  explanations.forEach(el=>{
+    el.style.display = "block";
+  });
+
+}
+
 function downloadReviewPDF(){
 
   const element = document.getElementById("quiz");
