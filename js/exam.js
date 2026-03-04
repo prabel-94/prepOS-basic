@@ -349,4 +349,16 @@ if(pdfBtn){
 }
 }
 
+function downloadReviewPDF(){
+
+  const element = document.getElementById("quiz");
+
+  const opt = {
+    margin: 10,
+    filename: "exam-review.pdf",
+    image: { type: "jpeg", quality: 0.98 },
+    html2canvas: { scale: 2 },
+    jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
+  }; html2pdf().set(opt).from(element).save();
+}
 document.addEventListener("DOMContentLoaded", loadExam);
