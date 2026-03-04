@@ -202,10 +202,11 @@ async function saveDraft(silent = false) {
     const { error } = await sb
       .from("exam_drafts")
       .update({
-        title: document.getElementById("title").value,
-        duration: durationVal ? parseInt(durationVal) : null,
-        schema_json: currentDraft.schema_json
-      })
+  title: document.getElementById("title").value,
+  duration: durationVal ? parseInt(durationVal) : null,
+  schema_json: currentDraft.schema_json,
+  logo_url: logoURL
+})
       .eq("id", draftId)
 
     if (error) throw error
