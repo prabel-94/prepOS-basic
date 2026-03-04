@@ -302,6 +302,29 @@ async function publishDraft() {
   }
 }
 
+async function uploadLogo(file){
+
+  const fileName = "logo-" + Date.now() + "-" + file.name;
+
+  const uploadUrl =
+    `${SUPABASE_URL}/storage/v1/object/logos/${fileName}`;
+
+  const res = await fetch(uploadUrl,{
+    method:"POST",
+    headers:{
+      "Authorization":`Bearer ${SUPABASE_ANON_KEY}`,
+      "Content-Type":file.type
+    },
+    body:file
+  });
+
+  if(!res.ok){
+    alert("Logo upload failed");
+    return null;
+  }
+
+  return `${SUPABASE_URL}/storage/v1/object/public/logos/${fileName}`;
+}
 
 
 // ===============================
