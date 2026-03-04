@@ -363,13 +363,25 @@ function downloadReviewPDF(){
 
   const element = document.getElementById("quiz");
 
+  // 1️⃣ show all explanations
+  expandAllExplanations();
+
   const opt = {
     margin: 10,
     filename: "exam-review.pdf",
     image: { type: "jpeg", quality: 0.98 },
     html2canvas: { scale: 2 },
     jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
-  }; html2pdf().set(opt).from(element).save();
+  };
+
+  // 2️⃣ generate pdf
+  html2pdf().set(opt).from(element).save().then(()=>{
+
+    // 3️⃣ restore UI after export
+    collapseAllExplanations();
+
+  });
+
 }
 function collapseAllExplanations(){
 
