@@ -68,6 +68,9 @@ div.innerHTML=
 <div class="small">Score: ${r.score}</div>
 <div class="small">${new Date(r.created_at).toLocaleString()}</div>
 <button>View Answers</button>
+<button id="downloadPdfBtn" style="display:none">
+Download Review PDF
+</button>
 <div style="display:none;margin-top:8px;"></div>`
 
 const btn=div.querySelector("button")
