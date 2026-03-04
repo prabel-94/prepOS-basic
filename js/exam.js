@@ -266,8 +266,9 @@ async function submitExam(){
       });
 
     document.getElementById("result").innerHTML =
-      `<h3>${studentName}, your score: ${score}/${window.examQuestionsRaw.length}</h3>
-       <button id="reviewBtn">View Answers</button>`;
+`<h3>${studentName}, your score: ${score}/${window.examQuestionsRaw.length}</h3>
+ <button id="reviewBtn">View Answers</button>
+ <button id="downloadPdfBtn" style="display:none">Download Review PDF</button>`;
 
 scrollToResult()
 
