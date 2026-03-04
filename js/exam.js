@@ -349,6 +349,12 @@ if(pdfBtn){
   pdfBtn.style.display = "inline-block";
   pdfBtn.onclick = downloadReviewPDF;
 }
+const pdfBtn = document.getElementById("downloadPdfBtn");
+
+if(pdfBtn){
+  pdfBtn.style.display = "inline-block";
+  pdfBtn.onclick = downloadReviewPDF;
+}
 }
 
 function expandAllExplanations(){
@@ -394,4 +400,54 @@ function collapseAllExplanations(){
   });
 
 }
+
+function addPDFHeader(){
+
+  const container = document.getElementById("quiz");
+
+  if(document.getElementById("pdfHeader")) return;
+
+  const studentName = localStorage.getItem("studentName") || "Student";
+  const examTitle = window.examTitle || "Exam";
+
+  const scoreText = document.getElementById("result")
+      ? document.getElementById("result").innerText
+      : "";
+
+  const date = new Date().toLocaleDateString();
+
+  const logo = window.examLogo || "";
+
+  const header = document.createElement("div");
+  header.id = "pdfHeader";
+
+  header.innerHTML = `
+    <div class="pdf-header">
+
+      ${logo ? `<img src="${logo}" class="pdf-logo">` : ""}
+
+      <h2>${examTitle}</h2>
+
+      <p><b>Student:</b> ${studentName}</p>
+      <p><b>Date:</b> ${date}</p>
+      <p><b>${scoreText}</b></p>
+
+      <hr>
+
+    </div>
+  `;
+
+  container.prepend(header);
+}
+
+function removePDFHeader(){
+
+  const header = document.getElementById("pdfHeader");
+
+  if(header){
+    header.remove();
+  }
+
+}
+
 document.addEventListener("DOMContentLoaded", loadExam);
