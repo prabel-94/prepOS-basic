@@ -342,7 +342,11 @@ function renderReview(){
 
     container.appendChild(card);
   });
-
+const pdfBtn = document.getElementById("downloadPdfBtn");
+if(pdfBtn){
+  pdfBtn.style.display = "inline-block";
+  pdfBtn.onclick = downloadReviewPDF;
+}
 }
 
 document.addEventListener("DOMContentLoaded", loadExam);
