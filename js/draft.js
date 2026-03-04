@@ -326,6 +326,25 @@ async function uploadLogo(file){
   return `${SUPABASE_URL}/storage/v1/object/public/logos/${fileName}`;
 }
 
+let logoURL = "";
+
+document
+  .getElementById("logoUpload")
+  .addEventListener("change",async(e)=>{
+
+    const file = e.target.files[0];
+    if(!file) return;
+
+    const url = await uploadLogo(file);
+
+    if(url){
+      logoURL = url;
+
+      document.getElementById("logoPreview").innerHTML =
+        `<img src="${url}">`;
+    }
+
+});
 
 // ===============================
 // Expose globally
