@@ -105,8 +105,8 @@ async function loadExam(){
 
     const questions =
       data[0].schema_json.sections[0].questions;
-window.examTitle = exam.title || "Exam";
-window.examLogo = exam.logo_url || "";
+    window.examTitle = exam.title || "Exam";
+    window.examLogo = exam.logo_url || "";
 
     /* RAW */
     window.examQuestionsRaw = questions;
