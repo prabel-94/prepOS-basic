@@ -371,4 +371,13 @@ function downloadReviewPDF(){
     jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
   }; html2pdf().set(opt).from(element).save();
 }
+function collapseAllExplanations(){
+
+  const explanations = document.querySelectorAll(".explanation");
+
+  explanations.forEach(el=>{
+    el.style.display = "none";
+  });
+
+}
 document.addEventListener("DOMContentLoaded", loadExam);
