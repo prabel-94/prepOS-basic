@@ -103,10 +103,13 @@ async function loadExam(){
       return;
     }
 
-    const questions =
-      data[0].schema_json.sections[0].questions;
-    window.examTitle = exam.title || "Exam";
-    window.examLogo = exam.logo_url || "";
+    const exam = data[0];
+
+const questions =
+  exam.schema_json.sections[0].questions;
+
+window.examTitle = exam.title || "Exam";
+window.examLogo = exam.logo_url || "";
 
     /* RAW */
     window.examQuestionsRaw = questions;
