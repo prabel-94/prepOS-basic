@@ -29,10 +29,15 @@
 <script src="js/config.js"></script>
 <script src="js/exam.js"></script>
 
-<script src="https://cdn.jsdelivr.net/npm/eruda"></script>
 <script>
-eruda.init();
+(function () {
+  var script = document.createElement('script');
+  script.src = "https://cdn.jsdelivr.net/npm/eruda";
+  script.onload = function () {
+    eruda.init();
+  };
+  document.body.appendChild(script);
+})();
 </script>
-
 </body>
 </html>
