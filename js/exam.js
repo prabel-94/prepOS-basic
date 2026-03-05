@@ -105,7 +105,17 @@ async function loadExam(){
 
     const exam = data[0];
 
-const questions = exam.schema_json.sections.flatMap(s => s.questions);
+let questions = [];
+
+/* new schema (sections) */
+if (exam.schema_json?.sections) {
+  questions = exam.schema_json.sections.flatMap(s => s.questions);
+}
+
+/* old schema (direct questions) */
+else if (exam.schema_json?.questions) {
+  questions = exam.schema_json.questions;
+}
 
 window.examTitle = exam.title || "Exam";
 window.examLogo = exam.logo_url || "";
