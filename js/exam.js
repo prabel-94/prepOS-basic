@@ -104,6 +104,8 @@ async function loadExam(){
     }
 
     const exam = data[0];
+window.examTitle = exam.title || "Exam";
+window.examLogo = exam.logo_url || "";
 
 let questions = [];
 
@@ -117,8 +119,7 @@ else if (exam.schema_json?.questions) {
   questions = exam.schema_json.questions;
 }
 
-window.examTitle = exam.title || "Exam";
-window.examLogo = exam.logo_url || "";
+
 
     /* RAW */
     window.examQuestionsRaw = questions;
