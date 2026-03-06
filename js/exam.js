@@ -1,3 +1,4 @@
+console.log("Eruda test: exam.js loaded");
 console.log("SCRIPT STARTED");
 
 /* ---------- helpers ---------- */
