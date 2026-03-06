@@ -350,6 +350,7 @@ scrollToResult()
 ====================================================== */
 function renderReview(){
 
+console.log("renderReview running");
   const container = document.getElementById("quiz");
   container.innerHTML = "";
 
