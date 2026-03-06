@@ -350,7 +350,6 @@ scrollToResult()
 ====================================================== */
 function renderReview(){
 
-console.log("renderReview running");
   const container = document.getElementById("quiz");
   container.innerHTML = "";
 
@@ -366,20 +365,19 @@ console.log("renderReview running");
     card.appendChild(question);
 
     const optionsWrap = document.createElement("div");
-    optionsWrap.className = "review-options";
 
     q.options.forEach(function(opt,idx){
 
-      const letter = String.fromCharCode(65 + idx);
+      const letter = String.fromCharCode(65+idx);
 
       const option = document.createElement("div");
       option.className = "option";
 
-      if(letter === q.correct){
+      if(letter===q.correct){
         option.classList.add("correct");
       }
 
-      if(letter === q.student && letter !== q.correct){
+      if(letter===q.student && letter!==q.correct){
         option.classList.add("wrong");
       }
 
@@ -390,17 +388,15 @@ console.log("renderReview running");
     });
 
     card.appendChild(optionsWrap);
-
     container.appendChild(card);
 
   });
 
 
-  /* ---------------- PDF DOWNLOAD BUTTON ---------------- */
+  /* ---------- CREATE PDF BUTTON ---------- */
 
   let pdfBtn = document.getElementById("downloadPdfBtn");
 
-  /* create button if it does not exist */
   if(!pdfBtn){
 
     pdfBtn = document.createElement("button");
@@ -414,7 +410,9 @@ console.log("renderReview running");
 
   }
 
-  /* remove previous listener to avoid duplicates */
+
+  /* ---------- ATTACH PDF EVENT ---------- */
+
   pdfBtn.onclick = function(){
 
     const reviewContainer = document.getElementById("quiz");
@@ -432,47 +430,6 @@ console.log("renderReview running");
   };
 
 }
-
-function expandAllExplanations(){
-
-  const explanations = document.querySelectorAll(".explanation");
-  const buttons = document.querySelectorAll(".explain-btn");
-
-  explanations.forEach(el=>{
-    el.style.display = "block";
-  });
-
-  // hide buttons for PDF
-  buttons.forEach(btn=>{
-    btn.style.display = "none";
-  });
-
-}
-function downloadReviewPDF(){
-
-  const element = document.getElementById("quiz");
-
-  // 1️⃣ show all explanations
-  expandAllExplanations();
-
-  const opt = {
-    margin: 10,
-    filename: ((window.examTitle || "exam").replace(/[^\w\s]/gi,"")).replace(/\s+/g,"-") + "-review.pdf",
-    image: { type: "jpeg", quality: 0.98 },
-    html2canvas: { scale: 2 },
-    jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
-  };
-
-  // 2️⃣ generate pdf
-  html2pdf().set(opt).from(element).save().then(()=>{
-
-    // 3️⃣ restore UI after export
-    collapseAllExplanations();
-
-  });
-
-}
-
 function collapseAllExplanations(){
 
   const explanations = document.querySelectorAll(".explanation");
