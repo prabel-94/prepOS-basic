@@ -395,21 +395,20 @@ function renderReview(){
 
   /* ---------- CREATE PDF BUTTON ---------- */
 
-  let pdfBtn = document.getElementById("downloadPdfBtn");
+    let pdfBtn = document.getElementById("downloadPdfBtn");
 
-  if(!pdfBtn){
+if(!pdfBtn){
 
-    pdfBtn = document.createElement("button");
-    pdfBtn.id = "downloadPdfBtn";
-    pdfBtn.textContent = "Download Answer Key PDF";
+  pdfBtn = document.createElement("button");
+  pdfBtn.id = "downloadPdfBtn";
+  pdfBtn.textContent = "Download Answer Key PDF";
+  container.appendChild(pdfBtn);
 
-    pdfBtn.style.display = "block";
-    pdfBtn.style.margin = "20px auto";
+}
 
-    container.appendChild(pdfBtn);
-
-  }
-
+/* ALWAYS show button */
+pdfBtn.style.display = "block";
+pdfBtn.style.margin = "20px auto";
 
   /* ---------- ATTACH PDF EVENT ---------- */
 
