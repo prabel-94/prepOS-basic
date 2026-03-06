@@ -1,43 +1,124 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1.0" />
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+
 <title>PrepOS Exam</title>
 
 <link rel="stylesheet" href="css/style.css">
-</head>
+
+<!-- PDF Generator -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+<!-- Debug Console (Development Only) -->
+<script src="https://cdn.jsdelivr.net/npm/eruda"></script>
+<script>
+eruda.init();
+</script>
+
+<!-- App Config -->
+<script src="js/config.js" defer></script>
+
+<!-- Exam Logic -->
+<script src="js/exam.js" defer></script>
+
+</head>
+
+
 <body>
 
 <div class="exam-wrapper">
 
-  <h2>Exam</h2>
+<!-- ================= HEADER ================= -->
 
-  <!-- name -->
-  <label for="studentName">Enter your name:</label>
-  <input id="studentName" placeholder="Your name" autocomplete="off">
+<header class="exam-header">
 
-  <!-- quiz renders here -->
-  <div id="quiz">Loading…</div>
+<h2>PrepOS Exam</h2>
 
-  <!-- result + review button -->
-  <div id="result"></div>
+</header>
+
+
+<!-- ================= STUDENT INFO ================= -->
+
+<section class="student-info">
+
+<label for="studentName">Enter your name</label>
+
+<input
+id="studentName"
+type="text"
+placeholder="Your name"
+autocomplete="off"
+required
+>
+
+</section>
+
+
+<!-- ================= QUIZ AREA ================= -->
+
+<section id="quiz" class="quiz-container">
+
+
+<!-- Loading State -->
+
+<div id="loadingState" class="loading-state">
+
+<p>Loading exam...</p>
 
 </div>
 
-<script src="js/config.js"></script>
-<script src="js/exam.js"></script>
 
-<script>
-(function () {
-  var script = document.createElement('script');
-  script.src = "https://cdn.jsdelivr.net/npm/eruda";
-  script.onload = function () {
-    eruda.init();
-  };
-  document.body.appendChild(script);
-})();
-</script>
+
+<!-- Error State -->
+
+<div id="errorState" class="error-state" style="display:none">
+
+<p id="errorMessage"></p>
+
+<button onclick="location.reload()">Retry</button>
+
+</div>
+
+
+
+<!-- Exam Content -->
+
+<div id="examContent" style="display:none">
+
+<!-- Questions will render here dynamically -->
+
+</div>
+
+
+</section>
+
+
+<!-- ================= RESULT AREA ================= -->
+
+<section id="result" class="result-container"></section>
+
+
+</div>
+
+
+
+<!-- ================= NOSCRIPT FALLBACK ================= -->
+
+<noscript>
+
+<div style="padding:20px;font-size:18px;text-align:center">
+
+This exam requires JavaScript to run.  
+Please enable JavaScript in your browser.
+
+</div>
+
+</noscript>
+
+
 </body>
 </html>
