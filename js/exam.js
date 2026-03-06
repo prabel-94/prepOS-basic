@@ -353,70 +353,83 @@ function renderReview(){
   const container = document.getElementById("quiz");
   container.innerHTML = "";
 
-  window.reviewData.forEach((q,i)=>{
+  window.reviewData.forEach(function(q,i){
 
     const card = document.createElement("div");
     card.className = "review-card";
 
-    const optionsHTML = q.options.map((o,idx)=>{
+    const question = document.createElement("div");
+    question.className = "review-question";
+    question.textContent = (i+1) + ". " + q.question;
 
-      const letter = String.fromCharCode(65+idx);
+    card.appendChild(question);
 
-      let cls = "option";
+    const optionsWrap = document.createElement("div");
+    optionsWrap.className = "review-options";
 
-      if(letter === q.correct) cls += " correct";
-      if(letter === q.student && letter !== q.correct) cls += " wrong";
-      if(letter === q.student) cls += " chosen";
+    q.options.forEach(function(opt,idx){
 
-      return `
-        <div class="${cls}">
-          <b>${letter}.</b> ${escapeHTML(o)}
-        </div>
-      `;
-    }).join("");
+      const letter = String.fromCharCode(65 + idx);
 
-    const cleanQuestion = stripLeadingNumber(q.question);
+      const option = document.createElement("div");
+      option.className = "option";
 
-    card.innerHTML = `
-      <div class="review-q">
-        <span class="question-number"><b>Q${i+1}.</b></span>
-        <span class="question-text">
-          ${escapeHTML(cleanQuestion)}
-        </span>
-      </div>
+      if(letter === q.correct){
+        option.classList.add("correct");
+      }
 
-      <div class="review-options">
-        ${optionsHTML}
-      </div>
+      if(letter === q.student && letter !== q.correct){
+        option.classList.add("wrong");
+      }
 
-      <button class="explain-btn">Explanation</button>
-      <div class="explanation" style="display:none">
-        ${escapeHTML(q.explanation || "No explanation provided")}
-      </div>
-    `;
+      option.textContent = letter + ". " + opt;
 
-    /* accordion */
-    const btn = card.querySelector(".explain-btn");
-    const exp = card.querySelector(".explanation");
+      optionsWrap.appendChild(option);
 
-    btn.onclick = ()=>{
-      exp.style.display =
-        exp.style.display === "none" ? "block" : "none";
-    };
+    });
+
+    card.appendChild(optionsWrap);
 
     container.appendChild(card);
-  });
-const pdfBtn = document.getElementById("downloadPdfBtn");
-if(pdfBtn){
-  pdfBtn.style.display = "inline-block";
-  pdfBtn.onclick = downloadReviewPDF;
-}
-const pdfBtn = document.getElementById("downloadPdfBtn");
 
-if(pdfBtn){
-  pdfBtn.style.display = "inline-block";
-  pdfBtn.onclick = downloadReviewPDF;
-}
+  });
+
+
+  /* ---------------- PDF DOWNLOAD BUTTON ---------------- */
+
+  let pdfBtn = document.getElementById("downloadPdfBtn");
+
+  /* create button if it does not exist */
+  if(!pdfBtn){
+
+    pdfBtn = document.createElement("button");
+    pdfBtn.id = "downloadPdfBtn";
+    pdfBtn.textContent = "Download Answer Key PDF";
+
+    pdfBtn.style.display = "block";
+    pdfBtn.style.margin = "20px auto";
+
+    container.appendChild(pdfBtn);
+
+  }
+
+  /* remove previous listener to avoid duplicates */
+  pdfBtn.onclick = function(){
+
+    const reviewContainer = document.getElementById("quiz");
+
+    html2pdf()
+      .set({
+        margin:10,
+        filename:"exam-review.pdf",
+        html2canvas:{scale:2},
+        jsPDF:{unit:"mm",format:"a4",orientation:"portrait"}
+      })
+      .from(reviewContainer)
+      .save();
+
+  };
+
 }
 
 function expandAllExplanations(){
