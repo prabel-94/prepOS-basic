@@ -101,6 +101,10 @@ if(!attemptState || attemptState.attemptId !== attemptId){
 ====================================================== */
 async function loadExam(){
 
+  console.log("Exam loading started");
+
+  showLoading();
+
   try{
 
     const res = await fetch(
@@ -113,31 +117,38 @@ async function loadExam(){
       }
     );
 
+    /* HTTP failure */
+    if(!res.ok){
+      throw new Error(`Server error (${res.status})`);
+    }
+
     const data = await res.json();
     console.log("Exam fetch result:", data);
 
     if(!data.length){
-      document.getElementById("quiz").innerText="Exam not found";
-      return;
+      throw new Error("Exam not found");
     }
 
     const exam = data[0];
-window.examTitle = exam.title || "Exam";
-window.examLogo = exam.logo_url || "";
 
-let questions = [];
+    window.examTitle = exam.title || "Exam";
+    window.examLogo = exam.logo_url || "";
 
-/* new schema (sections) */
-if (exam.schema_json?.sections) {
-  questions = exam.schema_json.sections.flatMap(s => s.questions);
-}
+    let questions = [];
 
-/* old schema (direct questions) */
-else if (exam.schema_json?.questions) {
-  questions = exam.schema_json.questions;
-}
+    /* new schema (sections) */
+    if (exam.schema_json?.sections){
+      questions = exam.schema_json.sections.flatMap(s => s.questions);
+    }
 
+    /* old schema */
+    else if (exam.schema_json?.questions){
+      questions = exam.schema_json.questions;
+    }
 
+    if(!questions.length){
+      throw new Error("No questions found in exam");
+    }
 
     /* RAW */
     window.examQuestionsRaw = questions;
@@ -149,15 +160,20 @@ else if (exam.schema_json?.questions) {
         options:q.options
       }));
 
-    /* ⭐ CRITICAL — restore legacy variable */
     window.examQuestions = questions;
 
     /* render */
     renderQuiz(window.examQuestionsAttempt);
 
-  }catch(err){
-    console.error(err);
-    document.getElementById("quiz").innerText="Failed to load exam";
+    showExam();
+
+  }
+  catch(err){
+
+    console.error("Exam loading failed:", err);
+
+    showError(err.message || "Failed to load exam");
+
   }
 }
 /* ======================================================
