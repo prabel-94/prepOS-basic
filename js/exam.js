@@ -95,10 +95,10 @@ if(!attemptState || attemptState.attemptId !== attemptId){
   };
   localStorage.setItem(ATTEMPT_KEY, JSON.stringify(attemptState));
 }
-
 /* ======================================================
    FETCH EXAM
 ====================================================== */
+
 async function loadExam(){
 
   console.log("Exam loading started");
@@ -108,24 +108,24 @@ async function loadExam(){
   try{
 
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/exams?id=eq.${examId}`,
+      SUPABASE_URL + "/rest/v1/exams?id=eq." + examId,
       {
         headers:{
           apikey: SUPABASE_ANON_KEY,
-          Authorization:`Bearer ${SUPABASE_ANON_KEY}`
+          Authorization: "Bearer " + SUPABASE_ANON_KEY
         }
       }
     );
 
     /* HTTP failure */
     if(!res.ok){
-      throw new Error(`Server error (${res.status})`);
+      throw new Error("Server error (" + res.status + ")");
     }
 
     const data = await res.json();
     console.log("Exam fetch result:", data);
 
-    if(!data.length){
+    if(!data || !data.length){
       throw new Error("Exam not found");
     }
 
@@ -136,33 +136,47 @@ async function loadExam(){
 
     let questions = [];
 
-    /* new schema (sections) */
-    if (exam.schema_json?.sections){
-      questions = exam.schema_json.sections.flatMap(s => s.questions);
+    /* ---------- NEW SCHEMA (sections) ---------- */
+
+    if(exam.schema_json && exam.schema_json.sections){
+
+      questions = exam.schema_json.sections.flatMap(function(section){
+        return section.questions;
+      });
+
     }
 
-    /* old schema */
-    else if (exam.schema_json?.questions){
+    /* ---------- OLD SCHEMA (direct questions) ---------- */
+
+    else if(exam.schema_json && exam.schema_json.questions){
+
       questions = exam.schema_json.questions;
+
     }
 
-    if(!questions.length){
+    if(!questions || !questions.length){
       throw new Error("No questions found in exam");
     }
 
-    /* RAW */
+    /* RAW QUESTIONS */
+
     window.examQuestionsRaw = questions;
 
-    /* ATTEMPT */
-    window.examQuestionsAttempt =
-      questions.map(q=>({
-        question:q.question,
-        options:q.options
-      }));
+    /* STUDENT ATTEMPT STRUCTURE */
+
+    window.examQuestionsAttempt = questions.map(function(q){
+
+      return {
+        question: q.question,
+        options: q.options
+      };
+
+    });
 
     window.examQuestions = questions;
 
-    /* render */
+    /* RENDER QUIZ */
+
     renderQuiz(window.examQuestionsAttempt);
 
     showExam();
@@ -175,6 +189,7 @@ async function loadExam(){
     showError(err.message || "Failed to load exam");
 
   }
+
 }
 /* ======================================================
    RENDER QUIZ
