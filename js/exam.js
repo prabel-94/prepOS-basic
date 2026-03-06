@@ -1,7 +1,24 @@
-console.log("Eruda test: exam.js loaded");
 console.log("SCRIPT STARTED");
 
 /* ---------- helpers ---------- */
+function showLoading(){
+  document.getElementById("loadingState").style.display="block";
+  document.getElementById("errorState").style.display="none";
+  document.getElementById("examContent").style.display="none";
+}
+
+function showError(message){
+  document.getElementById("loadingState").style.display="none";
+  document.getElementById("errorState").style.display="block";
+  document.getElementById("examContent").style.display="none";
+  document.getElementById("errorMessage").textContent=message;
+}
+
+function showExam(){
+  document.getElementById("loadingState").style.display="none";
+  document.getElementById("errorState").style.display="none";
+  document.getElementById("examContent").style.display="block";
+}
 function escapeHTML(str){
   return String(str)
     .replace(/&/g,"&amp;")
