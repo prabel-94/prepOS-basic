@@ -196,7 +196,7 @@ async function loadExam(){
 ====================================================== */
 function renderQuiz(questions){
 
-  const const container = document.getElementById("examContent");
+  const container = document.getElementById("examContent");
   container.innerHTML="";
 
   questions.forEach((q,i)=>{
