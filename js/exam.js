@@ -448,8 +448,12 @@ pdfBtn.onclick = function(){
   reviewContainer.style.maxHeight = "none";
   reviewContainer.style.overflow = "visible";
 
-/* hide PDF button so it doesn't appear in PDF */
+/* hide PDF button and view answers button so it doesn't appear in PDF */
   pdfBtn.style.display = "none";
+const viewBtn = document.getElementById("viewAnswersBtn");
+if(viewBtn){
+  viewBtn.style.display = "none";
+}
 
   /* add header for PDF */
   addPDFHeader();
@@ -488,6 +492,9 @@ pdfBtn.onclick = function(){
 
   /* show PDF button again */
   pdfBtn.style.display = "block";
+const viewBtn = document.getElementById("viewAnswersBtn");
+  if(viewBtn){
+    viewBtn.style.display = "inline-block";
 
   /* remove header added for PDF */
   removePDFHeader();
