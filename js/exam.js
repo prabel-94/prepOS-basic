@@ -495,7 +495,7 @@ if(viewBtn){
 const viewBtn = document.getElementById("viewAnswersBtn");
   if(viewBtn){
     viewBtn.style.display = "inline-block";
-
+}
   /* remove header added for PDF */
   removePDFHeader();
 
