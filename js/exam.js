@@ -435,7 +435,7 @@ pdfBtn.style.margin = "20px auto";
 
   /* ---------- ATTACH PDF EVENT ---------- */
 
- pdfBtn.onclick = function(){
+pdfBtn.onclick = function(){
 
   const reviewContainer = document.getElementById("quiz");
 
@@ -443,9 +443,22 @@ pdfBtn.style.margin = "20px auto";
   const originalMaxHeight = reviewContainer.style.maxHeight;
   const originalOverflow = reviewContainer.style.overflow;
 
-  /* remove scroll restriction so html2pdf can see full content */
+  /* remove scroll restriction so html2pdf can capture full content */
   reviewContainer.style.maxHeight = "none";
   reviewContainer.style.overflow = "visible";
+
+  /* add header for PDF */
+  addPDFHeader();
+
+  /* expand all explanations */
+  document.querySelectorAll(".explanation").forEach(function(el){
+    el.style.display = "block";
+  });
+
+  /* hide explanation buttons in PDF */
+  document.querySelectorAll(".explain-btn").forEach(function(btn){
+    btn.style.display = "none";
+  });
 
   html2pdf()
     .set({
@@ -455,15 +468,25 @@ pdfBtn.style.margin = "20px auto";
         scale:2,
         scrollY:0
       },
-      jsPDF:{unit:"mm",format:"a4",orientation:"portrait"}
+      jsPDF:{
+        unit:"mm",
+        format:"a4",
+        orientation:"portrait"
+      }
     })
     .from(reviewContainer)
     .save()
     .then(function(){
 
-      /* restore UI after export */
+      /* restore UI scroll styles */
       reviewContainer.style.maxHeight = originalMaxHeight;
       reviewContainer.style.overflow = originalOverflow;
+
+      /* remove header added for PDF */
+      removePDFHeader();
+
+      /* collapse explanations again */
+      collapseAllExplanations();
 
     });
 
