@@ -467,12 +467,14 @@ if(viewBtn){
   document.querySelectorAll(".explain-btn").forEach(function(btn){
     btn.style.display = "none";
   });
-
+const safeTitle = (window.examTitle || "exam")
+  .replace(/[^a-z0-9]/gi, "_")
+  .toLowerCase();
 setTimeout(function(){
   html2pdf()
     .set({
       margin:10,
-      filename:"exam-review.pdf",
+      filename: safeTitle + "_review.pdf",
       html2canvas:{
         scale:2,
         scrollY:0
