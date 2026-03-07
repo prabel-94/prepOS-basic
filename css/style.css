@@ -209,3 +209,9 @@ font-size:14px;
   page-break-inside: avoid;
   break-inside: avoid;
 }
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
