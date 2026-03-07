@@ -505,7 +505,7 @@ const viewBtn = document.getElementById("reviewBtn");
 
 });
 
-}
+},300);
 };
 
 }
