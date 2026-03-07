@@ -388,7 +388,30 @@ function renderReview(){
     });
 
     card.appendChild(optionsWrap);
-    container.appendChild(card);
+
+/* ---------- explanation ---------- */
+
+if(q.explanation){
+
+  const explainBtn = document.createElement("button");
+  explainBtn.className = "explain-btn";
+  explainBtn.textContent = "Show Explanation";
+
+  const explanation = document.createElement("div");
+  explanation.className = "explanation";
+  explanation.style.display = "none";
+  explanation.innerHTML = "<b>Explanation:</b> " + escapeHTML(q.explanation);
+
+  explainBtn.onclick = function(){
+    explanation.style.display =
+      explanation.style.display === "none" ? "block" : "none";
+  };
+
+  card.appendChild(explainBtn);
+  card.appendChild(explanation);
+}
+
+container.appendChild(card);
 
   });
 
