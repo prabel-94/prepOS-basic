@@ -450,7 +450,7 @@ pdfBtn.onclick = function(){
 
 /* hide PDF button and view answers button so it doesn't appear in PDF */
   pdfBtn.style.display = "none";
-const viewBtn = document.getElementById("viewAnswersBtn");
+const viewBtn = document.getElementById("reviewBtn");
 if(viewBtn){
   viewBtn.style.display = "none";
 }
@@ -492,7 +492,7 @@ if(viewBtn){
 
   /* show PDF button again */
   pdfBtn.style.display = "block";
-const viewBtn = document.getElementById("viewAnswersBtn");
+const viewBtn = document.getElementById("reviewBtn");
   if(viewBtn){
     viewBtn.style.display = "inline-block";
 }
