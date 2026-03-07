@@ -482,18 +482,20 @@ pdfBtn.onclick = function(){
     .save()
     .then(function(){
 
-      /* restore UI scroll styles */
-      reviewContainer.style.maxHeight = originalMaxHeight;
-      reviewContainer.style.overflow = originalOverflow;
+  /* restore UI scroll styles */
+  reviewContainer.style.maxHeight = originalMaxHeight;
+  reviewContainer.style.overflow = originalOverflow;
 
-      /* remove header added for PDF */
-      removePDFHeader();
+  /* show PDF button again */
+  pdfBtn.style.display = "block";
 
-      /* collapse explanations again */
-      collapseAllExplanations();
+  /* remove header added for PDF */
+  removePDFHeader();
 
-    });
+  /* collapse explanations again */
+  collapseAllExplanations();
 
+});
 };
 
 }
