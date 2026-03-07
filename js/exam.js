@@ -263,6 +263,8 @@ async function submitExam(){
     alert("Please enter your name");
     return;
   }
+/* store student name for PDF header */
+localStorage.setItem("studentName", studentName);
 
   let score=0;
   const answers=[];
