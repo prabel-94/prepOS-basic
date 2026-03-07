@@ -448,6 +448,9 @@ pdfBtn.onclick = function(){
   reviewContainer.style.maxHeight = "none";
   reviewContainer.style.overflow = "visible";
 
+/* hide PDF button so it doesn't appear in PDF */
+  pdfBtn.style.display = "none";
+
   /* add header for PDF */
   addPDFHeader();
 
