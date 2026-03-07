@@ -208,6 +208,7 @@ font-size:14px;
 .review-card{
   page-break-inside: avoid;
   break-inside: avoid;
+  margin-bottom: 20px;
 }
 
 @media print {
