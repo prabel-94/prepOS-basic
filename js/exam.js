@@ -468,6 +468,7 @@ if(viewBtn){
     btn.style.display = "none";
   });
 
+setTimeout(function(){
   html2pdf()
     .set({
       margin:10,
@@ -503,6 +504,8 @@ const viewBtn = document.getElementById("reviewBtn");
   collapseAllExplanations();
 
 });
+
+}
 };
 
 }
