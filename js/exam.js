@@ -313,21 +313,20 @@ async function submitExam(){
 
     /* ---------- build review ---------- */
     window.reviewData =
-      window.examQuestionsRaw.map((q,i)=>{
+  window.examQuestionsRaw.map((q,i)=>{
 
-        const student = answers[i]?.chosen || "-";
-        const correct =
-          String.fromCharCode(65 + q.correct);
+    const student = answers[i]?.chosen || "-";
+    const correct = String.fromCharCode(65 + q.correct);
 
-        return{
-          question:q.question,
-          options:q.options,
-          correct,
-          student,
-          explanation:q.explanation,
-          isCorrect:student===correct
-        };
-      });
+    return{
+      question:q.question,
+      options:q.options,
+      correct,
+      student,
+      explanation:q.explanation || q.explanation_text || "",
+      isCorrect:student===correct
+    };
+  });
 
     document.getElementById("result").innerHTML =
 `<h3>${studentName}, your score: ${score}/${window.examQuestionsRaw.length}</h3>
