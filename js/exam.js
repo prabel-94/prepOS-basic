@@ -390,7 +390,7 @@ function renderReview(){
 
 /* ---------- explanation ---------- */
 
-if(q.explanation){
+if(q.explanation && q.explanation.trim()){
 
   const explainBtn = document.createElement("button");
   explainBtn.className = "explain-btn";
