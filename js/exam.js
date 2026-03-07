@@ -412,21 +412,39 @@ pdfBtn.style.margin = "20px auto";
 
   /* ---------- ATTACH PDF EVENT ---------- */
 
-  pdfBtn.onclick = function(){
+ pdfBtn.onclick = function(){
 
-    const reviewContainer = document.getElementById("quiz");
+  const reviewContainer = document.getElementById("quiz");
 
-    html2pdf()
-      .set({
-        margin:10,
-        filename:"exam-review.pdf",
-        html2canvas:{scale:2},
-        jsPDF:{unit:"mm",format:"a4",orientation:"portrait"}
-      })
-      .from(reviewContainer)
-      .save();
+  /* store original styles */
+  const originalMaxHeight = reviewContainer.style.maxHeight;
+  const originalOverflow = reviewContainer.style.overflow;
 
-  };
+  /* remove scroll restriction so html2pdf can see full content */
+  reviewContainer.style.maxHeight = "none";
+  reviewContainer.style.overflow = "visible";
+
+  html2pdf()
+    .set({
+      margin:10,
+      filename:"exam-review.pdf",
+      html2canvas:{
+        scale:2,
+        scrollY:0
+      },
+      jsPDF:{unit:"mm",format:"a4",orientation:"portrait"}
+    })
+    .from(reviewContainer)
+    .save()
+    .then(function(){
+
+      /* restore UI after export */
+      reviewContainer.style.maxHeight = originalMaxHeight;
+      reviewContainer.style.overflow = originalOverflow;
+
+    });
+
+};
 
 }
 function collapseAllExplanations(){
