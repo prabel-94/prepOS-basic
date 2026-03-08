@@ -4,11 +4,14 @@ let watermarkImage = new Image();
 watermarkImage.src = "assets/prepos-icon.png";
 
 /* ---------- helpers ---------- */
-function drawWatermarkPattern(pdf, pageWidth, pageHeight){
+function drawPrepOSWatermark(pdf){
 
-  const size = 40;        // logo size
-  const gap = 80;         // spacing between logos
-  const opacity = 0.08;   // watermark strength
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+
+  const size = 40;
+  const gap = 80;
+  const opacity = 0.08;
 
   pdf.setGState(new pdf.GState({opacity}));
 
