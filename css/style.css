@@ -258,30 +258,3 @@ font-size:14px;
 #pdfHeader p{
   margin:4px 0;
 }
-
-/* ==============================
-   PREPOS WATERMARK
-============================== */
-
-.quiz-wrapper{
-  position:relative;
-}
-
-.pdf-watermark-pattern{
-  position:absolute;
-  inset:0;
-
-  background-image:url("assets/prepos-icon.png");
-  background-repeat:repeat;
-  background-size:200px;
-
-  opacity:0.05;
-
-  pointer-events:none;
-  z-index:0;
-}
-
-#quiz{
-  position:relative;
-  z-index:1;
-}
