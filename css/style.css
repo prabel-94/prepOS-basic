@@ -258,3 +258,7 @@ font-size:14px;
 #pdfHeader p{
   margin:4px 0;
 }
+
+#quiz{
+  max-width: 800px;
+}
