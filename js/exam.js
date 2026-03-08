@@ -5,17 +5,18 @@ console.log("SCRIPT STARTED");
    WATERMARK FUNCTIONS
 ================================ */
 
-function addPdfWatermark(){
+function addPDFWatermark(){
+
+  const quiz = document.getElementById("quiz");
 
   const watermark = document.createElement("div");
 
   watermark.className = "pdf-watermark-pattern";
   watermark.id = "pdfWatermark";
 
-  document.body.appendChild(watermark);
+  quiz.prepend(watermark);
 
 }
-
 function removePdfWatermark(){
 
   const watermark = document.getElementById("pdfWatermark");
