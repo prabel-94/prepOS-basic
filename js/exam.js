@@ -1,9 +1,26 @@
 console.log("SCRIPT STARTED");
 
 let watermarkImage = new Image();
+const faintLogo = getTransparentImage(watermarkImage,0.08);
+
+pdf.addImage(faintLogo,"PNG",x,y,size,size);
 watermarkImage.src = "assets/prepos-icon.png";
 
 /* ---------- helpers ---------- */
+function getTransparentImage(img, opacity = 0.1){
+
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+
+  canvas.width = img.width;
+  canvas.height = img.height;
+
+  ctx.globalAlpha = opacity;
+  ctx.drawImage(img,0,0);
+
+  return canvas.toDataURL("image/png");
+}
+
 function drawPrepOSWatermark(pdf){
 
   const pageCount = pdf.internal.getNumberOfPages();
