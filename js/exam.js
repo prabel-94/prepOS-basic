@@ -570,7 +570,11 @@ function addPDFHeader(){
 
   const date = new Date().toLocaleDateString();
 
-  const logo = window.examLogo || "";
+  let logo = "";
+
+if(window.examLogo){
+  logo = await imageToBase64(window.examLogo);
+}
 
   const header = document.createElement("div");
   header.id = "pdfHeader";
