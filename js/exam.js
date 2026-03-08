@@ -4,6 +4,31 @@ let watermarkImage = new Image();
 watermarkImage.src = "assets/prepos-icon.png";
 
 /* ---------- helpers ---------- */
+function drawWatermarkPattern(pdf, pageWidth, pageHeight){
+
+  const size = 40;        // logo size
+  const gap = 80;         // spacing between logos
+  const opacity = 0.08;   // watermark strength
+
+  pdf.setGState(new pdf.GState({opacity}));
+
+  for(let x = 0; x < pageWidth; x += gap){
+    for(let y = 0; y < pageHeight; y += gap){
+
+      pdf.addImage(
+        watermarkImage,
+        "PNG",
+        x,
+        y,
+        size,
+        size
+      );
+
+    }
+  }
+
+  pdf.setGState(new pdf.GState({opacity:1}));
+}
 
 function showLoading(){
   document.getElementById("loadingState").style.display="block";
