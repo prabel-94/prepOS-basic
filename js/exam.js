@@ -555,7 +555,7 @@ function collapseAllExplanations(){
 
 }
 
-function addPDFHeader(){
+async function addPDFHeader(){
 
   const container = document.getElementById("quiz");
 
