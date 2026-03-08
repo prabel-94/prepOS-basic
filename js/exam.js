@@ -490,9 +490,10 @@ function generatePDF(){
       margin:10,
       filename: safeTitle + "_review.pdf",
       html2canvas:{
-        scale:2,
-        scrollY:0
-      },
+  scale:2,
+  scrollY:0,
+  useCORS:true
+},
       jsPDF:{
         unit:"mm",
         format:"a4",
