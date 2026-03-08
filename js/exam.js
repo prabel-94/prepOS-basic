@@ -1,5 +1,8 @@
 console.log("SCRIPT STARTED");
 
+let watermarkImage = new Image();
+watermarkImage.src = "assets/prepos-icon.png";
+
 /* ---------- helpers ---------- */
 
 function showLoading(){
