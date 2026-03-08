@@ -233,3 +233,28 @@ font-size:14px;
   max-width:220px;
   width:60%;
 }
+
+/* ==============================
+   PDF HEADER
+============================== */
+
+.pdf-header{
+  text-align:center;
+  margin-bottom:20px;
+}
+
+.pdf-logo{
+  width:120px;
+  max-width:120px;
+  height:auto;
+  display:block;
+  margin:0 auto 10px auto;
+}
+
+#pdfHeader h2{
+  margin:10px 0;
+}
+
+#pdfHeader p{
+  margin:4px 0;
+}
