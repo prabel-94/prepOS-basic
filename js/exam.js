@@ -1,30 +1,6 @@
 console.log("SCRIPT STARTED");
 
 /* ---------- helpers ---------- */
-/* ===============================
-   WATERMARK FUNCTIONS
-================================ */
-
-function addPDFWatermark(){
-
-  const wrapper = document.getElementById("quizWrapper");
-
-  const watermark = document.createElement("div");
-
-  watermark.className = "pdf-watermark-pattern";
-  watermark.id = "pdfWatermark";
-
-  wrapper.prepend(watermark);
-}
-
-function removePDFWatermark(){
-
-  const watermark = document.getElementById("pdfWatermark");
-
-  if(watermark){
-    watermark.remove();
-  }
-}
 
 function showLoading(){
   document.getElementById("loadingState").style.display="block";
@@ -486,7 +462,6 @@ function renderReview(){
 
     /* add header */
     await addPDFHeader();
-    addPDFWatermark();
 
     /* expand explanations */
     document.querySelectorAll(".explanation").forEach(el=>{
@@ -528,7 +503,6 @@ function renderReview(){
     if(viewBtn) viewBtn.style.display = "inline-block";
 
     removePDFHeader();
-    removePDFWatermark();
     collapseAllExplanations();
 
   };
