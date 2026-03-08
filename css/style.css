@@ -229,7 +229,6 @@ font-size:14px;
 
 .exam-logo{
   display:block;
-  margin:20px auto;
+  margin:30px auto 10px auto;
   max-width:220px;
-  height:auto;
 }
