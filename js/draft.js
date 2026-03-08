@@ -81,7 +81,7 @@ function renderDraft(draft){
   console.log("DRAFT RECEIVED →", draft)
 
   currentDraft = draft
-  logoURL = draft.logo_url || null
+  logoURL = draft.logo_url || localStorage.getItem("defaultLogo") || null;
 
   // ===============================
   // Meta
