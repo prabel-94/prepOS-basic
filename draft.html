@@ -52,11 +52,14 @@
 
   <label for="title">Title</label>
   <input id="title" type="text" placeholder="Enter title" />
-  <label>Institute Logo (optional)</label>
-  <input type="file" id="logoUpload" accept="image/png,image/jpeg">
 
-  <div id="logoPreview"></div>
-
+  !-- LOGO SECTION -->
+  <div class="logo-section">
+      <label>Exam Logo (optional)</label>
+      <input type="file" id="logoUpload" accept="image/*">
+      <br>
+      <img id="logoPreview" style="max-height:80px; margin-top:8px;">
+  </div>
   <label for="duration">Duration (minutes)</label>
   <input id="duration" type="number" placeholder="Enter duration in minutes" />
 
