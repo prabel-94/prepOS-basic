@@ -504,23 +504,30 @@ function renderReview(){
       .replace(/[^a-z0-9]/gi,"_")
       .toLowerCase();
 
-    await html2pdf()
-      .set({
-        margin:10,
-        filename: safeTitle + "_review.pdf",
-        html2canvas:{
-          scale:2,
-          scrollY:0,
-          useCORS:true
-        },
-        jsPDF:{
-          unit:"mm",
-          format:"a4",
-          orientation:"portrait"
-        }
-      })
-      .from(reviewContainer)
-      .save();
+    const worker = html2pdf()
+  .set({
+    margin:10,
+    filename: safeTitle + "_review.pdf",
+    html2canvas:{
+      scale:2,
+      scrollY:0,
+      useCORS:true
+    },
+    jsPDF:{
+      unit:"mm",
+      format:"a4",
+      orientation:"portrait"
+    }
+  })
+  .from(reviewContainer)
+  .toPdf();
+
+const pdf = await worker.get("pdf");
+
+/* inject watermark */
+drawPrepOSWatermark(pdf);
+
+await worker.save();
 
     /* restore UI */
 
