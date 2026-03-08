@@ -130,6 +130,8 @@ async function loadExam(){
     }
 
     const exam = data[0];
+window.examTitle = exam.title || "Exam";
+window.examLogo = exam.logo_url || "";
 
     const logoEl = document.getElementById("examLogo");
 
