@@ -360,6 +360,7 @@ scrollToResult()
 /* ======================================================
    REVIEW MODE
 ====================================================== */
+
 function renderReview(){
 
   const container = document.getElementById("quiz");
@@ -385,11 +386,11 @@ function renderReview(){
       const option = document.createElement("div");
       option.className = "option";
 
-      if(letter===q.correct){
+      if(letter === q.correct){
         option.classList.add("correct");
       }
 
-      if(letter===q.student && letter!==q.correct){
+      if(letter === q.student && letter !== q.correct){
         option.classList.add("wrong");
       }
 
@@ -401,159 +402,131 @@ function renderReview(){
 
     card.appendChild(optionsWrap);
 
-/* ---------- explanation ---------- */
+    /* ---------- explanation ---------- */
 
-if(q.explanation && q.explanation.trim()){
+    if(q.explanation && q.explanation.trim()){
 
-  const explainBtn = document.createElement("button");
-  explainBtn.className = "explain-btn";
-  explainBtn.textContent = "Show Explanation";
+      const explainBtn = document.createElement("button");
+      explainBtn.className = "explain-btn";
+      explainBtn.textContent = "Show Explanation";
 
-  const explanation = document.createElement("div");
-  explanation.className = "explanation";
-  explanation.style.display = "none";
-  explanation.innerHTML = "<b>Explanation:</b> " + escapeHTML(q.explanation);
+      const explanation = document.createElement("div");
+      explanation.className = "explanation";
+      explanation.style.display = "none";
+      explanation.innerHTML = "<b>Explanation:</b> " + escapeHTML(q.explanation);
 
-  explainBtn.onclick = function(){
-    explanation.style.display =
-      explanation.style.display === "none" ? "block" : "none";
-  };
+      explainBtn.onclick = function(){
+        explanation.style.display =
+          explanation.style.display === "none" ? "block" : "none";
+      };
 
-  card.appendChild(explainBtn);
-  card.appendChild(explanation);
-}
+      card.appendChild(explainBtn);
+      card.appendChild(explanation);
+    }
 
-container.appendChild(card);
+    container.appendChild(card);
 
   });
-
 
   /* ---------- CREATE PDF BUTTON ---------- */
 
-    let pdfBtn = document.getElementById("downloadPdfBtn");
+  let pdfBtn = document.getElementById("downloadPdfBtn");
 
-if(!pdfBtn){
-
-  pdfBtn = document.createElement("button");
-  pdfBtn.id = "downloadPdfBtn";
-  pdfBtn.textContent = "Download Answer Key PDF";
-  container.appendChild(pdfBtn);
-
-}
-
-/* ALWAYS show button */
-pdfBtn.style.display = "block";
-pdfBtn.style.margin = "20px auto";
-
-  /* ---------- ATTACH PDF EVENT ---------- */
-
-pdfBtn.onclick = async function(){
-
-  const reviewContainer = document.getElementById("quiz");
-
-  /* store original styles */
-  const originalMaxHeight = reviewContainer.style.maxHeight;
-  const originalOverflow = reviewContainer.style.overflow;
-
-  /* remove scroll restriction so html2pdf can capture full content */
-  reviewContainer.style.maxHeight = "none";
-  reviewContainer.style.overflow = "visible";
-
-/* hide PDF button and view answers button so it doesn't appear in PDF */
-  pdfBtn.style.display = "none";
-const viewBtn = document.getElementById("reviewBtn");
-if(viewBtn){
-  viewBtn.style.display = "none";
-}
-
-  /* add header for PDF */
-  await addPDFHeader();
-
-  /* expand all explanations */
-  document.querySelectorAll(".explanation").forEach(function(el){
-    el.style.display = "block";
-  });
-
-  /* hide explanation buttons in PDF */
-  document.querySelectorAll(".explain-btn").forEach(function(btn){
-    btn.style.display = "none";
-  });
-const safeTitle = (window.examTitle || "exam")
-  .replace(/[^a-z0-9]/gi, "_")
-  .toLowerCase();
-const logoImg = document.querySelector("#pdfHeader img");
-
-function generatePDF(){
-
-  html2pdf()
-    .set({
-      margin:10,
-      filename: safeTitle + "_review.pdf",
-      html2canvas:{
-  scale:2,
-  scrollY:0,
-  useCORS:true,
-  letterRendering:true
-},
-      jsPDF:{
-        unit:"mm",
-        format:"a4",
-        orientation:"portrait"
-      }
-    })
-    .from(reviewContainer)
-    .save()
-    .then(function(){
-
-      /* restore UI scroll styles */
-      reviewContainer.style.maxHeight = originalMaxHeight;
-      reviewContainer.style.overflow = originalOverflow;
-
-      pdfBtn.style.display = "block";
-
-      const viewBtn = document.getElementById("reviewBtn");
-      if(viewBtn){
-        viewBtn.style.display = "inline-block";
-      }
-
-      removePDFHeader();
-      collapseAllExplanations();
-
-    });
-}
-
-/* wait for logo before generating PDF */
-
-if(logoImg){
-
-  if(logoImg.complete){
-    generatePDF();
-  }else{
-    logoImg.onload = generatePDF;
+  if(!pdfBtn){
+    pdfBtn = document.createElement("button");
+    pdfBtn.id = "downloadPdfBtn";
+    pdfBtn.textContent = "Download Answer Key PDF";
+    container.appendChild(pdfBtn);
   }
 
-}else{
-  generatePDF();
-}
-};
+  pdfBtn.style.display = "block";
+  pdfBtn.style.margin = "20px auto";
+
+  /* ---------- PDF EXPORT ---------- */
+
+  pdfBtn.onclick = async function(){
+
+    const reviewContainer = document.getElementById("quiz");
+
+    const originalMaxHeight = reviewContainer.style.maxHeight;
+    const originalOverflow = reviewContainer.style.overflow;
+
+    reviewContainer.style.maxHeight = "none";
+    reviewContainer.style.overflow = "visible";
+
+    pdfBtn.style.display = "none";
+
+    const viewBtn = document.getElementById("reviewBtn");
+    if(viewBtn) viewBtn.style.display = "none";
+
+    /* add header */
+    await addPDFHeader();
+
+    /* expand explanations */
+    document.querySelectorAll(".explanation").forEach(el=>{
+      el.style.display = "block";
+    });
+
+    document.querySelectorAll(".explain-btn").forEach(btn=>{
+      btn.style.display = "none";
+    });
+
+    const safeTitle = (window.examTitle || "exam")
+      .replace(/[^a-z0-9]/gi,"_")
+      .toLowerCase();
+
+    await html2pdf()
+      .set({
+        margin:10,
+        filename: safeTitle + "_review.pdf",
+        html2canvas:{
+          scale:2,
+          scrollY:0,
+          useCORS:true
+        },
+        jsPDF:{
+          unit:"mm",
+          format:"a4",
+          orientation:"portrait"
+        }
+      })
+      .from(reviewContainer)
+      .save();
+
+    /* restore UI */
+
+    reviewContainer.style.maxHeight = originalMaxHeight;
+    reviewContainer.style.overflow = originalOverflow;
+
+    pdfBtn.style.display = "block";
+    if(viewBtn) viewBtn.style.display = "inline-block";
+
+    removePDFHeader();
+    collapseAllExplanations();
+
+  };
 
 }
+
+/* ======================================================
+   COLLAPSE EXPLANATIONS
+====================================================== */
 
 function collapseAllExplanations(){
 
-  const explanations = document.querySelectorAll(".explanation");
-  const buttons = document.querySelectorAll(".explain-btn");
-
-  explanations.forEach(el=>{
+  document.querySelectorAll(".explanation").forEach(el=>{
     el.style.display = "none";
   });
 
-  // restore buttons
-  buttons.forEach(btn=>{
+  document.querySelectorAll(".explain-btn").forEach(btn=>{
     btn.style.display = "inline-block";
   });
 
 }
+
+/* ======================================================
+   ADD PDF HEADER
+====================================================== */
 
 async function addPDFHeader(){
 
@@ -564,17 +537,20 @@ async function addPDFHeader(){
   const studentName = localStorage.getItem("studentName") || "Student";
   const examTitle = window.examTitle || "Exam";
 
-  const scoreText = document.getElementById("result")
+  const scoreText =
+    document.getElementById("result")
       ? document.getElementById("result").innerText
       : "";
 
   const date = new Date().toLocaleDateString();
 
-  let logo = "";
+  /* cache logo conversion */
 
-if(window.examLogo){
-  logo = await imageToBase64(window.examLogo);
-}
+  if(window.examLogo && !window.examLogoBase64){
+    window.examLogoBase64 = await imageToBase64(window.examLogo);
+  }
+
+  const logo = window.examLogoBase64 || "";
 
   const header = document.createElement("div");
   header.id = "pdfHeader";
@@ -596,7 +572,12 @@ if(window.examLogo){
   `;
 
   container.prepend(header);
+
 }
+
+/* ======================================================
+   REMOVE PDF HEADER
+====================================================== */
 
 function removePDFHeader(){
 
@@ -608,17 +589,19 @@ function removePDFHeader(){
 
 }
 
+/* ======================================================
+   IMAGE → BASE64
+====================================================== */
+
 async function imageToBase64(url){
 
   const res = await fetch(url);
   const blob = await res.blob();
 
-  return new Promise((resolve)=>{
+  return new Promise(resolve=>{
     const reader = new FileReader();
     reader.onloadend = ()=> resolve(reader.result);
     reader.readAsDataURL(blob);
   });
 
 }
-
-document.addEventListener("DOMContentLoaded", loadExam);
