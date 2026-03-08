@@ -6,28 +6,34 @@ watermarkImage.src = "assets/prepos-icon.png";
 /* ---------- helpers ---------- */
 function drawPrepOSWatermark(pdf){
 
+  const pageCount = pdf.internal.getNumberOfPages();
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
 
   const size = 40;
   const gap = 80;
-  const opacity = 0.08;
 
-  pdf.setGState(new pdf.GState({opacity}));
+  pdf.setGState(new pdf.GState({opacity:0.08}));
 
-  for(let x = 0; x < pageWidth; x += gap){
-    for(let y = 0; y < pageHeight; y += gap){
+  for(let page=1; page<=pageCount; page++){
 
-      pdf.addImage(
-        watermarkImage,
-        "PNG",
-        x,
-        y,
-        size,
-        size
-      );
+    pdf.setPage(page);
 
+    for(let x=0; x<pageWidth; x+=gap){
+      for(let y=0; y<pageHeight; y+=gap){
+
+        pdf.addImage(
+          watermarkImage,
+          "PNG",
+          x,
+          y,
+          size,
+          size
+        );
+
+      }
     }
+
   }
 
   pdf.setGState(new pdf.GState({opacity:1}));
