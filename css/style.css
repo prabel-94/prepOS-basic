@@ -222,3 +222,14 @@ font-size:14px;
     display: none !important;
   }
 }
+
+.exam-header{
+  text-align:center;
+}
+
+.exam-logo{
+  display:block;
+  margin:20px auto;
+  max-width:220px;
+  height:auto;
+}
