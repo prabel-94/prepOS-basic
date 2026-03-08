@@ -303,50 +303,53 @@ async function publishDraft() {
   }
 }
 
-async function uploadLogo(file){
+async function uploadLogo(file, teacherId){
 
-  const fileName = "logo-" + Date.now() + "-" + file.name;
+  const allowedTypes = [
+    "image/png",
+    "image/jpeg",
+    "image/jpg",
+    "image/svg+xml"
+  ];
+
+  if(!allowedTypes.includes(file.type)){
+    alert("Only PNG, JPG or SVG allowed");
+    return null;
+  }
+
+  if(file.size > 1_000_000){
+    alert("Logo must be under 1MB");
+    return null;
+  }
+
+  const compressed = await compressImage(file);
+
+  const fileName = `logo-${Date.now()}.png`;
+
+  const path = `teachers/${teacherId}/${fileName}`;
 
   const uploadUrl =
-    `${SUPABASE_URL}/storage/v1/object/logos/${fileName}`;
+  `${SUPABASE_URL}/storage/v1/object/logos/${path}`;
 
   const res = await fetch(uploadUrl,{
     method:"POST",
     headers:{
       "Authorization":`Bearer ${SUPABASE_ANON_KEY}`,
-      "Content-Type":file.type
+      "Content-Type":"image/png",
+      "x-upsert":"true"
     },
-    body:file
+    body:compressed
   });
 
   if(!res.ok){
+    const err = await res.text();
+    console.error(err);
     alert("Logo upload failed");
     return null;
   }
 
-  return `${SUPABASE_URL}/storage/v1/object/public/logos/${fileName}`;
+  return `${SUPABASE_URL}/storage/v1/object/public/logos/${path}`;
 }
-
-let logoURL = "";
-
-document
-  .getElementById("logoUpload")
-  .addEventListener("change",async(e)=>{
-
-    const file = e.target.files[0];
-    if(!file) return;
-
-    const url = await uploadLogo(file);
-
-    if(url){
-      logoURL = url;
-
-      document.getElementById("logoPreview").innerHTML =
-        `<img src="${url}">`;
-    }
-
-});
-
 // ===============================
 // Expose globally
 // ===============================
