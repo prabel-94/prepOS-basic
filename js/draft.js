@@ -279,6 +279,7 @@ async function handleLogoUpload(e){
 
   logoURL =
   `${SUPABASE_URL}/storage/v1/object/public/logos/${path}`
+localStorage.setItem("defaultLogo", logoURL);
 
   const preview = document.getElementById("logoPreview")
 
