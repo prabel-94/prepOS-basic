@@ -200,9 +200,15 @@ font-size:14px;
   font-size:14px;
 }
 
-#logoPreview img{
-  max-height:60px;
-  margin-top:10px;
+.logo-section{
+  margin: 12px 0;
+}
+
+.logo-section img{
+  display:block;
+  border:1px solid #ddd;
+  padding:4px;
+  background:#fff;
 }
 
 .review-card{
