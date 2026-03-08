@@ -7,18 +7,20 @@ console.log("SCRIPT STARTED");
 
 function addPDFWatermark(){
 
-  const quiz = document.getElementById("quiz");
+  const wrapper = document.getElementById("quizWrapper");
 
   const watermark = document.createElement("div");
 
   watermark.className = "pdf-watermark-pattern";
   watermark.id = "pdfWatermark";
 
-  quiz.prepend(watermark);
-
+  wrapper.prepend(watermark);
 }
+
 function removePDFWatermark(){
+
   const watermark = document.getElementById("pdfWatermark");
+
   if(watermark){
     watermark.remove();
   }
