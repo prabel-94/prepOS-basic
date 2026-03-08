@@ -481,7 +481,10 @@ if(viewBtn){
 const safeTitle = (window.examTitle || "exam")
   .replace(/[^a-z0-9]/gi, "_")
   .toLowerCase();
-setTimeout(function(){
+const logoImg = document.querySelector("#pdfHeader img");
+
+function generatePDF(){
+
   html2pdf()
     .set({
       margin:10,
@@ -500,28 +503,40 @@ setTimeout(function(){
     .save()
     .then(function(){
 
-  /* restore UI scroll styles */
-  reviewContainer.style.maxHeight = originalMaxHeight;
-  reviewContainer.style.overflow = originalOverflow;
+      /* restore UI scroll styles */
+      reviewContainer.style.maxHeight = originalMaxHeight;
+      reviewContainer.style.overflow = originalOverflow;
 
-  /* show PDF button again */
-  pdfBtn.style.display = "block";
-const viewBtn = document.getElementById("reviewBtn");
-  if(viewBtn){
-    viewBtn.style.display = "inline-block";
+      pdfBtn.style.display = "block";
+
+      const viewBtn = document.getElementById("reviewBtn");
+      if(viewBtn){
+        viewBtn.style.display = "inline-block";
+      }
+
+      removePDFHeader();
+      collapseAllExplanations();
+
+    });
 }
-  /* remove header added for PDF */
-  removePDFHeader();
 
-  /* collapse explanations again */
-  collapseAllExplanations();
+/* wait for logo before generating PDF */
 
-});
+if(logoImg){
 
-},300);
+  if(logoImg.complete){
+    generatePDF();
+  }else{
+    logoImg.onload = generatePDF;
+  }
+
+}else{
+  generatePDF();
+}
 };
 
 }
+
 function collapseAllExplanations(){
 
   const explanations = document.querySelectorAll(".explanation");
