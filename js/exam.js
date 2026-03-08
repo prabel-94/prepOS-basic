@@ -467,7 +467,7 @@ if(viewBtn){
 }
 
   /* add header for PDF */
-  addPDFHeader();
+  await addPDFHeader();
 
   /* expand all explanations */
   document.querySelectorAll(".explanation").forEach(function(el){
