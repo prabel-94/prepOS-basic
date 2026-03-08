@@ -605,3 +605,6 @@ async function imageToBase64(url){
   });
 
 }
+/* start exam loading */
+
+document.addEventListener("DOMContentLoaded", loadExam);
