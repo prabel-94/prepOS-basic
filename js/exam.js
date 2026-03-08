@@ -131,8 +131,17 @@ async function loadExam(){
 
     const exam = data[0];
 
-    window.examTitle = exam.title || "Exam";
-    window.examLogo = exam.logo_url || "";
+    const logoEl = document.getElementById("examLogo");
+
+if(window.examLogo && logoEl){
+  logoEl.src = window.examLogo;
+  logoEl.style.display = "block";
+}
+
+const titleEl = document.getElementById("examTitle");
+if(titleEl){
+  titleEl.textContent = window.examTitle;
+}
 
     let questions = [];
 
