@@ -1,5 +1,5 @@
 // ===============================
-// PrepOS Draft Editor — Phase 3 (Improved)
+// PrepOS Draft Editor — Phase 4
 // ===============================
 
 let autosaveTimer = null
@@ -9,8 +9,11 @@ let isSaving = false
 const params = new URLSearchParams(window.location.search)
 const draftId = params.get("id")
 
-const PUBLISH_FUNCTION_URL = "https://bcqjfosxneuyoyuzhdiq.supabase.co/functions/v1/publish-draft"
-const CLONE_FUNCTION_URL   = "https://bcqjfosxneuyoyuzhdiq.supabase.co/functions/v1/clone-draft"
+const PUBLISH_FUNCTION_URL =
+"https://bcqjfosxneuyoyuzhdiq.supabase.co/functions/v1/publish-draft"
+
+const CLONE_FUNCTION_URL =
+"https://bcqjfosxneuyoyuzhdiq.supabase.co/functions/v1/clone-draft"
 
 if (!draftId) {
   alert("Missing draft id")
@@ -25,19 +28,20 @@ const sb = window.supabase.createClient(
 
 // ⭐ Local state
 let currentDraft = null
+let logoURL = null
 
 
 
 // ===============================
 // Autosave scheduler
 // ===============================
-function scheduleAutosave() {
+function scheduleAutosave(){
 
   if (autosaveTimer) clearTimeout(autosaveTimer)
 
-  autosaveTimer = setTimeout(() => {
+  autosaveTimer = setTimeout(()=>{
     saveDraft(true)
-  }, 1500)
+  },1500)
 }
 
 
@@ -45,9 +49,9 @@ function scheduleAutosave() {
 // ===============================
 // Load Draft
 // ===============================
-async function loadDraft() {
+async function loadDraft(){
 
-  try {
+  try{
 
     const { data, error } = await sb
       .from("exam_drafts")
@@ -59,7 +63,7 @@ async function loadDraft() {
 
     renderDraft(data)
 
-  } catch (e) {
+  }catch(e){
     console.error(e)
     alert("Failed to load draft")
   }
@@ -72,11 +76,12 @@ loadDraft()
 // ===============================
 // Render Draft
 // ===============================
-function renderDraft(draft) {
+function renderDraft(draft){
 
   console.log("DRAFT RECEIVED →", draft)
 
   currentDraft = draft
+  logoURL = draft.logo_url || null
 
   // ===============================
   // Meta
@@ -89,6 +94,18 @@ function renderDraft(draft) {
 
   titleEl.addEventListener("input", scheduleAutosave)
   durationEl.addEventListener("input", scheduleAutosave)
+
+
+  // ===============================
+  // Logo preview
+  // ===============================
+  const preview = document.getElementById("logoPreview")
+
+  if(logoURL && preview){
+    preview.src = logoURL
+    preview.style.display = "block"
+  }
+
 
   // ===============================
   // Questions
@@ -105,55 +122,58 @@ function renderDraft(draft) {
 
   const questions = sections?.[0]?.questions || []
 
-  questions.forEach((q, i) => {
+  questions.forEach((q,i)=>{
 
-    // ⭐ Normalize correct value (letter → index)
     let correctIndex = q.correct
 
-    if (typeof correctIndex === "string") {
+    if(typeof correctIndex === "string"){
       correctIndex = ["A","B","C","D"].indexOf(correctIndex)
     }
 
-    if (correctIndex < 0 || correctIndex > 3) {
+    if(correctIndex < 0 || correctIndex > 3){
       correctIndex = 0
     }
 
-    const opts = q.options || ["", "", "", ""]
+    const opts = q.options || ["","","",""]
 
     const div = document.createElement("div")
     div.className = "question-card"
 
     div.innerHTML = `
-      <p><b>Q${i + 1}</b></p>
+      <p><b>Q${i+1}</b></p>
 
       <label>Question</label>
       <textarea data-i="${i}" class="qtext" rows="3">${q.question || ""}</textarea>
 
       <label>Options</label>
-      ${opts.map((opt, oi) => `
+      ${opts.map((opt,oi)=>`
         <input class="opt"
-               data-i="${i}"
-               data-oi="${oi}"
-               value="${opt || ""}" />
+          data-i="${i}"
+          data-oi="${oi}"
+          value="${opt || ""}">
       `).join("")}
 
       <label>Correct</label>
       <select class="correct" data-i="${i}">
-        ${["A","B","C","D"].map((l, idx)=>`
-          <option value="${idx}" ${correctIndex===idx?"selected":""}>${l}</option>
+        ${["A","B","C","D"].map((l,idx)=>`
+          <option value="${idx}" ${correctIndex===idx?"selected":""}>
+          ${l}
+          </option>
         `).join("")}
       </select>
 
       <label>Explanation</label>
-      <textarea class="exp" data-i="${i}" rows="2">${q.explanation || ""}</textarea>
+      <textarea class="exp" data-i="${i}" rows="2">
+      ${q.explanation || ""}
+      </textarea>
     `
 
     container.appendChild(div)
 
-    // ⭐ Autosave listeners
-    div.querySelectorAll(".qtext, .opt, .correct, .exp")
+    div.querySelectorAll(".qtext,.opt,.correct,.exp")
       .forEach(el => el.addEventListener("input", scheduleAutosave))
   })
+
 }
 
 
@@ -161,62 +181,60 @@ function renderDraft(draft) {
 // ===============================
 // Save Draft
 // ===============================
-async function saveDraft(silent = false) {
+async function saveDraft(silent=false){
 
-  if (!currentDraft) return
-  if (isSaving) return
+  if(!currentDraft) return
+  if(isSaving) return
 
   isSaving = true
 
-  try {
-
-    const qTexts = document.querySelectorAll(".qtext")
+  try{
 
     const questions =
       currentDraft.schema_json?.sections?.[0]?.questions || []
 
-    qTexts.forEach(el => {
-      const i = parseInt(el.dataset.i)
-      if (questions[i]) {
-        questions[i].question = el.value
-      }
+    document.querySelectorAll(".qtext").forEach(el=>{
+      const i = +el.dataset.i
+      if(questions[i]) questions[i].question = el.value
     })
-    document.querySelectorAll(".opt").forEach(el => {
+
+    document.querySelectorAll(".opt").forEach(el=>{
       const i = +el.dataset.i
       const oi = +el.dataset.oi
-      if (questions[i]) questions[i].options[oi] = el.value
+      if(questions[i]) questions[i].options[oi] = el.value
     })
 
-    document.querySelectorAll(".correct").forEach(el => {
+    document.querySelectorAll(".correct").forEach(el=>{
       const i = +el.dataset.i
-      if (questions[i]) questions[i].correct = +el.value
+      if(questions[i]) questions[i].correct = +el.value
     })
 
-    document.querySelectorAll(".exp").forEach(el => {
+    document.querySelectorAll(".exp").forEach(el=>{
       const i = +el.dataset.i
-      if (questions[i]) questions[i].explanation = el.value
+      if(questions[i]) questions[i].explanation = el.value
     })
 
-    const durationVal = document.getElementById("duration").value
+    const durationVal =
+      document.getElementById("duration").value
 
     const { error } = await sb
       .from("exam_drafts")
       .update({
-  title: document.getElementById("title").value,
-  duration: durationVal ? parseInt(durationVal) : null,
-  schema_json: currentDraft.schema_json,
-  logo_url: logoURL
-})
+        title: document.getElementById("title").value,
+        duration: durationVal ? parseInt(durationVal) : null,
+        schema_json: currentDraft.schema_json,
+        logo_url: logoURL
+      })
       .eq("id", draftId)
 
-    if (error) throw error
+    if(error) throw error
 
-    if (!silent) {
+    if(!silent){
       const status = document.getElementById("status")
-      if (status) status.textContent = "Saved"
+      if(status) status.textContent = "Saved"
     }
 
-  } catch (e) {
+  }catch(e){
     console.error(e)
     alert("Save failed")
   }
@@ -227,109 +245,20 @@ async function saveDraft(silent = false) {
 
 
 // ===============================
-// Clone Draft (Versioning)
+// Logo Upload
 // ===============================
-async function cloneDraft() {
+async function handleLogoUpload(e){
 
-  await saveDraft(true)
+  const file = e.target.files[0]
+  if(!file) return
 
-  try {
+  const compressed = await compressImage(file)
 
-    const res = await fetch(CLONE_FUNCTION_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "apikey": SUPABASE_ANON_KEY,
-        "Authorization": `Bearer ${SUPABASE_ANON_KEY}`
-      },
-      body: JSON.stringify({ draftId })
-    })
-
-    const data = await res.json()
-
-    if (!data.success) {
-      alert(data.error || "Clone failed")
-      return
-    }
-
-    window.location.href = data.draftLink
-
-  } catch (e) {
-    console.error(e)
-    alert("Network error")
-  }
-}
-
-
-
-// ===============================
-// Publish Draft
-// ===============================
-async function publishDraft() {
-
-  await saveDraft(true)
-
-  try {
-
-    const res = await fetch(PUBLISH_FUNCTION_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "apikey": SUPABASE_ANON_KEY,
-        "Authorization": `Bearer ${SUPABASE_ANON_KEY}`
-      },
-      body: JSON.stringify({ draftId })
-    })
-
-    const data = await res.json()
-    console.log(data)
-    if (data.examLink) {
-      navigator.clipboard.writeText(data.examLink)
-      alert("Exam link copied:\n" + data.examLink)
-      window.open(data.examLink, "_blank")
-    }
-
-    if (!data.success) {
-      alert(data.error || "Publish failed")
-      return
-    }
-
-    alert("Published!")
-    window.open(data.examLink, "_blank")
-
-  } catch (e) {
-    console.error(e)
-    alert("Network error")
-  }
-}
-
-async function uploadLogo(file, teacherId){
-
-  const allowedTypes = [
-    "image/png",
-    "image/jpeg",
-    "image/jpg",
-    "image/svg+xml"
-  ];
-
-  if(!allowedTypes.includes(file.type)){
-    alert("Only PNG, JPG or SVG allowed");
-    return null;
-  }
-
-  if(file.size > 1_000_000){
-    alert("Logo must be under 1MB");
-    return null;
-  }
-
-  const compressed = await compressImage(file);
-
-  const fileName = `logo-${Date.now()}.png`;
-
-  const path = `teachers/${teacherId}/${fileName}`;
+  const fileName = `logo-${Date.now()}.png`
+  const path = `drafts/${draftId}/${fileName}`
 
   const uploadUrl =
-  `${SUPABASE_URL}/storage/v1/object/logos/${path}`;
+  `${SUPABASE_URL}/storage/v1/object/logos/${path}`
 
   const res = await fetch(uploadUrl,{
     method:"POST",
@@ -339,17 +268,146 @@ async function uploadLogo(file, teacherId){
       "x-upsert":"true"
     },
     body:compressed
-  });
+  })
 
   if(!res.ok){
-    const err = await res.text();
-    console.error(err);
-    alert("Logo upload failed");
-    return null;
+    const err = await res.text()
+    console.error(err)
+    alert("Logo upload failed")
+    return
   }
 
-  return `${SUPABASE_URL}/storage/v1/object/public/logos/${path}`;
+  logoURL =
+  `${SUPABASE_URL}/storage/v1/object/public/logos/${path}`
+
+  const preview = document.getElementById("logoPreview")
+
+  if(preview){
+    preview.src = logoURL
+    preview.style.display = "block"
+  }
+
+  saveDraft(true)
 }
+
+
+
+// ===============================
+// Image Compression
+// ===============================
+async function compressImage(file){
+
+  const img = await createImageBitmap(file)
+
+  const canvas = document.createElement("canvas")
+
+  const maxWidth = 600
+  const scale = maxWidth / img.width
+
+  canvas.width = maxWidth
+  canvas.height = img.height * scale
+
+  const ctx = canvas.getContext("2d")
+
+  ctx.drawImage(img,0,0,canvas.width,canvas.height)
+
+  return new Promise(resolve=>{
+    canvas.toBlob(resolve,"image/png",0.8)
+  })
+}
+
+
+
+// ===============================
+// Clone Draft
+// ===============================
+async function cloneDraft(){
+
+  await saveDraft(true)
+
+  try{
+
+    const res = await fetch(CLONE_FUNCTION_URL,{
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        "apikey":SUPABASE_ANON_KEY,
+        "Authorization":`Bearer ${SUPABASE_ANON_KEY}`
+      },
+      body:JSON.stringify({ draftId })
+    })
+
+    const data = await res.json()
+
+    if(!data.success){
+      alert(data.error || "Clone failed")
+      return
+    }
+
+    window.location.href = data.draftLink
+
+  }catch(e){
+    console.error(e)
+    alert("Network error")
+  }
+
+}
+
+
+
+// ===============================
+// Publish Draft
+// ===============================
+async function publishDraft(){
+
+  await saveDraft(true)
+
+  try{
+
+    const res = await fetch(PUBLISH_FUNCTION_URL,{
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        "apikey":SUPABASE_ANON_KEY,
+        "Authorization":`Bearer ${SUPABASE_ANON_KEY}`
+      },
+      body:JSON.stringify({ draftId })
+    })
+
+    const data = await res.json()
+
+    if(!data.success){
+      alert(data.error || "Publish failed")
+      return
+    }
+
+    if(data.examLink){
+
+      navigator.clipboard.writeText(data.examLink)
+
+      alert("Exam link copied:\n"+data.examLink)
+
+      window.open(data.examLink,"_blank")
+    }
+
+  }catch(e){
+    console.error(e)
+    alert("Network error")
+  }
+
+}
+
+
+
+// ===============================
+// Init Logo Listener
+// ===============================
+document
+.getElementById("logoUpload")
+?.addEventListener("change", handleLogoUpload)
+
+
+
 // ===============================
 // Expose globally
 // ===============================
