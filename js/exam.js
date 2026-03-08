@@ -17,14 +17,11 @@ function addPDFWatermark(){
   quiz.prepend(watermark);
 
 }
-function removePdfWatermark(){
-
+function removePDFWatermark(){
   const watermark = document.getElementById("pdfWatermark");
-
   if(watermark){
     watermark.remove();
   }
-
 }
 
 function showLoading(){
