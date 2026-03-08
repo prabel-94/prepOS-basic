@@ -274,7 +274,7 @@ font-size:14px;
 
   pointer-events: none;
 
-  z-index: 0;
+  z-index:1;
 
   background-image: url("/assets/prepos-icon.png");
 
@@ -284,4 +284,13 @@ font-size:14px;
 
   opacity: 0.06;
 
+}
+
+/* ==============================
+   QUIZ LAYER (for watermark)
+============================== */
+
+#quiz{
+  position: relative;
+  z-index: 2;
 }
