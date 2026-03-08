@@ -202,10 +202,11 @@ async function saveDraft(silent = false) {
     const { error } = await sb
       .from("exam_drafts")
       .update({
-        title: document.getElementById("title").value,
-        duration: durationVal ? parseInt(durationVal) : null,
-        schema_json: currentDraft.schema_json
-      })
+  title: document.getElementById("title").value,
+  duration: durationVal ? parseInt(durationVal) : null,
+  schema_json: currentDraft.schema_json,
+  logo_url: logoURL
+})
       .eq("id", draftId)
 
     if (error) throw error
@@ -302,7 +303,49 @@ async function publishDraft() {
   }
 }
 
+async function uploadLogo(file){
 
+  const fileName = "logo-" + Date.now() + "-" + file.name;
+
+  const uploadUrl =
+    `${SUPABASE_URL}/storage/v1/object/logos/${fileName}`;
+
+  const res = await fetch(uploadUrl,{
+    method:"POST",
+    headers:{
+      "Authorization":`Bearer ${SUPABASE_ANON_KEY}`,
+      "Content-Type":file.type
+    },
+    body:file
+  });
+
+  if(!res.ok){
+    alert("Logo upload failed");
+    return null;
+  }
+
+  return `${SUPABASE_URL}/storage/v1/object/public/logos/${fileName}`;
+}
+
+let logoURL = "";
+
+document
+  .getElementById("logoUpload")
+  .addEventListener("change",async(e)=>{
+
+    const file = e.target.files[0];
+    if(!file) return;
+
+    const url = await uploadLogo(file);
+
+    if(url){
+      logoURL = url;
+
+      document.getElementById("logoPreview").innerHTML =
+        `<img src="${url}">`;
+    }
+
+});
 
 // ===============================
 // Expose globally

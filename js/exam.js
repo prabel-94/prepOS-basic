@@ -1,6 +1,24 @@
 console.log("SCRIPT STARTED");
 
 /* ---------- helpers ---------- */
+function showLoading(){
+  document.getElementById("loadingState").style.display="block";
+  document.getElementById("errorState").style.display="none";
+  document.getElementById("examContent").style.display="none";
+}
+
+function showError(message){
+  document.getElementById("loadingState").style.display="none";
+  document.getElementById("errorState").style.display="block";
+  document.getElementById("examContent").style.display="none";
+  document.getElementById("errorMessage").textContent=message;
+}
+
+function showExam(){
+  document.getElementById("loadingState").style.display="none";
+  document.getElementById("errorState").style.display="none";
+  document.getElementById("examContent").style.display="block";
+}
 function escapeHTML(str){
   return String(str)
     .replace(/&/g,"&amp;")
@@ -9,7 +27,12 @@ function escapeHTML(str){
     .replace(/"/g,"&quot;")
     .replace(/'/g,"&#039;");
 }
-
+/* ---solves double question number -- */
+function stripLeadingNumber(text){
+  return String(text)
+    .replace(/^(Q?\d+[\).\s]+)/i, "")
+    .trim();
+}
 /* ---------- scroll to result ---------- */
 function scrollToResult(){
   const resultEl = document.getElementById("result")
@@ -72,62 +95,108 @@ if(!attemptState || attemptState.attemptId !== attemptId){
   };
   localStorage.setItem(ATTEMPT_KEY, JSON.stringify(attemptState));
 }
-
 /* ======================================================
    FETCH EXAM
 ====================================================== */
+
 async function loadExam(){
+
+  console.log("Exam loading started");
+
+  showLoading();
 
   try{
 
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/exams?id=eq.${examId}`,
+      SUPABASE_URL + "/rest/v1/exams?id=eq." + examId,
       {
         headers:{
           apikey: SUPABASE_ANON_KEY,
-          Authorization:`Bearer ${SUPABASE_ANON_KEY}`
+          Authorization: "Bearer " + SUPABASE_ANON_KEY
         }
       }
     );
 
+    /* HTTP failure */
+    if(!res.ok){
+      throw new Error("Server error (" + res.status + ")");
+    }
+
     const data = await res.json();
     console.log("Exam fetch result:", data);
 
-    if(!data.length){
-      document.getElementById("quiz").innerText="Exam not found";
-      return;
+    if(!data || !data.length){
+      throw new Error("Exam not found");
     }
 
-    const questions =
-      data[0].schema_json.sections[0].questions;
+    const exam = data[0];
 
-    /* RAW */
+    window.examTitle = exam.title || "Exam";
+    window.examLogo = exam.logo_url || "";
+
+    let questions = [];
+
+    /* ---------- NEW SCHEMA (sections) ---------- */
+
+    if(exam.schema_json && exam.schema_json.sections){
+
+      questions = exam.schema_json.sections.flatMap(function(section){
+        return section.questions;
+      });
+
+    }
+
+    /* ---------- OLD SCHEMA (direct questions) ---------- */
+
+    else if(exam.schema_json && exam.schema_json.questions){
+
+      questions = exam.schema_json.questions;
+
+    }
+
+    if(!questions || !questions.length){
+      throw new Error("No questions found in exam");
+    }
+
+    /* RAW QUESTIONS */
+
     window.examQuestionsRaw = questions;
 
-    /* ATTEMPT */
-    window.examQuestionsAttempt =
-      questions.map(q=>({
-        question:q.question,
-        options:q.options
-      }));
+    /* STUDENT ATTEMPT STRUCTURE */
 
-    /* ⭐ CRITICAL — restore legacy variable */
+    window.examQuestionsAttempt = questions.map(function(q){
+
+      return {
+        question: q.question,
+        options: q.options
+      };
+
+    });
+
     window.examQuestions = questions;
 
-    /* render */
+    /* RENDER QUIZ */
+
     renderQuiz(window.examQuestionsAttempt);
 
-  }catch(err){
-    console.error(err);
-    document.getElementById("quiz").innerText="Failed to load exam";
+    showExam();
+
   }
+  catch(err){
+
+    console.error("Exam loading failed:", err);
+
+    showError(err.message || "Failed to load exam");
+
+  }
+
 }
 /* ======================================================
    RENDER QUIZ
 ====================================================== */
 function renderQuiz(questions){
 
-  const container=document.getElementById("quiz");
+  const container = document.getElementById("examContent");
   container.innerHTML="";
 
   questions.forEach((q,i)=>{
@@ -194,6 +263,8 @@ async function submitExam(){
     alert("Please enter your name");
     return;
   }
+/* store student name for PDF header */
+localStorage.setItem("studentName", studentName);
 
   let score=0;
   const answers=[];
@@ -244,25 +315,25 @@ async function submitExam(){
 
     /* ---------- build review ---------- */
     window.reviewData =
-      window.examQuestionsRaw.map((q,i)=>{
+  window.examQuestionsRaw.map((q,i)=>{
 
-        const student = answers[i]?.chosen || "-";
-        const correct =
-          String.fromCharCode(65 + q.correct);
+    const student = answers[i]?.chosen || "-";
+    const correct = String.fromCharCode(65 + q.correct);
 
-        return{
-          question:q.question,
-          options:q.options,
-          correct,
-          student,
-          explanation:q.explanation,
-          isCorrect:student===correct
-        };
-      });
+    return{
+      question:q.question,
+      options:q.options,
+      correct,
+      student,
+      explanation:q.explanation || q.explanation_text || "",
+      isCorrect:student===correct
+    };
+  });
 
     document.getElementById("result").innerHTML =
-      `<h3>${studentName}, your score: ${score}/${window.examQuestionsRaw.length}</h3>
-       <button id="reviewBtn">View Answers</button>`;
+`<h3>${studentName}, your score: ${score}/${window.examQuestionsRaw.length}</h3>
+ <button id="reviewBtn">View Answers</button>
+ <button id="downloadPdfBtn" style="display:none">Download Review PDF</button>`;
 
 scrollToResult()
 
@@ -280,57 +351,228 @@ scrollToResult()
 ====================================================== */
 function renderReview(){
 
-  const container=document.getElementById("quiz");
-  container.innerHTML="";
+  const container = document.getElementById("quiz");
+  container.innerHTML = "";
 
-  window.reviewData.forEach((q,i)=>{
+  window.reviewData.forEach(function(q,i){
 
-    const card=document.createElement("div");
-    card.className="review-card";
+    const card = document.createElement("div");
+    card.className = "review-card";
 
-    const optionsHTML = q.options.map((o,idx)=>{
+    const question = document.createElement("div");
+    question.className = "review-question";
+    question.textContent = (i+1) + ". " + q.question;
+
+    card.appendChild(question);
+
+    const optionsWrap = document.createElement("div");
+
+    q.options.forEach(function(opt,idx){
 
       const letter = String.fromCharCode(65+idx);
 
-      let cls="option";
+      const option = document.createElement("div");
+      option.className = "option";
 
-      if(letter===q.correct) cls+=" correct";
-      if(letter===q.student && letter!==q.correct) cls+=" wrong";
-      if(letter===q.student) cls+=" chosen";
+      if(letter===q.correct){
+        option.classList.add("correct");
+      }
 
-      return `
-        <div class="${cls}">
-          <b>${letter}.</b> ${escapeHTML(o)}
-        </div>
-      `;
-    }).join("");
+      if(letter===q.student && letter!==q.correct){
+        option.classList.add("wrong");
+      }
 
-    card.innerHTML=`
-      <div class="review-q">
-        <b>Q${i+1}.</b> ${escapeHTML(q.question)}
-      </div>
+      option.textContent = letter + ". " + opt;
 
-      <div class="review-options">
-        ${optionsHTML}
-      </div>
+      optionsWrap.appendChild(option);
 
-      <button class="explain-btn">Explanation</button>
-      <div class="explanation" style="display:none">
-        ${escapeHTML(q.explanation||"No explanation provided")}
-      </div>
-    `;
+    });
 
-    /* accordion */
-    const btn=card.querySelector(".explain-btn");
-    const exp=card.querySelector(".explanation");
+    card.appendChild(optionsWrap);
 
-    btn.onclick=()=>{
-      exp.style.display =
-        exp.style.display==="none" ? "block":"none";
-    };
+/* ---------- explanation ---------- */
 
-    container.appendChild(card);
+if(q.explanation && q.explanation.trim()){
+
+  const explainBtn = document.createElement("button");
+  explainBtn.className = "explain-btn";
+  explainBtn.textContent = "Show Explanation";
+
+  const explanation = document.createElement("div");
+  explanation.className = "explanation";
+  explanation.style.display = "none";
+  explanation.innerHTML = "<b>Explanation:</b> " + escapeHTML(q.explanation);
+
+  explainBtn.onclick = function(){
+    explanation.style.display =
+      explanation.style.display === "none" ? "block" : "none";
+  };
+
+  card.appendChild(explainBtn);
+  card.appendChild(explanation);
+}
+
+container.appendChild(card);
+
   });
+
+
+  /* ---------- CREATE PDF BUTTON ---------- */
+
+    let pdfBtn = document.getElementById("downloadPdfBtn");
+
+if(!pdfBtn){
+
+  pdfBtn = document.createElement("button");
+  pdfBtn.id = "downloadPdfBtn";
+  pdfBtn.textContent = "Download Answer Key PDF";
+  container.appendChild(pdfBtn);
+
+}
+
+/* ALWAYS show button */
+pdfBtn.style.display = "block";
+pdfBtn.style.margin = "20px auto";
+
+  /* ---------- ATTACH PDF EVENT ---------- */
+
+pdfBtn.onclick = function(){
+
+  const reviewContainer = document.getElementById("quiz");
+
+  /* store original styles */
+  const originalMaxHeight = reviewContainer.style.maxHeight;
+  const originalOverflow = reviewContainer.style.overflow;
+
+  /* remove scroll restriction so html2pdf can capture full content */
+  reviewContainer.style.maxHeight = "none";
+  reviewContainer.style.overflow = "visible";
+
+/* hide PDF button and view answers button so it doesn't appear in PDF */
+  pdfBtn.style.display = "none";
+const viewBtn = document.getElementById("reviewBtn");
+if(viewBtn){
+  viewBtn.style.display = "none";
+}
+
+  /* add header for PDF */
+  addPDFHeader();
+
+  /* expand all explanations */
+  document.querySelectorAll(".explanation").forEach(function(el){
+    el.style.display = "block";
+  });
+
+  /* hide explanation buttons in PDF */
+  document.querySelectorAll(".explain-btn").forEach(function(btn){
+    btn.style.display = "none";
+  });
+const safeTitle = (window.examTitle || "exam")
+  .replace(/[^a-z0-9]/gi, "_")
+  .toLowerCase();
+setTimeout(function(){
+  html2pdf()
+    .set({
+      margin:10,
+      filename: safeTitle + "_review.pdf",
+      html2canvas:{
+        scale:2,
+        scrollY:0
+      },
+      jsPDF:{
+        unit:"mm",
+        format:"a4",
+        orientation:"portrait"
+      }
+    })
+    .from(reviewContainer)
+    .save()
+    .then(function(){
+
+  /* restore UI scroll styles */
+  reviewContainer.style.maxHeight = originalMaxHeight;
+  reviewContainer.style.overflow = originalOverflow;
+
+  /* show PDF button again */
+  pdfBtn.style.display = "block";
+const viewBtn = document.getElementById("reviewBtn");
+  if(viewBtn){
+    viewBtn.style.display = "inline-block";
+}
+  /* remove header added for PDF */
+  removePDFHeader();
+
+  /* collapse explanations again */
+  collapseAllExplanations();
+
+});
+
+},300);
+};
+
+}
+function collapseAllExplanations(){
+
+  const explanations = document.querySelectorAll(".explanation");
+  const buttons = document.querySelectorAll(".explain-btn");
+
+  explanations.forEach(el=>{
+    el.style.display = "none";
+  });
+
+  // restore buttons
+  buttons.forEach(btn=>{
+    btn.style.display = "inline-block";
+  });
+
+}
+
+function addPDFHeader(){
+
+  const container = document.getElementById("quiz");
+
+  if(document.getElementById("pdfHeader")) return;
+
+  const studentName = localStorage.getItem("studentName") || "Student";
+  const examTitle = window.examTitle || "Exam";
+
+  const scoreText = document.getElementById("result")
+      ? document.getElementById("result").innerText
+      : "";
+
+  const date = new Date().toLocaleDateString();
+
+  const logo = window.examLogo || "";
+
+  const header = document.createElement("div");
+  header.id = "pdfHeader";
+
+  header.innerHTML = `
+    <div class="pdf-header">
+
+      ${logo ? `<img src="${logo}" class="pdf-logo">` : ""}
+
+      <h2>${examTitle}</h2>
+
+      <p><b>Student:</b> ${studentName}</p>
+      <p><b>Date:</b> ${date}</p>
+      <p><b>${scoreText}</b></p>
+
+      <hr>
+
+    </div>
+  `;
+
+  container.prepend(header);
+}
+
+function removePDFHeader(){
+
+  const header = document.getElementById("pdfHeader");
+
+  if(header){
+    header.remove();
+  }
 
 }
 

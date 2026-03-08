@@ -190,3 +190,29 @@ font-size:14px;
     background-color: transparent; 
   }
 }
+
+/*--- better explanation highlight ---*/
+.explanation{
+  margin-top:8px;
+  padding:10px;
+  background:#f5f5f5;
+  border-left:4px solid #4caf50;
+  font-size:14px;
+}
+
+#logoPreview img{
+  max-height:60px;
+  margin-top:10px;
+}
+
+.review-card{
+  page-break-inside: avoid;
+  break-inside: avoid;
+  margin-bottom: 20px;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}

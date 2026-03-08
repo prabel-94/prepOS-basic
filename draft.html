@@ -52,6 +52,10 @@
 
   <label for="title">Title</label>
   <input id="title" type="text" placeholder="Enter title" />
+  <label>Institute Logo (optional)</label>
+  <input type="file" id="logoUpload" accept="image/png,image/jpeg">
+
+  <div id="logoPreview"></div>
 
   <label for="duration">Duration (minutes)</label>
   <input id="duration" type="number" placeholder="Enter duration in minutes" />
@@ -74,5 +78,25 @@
   <script src="js/config.js"></script>
   <script src="js/draft.js"></script>
 
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.src = "https://cdn.jsdelivr.net/npm/eruda";
+  script.onload = function () {
+    eruda.init();
+  };
+  document.body.appendChild(script);
+})();
+</script>
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.src = "https://cdn.jsdelivr.net/npm/eruda";
+  script.onload = function () {
+    eruda.init();
+  };
+  document.body.appendChild(script);
+})();
+</script>
 </body>
 </html>
