@@ -492,7 +492,8 @@ function generatePDF(){
       html2canvas:{
   scale:2,
   scrollY:0,
-  useCORS:true
+  useCORS:true,
+  letterRendering:true
 },
       jsPDF:{
         unit:"mm",
