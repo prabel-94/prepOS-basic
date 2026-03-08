@@ -447,7 +447,7 @@ pdfBtn.style.margin = "20px auto";
 
   /* ---------- ATTACH PDF EVENT ---------- */
 
-pdfBtn.onclick = function(){
+pdfBtn.onclick = async function(){
 
   const reviewContainer = document.getElementById("quiz");
 
