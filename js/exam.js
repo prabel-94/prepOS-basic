@@ -486,6 +486,7 @@ function renderReview(){
 
     /* add header */
     await addPDFHeader();
+    addPDFWatermark();
 
     /* expand explanations */
     document.querySelectorAll(".explanation").forEach(el=>{
@@ -527,6 +528,7 @@ function renderReview(){
     if(viewBtn) viewBtn.style.display = "inline-block";
 
     removePDFHeader();
+    removePDFWatermark();
     collapseAllExplanations();
 
   };
