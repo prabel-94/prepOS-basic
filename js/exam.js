@@ -1,6 +1,31 @@
 console.log("SCRIPT STARTED");
 
 /* ---------- helpers ---------- */
+/* ===============================
+   WATERMARK FUNCTIONS
+================================ */
+
+function addPdfWatermark(){
+
+  const watermark = document.createElement("div");
+
+  watermark.className = "pdf-watermark-pattern";
+  watermark.id = "pdfWatermark";
+
+  document.body.appendChild(watermark);
+
+}
+
+function removePdfWatermark(){
+
+  const watermark = document.getElementById("pdfWatermark");
+
+  if(watermark){
+    watermark.remove();
+  }
+
+}
+
 function showLoading(){
   document.getElementById("loadingState").style.display="block";
   document.getElementById("errorState").style.display="none";
