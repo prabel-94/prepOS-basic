@@ -1,13 +1,13 @@
 console.log("SCRIPT STARTED");
 
-let watermarkImage = new Image();
-const faintLogo = getTransparentImage(watermarkImage,0.08);
+/* ---------- watermark image ---------- */
 
-pdf.addImage(faintLogo,"PNG",x,y,size,size);
+let watermarkImage = new Image();
 watermarkImage.src = "assets/prepos-icon.png";
 
-/* ---------- helpers ---------- */
-function getTransparentImage(img, opacity = 0.1){
+/* ---------- convert image to faint version ---------- */
+
+function getTransparentImage(img, opacity = 0.08){
 
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
@@ -21,6 +21,8 @@ function getTransparentImage(img, opacity = 0.1){
   return canvas.toDataURL("image/png");
 }
 
+/* ---------- watermark renderer ---------- */
+
 function drawPrepOSWatermark(pdf){
 
   const pageCount = pdf.internal.getNumberOfPages();
@@ -30,7 +32,8 @@ function drawPrepOSWatermark(pdf){
   const size = 40;
   const gap = 80;
 
-  pdf.setGState(new pdf.GState({opacity:0.08}));
+  /* create faint logo once */
+  const faintLogo = getTransparentImage(watermarkImage,0.08);
 
   for(let page=1; page<=pageCount; page++){
 
@@ -40,7 +43,7 @@ function drawPrepOSWatermark(pdf){
       for(let y=0; y<pageHeight; y+=gap){
 
         pdf.addImage(
-          watermarkImage,
+          faintLogo,
           "PNG",
           x,
           y,
@@ -53,7 +56,7 @@ function drawPrepOSWatermark(pdf){
 
   }
 
-  pdf.setGState(new pdf.GState({opacity:1}));
+}
 }
 
 function showLoading(){
