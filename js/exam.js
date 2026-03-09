@@ -3,7 +3,7 @@ console.log("SCRIPT STARTED");
 /* ---------- watermark image ---------- */
 
 let watermarkImage = new Image();
-watermarkImage.src = "assets/prepos-icon.png";
+watermarkImage.src = "assets/logo_full.png";
 
 /* ---------- convert image to faint version ---------- */
 
