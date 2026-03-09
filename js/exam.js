@@ -47,13 +47,15 @@ const width = size;
 const height = size * aspect;
 
         pdf.addImage(
-          faintLogo,
-          "PNG",
-          x,
-          y,
-          size,
-          size
-        );
+  faintLogo,
+  "JPEG",
+  x,
+  y,
+  size,
+  height,
+  null,
+  "FAST"
+);
 
       }
     }
