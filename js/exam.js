@@ -34,33 +34,31 @@ function drawPrepOSWatermark(pdf){
 
   const faintLogo = getTransparentImage(watermarkImage,0.08);
 
-  for(let page=1; page<=pageCount; page++){
-
-    pdf.setPage(page);
-
-    for(let x=0; x<pageWidth; x+=gap){
-      for(let y=0; y<pageHeight; y+=gap){
-
 const aspect = watermarkImage.height / watermarkImage.width;
-
 const width = size;
 const height = size * aspect;
 
-        pdf.addImage(
-  faintLogo,
-  "JPEG",
-  x,
-  y,
-  size,
-  height,
-  null,
-  "FAST"
-);
+for(let page=1; page<=pageCount; page++){
 
-      }
+  pdf.setPage(page);
+
+  for(let x=0; x<pageWidth; x+=gap){
+    for(let y=0; y<pageHeight; y+=gap){
+
+      pdf.addImage(
+        faintLogo,
+        "JPEG",
+        x,
+        y,
+        width,
+        height,
+        null,
+        "FAST"
+      );
+
     }
-
   }
+}
 
 }
 
