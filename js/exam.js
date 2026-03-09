@@ -548,10 +548,11 @@ function renderReview(){
     margin:10,
     filename: safeTitle + "_review.pdf",
     html2canvas:{
-      scale:2,
-      scrollY:0,
-      useCORS:true
-    },
+  scale:1,
+  scrollY:0,
+  useCORS:true,
+  logging:false
+},
     jsPDF:{
       unit:"mm",
       format:"a4",
