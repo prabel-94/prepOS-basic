@@ -41,6 +41,11 @@ function drawPrepOSWatermark(pdf){
     for(let x=0; x<pageWidth; x+=gap){
       for(let y=0; y<pageHeight; y+=gap){
 
+const aspect = watermarkImage.height / watermarkImage.width;
+
+const width = size;
+const height = size * aspect;
+
         pdf.addImage(
           faintLogo,
           "PNG",
