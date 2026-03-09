@@ -547,6 +547,10 @@ function renderReview(){
   .set({
     margin:10,
     filename: safeTitle + "_review.pdf",
+image:{
+    type:"jpeg",
+    quality:0.75
+  },
     html2canvas:{
   scale:1,
   scrollY:0,
