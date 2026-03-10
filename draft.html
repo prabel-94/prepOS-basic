@@ -1,102 +1,154 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>PrepOS Draft Editor</title>
 
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      max-width: 800px;
-      margin: 40px auto;
-      padding: 0 20px;
-    }
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 
-    input, textarea {
-      width: 100%;
-      margin-bottom: 16px;
-      padding: 8px;
-      font-size: 14px;
-    }
+<title>PrepOS Draft Editor</title>
 
-    .question-card {
-      border: 1px solid #ddd;
-      padding: 12px;
-      margin-bottom: 16px;
-      border-radius: 6px;
-    }
+<style>
 
-    .draft-actions {
-      display: flex;
-      gap: 10px;
-      margin-top: 20px;
-    }
+body{
+  font-family: Arial, sans-serif;
+  max-width: 800px;
+  margin: 40px auto;
+  padding: 0 20px;
+}
 
-    button {
-      padding: 10px 14px;
-      cursor: pointer;
-    }
+input, textarea{
+  width:100%;
+  margin-bottom:16px;
+  padding:8px;
+  font-size:14px;
+}
 
-    #status {
-      margin-top: 10px;
-      font-size: 13px;
-      color: #555;
-    }
-  </style>
+.question-card{
+  border:1px solid #ddd;
+  padding:12px;
+  margin-bottom:16px;
+  border-radius:6px;
+}
+
+.draft-actions{
+  display:flex;
+  gap:10px;
+  margin-top:20px;
+}
+
+button{
+  padding:10px 14px;
+  cursor:pointer;
+}
+
+#status{
+  margin-top:10px;
+  font-size:13px;
+  color:#555;
+}
+
+/* ⭐ Logo UI */
+
+.logo-section{
+  margin-bottom:16px;
+}
+
+#logoPreview{
+  max-height:80px;
+  margin-top:8px;
+  display:none;
+  border:1px solid #ddd;
+  padding:4px;
+  background:#fff;
+}
+
+</style>
+
 </head>
 
 <body>
 
-  <h2>Draft Editor</h2>
+<h2>Draft Editor</h2>
 
-  <label for="title">Title</label>
-  <input id="title" type="text" placeholder="Enter title" />
-  <label>Institute Logo (optional)</label>
-  <input type="file" id="logoUpload" accept="image/png,image/jpeg">
+<label for="title">Title</label>
+<input id="title" type="text" placeholder="Enter title"/>
 
-  <div id="logoPreview"></div>
 
-  <label for="duration">Duration (minutes)</label>
-  <input id="duration" type="number" placeholder="Enter duration in minutes" />
+<!-- ===================== -->
+<!-- LOGO SECTION -->
+<!-- ===================== -->
 
-  <h3>Questions</h3>
-  <div id="questions"></div>
+<div class="logo-section">
 
-  <!-- ⭐ Actions -->
-  <div class="draft-actions">
-    <button onclick="saveDraft()">Save Draft</button>
-    <button onclick="cloneDraft()">Clone</button>
-    <button onclick="publishDraft()">Publish Exam</button>
-  </div>
+<label>Exam Logo (optional)</label>
 
-  <!-- ⭐ Status feedback -->
-  <div id="status"></div>
+<input
+type="file"
+id="logoUpload"
+accept="image/png,image/jpeg,image/jpg,image/svg+xml"
+/>
 
-  <!-- ⭐ Scripts moved to end (best practice) -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="js/config.js"></script>
-  <script src="js/draft.js"></script>
+<img id="logoPreview">
+
+</div>
+
+
+<label for="duration">Duration (minutes)</label>
+
+<input
+id="duration"
+type="number"
+placeholder="Enter duration in minutes"
+/>
+
+
+<h3>Questions</h3>
+
+<div id="questions"></div>
+
+
+<!-- ===================== -->
+<!-- Draft Actions -->
+<!-- ===================== -->
+
+<div class="draft-actions">
+
+<button onclick="saveDraft()">Save Draft</button>
+
+<button onclick="cloneDraft()">Clone</button>
+
+<button onclick="publishDraft()">Publish Exam</button>
+
+</div>
+
+
+<div id="status"></div>
+
+
+<!-- ===================== -->
+<!-- Scripts -->
+<!-- ===================== -->
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script src="js/config.js"></script>
+
+<script src="js/draft.js"></script>
+
+
+<!-- ⭐ Debug console (Eruda) -->
 
 <script>
-(function () {
-  var script = document.createElement('script');
-  script.src = "https://cdn.jsdelivr.net/npm/eruda";
-  script.onload = function () {
+(function(){
+  var script=document.createElement('script');
+  script.src="https://cdn.jsdelivr.net/npm/eruda";
+  script.onload=function(){
     eruda.init();
   };
   document.body.appendChild(script);
 })();
 </script>
-<script>
-(function () {
-  var script = document.createElement('script');
-  script.src = "https://cdn.jsdelivr.net/npm/eruda";
-  script.onload = function () {
-    eruda.init();
-  };
-  document.body.appendChild(script);
-})();
-</script>
+
+
 </body>
 </html>

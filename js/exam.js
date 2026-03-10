@@ -1,6 +1,68 @@
 console.log("SCRIPT STARTED");
 
-/* ---------- helpers ---------- */
+/* ---------- watermark image ---------- */
+
+let watermarkImage = new Image();
+watermarkImage.src = "assets/logo_full.png";
+
+/* ---------- convert image to faint version ---------- */
+
+function getTransparentImage(img, opacity = 0.08){
+
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+
+  canvas.width = img.width;
+  canvas.height = img.height;
+
+  ctx.globalAlpha = opacity;
+  ctx.drawImage(img,0,0);
+
+  return canvas.toDataURL("image/png");
+}
+
+/* ---------- watermark renderer ---------- */
+
+function drawPrepOSWatermark(pdf){
+
+  const pageCount = pdf.internal.getNumberOfPages();
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+
+  const size = 30;
+  const gap = 80;
+
+  const faintLogo = getTransparentImage(watermarkImage,0.08);
+
+const aspect = watermarkImage.height / watermarkImage.width;
+const width = size;
+const height = size * aspect;
+
+for(let page=1; page<=pageCount; page++){
+
+  pdf.setPage(page);
+
+  for(let x=0; x<pageWidth; x+=gap){
+    for(let y=0; y<pageHeight; y+=gap){
+
+      pdf.addImage(
+        faintLogo,
+        "JPEG",
+        x,
+        y,
+        width,
+        height,
+        null,
+        "FAST"
+      );
+
+    }
+  }
+}
+
+}
+
+
 function showLoading(){
   document.getElementById("loadingState").style.display="block";
   document.getElementById("errorState").style.display="none";
@@ -130,9 +192,20 @@ async function loadExam(){
     }
 
     const exam = data[0];
+window.examTitle = exam.title || "Exam";
+window.examLogo = exam.logo_url || "";
 
-    window.examTitle = exam.title || "Exam";
-    window.examLogo = exam.logo_url || "";
+    const logoEl = document.getElementById("examLogo");
+
+if(window.examLogo && logoEl){
+  logoEl.src = window.examLogo;
+  logoEl.style.display = "block";
+}
+
+const titleEl = document.getElementById("examTitle");
+if(titleEl){
+  titleEl.textContent = window.examTitle;
+}
 
     let questions = [];
 
@@ -349,7 +422,14 @@ scrollToResult()
 /* ======================================================
    REVIEW MODE
 ====================================================== */
+
 function renderReview(){
+
+// ⭐ reset scroll position
+  window.scrollTo({
+    top: 0,
+    behavior: "smooth"
+  });
 
   const container = document.getElementById("quiz");
   container.innerHTML = "";
@@ -374,11 +454,11 @@ function renderReview(){
       const option = document.createElement("div");
       option.className = "option";
 
-      if(letter===q.correct){
+      if(letter === q.correct){
         option.classList.add("correct");
       }
 
-      if(letter===q.student && letter!==q.correct){
+      if(letter === q.student && letter !== q.correct){
         option.classList.add("wrong");
       }
 
@@ -390,144 +470,157 @@ function renderReview(){
 
     card.appendChild(optionsWrap);
 
-/* ---------- explanation ---------- */
+    /* ---------- explanation ---------- */
 
-if(q.explanation && q.explanation.trim()){
+    if(q.explanation && q.explanation.trim()){
 
-  const explainBtn = document.createElement("button");
-  explainBtn.className = "explain-btn";
-  explainBtn.textContent = "Show Explanation";
+      const explainBtn = document.createElement("button");
+      explainBtn.className = "explain-btn";
+      explainBtn.textContent = "Show Explanation";
 
-  const explanation = document.createElement("div");
-  explanation.className = "explanation";
-  explanation.style.display = "none";
-  explanation.innerHTML = "<b>Explanation:</b> " + escapeHTML(q.explanation);
+      const explanation = document.createElement("div");
+      explanation.className = "explanation";
+      explanation.style.display = "none";
+      explanation.innerHTML = "<b>Explanation:</b> " + escapeHTML(q.explanation);
 
-  explainBtn.onclick = function(){
-    explanation.style.display =
-      explanation.style.display === "none" ? "block" : "none";
-  };
+      explainBtn.onclick = function(){
+        explanation.style.display =
+          explanation.style.display === "none" ? "block" : "none";
+      };
 
-  card.appendChild(explainBtn);
-  card.appendChild(explanation);
-}
+      card.appendChild(explainBtn);
+      card.appendChild(explanation);
+    }
 
-container.appendChild(card);
+    container.appendChild(card);
 
   });
-
 
   /* ---------- CREATE PDF BUTTON ---------- */
 
-    let pdfBtn = document.getElementById("downloadPdfBtn");
+  let pdfBtn = document.getElementById("downloadPdfBtn");
 
-if(!pdfBtn){
+  if(!pdfBtn){
+    pdfBtn = document.createElement("button");
+    pdfBtn.id = "downloadPdfBtn";
+    pdfBtn.textContent = "Download Answer Key PDF";
+    container.appendChild(pdfBtn);
+  }
 
-  pdfBtn = document.createElement("button");
-  pdfBtn.id = "downloadPdfBtn";
-  pdfBtn.textContent = "Download Answer Key PDF";
-  container.appendChild(pdfBtn);
-
-}
-
-/* ALWAYS show button */
-pdfBtn.style.display = "block";
-pdfBtn.style.margin = "20px auto";
-
-  /* ---------- ATTACH PDF EVENT ---------- */
-
-pdfBtn.onclick = function(){
-
-  const reviewContainer = document.getElementById("quiz");
-
-  /* store original styles */
-  const originalMaxHeight = reviewContainer.style.maxHeight;
-  const originalOverflow = reviewContainer.style.overflow;
-
-  /* remove scroll restriction so html2pdf can capture full content */
-  reviewContainer.style.maxHeight = "none";
-  reviewContainer.style.overflow = "visible";
-
-/* hide PDF button and view answers button so it doesn't appear in PDF */
-  pdfBtn.style.display = "none";
-const viewBtn = document.getElementById("reviewBtn");
-if(viewBtn){
-  viewBtn.style.display = "none";
-}
-
-  /* add header for PDF */
-  addPDFHeader();
-
-  /* expand all explanations */
-  document.querySelectorAll(".explanation").forEach(function(el){
-    el.style.display = "block";
-  });
-
-  /* hide explanation buttons in PDF */
-  document.querySelectorAll(".explain-btn").forEach(function(btn){
-    btn.style.display = "none";
-  });
-const safeTitle = (window.examTitle || "exam")
-  .replace(/[^a-z0-9]/gi, "_")
-  .toLowerCase();
-setTimeout(function(){
-  html2pdf()
-    .set({
-      margin:10,
-      filename: safeTitle + "_review.pdf",
-      html2canvas:{
-        scale:2,
-        scrollY:0
-      },
-      jsPDF:{
-        unit:"mm",
-        format:"a4",
-        orientation:"portrait"
-      }
-    })
-    .from(reviewContainer)
-    .save()
-    .then(function(){
-
-  /* restore UI scroll styles */
-  reviewContainer.style.maxHeight = originalMaxHeight;
-  reviewContainer.style.overflow = originalOverflow;
-
-  /* show PDF button again */
   pdfBtn.style.display = "block";
-const viewBtn = document.getElementById("reviewBtn");
-  if(viewBtn){
-    viewBtn.style.display = "inline-block";
+  pdfBtn.style.margin = "20px auto";
+
+  /* ---------- PDF EXPORT ---------- */
+
+  pdfBtn.onclick = async function(){
+
+    const reviewContainer = document.getElementById("quiz");
+
+    const originalMaxHeight = reviewContainer.style.maxHeight;
+    const originalOverflow = reviewContainer.style.overflow;
+
+    reviewContainer.style.maxHeight = "none";
+    reviewContainer.style.overflow = "visible";
+
+    pdfBtn.style.display = "none";
+
+    const viewBtn = document.getElementById("reviewBtn");
+    if(viewBtn) viewBtn.style.display = "none";
+
+    /* add header */
+    await addPDFHeader();
+
+    /* expand explanations */
+    document.querySelectorAll(".explanation").forEach(el=>{
+      el.style.display = "block";
+    });
+
+    document.querySelectorAll(".explain-btn").forEach(btn=>{
+      btn.style.display = "none";
+    });
+
+    const safeTitle = (window.examTitle || "exam")
+      .replace(/[^a-z0-9]/gi,"_")
+      .toLowerCase();
+
+    const worker = html2pdf()
+  .set({
+    margin:10,
+    filename: safeTitle + "_review.pdf",
+image:{
+    type:"jpeg",
+    quality:0.75
+  },
+    html2canvas:{
+  scale:1,
+  scrollY:0,
+  useCORS:true,
+  logging:false
+},
+    jsPDF:{
+      unit:"mm",
+      format:"a4",
+      orientation:"portrait"
+    }
+  })
+  .from(reviewContainer)
+  .toPdf();
+
+const pdf = await worker.get("pdf");
+
+/* inject watermark */
+drawPrepOSWatermark(pdf);
+
+/* ---------- END OF REVIEW SECTION ---------- */
+
+const pageCount = pdf.internal.getNumberOfPages();
+pdf.setPage(pageCount); // go to last page
+
+pdf.setFontSize(14);
+pdf.setTextColor(120);
+pdf.text("End of Review", 105, 225, { align: "center" });
+
+pdf.setFontSize(10);
+pdf.text("Generated by PrepOS", 105, 235, { align: "center" });
+pdf.text("Smart Exam Creation & Analysis Platform", 105, 242, { align: "center" });
+await worker.save();
+
+    /* restore UI */
+
+    reviewContainer.style.maxHeight = originalMaxHeight;
+    reviewContainer.style.overflow = originalOverflow;
+
+    pdfBtn.style.display = "block";
+    if(viewBtn) viewBtn.style.display = "inline-block";
+
+    removePDFHeader();
+    collapseAllExplanations();
+
+  };
+
 }
-  /* remove header added for PDF */
-  removePDFHeader();
 
-  /* collapse explanations again */
-  collapseAllExplanations();
+/* ======================================================
+   COLLAPSE EXPLANATIONS
+====================================================== */
 
-});
-
-},300);
-};
-
-}
 function collapseAllExplanations(){
 
-  const explanations = document.querySelectorAll(".explanation");
-  const buttons = document.querySelectorAll(".explain-btn");
-
-  explanations.forEach(el=>{
+  document.querySelectorAll(".explanation").forEach(el=>{
     el.style.display = "none";
   });
 
-  // restore buttons
-  buttons.forEach(btn=>{
+  document.querySelectorAll(".explain-btn").forEach(btn=>{
     btn.style.display = "inline-block";
   });
 
 }
 
-function addPDFHeader(){
+/* ======================================================
+   ADD PDF HEADER
+====================================================== */
+
+async function addPDFHeader(){
 
   const container = document.getElementById("quiz");
 
@@ -536,13 +629,20 @@ function addPDFHeader(){
   const studentName = localStorage.getItem("studentName") || "Student";
   const examTitle = window.examTitle || "Exam";
 
-  const scoreText = document.getElementById("result")
+  const scoreText =
+    document.getElementById("result")
       ? document.getElementById("result").innerText
       : "";
 
   const date = new Date().toLocaleDateString();
 
-  const logo = window.examLogo || "";
+  /* cache logo conversion */
+
+  if(window.examLogo && !window.examLogoBase64){
+    window.examLogoBase64 = await imageToBase64(window.examLogo);
+  }
+
+  const logo = window.examLogoBase64 || "";
 
   const header = document.createElement("div");
   header.id = "pdfHeader";
@@ -564,7 +664,12 @@ function addPDFHeader(){
   `;
 
   container.prepend(header);
+
 }
+
+/* ======================================================
+   REMOVE PDF HEADER
+====================================================== */
 
 function removePDFHeader(){
 
@@ -575,5 +680,23 @@ function removePDFHeader(){
   }
 
 }
+
+/* ======================================================
+   IMAGE → BASE64
+====================================================== */
+
+async function imageToBase64(url){
+
+  const res = await fetch(url);
+  const blob = await res.blob();
+
+  return new Promise(resolve=>{
+    const reader = new FileReader();
+    reader.onloadend = ()=> resolve(reader.result);
+    reader.readAsDataURL(blob);
+  });
+
+}
+/* start exam loading */
 
 document.addEventListener("DOMContentLoaded", loadExam);
