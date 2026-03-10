@@ -589,7 +589,7 @@ const pageWidth = pdf.internal.pageSize.getWidth();
 const pageHeight = pdf.internal.pageSize.getHeight();
 
 // starting position near bottom of page
-let yPos = pageHeight - 60;
+let yPos = pageHeight - 80;
 
 // space needed for the review section
 const reviewHeight = 40;
