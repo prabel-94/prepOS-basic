@@ -410,8 +410,17 @@ localStorage.setItem("studentName", studentName);
 
 scrollToResult()
 
-    document.getElementById("reviewBtn")
-      .onclick = renderReview;
+    document.getElementById("reviewBtn").onclick = function(){
+
+  this.style.display = "none";
+
+  document.getElementById("downloadPdfBtn").style.display = "inline-block";
+
+  renderReview();
+
+  window.scrollTo({top:0,behavior:"smooth"});
+
+};
 
   }catch(err){
     console.error(err);
