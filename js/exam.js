@@ -29,8 +29,8 @@ function drawPrepOSWatermark(pdf){
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
 
-  const size = 60;
-  const gap = 100;
+  const size = 45;
+  const gap = 60;
 
   const faintLogo = getTransparentImage(watermarkImage,0.08);
 
