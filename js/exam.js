@@ -522,17 +522,17 @@ function renderReview(){
 
 pdfBtn.onclick = async function(){
 
+  const reviewContainer = document.getElementById("quiz");
+  const viewBtn = document.getElementById("reviewBtn");
+
+  const originalMaxHeight = reviewContainer.style.maxHeight;
+  const originalOverflow = reviewContainer.style.overflow;
+
   try{
-
-    const reviewContainer = document.getElementById("quiz");
-
-    const originalMaxHeight = reviewContainer.style.maxHeight;
-    const originalOverflow = reviewContainer.style.overflow;
 
     reviewContainer.style.maxHeight = "none";
     reviewContainer.style.overflow = "visible";
 
-    const viewBtn = document.getElementById("reviewBtn");
     if(viewBtn) viewBtn.style.display = "none";
 
     /* add header */
@@ -625,7 +625,6 @@ pdfBtn.onclick = async function(){
       { align: "center" }
     );
 
-    /* FINAL DOWNLOAD */
     pdf.save(safeTitle + "_review.pdf");
 
   }
@@ -635,23 +634,21 @@ pdfBtn.onclick = async function(){
     alert("PDF generation failed. Please try again.");
 
   }
+  finally{
+
+    /* ---------- RESTORE UI ---------- */
+
+    reviewContainer.style.maxHeight = originalMaxHeight;
+    reviewContainer.style.overflow = originalOverflow;
+
+    if(viewBtn) viewBtn.style.display = "inline-block";
+
+    removePDFHeader();
+    collapseAllExplanations();
+
+  }
 
 };
-    finally{
-
-      /* ---------- RESTORE UI ---------- */
-
-      reviewContainer.style.maxHeight = originalMaxHeight;
-      reviewContainer.style.overflow = originalOverflow;
-
-      if(viewBtn) viewBtn.style.display = "inline-block";
-
-      removePDFHeader();
-      collapseAllExplanations();
-
-    }
-
-  };
 
 }
 
