@@ -581,26 +581,27 @@ const pdf = await worker.get("pdf");
 drawPrepOSWatermark(pdf);
 
 /* ---------- END OF REVIEW SECTION ---------- */
+const pdf = await worker.get("pdf");
+
+/* inject watermark */
+drawPrepOSWatermark(pdf);
+
+/* ---------- END OF REVIEW SECTION ---------- */
 
 const pageCount = pdf.internal.getNumberOfPages();
-pdf.setPage(pageCount); // go to last page
+pdf.setPage(pageCount);
 
 const pageWidth = pdf.internal.pageSize.getWidth();
 const pageHeight = pdf.internal.pageSize.getHeight();
 
-// starting position near bottom of page
 let yPos = pageHeight - 80;
-
-// space needed for the review section
 const reviewHeight = 40;
 
-// if not enough space → move to new page
 if (yPos + reviewHeight > pageHeight) {
   pdf.addPage();
   yPos = 40;
 }
 
-// draw divider
 pdf.setDrawColor(220);
 pdf.line(20, yPos, pageWidth - 20, yPos);
 
@@ -631,7 +632,9 @@ pdf.text(
   { align: "center" }
 );
 
-await worker.save();
+/* FINAL DOWNLOAD */
+pdf.save(safeTitle + "_review.pdf");
+
 
     /* restore UI */
 
