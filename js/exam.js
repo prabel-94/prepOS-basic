@@ -403,8 +403,9 @@ localStorage.setItem("studentName", studentName);
     };
   });
 
+window.examScoreText = `${studentName}, your score: ${score}/${window.examQuestionsRaw.length}`;
     document.getElementById("result").innerHTML =
-`<h3>${studentName}, your score: ${score}/${window.examQuestionsRaw.length}</h3>
+`<h3>${window.examScoreText}</h3>
  <button id="reviewBtn">View Answers</button>
  <button id="downloadPdfBtn" style="display:none">Download Review PDF</button>`;
 
@@ -682,10 +683,7 @@ async function addPDFHeader(){
   const studentName = localStorage.getItem("studentName") || "Student";
   const examTitle = window.examTitle || "Exam";
 
-  const scoreText =
-    document.getElementById("result")
-      ? document.getElementById("result").innerText
-      : "";
+  const scoreText = window.examScoreText || "";
 
   const date = new Date().toLocaleDateString();
 
