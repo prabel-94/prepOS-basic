@@ -33,7 +33,7 @@ Deno.serve(async (req) => {
 
   // ⭐ Insert draft instead of quiz
   const { data, error } = await supabase
-    .from("exam_drafts")
+    .from("draft_exams")
     .insert({
       title: title || "Untitled Exam",
       instructions: instructions || "",
