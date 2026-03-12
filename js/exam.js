@@ -170,7 +170,7 @@ async function loadExam(){
   try{
 
     const res = await fetch(
-      SUPABASE_URL + "/rest/v1/exams?id=eq." + examId,
+      SUPABASE_URL + "/rest/v1/exam_sessions?id=eq." + examId,
       {
         headers:{
           apikey: SUPABASE_ANON_KEY,
@@ -359,7 +359,7 @@ localStorage.setItem("studentName", studentName);
 
   try{
 
-    await fetch(`${SUPABASE_URL}/rest/v1/responses`,{
+    await fetch(`${SUPABASE_URL}/rest/v1/exam_attempts`,{
       method:"POST",
       headers:{
         apikey:SUPABASE_ANON_KEY,

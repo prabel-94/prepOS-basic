@@ -54,7 +54,7 @@ async function loadDraft(){
   try{
 
     const { data, error } = await sb
-      .from("exam_drafts")
+      .from("draft_exams")
       .select("*")
       .eq("id", draftId)
       .single()
@@ -218,7 +218,7 @@ async function saveDraft(silent=false){
       document.getElementById("duration").value
 
     const { error } = await sb
-      .from("exam_drafts")
+      .from("draft_exams")
       .update({
         title: document.getElementById("title").value,
         duration: durationVal ? parseInt(durationVal) : null,
