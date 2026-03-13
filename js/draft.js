@@ -329,16 +329,22 @@ async function cloneDraft(){
   try{
 
     const res = await fetch(CLONE_FUNCTION_URL,{
-      method:"POST",
-      headers:{
-        "Content-Type":"application/json",
-        "apikey":SUPABASE_ANON_KEY,
-        "Authorization":`Bearer ${SUPABASE_ANON_KEY}`
-      },
-      body:JSON.stringify({ draftId })
-    })
+method:"POST",
+headers:{
+"Content-Type":"application/json",
+"apikey":SUPABASE_ANON_KEY,
+"Authorization":`Bearer ${SUPABASE_ANON_KEY}`
+},
+body:JSON.stringify({ draftId })
+})
 
-    const data = await res.json()
+if(!res.ok){
+alert("Clone request failed")
+console.error("Clone draft error",res.status)
+return
+}
+
+const data = await res.json()
 
     if(!data.success){
       alert(data.error || "Clone failed")
@@ -366,16 +372,22 @@ async function publishDraft(){
   try{
 
     const res = await fetch(PUBLISH_FUNCTION_URL,{
-      method:"POST",
-      headers:{
-        "Content-Type":"application/json",
-        "apikey":SUPABASE_ANON_KEY,
-        "Authorization":`Bearer ${SUPABASE_ANON_KEY}`
-      },
-      body:JSON.stringify({ draftId })
-    })
+method:"POST",
+headers:{
+"Content-Type":"application/json",
+"apikey":SUPABASE_ANON_KEY,
+"Authorization":`Bearer ${SUPABASE_ANON_KEY}`
+},
+body:JSON.stringify({ draftId })
+})
 
-    const data = await res.json()
+if(!res.ok){
+alert("Publish request failed")
+console.error("Publish draft error",res.status)
+return
+}
+
+const data = await res.json()
 
     if(!data.success){
       alert(data.error || "Publish failed")

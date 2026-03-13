@@ -45,6 +45,12 @@ Authorization:`Bearer ${SUPABASE_ANON_KEY}`
 }
 })
 
+if(!res.ok){
+console.error("Failed to load exams",res.status)
+document.getElementById("results").innerText="Failed to load exams"
+return
+}
+
 const data=await res.json()
 const select=document.getElementById("examSelect")
 select.innerHTML=""

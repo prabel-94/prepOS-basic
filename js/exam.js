@@ -359,23 +359,30 @@ localStorage.setItem("studentName", studentName);
 
   try{
 
-    await fetch(`${SUPABASE_URL}/rest/v1/exam_attempts`,{
-      method:"POST",
-      headers:{
-        apikey:SUPABASE_ANON_KEY,
-        Authorization:`Bearer ${SUPABASE_ANON_KEY}`,
-        "Content-Type":"application/json",
-        Prefer:"return=minimal"
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/exam_attempts`, {
+      method: "POST",
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        "Content-Type": "application/json",
+        Prefer: "return=minimal"
       },
-      body:JSON.stringify({
-        exam_id:examId,
-        device_id:attemptId,
-        student_name:studentName,
+      body: JSON.stringify({
+        exam_id: examId,
+        device_id: attemptId,
+        student_name: studentName,
         answers,
         score,
-        submitted_at:new Date().toISOString()
+        question_count: answers.length,
+        submitted_at: new Date().toISOString()
       })
     });
+
+    if (!res.ok) {
+      console.error("Failed to save attempt", res.status)
+      alert("Submission failed. Please try again.")
+      return
+    }
 
     /* ---------- lock ---------- */
     attemptState.status="submitted";

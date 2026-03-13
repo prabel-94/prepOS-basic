@@ -262,3 +262,173 @@ font-size:14px;
 #quiz{
   max-width: 800px;
 }
+
+/* =========================
+Base Layout of draft page
+========================= */
+
+body{
+  font-family: Arial, sans-serif;
+  max-width:1100px;
+  margin:40px auto;
+  padding:0 20px;
+}
+
+/* =========================
+Inputs
+========================= */
+
+input, textarea{
+  width:100%;
+  margin-bottom:16px;
+  padding:8px;
+  font-size:14px;
+}
+
+/* =========================
+Workspace Layout
+========================= */
+
+.workspace{
+  display:flex;
+  gap:30px;
+  margin-top:20px;
+}
+
+.draft-area{
+  flex:2;
+}
+
+.question-bank-panel{
+  flex:1;
+  border-left:1px solid #ddd;
+  padding-left:20px;
+  background:#fff;
+  display:none;
+}
+
+.question-bank-panel.active{
+  display:block;
+}
+
+/* =========================
+Draft Header
+========================= */
+
+.draft-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:10px;
+}
+
+/* =========================
+Question Cards
+========================= */
+
+.question-card{
+  border:1px solid #ddd;
+  padding:12px;
+  margin-bottom:16px;
+  border-radius:6px;
+}
+
+/* =========================
+Draft Actions
+========================= */
+
+.draft-actions{
+  display:flex;
+  gap:10px;
+  margin-top:20px;
+}
+
+button{
+  padding:10px 14px;
+  cursor:pointer;
+}
+
+/* =========================
+Status
+========================= */
+
+#status{
+  margin-top:10px;
+  font-size:13px;
+  color:#555;
+}
+
+/* =========================
+Logo UI
+========================= */
+
+.logo-section{
+  margin-bottom:16px;
+}
+
+#logoPreview{
+  max-height:80px;
+  margin-top:8px;
+  display:none;
+  border:1px solid #ddd;
+  padding:4px;
+  background:#fff;
+}
+
+/* =========================
+Question Bank UI
+========================= */
+
+.qb-header{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-bottom:15px;
+}
+
+.qb-question{
+  border-bottom:1px solid #eee;
+  padding:10px 0;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+/* =========================
+Mobile Slide Panel
+========================= */
+
+@media (max-width:768px){
+
+.workspace{
+  flex-direction:column;
+}
+
+.question-bank-panel{
+
+  position:fixed;
+  top:0;
+  right:-100%;
+
+  width:100%;
+  height:100%;
+
+  background:#fff;
+
+  transition:right 0.3s ease;
+
+  z-index:1000;
+
+  padding:20px;
+
+  overflow:auto;
+
+  border-left:none;
+
+}
+
+.question-bank-panel.active{
+  right:0;
+}
+
+}

@@ -19,6 +19,12 @@
 </div>
 
 <div class="card">
+<h3>Draft Editor</h3>
+<p>Create and manage draft exams.</p>
+<button onclick="location.href='draft.html'">Open Draft Workspace</button>
+</div>
+
+<div class="card">
 <h3>Recent Exams</h3>
 <div id="recentExams">Loading…</div>
 </div>
@@ -56,7 +62,13 @@ Authorization:`Bearer ${SUPABASE_ANON_KEY}`
 }
 })
 
-const data=await res.json()
+if(!res.ok){
+console.error("Failed to load exams",res.status)
+document.getElementById("recentExams").innerText="Failed to load exams"
+return
+}
+
+const data = await res.json()
 const container=document.getElementById("recentExams")
 container.innerHTML=""
 
