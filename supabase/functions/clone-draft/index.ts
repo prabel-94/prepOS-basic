@@ -22,7 +22,7 @@ Deno.serve(async (req) => {
 
     // 1️⃣ Fetch source draft
     const { data: draft, error } = await supabase
-      .from("exam_drafts")
+      .from("draft_exams")
       .select("*")
       .eq("id", draftId)
       .single()
@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
 
     // 2️⃣ Create clone
     const { data: clone, error: cloneError } = await supabase
-      .from("exam_drafts")
+      .from("draft_exams")
       .insert({
         title: draft.title + " (Copy)",
         instructions: draft.instructions,

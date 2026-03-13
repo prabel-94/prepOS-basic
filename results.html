@@ -39,7 +39,7 @@ const examId=params.get("id")
 async function loadResults(){
 
 const res=await fetch(
-`${SUPABASE_URL}/rest/v1/exam_attempts?exam_id=eq.${examId}&order=created_at.desc`,
+`${SUPABASE_URL}/rest/v1/exam_attempts?exam_id=eq.${examId}&order=submitted_at.desc`,
 {
 headers:{
 apikey:ANON,
@@ -48,6 +48,11 @@ Authorization:`Bearer ${ANON}`
 }
 )
 
+if(!res.ok){
+console.error("Failed to load results",res.status)
+document.getElementById("results").innerText="Failed to load results"
+return
+}
 const data=await res.json()
 
 const container=document.getElementById("results")
@@ -63,15 +68,19 @@ data.forEach(r=>{
 const div=document.createElement("div")
 div.className="card"
 
-div.innerHTML=
-`<b>${escapeHTML(r.student_name||"Unknown")}</b>
-<div class="small">Score: ${r.score}</div>
-<div class="small">${new Date(r.created_at).toLocaleString()}</div>
+const submitted = r.submitted_at
+  ? new Date(r.submitted_at).toLocaleString()
+  : "-";
+
+div.innerHTML =
+`<b>${escapeHTML(r.student_name || "Unknown")}</b>
+<div class="small">Score: ${r.score ?? "-"}</div>
+<div class="small">${submitted}</div>
 <button>View Answers</button>
-<button id="downloadPdfBtn" style="display:none">
+<button class="downloadPdfBtn" style="display:none">
 Download Review PDF
 </button>
-<div style="display:none;margin-top:8px;"></div>`
+<div style="display:none;margin-top:8px;"></div>`;
 
 const btn=div.querySelector("button")
 const answerBox=div.querySelector("div:last-child")
