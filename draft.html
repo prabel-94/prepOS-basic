@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
 
 <meta charset="UTF-8" />
@@ -7,62 +8,6 @@
 
 <title>PrepOS Draft Editor</title>
 
-<style>
-
-body{
-  font-family: Arial, sans-serif;
-  max-width: 800px;
-  margin: 40px auto;
-  padding: 0 20px;
-}
-
-input, textarea{
-  width:100%;
-  margin-bottom:16px;
-  padding:8px;
-  font-size:14px;
-}
-
-.question-card{
-  border:1px solid #ddd;
-  padding:12px;
-  margin-bottom:16px;
-  border-radius:6px;
-}
-
-.draft-actions{
-  display:flex;
-  gap:10px;
-  margin-top:20px;
-}
-
-button{
-  padding:10px 14px;
-  cursor:pointer;
-}
-
-#status{
-  margin-top:10px;
-  font-size:13px;
-  color:#555;
-}
-
-/* ⭐ Logo UI */
-
-.logo-section{
-  margin-bottom:16px;
-}
-
-#logoPreview{
-  max-height:80px;
-  margin-top:8px;
-  display:none;
-  border:1px solid #ddd;
-  padding:4px;
-  background:#fff;
-}
-
-</style>
 
 </head>
 
@@ -102,9 +47,70 @@ placeholder="Enter duration in minutes"
 />
 
 
+<!-- ===================== -->
+<!-- Workspace -->
+<!-- ===================== -->
+
+<div class="workspace">
+
+<!-- ===================== -->
+<!-- Draft Area -->
+<!-- ===================== -->
+
+<div class="draft-area">
+
+<div class="draft-header">
+
 <h3>Questions</h3>
 
+<button id="openQuestionBankBtn">
+Add from Question Bank
+</button>
+
+</div>
+
 <div id="questions"></div>
+
+</div>
+
+
+<!-- ===================== -->
+<!-- Question Bank Panel -->
+<!-- ===================== -->
+
+<div class="question-bank-panel" id="questionBankPanel">
+
+<div class="qb-header">
+
+<button id="closeQB">← Back</button>
+
+<h3>Question Bank</h3>
+
+</div>
+
+<input
+type="text"
+id="topicSearch"
+placeholder="Search topics..."
+/>
+
+<div id="questionBankResults">
+
+<!-- Placeholder Example -->
+
+<div class="qb-question">
+
+<span>Which amendment added Socialist and Secular?</span>
+
+<button>Insert</button>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
 
 
 <!-- ===================== -->
@@ -136,7 +142,34 @@ placeholder="Enter duration in minutes"
 <script src="js/draft.js"></script>
 
 
-<!-- ⭐ Debug console (Eruda) -->
+<!-- =====================
+Question Bank Toggle
+===================== -->
+
+<script>
+
+const openQBBtn = document.getElementById("openQuestionBankBtn");
+const qbPanel = document.getElementById("questionBankPanel");
+const closeQB = document.getElementById("closeQB");
+
+openQBBtn.onclick = function(){
+
+  qbPanel.classList.toggle("active");
+
+};
+
+closeQB.onclick = function(){
+
+  qbPanel.classList.remove("active");
+
+};
+
+</script>
+
+
+<!-- =====================
+Debug Console
+===================== -->
 
 <script>
 (function(){

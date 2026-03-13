@@ -17,6 +17,12 @@ headers:{
 body:JSON.stringify({title,questions,duration})
 });
 
+if(!res.ok){
+alert("Failed to create exam draft")
+console.error("Create exam failed",res.status)
+return null
+}
+
 const data = await res.json();
 
 if(data.error){
