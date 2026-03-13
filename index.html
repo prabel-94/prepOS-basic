@@ -1,10 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
+
 <title>PrepOS Home</title>
+
 <link rel="stylesheet" href="css/style.css">
+
 </head>
 
 <body>
@@ -38,18 +42,82 @@
 <div class="card">
 <h3>Open Exam</h3>
 <p>Preview exam using id.</p>
-<input id="examId2" placeholder="Paste exam id" style="width:100%;padding:8px;margin-top:6px;">
+
+<input
+id="examId2"
+placeholder="Paste exam id"
+style="width:100%;padding:8px;margin-top:6px;"
+>
+
 <button onclick="openExam()">Open Exam</button>
+
 </div>
+
+
+<!-- =========================
+Scripts
+========================= -->
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script src="js/config.js"></script>
 
 <script>
+
+const supabase = window.supabase.createClient(
+SUPABASE_URL,
+SUPABASE_ANON_KEY
+)
+
+/* =========================
+Open Exam
+========================= */
+
 function openExam(){
+
 const id=document.getElementById("examId2").value.trim()
+
 if(!id) return alert("Enter exam id")
+
 location.href=`exam.html?id=${id}`
+
 }
+
+/* =========================
+Create Draft (NEW)
+========================= */
+
+async function createDraft(){
+
+const { data, error } = await supabase
+.from("exam_drafts")
+.insert([
+{
+title:"Untitled Draft",
+duration:60,
+schema_json:{ questions:[] },
+status:"draft"
+}
+])
+.select()
+.single()
+
+if(error){
+
+console.error("Draft creation failed",error)
+alert("Failed to create draft")
+
+return
+
+}
+
+location.href=`draft.html?id=${data.id}`
+
+}
+
+/* =========================
+Recent Exams
+========================= */
 
 async function loadRecentExams(){
 
@@ -63,22 +131,33 @@ Authorization:`Bearer ${SUPABASE_ANON_KEY}`
 })
 
 if(!res.ok){
+
 console.error("Failed to load exams",res.status)
+
 document.getElementById("recentExams").innerText="Failed to load exams"
+
 return
+
 }
 
 const data = await res.json()
+
 const container=document.getElementById("recentExams")
+
 container.innerHTML=""
 
 if(!data.length){
+
 container.innerHTML="No exams yet"
+
 return
+
 }
 
 data.forEach(e=>{
+
 const div=document.createElement("div")
+
 div.className="recent-item"
 
 div.innerHTML=`
@@ -86,16 +165,27 @@ div.innerHTML=`
 <button onclick="location.href='exam.html?id=${e.id}'">Open</button>
 <button onclick="viewResults('${e.id}')">Results</button>
 `
+
 container.appendChild(div)
+
 })
+
 }
 
+/* =========================
+Results
+========================= */
+
 function viewResults(examId){
+
 localStorage.setItem("results_exam",examId)
+
 location.href="teacher-results.html"
+
 }
 
 loadRecentExams()
+
 </script>
 
 </body>

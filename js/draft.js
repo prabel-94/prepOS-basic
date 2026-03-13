@@ -177,17 +177,6 @@ function renderDraft(draft){
 }
 
 
-async function createDraft(){
-
-const { data, error } = await supabase
-.from("exam_drafts")
-.insert([{ title:"Untitled Draft" }])
-.select()
-.single();
-
-location.href = `draft.html?id=${data.id}`;
-
-}
 // ===============================
 // Save Draft
 // ===============================
