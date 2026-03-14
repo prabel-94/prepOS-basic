@@ -1,68 +1,45 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
-
-<title>PrepOS Home</title>
-
-<link rel="stylesheet" href="css/style.css">
-
-</head>
-
-<body>
-
-<h1>PrepOS</h1>
-<div class="small">Teacher Console</div>
-
-<div class="card">
+<!DOCTYPE html><html lang="en">
+<head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0"><title>PrepOS Home</title><link rel="stylesheet" href="css/style.css"></head><body><h1>PrepOS</h1>
+<div class="small">Teacher Console</div><!-- =========================
+Create Exam
+========================= --><div class="card">
 <h3>Create Exam</h3>
 <p>Paste questions, clean with QCP, generate exam link.</p>
 <button onclick="location.href='exam-creator.html'">Open Creator</button>
-</div>
-
-<div class="card">
+</div><!-- =========================
+Draft Editor
+========================= --><div class="card">
 <h3>Draft Editor</h3>
 <p>Create and manage draft exams.</p>
 <button onclick="createDraft()">New Draft</button>
-</div>
-
-<div class="card">
+</div><!-- =========================
+Recent Exams
+========================= --><div class="card">
 <h3>Recent Exams</h3>
 <div id="recentExams">Loading…</div>
-</div>
-
-<div class="card">
+</div><!-- =========================
+Results Viewer
+========================= --><div class="card">
 <h3>Results Viewer</h3>
 <p>Browse submissions by exam.</p>
 <button onclick="location.href='teacher-results.html'">Open Viewer</button>
-</div>
-
-<div class="card">
+</div><!-- =========================
+Open Exam
+========================= --><div class="card">
 <h3>Open Exam</h3>
-<p>Preview exam using id.</p>
-
-<input
+<p>Preview exam using id.</p><input
 id="examId2"
 placeholder="Paste exam id"
 style="width:100%;padding:8px;margin-top:6px;"
->
+
+«»
 
 <button onclick="openExam()">Open Exam</button>
 
-</div>
-
-
-<!-- =========================
+</div><!-- =========================
 Scripts
-========================= -->
-
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/config.js"></script>
-
-<script>
-
+========================= --><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="js/config.js"></script><script>
 
 /* =========================
 Open Exam
@@ -73,8 +50,8 @@ window.openExam = function(){
 const id = document.getElementById("examId2").value.trim()
 
 if(!id){
-  alert("Enter exam id")
-  return
+alert("Enter exam id")
+return
 }
 
 location.href = `exam.html?id=${id}`
@@ -88,7 +65,7 @@ Create Draft
 
 window.createDraft = async function(){
 
-const { data, error } = await supabase
+const { data, error } = await supabaseClient
 .from("exam_drafts")
 .insert([
 {
@@ -105,7 +82,6 @@ if(error){
 
 console.error("Draft creation failed", error)
 alert("Failed to create draft")
-
 return
 
 }
@@ -125,8 +101,8 @@ const res = await fetch(
 `${SUPABASE_URL}/rest/v1/exam_sessions?select=id,title,created_at&order=created_at.desc&limit=5`,
 {
 headers:{
-apikey:SUPABASE_ANON_KEY,
-Authorization:`Bearer ${SUPABASE_ANON_KEY}`
+apikey: SUPABASE_ANON_KEY,
+Authorization: `Bearer ${SUPABASE_ANON_KEY}`
 }
 })
 
@@ -191,7 +167,5 @@ Init
 
 loadRecentExams()
 
-</script>
-
-</body>
+</script></body>
 </html>
