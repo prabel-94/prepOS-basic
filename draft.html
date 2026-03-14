@@ -3,11 +3,12 @@
 
 <head>
 
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <title>PrepOS Draft Editor</title>
 
+<link rel="stylesheet" href="css/style.css">
 
 </head>
 
@@ -15,12 +16,28 @@
 
 <h2>Draft Editor</h2>
 
+
+<!-- ===================== -->
+<!-- Draft Metadata -->
+<!-- ===================== -->
+
 <label for="title">Title</label>
-<input id="title" type="text" placeholder="Enter title"/>
+<input
+id="title"
+type="text"
+placeholder="Enter title"
+/>
+
+<label for="duration">Duration (minutes)</label>
+<input
+id="duration"
+type="number"
+placeholder="Enter duration in minutes"
+/>
 
 
 <!-- ===================== -->
-<!-- LOGO SECTION -->
+<!-- Logo Upload -->
 <!-- ===================== -->
 
 <div class="logo-section">
@@ -38,20 +55,13 @@ accept="image/png,image/jpeg,image/jpg,image/svg+xml"
 </div>
 
 
-<label for="duration">Duration (minutes)</label>
-
-<input
-id="duration"
-type="number"
-placeholder="Enter duration in minutes"
-/>
-
 
 <!-- ===================== -->
 <!-- Workspace -->
 <!-- ===================== -->
 
 <div class="workspace">
+
 
 <!-- ===================== -->
 <!-- Draft Area -->
@@ -74,11 +84,15 @@ Add from Question Bank
 </div>
 
 
+
 <!-- ===================== -->
 <!-- Question Bank Panel -->
 <!-- ===================== -->
 
-<div class="question-bank-panel" id="questionBankPanel">
+<div
+class="question-bank-panel"
+id="questionBankPanel"
+>
 
 <div class="qb-header">
 
@@ -88,29 +102,27 @@ Add from Question Bank
 
 </div>
 
+
 <input
 type="text"
-id="topicSearch"
-placeholder="Search topics..."
-/>
+id="qbSearch"
+placeholder="Search questions..."
+>
+
 
 <div id="questionBankResults">
 
-<!-- Placeholder Example -->
-
-<div class="qb-question">
-
-<span>Which amendment added Socialist and Secular?</span>
-
-<button>Insert</button>
-
+<div class="qb-loading">
+Search questions to begin
 </div>
 
 </div>
 
 </div>
 
+
 </div>
+
 
 
 <!-- ===================== -->
@@ -119,16 +131,23 @@ placeholder="Search topics..."
 
 <div class="draft-actions">
 
-<button onclick="saveDraft()">Save Draft</button>
+<button onclick="saveDraft()">
+Save Draft
+</button>
 
-<button onclick="cloneDraft()">Clone</button>
+<button onclick="cloneDraft()">
+Clone
+</button>
 
-<button onclick="publishDraft()">Publish Exam</button>
+<button onclick="publishDraft()">
+Publish Exam
+</button>
 
 </div>
 
 
 <div id="status"></div>
+
 
 
 <!-- ===================== -->
@@ -142,9 +161,10 @@ placeholder="Search topics..."
 <script src="js/draft.js"></script>
 
 
-<!-- =====================
-Question Bank Toggle
-===================== -->
+
+<!-- ===================== -->
+<!-- Question Bank Toggle -->
+<!-- ===================== -->
 
 <script>
 
@@ -154,7 +174,7 @@ const closeQB = document.getElementById("closeQB");
 
 openQBBtn.onclick = function(){
 
-  qbPanel.classList.toggle("active");
+  qbPanel.classList.add("active");
 
 };
 
@@ -167,9 +187,10 @@ closeQB.onclick = function(){
 </script>
 
 
-<!-- =====================
-Debug Console
-===================== -->
+
+<!-- ===================== -->
+<!-- Debug Console (Eruda) -->
+<!-- ===================== -->
 
 <script>
 (function(){
