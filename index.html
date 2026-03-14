@@ -65,7 +65,7 @@ Create Draft
 
 window.createDraft = async function(){
 
-const { data, error } = await supabaseClient
+const { data, error } = await supabase
 .from("exam_drafts")
 .insert([
 {
@@ -79,11 +79,9 @@ status:"draft"
 .single()
 
 if(error){
-
-console.error("Draft creation failed", error)
+console.error(error)
 alert("Failed to create draft")
 return
-
 }
 
 location.href = `draft.html?id=${data.id}`
