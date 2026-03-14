@@ -68,7 +68,7 @@ window.createDraft = async function(){
 const sb = window.supabaseClient
 
 const { data, error } = await sb
-.from("exam_drafts")
+.from("draft_exams")
 .insert([
 {
 title:"Untitled Draft",
