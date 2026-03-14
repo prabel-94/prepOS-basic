@@ -1,11 +1,13 @@
 // ===============================
-// PrepOS Draft Editor — Phase 4
+// PrepOS Draft Editor — Phase 5
 // ===============================
 
 let autosaveTimer = null
 let isSaving = false
 
-// ⭐ URL param
+// ===============================
+// URL param
+// ===============================
 const params = new URLSearchParams(window.location.search)
 const draftId = params.get("id")
 
@@ -20,16 +22,41 @@ if (!draftId) {
   throw new Error("No draft id")
 }
 
-// ⭐ Supabase client
+// ===============================
+// Supabase client
+// ===============================
 const sb = window.supabase.createClient(
   SUPABASE_URL,
   SUPABASE_ANON_KEY
 )
 
-// ⭐ Local state
+// ===============================
+// Local state
+// ===============================
 let currentDraft = null
 let logoURL = null
 
+
+// ===============================
+// Ensure Question Section
+// ===============================
+function ensureQuestionSection(){
+
+  if(!currentDraft.schema_json){
+    currentDraft.schema_json = {}
+  }
+
+  if(!currentDraft.schema_json.sections){
+    currentDraft.schema_json.sections = [{
+      questions:[]
+    }]
+  }
+
+  if(!currentDraft.schema_json.sections[0].questions){
+    currentDraft.schema_json.sections[0].questions = []
+  }
+
+}
 
 
 // ===============================
@@ -42,6 +69,7 @@ function scheduleAutosave(){
   autosaveTimer = setTimeout(()=>{
     saveDraft(true)
   },1500)
+
 }
 
 
@@ -78,14 +106,9 @@ loadDraft()
 // ===============================
 function renderDraft(draft){
 
-  console.log("DRAFT RECEIVED →", draft)
-
   currentDraft = draft
-  logoURL = draft.logo_url || localStorage.getItem("defaultLogo") || null;
+  logoURL = draft.logo_url || localStorage.getItem("defaultLogo") || null
 
-  // ===============================
-  // Meta
-  // ===============================
   const titleEl = document.getElementById("title")
   const durationEl = document.getElementById("duration")
 
@@ -95,10 +118,6 @@ function renderDraft(draft){
   titleEl.addEventListener("input", scheduleAutosave)
   durationEl.addEventListener("input", scheduleAutosave)
 
-
-  // ===============================
-  // Logo preview
-  // ===============================
   const preview = document.getElementById("logoPreview")
 
   if(logoURL && preview){
@@ -106,10 +125,6 @@ function renderDraft(draft){
     preview.style.display = "block"
   }
 
-
-  // ===============================
-  // Questions
-  // ===============================
   const container = document.getElementById("questions")
   container.innerHTML = ""
 
@@ -172,9 +187,11 @@ function renderDraft(draft){
 
     div.querySelectorAll(".qtext,.opt,.correct,.exp")
       .forEach(el => el.addEventListener("input", scheduleAutosave))
+
   })
 
 }
+
 
 
 // ===============================
@@ -244,6 +261,167 @@ async function saveDraft(silent=false){
 
 
 // ===============================
+// QUESTION BANK
+// ===============================
+
+// Load questions
+async function loadQuestionBank(search=""){
+
+  try{
+
+    let query = sb
+      .from("questions")
+      .select("*")
+      .limit(50)
+
+    if(search){
+      query = query.ilike(
+        "question_text",
+        `%${search}%`
+      )
+    }
+
+    const { data, error } = await query
+
+    if(error) throw error
+
+    renderQuestionBank(data)
+
+  }catch(e){
+    console.error("QB load error",e)
+  }
+
+}
+
+
+// Render results
+function renderQuestionBank(questions){
+
+  const container =
+  document.getElementById("questionBankResults")
+
+  if(!container) return
+
+  container.innerHTML = ""
+
+  if(!questions.length){
+    container.innerHTML = "<p>No results</p>"
+    return
+  }
+
+  questions.forEach(q=>{
+
+    const div = document.createElement("div")
+    div.className = "qb-question"
+
+    div.innerHTML = `
+      <span>${q.question_text}</span>
+      <button class="insertQB" data-id="${q.id}">
+        Insert
+      </button>
+    `
+
+    container.appendChild(div)
+
+  })
+
+}
+
+
+// Insert question
+async function insertQuestionFromBank(id){
+
+  ensureQuestionSection()
+
+  const { data, error } = await sb
+    .from("questions")
+    .select("*")
+    .eq("id", id)
+    .single()
+
+  if(error){
+    console.error(error)
+    return
+  }
+
+  const questions =
+  currentDraft.schema_json.sections[0].questions
+
+  questions.push({
+
+    id: crypto.randomUUID(),
+
+    question: data.question_text,
+
+    options:[
+      data.option_a,
+      data.option_b,
+      data.option_c,
+      data.option_d
+    ],
+
+    correct:["A","B","C","D"].indexOf(data.correct_option),
+
+    explanation: data.explanation || "",
+
+    source_question_id: data.id
+
+  })
+
+  renderDraft(currentDraft)
+
+  scheduleAutosave()
+
+}
+
+
+// ===============================
+// Question Bank Listeners
+// ===============================
+
+// Insert click
+document
+.getElementById("questionBankResults")
+?.addEventListener("click",function(e){
+
+  if(e.target.classList.contains("insertQB")){
+
+    const id = e.target.dataset.id
+
+    insertQuestionFromBank(id)
+
+  }
+
+})
+
+
+// Search
+document
+.getElementById("qbSearch")
+?.addEventListener("input",function(){
+
+  loadQuestionBank(this.value)
+
+})
+
+
+// Panel open
+const openQBBtn =
+document.getElementById("openQuestionBankBtn")
+
+const qbPanel =
+document.getElementById("questionBankPanel")
+
+openQBBtn?.addEventListener("click",()=>{
+
+  qbPanel.classList.add("active")
+
+  loadQuestionBank()
+
+})
+
+
+// ===============================
 // Logo Upload
 // ===============================
 async function handleLogoUpload(e){
@@ -278,9 +456,11 @@ async function handleLogoUpload(e){
 
   logoURL =
   `${SUPABASE_URL}/storage/v1/object/public/logos/${path}`
-localStorage.setItem("defaultLogo", logoURL);
 
-  const preview = document.getElementById("logoPreview")
+  localStorage.setItem("defaultLogo", logoURL)
+
+  const preview =
+  document.getElementById("logoPreview")
 
   if(preview){
     preview.src = logoURL
@@ -328,22 +508,21 @@ async function cloneDraft(){
   try{
 
     const res = await fetch(CLONE_FUNCTION_URL,{
-method:"POST",
-headers:{
-"Content-Type":"application/json",
-"apikey":SUPABASE_ANON_KEY,
-"Authorization":`Bearer ${SUPABASE_ANON_KEY}`
-},
-body:JSON.stringify({ draftId })
-})
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        "apikey":SUPABASE_ANON_KEY,
+        "Authorization":`Bearer ${SUPABASE_ANON_KEY}`
+      },
+      body:JSON.stringify({ draftId })
+    })
 
-if(!res.ok){
-alert("Clone request failed")
-console.error("Clone draft error",res.status)
-return
-}
+    if(!res.ok){
+      alert("Clone request failed")
+      return
+    }
 
-const data = await res.json()
+    const data = await res.json()
 
     if(!data.success){
       alert(data.error || "Clone failed")
@@ -371,22 +550,21 @@ async function publishDraft(){
   try{
 
     const res = await fetch(PUBLISH_FUNCTION_URL,{
-method:"POST",
-headers:{
-"Content-Type":"application/json",
-"apikey":SUPABASE_ANON_KEY,
-"Authorization":`Bearer ${SUPABASE_ANON_KEY}`
-},
-body:JSON.stringify({ draftId })
-})
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        "apikey":SUPABASE_ANON_KEY,
+        "Authorization":`Bearer ${SUPABASE_ANON_KEY}`
+      },
+      body:JSON.stringify({ draftId })
+    })
 
-if(!res.ok){
-alert("Publish request failed")
-console.error("Publish draft error",res.status)
-return
-}
+    if(!res.ok){
+      alert("Publish request failed")
+      return
+    }
 
-const data = await res.json()
+    const data = await res.json()
 
     if(!data.success){
       alert(data.error || "Publish failed")
@@ -400,6 +578,7 @@ const data = await res.json()
       alert("Exam link copied:\n"+data.examLink)
 
       window.open(data.examLink,"_blank")
+
     }
 
   }catch(e){
@@ -412,17 +591,12 @@ const data = await res.json()
 
 
 // ===============================
-// Init Logo Listener
+// Init
 // ===============================
 document
 .getElementById("logoUpload")
 ?.addEventListener("change", handleLogoUpload)
 
-
-
-// ===============================
-// Expose globally
-// ===============================
 window.saveDraft = saveDraft
 window.cloneDraft = cloneDraft
 window.publishDraft = publishDraft
