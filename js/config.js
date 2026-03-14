@@ -1,5 +1,3 @@
-const SUPABASE_URL = "https://bcqjfosxneuyoyuzhdiq.supabase.co"
-
 /* ========================================
 PrepOS Supabase Configuration
 Safe for multi-page applications
