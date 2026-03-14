@@ -1,76 +1,94 @@
 /* ===== Shared body styles ===== */
+
 body{
   font-family: Arial, Helvetica, sans-serif;
-  padding: 30px;
-  max-width: 900px;
-  margin: auto;
-  background: #f7f7f7;
+  max-width:1100px;
+  margin:40px auto;
+  padding:30px 20px;
+  background:#f7f7f7;
 }
 
-/* Creator page slightly narrower */
+
+/* ===== Creator page slightly narrower ===== */
+
 body.creator{
-  max-width: 800px;
-  padding: 20px;
+  max-width:800px;
+  padding:20px;
 }
+
 
 /* ===== Headings ===== */
+
 h1{
-  margin-bottom: 10px;
+  margin-bottom:10px;
 }
+
 
 /* ===== Card ===== */
+
 .card{
-  background: white;
-  border-radius: 8px;
-  padding: 20px;
-  margin-bottom: 15px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  background:white;
+  border-radius:8px;
+  padding:20px;
+  margin-bottom:15px;
+  box-shadow:0 2px 6px rgba(0,0,0,0.08);
 }
+
 
 /* ===== Questions ===== */
+
 .question{
-  margin-bottom: 20px;
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
+  margin-bottom:20px;
+  padding:10px;
+  border:1px solid #ddd;
+  border-radius:6px;
 }
+
 
 /* ===== Textarea ===== */
+
 textarea{
-  width: 100%;
-  height: 240px;
+  width:100%;
+  height:240px;
 }
 
+
 /* ===== Buttons ===== */
+
 button{
-  padding: 12px 18px;
-  margin-right: 10px;
-  margin-top: 10px;
-  cursor: pointer;
+  padding:10px 14px;
+  margin-right:10px;
+  margin-top:10px;
+  cursor:pointer;
 }
 
 button:hover{
   opacity:0.9;
 }
 
-/* Creator button slightly different */
 .creator button{
-  padding: 10px 20px;
+  padding:10px 20px;
 }
 
+
 /* ===== Small text ===== */
+
 .small{
   color:#666;
   font-size:14px;
 }
 
+
 /* ===== Recent exams ===== */
+
 .recent-item{
   padding:8px 0;
   border-bottom:1px solid #eee;
 }
 
+
 /* ===== Results header ===== */
+
 .header{
   display:flex;
   gap:10px;
@@ -78,7 +96,9 @@ button:hover{
   margin-bottom:12px;
 }
 
+
 /* ===== Result row ===== */
+
 .result-item{
   padding:10px;
   border-bottom:1px solid #ddd;
@@ -88,7 +108,9 @@ button:hover{
   background:#e8f5e9;
 }
 
+
 /* ===== Modal ===== */
+
 .modal{
   position:fixed;
   top:10%;
@@ -102,177 +124,114 @@ button:hover{
   width:320px;
   display:none;
 }
+
+
 /* ===== Exam page ===== */
+
 .exam-wrapper{
-max-width:800px;
-margin:auto;
-padding:20px;
+  max-width:800px;
+  margin:auto;
+  padding:20px;
 }
 
 #studentName{
-display:block;
-margin:10px 0 20px;
-padding:8px;
-width:100%;
+  display:block;
+  margin:10px 0 20px;
+  padding:8px;
+  width:100%;
 }
 
 #result{
-margin-top:30px;
+  margin-top:30px;
 }
 
+
 /* ===== Review page ===== */
+
 .review-card{
-border:1px solid #ddd;
-border-radius:10px;
-padding:15px;
-margin-bottom:20px;
-background:#fff;
-box-shadow:0 2px 6px rgba(0,0,0,.05);
+  border:1px solid #ddd;
+  border-radius:10px;
+  padding:15px;
+  margin-bottom:20px;
+  background:#fff;
+  box-shadow:0 2px 6px rgba(0,0,0,.05);
 }
 
 .review-q{
-margin-bottom:10px;
-font-size:16px;
+  margin-bottom:10px;
+  font-size:16px;
 }
 
 .option{
-padding:8px;
-border-radius:6px;
-margin:5px 0;
-background:#f6f6f6;
+  padding:8px;
+  border-radius:6px;
+  margin:5px 0;
+  background:#f6f6f6;
 }
 
 .option.correct{
-background:#e7f7ec;
-border:1px solid #2ecc71;
+  background:#e7f7ec;
+  border:1px solid #2ecc71;
 }
 
 .option.wrong{
-background:#fdeaea;
-border:1px solid #e74c3c;
+  background:#fdeaea;
+  border:1px solid #e74c3c;
 }
 
 .option.chosen{
-font-weight:600;
+  font-weight:600;
 }
 
 .explain-btn{
-margin-top:10px;
-padding:6px 10px;
-border:none;
-border-radius:6px;
-background:#eee;
-cursor:pointer;
+  margin-top:10px;
+  padding:6px 10px;
+  border:none;
+  border-radius:6px;
+  background:#eee;
+  cursor:pointer;
 }
 
 .explanation{
-margin-top:10px;
-padding:10px;
-background:#f9f9f9;
-border-radius:6px;
-font-size:14px;
-}
-/* ---------- Result Scroll + Highlight ---------- */
-
-#result {
-  scroll-margin-top: 20px; /* Prevents result from sticking to top edge */
-}
-
-.result-highlight {
-  animation: resultPulse 0.8s ease-in-out;
-}
-
-@keyframes resultPulse {
-  0% { 
-    background-color: #fff3cd; 
-  }
-  100% { 
-    background-color: transparent; 
-  }
-}
-
-/*--- better explanation highlight ---*/
-.explanation{
-  margin-top:8px;
+  margin-top:10px;
   padding:10px;
-  background:#f5f5f5;
-  border-left:4px solid #4caf50;
+  background:#f9f9f9;
+  border-radius:6px;
   font-size:14px;
 }
 
-.logo-section{
-  margin: 12px 0;
+
+/* ===== Result Scroll Highlight ===== */
+
+#result{
+  scroll-margin-top:20px;
 }
 
-.logo-section img{
-  display:block;
+.result-highlight{
+  animation:resultPulse 0.8s ease-in-out;
+}
+
+@keyframes resultPulse{
+  0%{background-color:#fff3cd;}
+  100%{background-color:transparent;}
+}
+
+
+/* ===== Logo UI ===== */
+
+.logo-section{
+  margin-bottom:16px;
+}
+
+#logoPreview{
+  max-height:80px;
+  margin-top:8px;
+  display:none;
   border:1px solid #ddd;
   padding:4px;
   background:#fff;
 }
 
-.review-card{
-  page-break-inside: avoid;
-  break-inside: avoid;
-  margin-bottom: 20px;
-}
-
-@media print {
-  .no-print {
-    display: none !important;
-  }
-}
-
-.exam-header{
-  text-align:center;
-}
-
-.exam-logo{
-  display:block;
-  margin:25px auto;
-  max-width:220px;
-  width:60%;
-}
-
-/* ==============================
-   PDF HEADER
-============================== */
-
-.pdf-header{
-  text-align:center;
-  margin-bottom:20px;
-}
-
-.pdf-logo{
-  width:120px;
-  max-width:120px;
-  height:auto;
-  display:block;
-  margin:0 auto 10px auto;
-}
-
-#pdfHeader h2{
-  margin:10px 0;
-}
-
-#pdfHeader p{
-  margin:4px 0;
-}
-
-#quiz{
-  max-width: 800px;
-}
-
-/* =========================
-Base Layout of draft page
-========================= */
-
-body{
-  font-family: Arial, sans-serif;
-  max-width:1100px;
-  margin:40px auto;
-  padding:0 20px;
-}
 
 /* =========================
 Inputs
@@ -284,6 +243,7 @@ input, textarea{
   padding:8px;
   font-size:14px;
 }
+
 
 /* =========================
 Workspace Layout
@@ -311,6 +271,7 @@ Workspace Layout
   display:block;
 }
 
+
 /* =========================
 Draft Header
 ========================= */
@@ -321,6 +282,7 @@ Draft Header
   align-items:center;
   margin-bottom:10px;
 }
+
 
 /* =========================
 Question Cards
@@ -333,6 +295,7 @@ Question Cards
   border-radius:6px;
 }
 
+
 /* =========================
 Draft Actions
 ========================= */
@@ -343,10 +306,6 @@ Draft Actions
   margin-top:20px;
 }
 
-button{
-  padding:10px 14px;
-  cursor:pointer;
-}
 
 /* =========================
 Status
@@ -358,22 +317,6 @@ Status
   color:#555;
 }
 
-/* =========================
-Logo UI
-========================= */
-
-.logo-section{
-  margin-bottom:16px;
-}
-
-#logoPreview{
-  max-height:80px;
-  margin-top:8px;
-  display:none;
-  border:1px solid #ddd;
-  padding:4px;
-  background:#fff;
-}
 
 /* =========================
 Question Bank UI
@@ -392,7 +335,20 @@ Question Bank UI
   display:flex;
   justify-content:space-between;
   align-items:center;
+  gap:10px;
 }
+
+.qb-question span{
+  flex:1;
+  font-size:14px;
+}
+
+.qb-loading{
+  color:#888;
+  font-size:14px;
+  padding:20px 0;
+}
+
 
 /* =========================
 Mobile Slide Panel
