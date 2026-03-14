@@ -1,12 +1,5 @@
 const SUPABASE_URL = "https://bcqjfosxneuyoyuzhdiq.supabase.co"
 
-
-/* create client */
-
-const supabase = window.supabase.createClient(
-  SUPABASE_URL,
-  SUPABASE_ANON_KEY
-)
 /* ========================================
 PrepOS Supabase Configuration
 Safe for multi-page applications
@@ -14,7 +7,7 @@ Safe for multi-page applications
 
 /* Supabase project credentials */
 
-const SUPABASE_URL = "https://YOUR_PROJECT.supabase.co"
+const SUPABASE_URL = "https://bcqjfosxneuyoyuzhdiq.supabase.co"
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJjcWpmb3N4bmV1eW95dXpoZGlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE5NDI2OTIsImV4cCI6MjA4NzUxODY5Mn0.mPvlN_JEov6cxCXjMlARrzd5zyFHPH131whlB1cQClA"
 
 /* ========================================
