@@ -12,7 +12,10 @@
 
 </head>
 
+
 <body class="draft-page">
+
+<main class="draft-wrapper">
 
 <h2>Draft Editor</h2>
 
@@ -20,6 +23,8 @@
 <!-- ======================
 Draft Metadata
 ====================== -->
+
+<section class="draft-meta">
 
 <label for="title">Title</label>
 <input
@@ -35,13 +40,15 @@ type="number"
 placeholder="Enter duration in minutes"
 />
 
+</section>
+
 
 
 <!-- ======================
 Logo Upload
 ====================== -->
 
-<div class="logo-section">
+<section class="logo-section">
 
 <label>Exam Logo (optional)</label>
 
@@ -51,9 +58,9 @@ id="logoUpload"
 accept="image/png,image/jpeg,image/jpg,image/svg+xml"
 />
 
-<img id="logoPreview">
+<img id="logoPreview" alt="Logo preview">
 
-</div>
+</section>
 
 
 
@@ -61,7 +68,7 @@ accept="image/png,image/jpeg,image/jpg,image/svg+xml"
 Workspace
 ====================== -->
 
-<div class="workspace">
+<section class="workspace">
 
 
 <!-- ======================
@@ -76,11 +83,11 @@ Draft Area
 
 <div class="draft-toolbar">
 
-<button id="newQuestionBtn">
+<button type="button" id="newQuestionBtn">
 + New Question
 </button>
 
-<button id="openQuestionBankBtn">
+<button type="button" id="openQuestionBankBtn">
 + Add from Question Bank
 </button>
 
@@ -91,7 +98,9 @@ Draft Area
 
 <div id="questions">
 
-<!-- Question cards rendered dynamically here -->
+<p class="small">
+No questions yet. Click "New Question" to start.
+</p>
 
 </div>
 
@@ -103,14 +112,14 @@ Draft Area
 Question Bank Panel
 ====================== -->
 
-<div
+<aside
 class="question-bank-panel"
 id="questionBankPanel"
 >
 
 <div class="qb-header">
 
-<button id="closeQB">← Back</button>
+<button type="button" id="closeQB">← Back</button>
 
 <h3>Question Bank</h3>
 
@@ -132,10 +141,10 @@ Search questions to begin
 
 </div>
 
-</div>
+</aside>
 
 
-</div>
+</section>
 
 
 
@@ -143,23 +152,25 @@ Search questions to begin
 Draft Actions
 ====================== -->
 
-<div class="draft-actions">
+<section class="draft-actions">
 
-<button onclick="saveDraft()">
+<button type="button" onclick="saveDraft()">
 Save Draft
 </button>
 
-<button onclick="cloneDraft()">
+<button type="button" onclick="cloneDraft()">
 Clone
 </button>
 
-<button onclick="publishDraft()">
+<button type="button" onclick="publishDraft()">
 Publish Exam
 </button>
 
-</div>
+</section>
 
 <div id="status"></div>
+
+</main>
 
 
 
@@ -170,39 +181,12 @@ Scripts
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script src="js/config.js"></script>
-
 <script src="js/draft.js"></script>
 
 
 
 <!-- ======================
-Question Bank Toggle
-====================== -->
-
-<script>
-
-const openQBBtn = document.getElementById("openQuestionBankBtn");
-const qbPanel = document.getElementById("questionBankPanel");
-const closeQB = document.getElementById("closeQB");
-
-openQBBtn.onclick = function(){
-
-  qbPanel.classList.add("active");
-
-};
-
-closeQB.onclick = function(){
-
-  qbPanel.classList.remove("active");
-
-};
-
-</script>
-
-
-
-<!-- ======================
-Debug Console
+Debug Console (Dev Only)
 ====================== -->
 
 <script>
@@ -215,7 +199,6 @@ Debug Console
   document.body.appendChild(script);
 })();
 </script>
-
 
 </body>
 </html>
