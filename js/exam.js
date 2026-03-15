@@ -267,29 +267,27 @@ if(titleEl){
 /* ======================================================
    RENDER QUIZ
 ====================================================== */
+
 function renderQuiz(questions){
 
   const container = document.getElementById("examContent");
-  container.innerHTML="";
+  container.innerHTML = "";
 
   questions.forEach((q,i)=>{
 
-    const div=document.createElement("div");
-    div.className="question";
+    const div = document.createElement("div");
+    div.className = "question";
 
-    div.innerHTML =
-      `<p style="white-space:pre-line">${escapeHTML(q.question)}</p>`+
+    const optionsHTML = q.options.map((o,idx)=>{
 
-      q.options.map((o,idx)=>{
+      const letter = String.fromCharCode(65+idx);
 
-        const letter = String.fromCharCode(65+idx);
-
-        return `
+      return `
         <label class="option-row">
 
-          <input 
+          <input
             type="radio"
-            name="q${i}"
+            name="q_${i}"
             value="${letter}"
           >
 
@@ -298,35 +296,70 @@ function renderQuiz(questions){
           </span>
 
         </label>
-        `;
+      `;
 
-      }).join("");
+    }).join("");
+
+    div.innerHTML = `
+      <p class="question-text">
+        ${escapeHTML(q.question)}
+      </p>
+
+      <div class="question-options">
+        ${optionsHTML}
+      </div>
+    `;
 
     container.appendChild(div);
   });
 
-  /* autosave */
+
+  /* ==============================
+     AUTOSAVE
+  ============================== */
+
   document.querySelectorAll('input[type="radio"]').forEach(r=>{
     r.addEventListener("change", e=>{
+
       const name = e.target.name;
       attemptState.answers[name] = e.target.value;
-      localStorage.setItem(ATTEMPT_KEY, JSON.stringify(attemptState));
+
+      localStorage.setItem(
+        ATTEMPT_KEY,
+        JSON.stringify(attemptState)
+      );
+
     });
   });
 
-  /* restore */
+
+  /* ==============================
+     RESTORE PREVIOUS ANSWERS
+  ============================== */
+
   if(attemptState.answers){
+
     Object.entries(attemptState.answers).forEach(([name,val])=>{
+
       const el = container.querySelector(
         `input[name="${name}"][value="${val}"]`
       );
+
       if(el) el.checked = true;
+
     });
+
   }
 
-  const btn=document.createElement("button");
-  btn.innerText="Submit";
-  btn.onclick=submitExam;
+
+  /* ==============================
+     SUBMIT BUTTON
+  ============================== */
+
+  const btn = document.createElement("button");
+  btn.innerText = "Submit";
+  btn.onclick = submitExam;
+
   container.appendChild(btn);
 }
 
