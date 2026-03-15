@@ -1,46 +1,126 @@
-<!DOCTYPE html><html lang="en">
-<head><meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0"><title>PrepOS Home</title><link rel="stylesheet" href="css/style.css"></head><body><h1>PrepOS</h1>
-<div class="small">Teacher Console</div><!-- =========================
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>PrepOS Home</title>
+
+<link rel="stylesheet" href="css/style.css">
+
+</head>
+
+<body>
+
+<h1>PrepOS</h1>
+<div class="small">Teacher Console</div>
+
+
+<!-- =========================
 Create Exam
-========================= --><div class="card">
+========================= -->
+
+<div class="card">
+
 <h3>Create Exam</h3>
+
 <p>Paste questions, clean with QCP, generate exam link.</p>
-<button onclick="location.href='exam-creator.html'">Open Creator</button>
-</div><!-- =========================
+
+<button onclick="location.href='exam-creator.html'">
+Open Creator
+</button>
+
+</div>
+
+
+
+<!-- =========================
 Draft Editor
-========================= --><div class="card">
+========================= -->
+
+<div class="card">
+
 <h3>Draft Editor</h3>
+
 <p>Create and manage draft exams.</p>
-<button onclick="createDraft()">New Draft</button>
-</div><!-- =========================
+
+<button onclick="createDraft()">
+New Draft
+</button>
+
+</div>
+
+
+
+<!-- =========================
 Recent Exams
-========================= --><div class="card">
+========================= -->
+
+<div class="card">
+
 <h3>Recent Exams</h3>
-<div id="recentExams">Loading…</div>
-</div><!-- =========================
+
+<div id="recentExams">
+Loading recent exams...
+</div>
+
+</div>
+
+
+
+<!-- =========================
 Results Viewer
-========================= --><div class="card">
+========================= -->
+
+<div class="card">
+
 <h3>Results Viewer</h3>
+
 <p>Browse submissions by exam.</p>
-<button onclick="location.href='teacher-results.html'">Open Viewer</button>
-</div><!-- =========================
+
+<button onclick="location.href='teacher-results.html'">
+Open Viewer
+</button>
+
+</div>
+
+
+
+<!-- =========================
 Open Exam
-========================= --><div class="card">
+========================= -->
+
+<div class="card">
+
 <h3>Open Exam</h3>
-<p>Preview exam using id.</p><input
+
+<p>Preview exam using id.</p>
+
+<input
 id="examId2"
 placeholder="Paste exam id"
 style="width:100%;padding:8px;margin-top:6px;"
+>
 
-«»
+<button onclick="openExam()">
+Open Exam
+</button>
 
-<button onclick="openExam()">Open Exam</button>
+</div>
 
-</div><!-- =========================
+
+
+<!-- =========================
 Scripts
-========================= --><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="js/config.js"></script><script>
+========================= -->
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js"></script>
+
+
+<script>
 
 /* =========================
 Open Exam
@@ -60,11 +140,14 @@ location.href = `exam.html?id=${id}`
 }
 
 
+
 /* =========================
 Create Draft
 ========================= */
 
 window.createDraft = async function(){
+
+try{
 
 const sb = window.supabaseClient
 
@@ -74,7 +157,7 @@ const { data, error } = await sb
 {
 title:"Untitled Draft",
 duration:60,
-schema_json:{ questions:[] },
+schema_json:{questions:[]},
 status:"draft"
 }
 ])
@@ -82,62 +165,57 @@ status:"draft"
 .single()
 
 if(error){
-console.error(error)
-alert("Failed to create draft")
-return
+throw error
 }
 
 location.href = `draft.html?id=${data.id}`
 
+}catch(err){
+
+console.error("Draft creation failed:",err)
+
+alert("Failed to create draft")
+
+}
+
 }
 
 
+
 /* =========================
-Recent Exams
+Recent Exams Loader
 ========================= */
 
 async function loadRecentExams(){
 
-const controller = new AbortController()
-const timeout = setTimeout(()=>controller.abort(),5000)
+const container = document.getElementById("recentExams")
+
+try{
 
 const res = await fetch(
-`${SUPABASE_URL}/rest/v1/exam_sessions?select=id,title,created_at&order=created_at.desc&limit=5`,
-{
-headers:{
-apikey: SUPABASE_ANON_KEY,
-Authorization: `Bearer ${SUPABASE_ANON_KEY}`
-},
-signal: controller.signal
-})
 
-clearTimeout(timeout)
+`${SUPABASE_URL}/rest/v1/exam_sessions?select=id,title,created_at&order=created_at.desc&limit=5`,
+
 {
 headers:{
 apikey: SUPABASE_ANON_KEY,
-Authorization: `Bearer ${SUPABASE_ANON_KEY}`
+Authorization:`Bearer ${SUPABASE_ANON_KEY}`
 }
-})
+}
+
+)
 
 if(!res.ok){
-
-console.error("Failed to load exams",res.status)
-
-document.getElementById("recentExams").innerText="Failed to load exams"
-
-return
-
+throw new Error("Failed to load exams")
 }
 
 const data = await res.json()
 
-const container = document.getElementById("recentExams")
-
-container.innerHTML = ""
+container.innerHTML=""
 
 if(!data.length){
 
-container.innerHTML = "No exams yet"
+container.innerHTML="No exams yet"
 
 return
 
@@ -145,48 +223,95 @@ return
 
 data.forEach(e=>{
 
-const div = document.createElement("div")
-div.className = "recent-item"
+const div=document.createElement("div")
 
-div.innerHTML = `
+div.className="recent-item"
+
+div.innerHTML=`
+
 <b>${e.title}</b><br>
-<button onclick="location.href='exam.html?id=${e.id}'">Open</button>
-<button onclick="viewResults('${e.id}')">Results</button>
+
+<button onclick="location.href='exam.html?id=${e.id}'">
+Open
+</button>
+
+<button onclick="viewResults('${e.id}')">
+Results
+</button>
+
 `
 
 container.appendChild(div)
 
 })
 
+}catch(err){
+
+console.error(err)
+
+container.innerHTML="Unable to load exams"
+
+}
+
 }
 
 
+
 /* =========================
-Results
+View Results
 ========================= */
 
 window.viewResults = function(examId){
 
-localStorage.setItem("results_exam", examId)
+localStorage.setItem("results_exam",examId)
 
-location.href = "teacher-results.html"
+location.href="teacher-results.html"
 
 }
+
+
+
+/* =========================
+Dashboard Init
+========================= */
+
+function initDashboard(){
+
+// Load recent exams slightly later
+// This keeps UI fast
+
+setTimeout(()=>{
+
+loadRecentExams()
+
+},100)
+
+}
+
 
 
 /* =========================
 Init
 ========================= */
 
-setTimeout(loadRecentExams, 50)
+initDashboard()
 
 </script>
 
-<!-- Eruda Console -->
+
+
+<!-- =========================
+Eruda Debug Console
+(remove in production)
+========================= -->
+
 <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
+
 <script>
-eruda.init();
+eruda.init()
 </script>
+
 
 </body>
+
 </html>
