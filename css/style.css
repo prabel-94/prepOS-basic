@@ -283,6 +283,11 @@ Draft Header
   margin-bottom:10px;
 }
 
+.draft-toolbar{
+  display:flex;
+  gap:10px;
+}
+
 
 /* =========================
 Question Cards
@@ -293,6 +298,50 @@ Question Cards
   padding:12px;
   margin-bottom:16px;
   border-radius:6px;
+  background:#fff;
+}
+
+
+/* =========================
+Question Header + Actions
+========================= */
+
+.question-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:10px;
+}
+
+.q-actions button{
+  font-size:12px;
+  padding:4px 8px;
+  margin-left:5px;
+}
+
+
+/* =========================
+Radio Option Layout
+========================= */
+
+.option-row{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-bottom:8px;
+}
+
+.option-row input[type="text"]{
+  flex:1;
+}
+
+.option-row input[type="radio"]{
+  transform:scale(1.2);
+}
+
+.option-label{
+  font-weight:600;
+  width:20px;
 }
 
 
