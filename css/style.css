@@ -1,4 +1,6 @@
-/* ===== Shared body styles ===== */
+/* ======================================================
+BASE STYLES
+====================================================== */
 
 body{
   font-family: Arial, Helvetica, sans-serif;
@@ -8,51 +10,20 @@ body{
   background:#f7f7f7;
 }
 
-
-/* ===== Creator page slightly narrower ===== */
-
-body.creator{
-  max-width:800px;
-  padding:20px;
-}
-
-
-/* ===== Headings ===== */
-
 h1{
   margin-bottom:10px;
 }
 
-
-/* ===== Card ===== */
-
-.card{
-  background:white;
-  border-radius:8px;
-  padding:20px;
-  margin-bottom:15px;
-  box-shadow:0 2px 6px rgba(0,0,0,0.08);
+input, textarea{
+  width:100%;
+  padding:8px;
+  font-size:14px;
+  margin-bottom:16px;
 }
-
-
-/* ===== Questions ===== */
-
-.question{
-  margin-bottom:20px;
-  padding:10px;
-  border:1px solid #ddd;
-  border-radius:6px;
-}
-
-
-/* ===== Textarea ===== */
 
 textarea{
-  width:100%;
   min-height:140px;
 }
-
-/* ===== Buttons ===== */
 
 button{
   padding:10px 14px;
@@ -65,50 +36,23 @@ button:hover{
   opacity:0.9;
 }
 
-.creator button{
-  padding:10px 20px;
-}
-
-
-/* ===== Small text ===== */
-
 .small{
   color:#666;
   font-size:14px;
 }
 
 
-/* ===== Recent exams ===== */
+/* ======================================================
+LAYOUT COMPONENTS
+====================================================== */
 
-.recent-item{
-  padding:8px 0;
-  border-bottom:1px solid #eee;
+.card{
+  background:white;
+  border-radius:8px;
+  padding:20px;
+  margin-bottom:15px;
+  box-shadow:0 2px 6px rgba(0,0,0,0.08);
 }
-
-
-/* ===== Results header ===== */
-
-.header{
-  display:flex;
-  gap:10px;
-  align-items:center;
-  margin-bottom:12px;
-}
-
-
-/* ===== Result row ===== */
-
-.result-item{
-  padding:10px;
-  border-bottom:1px solid #ddd;
-}
-
-.recent{
-  background:#e8f5e9;
-}
-
-
-/* ===== Modal ===== */
 
 .modal{
   position:fixed;
@@ -124,8 +68,63 @@ button:hover{
   display:none;
 }
 
+.logo-section{
+  margin-bottom:16px;
+}
 
-/* ===== Exam page ===== */
+#logoPreview{
+  max-height:80px;
+  margin-top:8px;
+  display:none;
+  border:1px solid #ddd;
+  padding:4px;
+  background:#fff;
+}
+
+
+/* ======================================================
+CREATOR PAGE
+====================================================== */
+
+body.creator{
+  max-width:800px;
+  padding:20px;
+}
+
+.creator button{
+  padding:10px 20px;
+}
+
+.recent-item{
+  padding:8px 0;
+  border-bottom:1px solid #eee;
+}
+
+
+/* ======================================================
+RESULTS PAGE
+====================================================== */
+
+.header{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  margin-bottom:12px;
+}
+
+.result-item{
+  padding:10px;
+  border-bottom:1px solid #ddd;
+}
+
+.recent{
+  background:#e8f5e9;
+}
+
+
+/* ======================================================
+EXAM PAGE
+====================================================== */
 
 .exam-wrapper{
   max-width:800px;
@@ -142,10 +141,22 @@ button:hover{
 
 #result{
   margin-top:30px;
+  scroll-margin-top:20px;
+}
+
+.result-highlight{
+  animation:resultPulse 0.8s ease-in-out;
+}
+
+@keyframes resultPulse{
+  0%{background-color:#fff3cd;}
+  100%{background-color:transparent;}
 }
 
 
-/* ===== Review page ===== */
+/* ======================================================
+REVIEW PAGE
+====================================================== */
 
 .review-card{
   border:1px solid #ddd;
@@ -200,53 +211,9 @@ button:hover{
 }
 
 
-/* ===== Result Scroll Highlight ===== */
-
-#result{
-  scroll-margin-top:20px;
-}
-
-.result-highlight{
-  animation:resultPulse 0.8s ease-in-out;
-}
-
-@keyframes resultPulse{
-  0%{background-color:#fff3cd;}
-  100%{background-color:transparent;}
-}
-
-
-/* ===== Logo UI ===== */
-
-.logo-section{
-  margin-bottom:16px;
-}
-
-#logoPreview{
-  max-height:80px;
-  margin-top:8px;
-  display:none;
-  border:1px solid #ddd;
-  padding:4px;
-  background:#fff;
-}
-
-
-/* =========================
-Inputs
-========================= */
-
-input, textarea{
-  width:100%;
-  margin-bottom:16px;
-  padding:8px;
-  font-size:14px;
-}
-
-
-/* =========================
-Workspace Layout
-========================= */
+/* ======================================================
+DRAFT EDITOR LAYOUT
+====================================================== */
 
 .workspace{
   display:flex;
@@ -270,11 +237,6 @@ Workspace Layout
   display:block;
 }
 
-
-/* =========================
-Draft Header
-========================= */
-
 .draft-header{
   display:flex;
   justify-content:space-between;
@@ -287,11 +249,6 @@ Draft Header
   gap:10px;
 }
 
-
-/* =========================
-Question Cards
-========================= */
-
 .question-card{
   border:1px solid #ddd;
   padding:16px;
@@ -299,10 +256,6 @@ Question Cards
   border-radius:6px;
   background:#fff;
 }
-
-/* =========================
-Question Header + Actions
-========================= */
 
 .question-header{
   display:flex;
@@ -317,48 +270,11 @@ Question Header + Actions
   margin-left:5px;
 }
 
-
-/* =========================
-Radio Option Layout
-========================= */
-
-.option-row{
-  display:flex;
-  align-items:center;
-  gap:12px;
-  margin:8px 0;
-}
-
-.option-row input[type="radio"]{
-  flex:0 0 auto;
-  margin:0;
-}
-
-.option-label{
-  width:22px;
-  font-weight:600;
-}
-
-.option-row input[type="text"]{
-  flex:1;
-  width:100%;
-  padding:8px;
-}
-
-/* =========================
-Draft Actions
-========================= */
-
 .draft-actions{
   display:flex;
   gap:10px;
   margin-top:20px;
 }
-
-
-/* =========================
-Status
-========================= */
 
 #status{
   margin-top:10px;
@@ -367,9 +283,65 @@ Status
 }
 
 
-/* =========================
-Question Bank UI
-========================= */
+/* ======================================================
+DRAFT OPTION INPUTS
+====================================================== */
+
+.draft-page .option-row{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  margin:8px 0;
+}
+
+.draft-page .option-row input[type="radio"]{
+  flex:0 0 auto;
+  margin:0;
+}
+
+.draft-page .option-label{
+  width:22px;
+  font-weight:600;
+}
+
+.draft-page .option-row input[type="text"]{
+  flex:1;
+  width:100%;
+  padding:8px;
+}
+
+
+/* ======================================================
+EXAM OPTION INPUTS
+====================================================== */
+
+.exam-page .option-row{
+  display:flex;
+  align-items:flex-start;
+  gap:10px;
+  margin:10px 0;
+  cursor:pointer;
+}
+
+.exam-page .option-row input{
+  margin-top:3px;
+}
+
+.exam-page .option-text{
+  flex:1;
+  line-height:1.5;
+}
+
+.exam-page .option-row:hover{
+  background:#f5f5f5;
+  border-radius:6px;
+  padding:4px;
+}
+
+
+/* ======================================================
+QUESTION BANK
+====================================================== */
 
 .qb-header{
   display:flex;
@@ -399,9 +371,9 @@ Question Bank UI
 }
 
 
-/* =========================
-Mobile Slide Panel
-========================= */
+/* ======================================================
+MOBILE
+====================================================== */
 
 @media (max-width:768px){
 
@@ -410,51 +382,21 @@ Mobile Slide Panel
 }
 
 .question-bank-panel{
-
   position:fixed;
   top:0;
   right:-100%;
-
   width:100%;
   height:100%;
-
   background:#fff;
-
   transition:right 0.3s ease;
-
   z-index:1000;
-
   padding:20px;
-
   overflow:auto;
-
   border-left:none;
-
 }
 
 .question-bank-panel.active{
   right:0;
 }
 
-}
-
-/* =========================
-Exam Option Layout
-========================= */
-
-.option-row{
-  display:flex;
-  align-items:flex-start;
-  gap:10px;
-  margin:10px 0;
-  cursor:pointer;
-}
-
-.option-row input[type="radio"]{
-  margin-top:3px;
-}
-
-.option-text{
-  flex:1;
-  line-height:1.5;
 }
