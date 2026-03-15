@@ -324,24 +324,26 @@ Question Header + Actions
 Radio Option Layout
 ========================= */
 
-.option-row{
+..option-row{
   display:flex;
   align-items:center;
-  gap:10px;
-  margin-bottom:8px;
+  gap:12px;
+  margin-bottom:10px;
+}
+
+.option-row input[type="radio"]{
+  flex:0 0 auto;
+}
+
+.option-label{
+  width:20px;
+  font-weight:600;
 }
 
 .option-row input[type="text"]{
   flex:1;
-}
-
-.option-row input[type="radio"]{
-  transform:scale(1.2);
-}
-
-.option-label{
-  font-weight:600;
-  width:20px;
+  width:100%;
+  padding:8px;
 }
 
 
