@@ -17,9 +17,9 @@
 <h2>Draft Editor</h2>
 
 
-<!-- ===================== -->
-<!-- Draft Metadata -->
-<!-- ===================== -->
+<!-- ======================
+Draft Metadata
+====================== -->
 
 <label for="title">Title</label>
 <input
@@ -36,9 +36,10 @@ placeholder="Enter duration in minutes"
 />
 
 
-<!-- ===================== -->
-<!-- Logo Upload -->
-<!-- ===================== -->
+
+<!-- ======================
+Logo Upload
+====================== -->
 
 <div class="logo-section">
 
@@ -56,16 +57,16 @@ accept="image/png,image/jpeg,image/jpg,image/svg+xml"
 
 
 
-<!-- ===================== -->
-<!-- Workspace -->
-<!-- ===================== -->
+<!-- ======================
+Workspace
+====================== -->
 
 <div class="workspace">
 
 
-<!-- ===================== -->
-<!-- Draft Area -->
-<!-- ===================== -->
+<!-- ======================
+Draft Area
+====================== -->
 
 <div class="draft-area">
 
@@ -73,21 +74,34 @@ accept="image/png,image/jpeg,image/jpg,image/svg+xml"
 
 <h3>Questions</h3>
 
+<div class="draft-toolbar">
+
+<button id="newQuestionBtn">
++ New Question
+</button>
+
 <button id="openQuestionBankBtn">
-Add from Question Bank
++ Add from Question Bank
 </button>
 
 </div>
 
-<div id="questions"></div>
+</div>
+
+
+<div id="questions">
+
+<!-- Question cards rendered dynamically here -->
+
+</div>
 
 </div>
 
 
 
-<!-- ===================== -->
-<!-- Question Bank Panel -->
-<!-- ===================== -->
+<!-- ======================
+Question Bank Panel
+====================== -->
 
 <div
 class="question-bank-panel"
@@ -125,9 +139,9 @@ Search questions to begin
 
 
 
-<!-- ===================== -->
-<!-- Draft Actions -->
-<!-- ===================== -->
+<!-- ======================
+Draft Actions
+====================== -->
 
 <div class="draft-actions">
 
@@ -145,14 +159,13 @@ Publish Exam
 
 </div>
 
-
 <div id="status"></div>
 
 
 
-<!-- ===================== -->
-<!-- Scripts -->
-<!-- ===================== -->
+<!-- ======================
+Scripts
+====================== -->
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -162,9 +175,9 @@ Publish Exam
 
 
 
-<!-- ===================== -->
-<!-- Question Bank Toggle -->
-<!-- ===================== -->
+<!-- ======================
+Question Bank Toggle
+====================== -->
 
 <script>
 
@@ -188,9 +201,9 @@ closeQB.onclick = function(){
 
 
 
-<!-- ===================== -->
-<!-- Debug Console (Eruda) -->
-<!-- ===================== -->
+<!-- ======================
+Debug Console
+====================== -->
 
 <script>
 (function(){
