@@ -184,8 +184,9 @@ ${opts.map((opt,oi)=>{
 const label = ["A","B","C","D"][oi]
 
 return `
-
 <div class="option-row">
+
+<label class="option-container">
 
 <input
 type="radio"
@@ -198,16 +199,18 @@ ${correctIndex===oi?"checked":""}
 
 <span class="option-label">${label}</span>
 
+</label>
+
 <input
 type="text"
 class="opt"
 data-i="${i}"
 data-oi="${oi}"
 value="${opt || ""}"
+placeholder="Option ${label}"
 >
 
 </div>
-
 `
 
 }).join("")}
