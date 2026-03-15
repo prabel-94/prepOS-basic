@@ -1,5 +1,5 @@
 // ===============================
-// PrepOS Draft Editor — Phase 5
+// PrepOS Draft Editor — Phase 6
 // ===============================
 
 let autosaveTimer = null
@@ -155,42 +155,195 @@ function renderDraft(draft){
     div.className = "question-card"
 
     div.innerHTML = `
-      <p><b>Q${i+1}</b></p>
 
-      <label>Question</label>
-      <textarea data-i="${i}" class="qtext" rows="3">${q.question || ""}</textarea>
+<div class="question-header">
 
-      <label>Options</label>
-      ${opts.map((opt,oi)=>`
-        <input class="opt"
-          data-i="${i}"
-          data-oi="${oi}"
-          value="${opt || ""}">
-      `).join("")}
+<b>Q${i+1}</b>
 
-      <label>Correct</label>
-      <select class="correct" data-i="${i}">
-        ${["A","B","C","D"].map((l,idx)=>`
-          <option value="${idx}" ${correctIndex===idx?"selected":""}>
-          ${l}
-          </option>
-        `).join("")}
-      </select>
+<div class="q-actions">
 
-      <label>Explanation</label>
-      <textarea class="exp" data-i="${i}" rows="2">
-      ${q.explanation || ""}
-      </textarea>
-    `
+<button class="move-up" data-i="${i}">↑</button>
+<button class="move-down" data-i="${i}">↓</button>
+<button class="duplicate-q" data-i="${i}">Duplicate</button>
+<button class="delete-q" data-i="${i}">Delete</button>
+
+</div>
+
+</div>
+
+<label>Question</label>
+
+<textarea data-i="${i}" class="qtext" rows="3">
+${q.question || ""}
+</textarea>
+
+<label>Options</label>
+
+${opts.map((opt,oi)=>{
+
+const label = ["A","B","C","D"][oi]
+
+return `
+
+<div class="option-row">
+
+<input
+type="radio"
+name="correct-${i}"
+class="correct-radio"
+data-i="${i}"
+value="${oi}"
+${correctIndex===oi?"checked":""}
+>
+
+<span class="option-label">${label}</span>
+
+<input
+type="text"
+class="opt"
+data-i="${i}"
+data-oi="${oi}"
+value="${opt || ""}"
+>
+
+</div>
+
+`
+
+}).join("")}
+
+<label>Explanation</label>
+
+<textarea class="exp" data-i="${i}" rows="2">
+${q.explanation || ""}
+</textarea>
+
+`
 
     container.appendChild(div)
 
-    div.querySelectorAll(".qtext,.opt,.correct,.exp")
+    div.querySelectorAll(".qtext,.opt,.exp")
       .forEach(el => el.addEventListener("input", scheduleAutosave))
+
+    div.querySelectorAll(".correct-radio")
+      .forEach(el => el.addEventListener("change", scheduleAutosave))
 
   })
 
 }
+
+
+
+// ===============================
+// Create New Question
+// ===============================
+function createNewQuestion(){
+
+  ensureQuestionSection()
+
+  const questions =
+  currentDraft.schema_json.sections[0].questions
+
+  questions.push({
+
+    id: crypto.randomUUID(),
+    question:"",
+    options:["","","",""],
+    correct:0,
+    explanation:""
+
+  })
+
+  renderDraft(currentDraft)
+
+  scheduleAutosave()
+
+}
+
+
+
+// ===============================
+// Question Action Handlers
+// ===============================
+document
+.getElementById("questions")
+?.addEventListener("click",function(e){
+
+  const i = e.target.dataset.i
+
+  if(i === undefined) return
+
+  const questions =
+  currentDraft.schema_json.sections[0].questions
+
+
+  // Delete
+  if(e.target.classList.contains("delete-q")){
+
+    if(!confirm("Delete this question?")) return
+
+    questions.splice(i,1)
+
+    renderDraft(currentDraft)
+
+    scheduleAutosave()
+
+  }
+
+
+  // Duplicate
+  if(e.target.classList.contains("duplicate-q")){
+
+    const copy =
+    JSON.parse(JSON.stringify(questions[i]))
+
+    copy.id = crypto.randomUUID()
+
+    questions.splice(i,0,copy)
+
+    renderDraft(currentDraft)
+
+    scheduleAutosave()
+
+  }
+
+
+  // Move up
+  if(e.target.classList.contains("move-up")){
+
+    if(i == 0) return
+
+    const temp = questions[i]
+
+    questions[i] = questions[i-1]
+
+    questions[i-1] = temp
+
+    renderDraft(currentDraft)
+
+    scheduleAutosave()
+
+  }
+
+
+  // Move down
+  if(e.target.classList.contains("move-down")){
+
+    if(i >= questions.length-1) return
+
+    const temp = questions[i]
+
+    questions[i] = questions[i+1]
+
+    questions[i+1] = temp
+
+    renderDraft(currentDraft)
+
+    scheduleAutosave()
+
+  }
+
+})
 
 
 
@@ -220,9 +373,20 @@ async function saveDraft(silent=false){
       if(questions[i]) questions[i].options[oi] = el.value
     })
 
-    document.querySelectorAll(".correct").forEach(el=>{
-      const i = +el.dataset.i
-      if(questions[i]) questions[i].correct = +el.value
+    document.querySelectorAll(".correct-radio").forEach(el=>{
+
+      if(el.checked){
+
+        const i = +el.dataset.i
+
+        if(questions[i]){
+
+          questions[i].correct = +el.value
+
+        }
+
+      }
+
     })
 
     document.querySelectorAll(".exp").forEach(el=>{
@@ -264,7 +428,6 @@ async function saveDraft(silent=false){
 // QUESTION BANK
 // ===============================
 
-// Load questions
 async function loadQuestionBank(search=""){
 
   try{
@@ -275,10 +438,12 @@ async function loadQuestionBank(search=""){
       .limit(50)
 
     if(search){
+
       query = query.ilike(
         "question_text",
         `%${search}%`
       )
+
     }
 
     const { data, error } = await query
@@ -294,7 +459,6 @@ async function loadQuestionBank(search=""){
 }
 
 
-// Render results
 function renderQuestionBank(questions){
 
   const container =
@@ -328,7 +492,9 @@ function renderQuestionBank(questions){
 }
 
 
-// Insert question
+// ===============================
+// Insert question from bank
+// ===============================
 async function insertQuestionFromBank(id){
 
   ensureQuestionSection()
@@ -375,11 +541,10 @@ async function insertQuestionFromBank(id){
 }
 
 
+
 // ===============================
 // Question Bank Listeners
 // ===============================
-
-// Insert click
 document
 .getElementById("questionBankResults")
 ?.addEventListener("click",function(e){
@@ -395,7 +560,6 @@ document
 })
 
 
-// Search
 document
 .getElementById("qbSearch")
 ?.addEventListener("input",function(){
@@ -405,7 +569,6 @@ document
 })
 
 
-// Panel open
 const openQBBtn =
 document.getElementById("openQuestionBankBtn")
 
@@ -596,6 +759,10 @@ async function publishDraft(){
 document
 .getElementById("logoUpload")
 ?.addEventListener("change", handleLogoUpload)
+
+document
+.getElementById("newQuestionBtn")
+?.addEventListener("click", createNewQuestion)
 
 window.saveDraft = saveDraft
 window.cloneDraft = cloneDraft
