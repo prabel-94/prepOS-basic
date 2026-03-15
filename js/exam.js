@@ -279,12 +279,28 @@ function renderQuiz(questions){
 
     div.innerHTML =
       `<p style="white-space:pre-line">${escapeHTML(q.question)}</p>`+
-      q.options.map((o,idx)=>
-        `<label>
-        <input type="radio" name="q${i}" value="${String.fromCharCode(65+idx)}">
-        ${String.fromCharCode(65+idx)}. ${escapeHTML(o)}
-        </label><br>`
-      ).join("");
+
+      q.options.map((o,idx)=>{
+
+        const letter = String.fromCharCode(65+idx);
+
+        return `
+        <label class="option-row">
+
+          <input 
+            type="radio"
+            name="q${i}"
+            value="${letter}"
+          >
+
+          <span class="option-text">
+            ${letter}. ${escapeHTML(o)}
+          </span>
+
+        </label>
+        `;
+
+      }).join("");
 
     container.appendChild(div);
   });
