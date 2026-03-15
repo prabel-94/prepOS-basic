@@ -8,16 +8,12 @@
 
 <title>PrepOS Exam</title>
 
+<meta name="description" content="PrepOS Online Exam Platform">
+
 <link rel="stylesheet" href="css/style.css">
 
 <!-- PDF Generator -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-
-<!-- Debug Console (Development Only)
-<script src="https://cdn.jsdelivr.net/npm/eruda"></script>
-<script>
-eruda.init();
-</script> -->
 
 <!-- App Config -->
 <script src="js/config.js" defer></script>
@@ -30,13 +26,18 @@ eruda.init();
 
 <body class="exam-page">
 
-<div class="exam-wrapper">
+<main class="exam-wrapper">
 
 <!-- ================= HEADER ================= -->
 
 <header class="exam-header">
 
-<img id="examLogo" class="exam-logo" style="display:none">
+<img 
+id="examLogo"
+class="exam-logo"
+alt="Exam logo"
+style="display:none"
+>
 
 <h2 id="examTitle">PrepOS Exam</h2>
 
@@ -89,9 +90,9 @@ required
 
 <!-- Exam Content -->
 
-<div id="examContent" style="display:none">
+<div id="examContent" class="exam-content" style="display:none">
 
-<!-- Questions will render here dynamically -->
+<!-- Questions render here -->
 
 </div>
 
@@ -103,9 +104,7 @@ required
 
 <section id="result" class="result-container"></section>
 
-
-</div>
-
+</main>
 
 
 <!-- ================= NOSCRIPT FALLBACK ================= -->
@@ -120,7 +119,6 @@ Please enable JavaScript in your browser.
 </div>
 
 </noscript>
-
 
 </body>
 </html>
