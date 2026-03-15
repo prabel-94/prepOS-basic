@@ -322,7 +322,7 @@ Question Header + Actions
 Radio Option Layout
 ========================= */
 
-..option-row{
+.option-row{
   display:flex;
   align-items:center;
   gap:12px;
