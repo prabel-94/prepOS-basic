@@ -60,7 +60,6 @@ function normalizeDraftSchema(draft){
 // ===============================
 function scheduleAutosave(){
 
-  // don't schedule while saving
   if(isSaving) return
 
   if(autosaveTimer){
@@ -75,7 +74,6 @@ function scheduleAutosave(){
 
   autosaveTimer = setTimeout(()=>{
 
-    // double check before saving
     if(!isSaving){
       saveDraft(true)
     }
