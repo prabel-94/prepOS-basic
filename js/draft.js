@@ -209,7 +209,7 @@ function renderDraft(draft){
 // ===============================
 function createNewQuestion(){
 
-  ensureQuestionSection()
+  normalizeDraftSchema(currentDraft)
 
   const questions =
   currentDraft.schema_json.sections[0].questions
