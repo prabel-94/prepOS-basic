@@ -275,6 +275,9 @@ placeholder="Option ${label}"
 // Create New Question
 // ===============================
 function createNewQuestion(){
+console.log("button clicked", currentDraft)
+
+  if(!currentDraft) return
 
   if(!currentDraft) return
 
