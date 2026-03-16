@@ -293,73 +293,51 @@ placeholder="Option ${label}"
 
 }
 
-
-
 // ===============================
 // Create New Question
 // ===============================
 function createNewQuestion(){
 
-  // Ensure schema exists
-  if(!currentDraft.schema_json){
-    currentDraft.schema_json = {}
+  if(!currentDraft){
+    console.warn("Draft not loaded yet")
+    return
   }
 
-  if(!currentDraft.schema_json.sections){
-    currentDraft.schema_json.sections = [{
-      questions:[]
-    }]
-  }
-
-  if(!currentDraft.schema_json.sections[0].questions){
-    currentDraft.schema_json.sections[0].questions = []
-  }
+  // Ensure schema structure
+  normalizeDraftSchema(currentDraft)
 
   const questions =
-  currentDraft.schema_json.sections[0].questions
+    currentDraft.schema_json.sections[0].questions
 
-  // Create proper question object
-  questions.push({
+  // Create new question object
+  const newQuestion = {
     id: crypto.randomUUID(),
     question: "",
     options: ["","","",""],
     correct: 0,
     explanation: ""
-  })
+  }
 
+  // Add to draft
+  questions.push(newQuestion)
+
+  // Re-render editor
   renderDraft(currentDraft)
 
+  // Trigger autosave
   scheduleAutosave()
+
+  // UX improvement: focus the new question
+  setTimeout(()=>{
+    const lastTextarea =
+      document.querySelector(".qtext:last-of-type")
+
+    if(lastTextarea){
+      lastTextarea.focus()
+    }
+  },50)
+
 }
-
-
-// ===============================
-// Question Action Handlers
-// ===============================
-document
-.getElementById("questions")
-?.addEventListener("click",function(e){
-
-  const i = e.target.dataset.i
-
-  if(i === undefined) return
-
-  const questions =
-  currentDraft.schema_json.sections[0].questions
-
-
-  // Delete
-  if(e.target.classList.contains("delete-q")){
-
-    if(!confirm("Delete this question?")) return
-
-    questions.splice(i,1)
-
-    renderDraft(currentDraft)
-
-    scheduleAutosave()
-
-  }
 
 
   // Duplicate
