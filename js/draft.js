@@ -458,14 +458,15 @@ async function saveDraft(silent=false){
 // ===============================
 // Init
 // ===============================
-document
-.getElementById("logoUpload")
-?.addEventListener("change", handleLogoUpload)
 
-document
-.getElementById("newQuestionBtn")
-?.addEventListener("click", createNewQuestion)
+document.addEventListener("DOMContentLoaded", function(){
 
-window.saveDraft = saveDraft
-window.cloneDraft = cloneDraft
-window.publishDraft = publishDraft
+  document
+  .getElementById("logoUpload")
+  ?.addEventListener("change", handleLogoUpload)
+
+  document
+  .getElementById("newQuestionBtn")
+  ?.addEventListener("click", createNewQuestion)
+
+})
