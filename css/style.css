@@ -1,5 +1,5 @@
 /* ======================================================
-BASE LAYOUT
+BASE
 ====================================================== */
 
 body{
@@ -13,20 +13,44 @@ h1,h2,h3{
   margin-top:0;
 }
 
-input, textarea{
+.small{
+  color:#666;
+  font-size:14px;
+}
+
+
+/* ======================================================
+FORM ELEMENTS (EDITOR SCOPED)
+====================================================== */
+
+.draft-page input,
+.draft-page textarea{
   width:100%;
   padding:8px;
   font-size:14px;
   margin-bottom:16px;
+  border:1px solid #ccc;
+  border-radius:4px;
 }
 
-textarea{
+.qtext{
   min-height:120px;
 }
 
+.exp{
+  min-height:80px;
+}
+
+
+/* ======================================================
+BUTTON SYSTEM
+====================================================== */
+
 button{
   padding:10px 14px;
-  margin-top:10px;
+  border:none;
+  border-radius:6px;
+  background:#eee;
   cursor:pointer;
 }
 
@@ -34,9 +58,9 @@ button:hover{
   opacity:0.9;
 }
 
-.small{
-  color:#666;
-  font-size:14px;
+button:disabled{
+  opacity:0.5;
+  cursor:not-allowed;
 }
 
 
@@ -46,15 +70,8 @@ WRAPPERS
 
 .exam-wrapper,
 .draft-wrapper{
-  max-width:800px;
+  max-width:900px;
   margin:auto;
-}
-
-.exam-wrapper{
-  padding:20px;
-}
-
-.draft-wrapper{
   padding:20px;
 }
 
@@ -74,6 +91,7 @@ LOGO
   border:1px solid #ddd;
   padding:4px;
   background:#fff;
+  border-radius:4px;
 }
 
 
@@ -97,7 +115,7 @@ EXAM PAGE
 }
 
 .question{
-  background:white;
+  background:#fff;
   border:1px solid #ddd;
   border-radius:8px;
   padding:20px;
@@ -119,7 +137,7 @@ Exam Options
   align-items:flex-start;
   gap:10px;
   margin:8px 0;
-  padding:4px;
+  padding:6px;
   border-radius:6px;
 }
 
@@ -213,6 +231,7 @@ DRAFT EDITOR
   display:flex;
   gap:30px;
   margin-top:20px;
+  align-items:flex-start;
 }
 
 .draft-area{
@@ -221,6 +240,7 @@ DRAFT EDITOR
 
 .question-bank-panel{
   flex:1;
+  min-width:260px;
   border-left:1px solid #ddd;
   padding-left:20px;
   background:#fff;
@@ -243,12 +263,18 @@ DRAFT EDITOR
   gap:10px;
 }
 
+
+/* ======================================================
+QUESTION CARDS
+====================================================== */
+
 .question-card{
   border:1px solid #ddd;
-  padding:16px;
-  margin-bottom:18px;
-  border-radius:6px;
+  border-radius:8px;
+  padding:18px;
+  margin-bottom:20px;
   background:#fff;
+  box-shadow:0 1px 2px rgba(0,0,0,0.04);
 }
 
 .question-header{
@@ -260,26 +286,15 @@ DRAFT EDITOR
 
 .q-actions button{
   font-size:12px;
-  padding:4px 8px;
-  margin-left:5px;
-}
-
-.draft-actions{
-  display:flex;
-  gap:10px;
-  margin-top:20px;
-}
-
-#status{
-  margin-top:10px;
-  font-size:13px;
-  color:#555;
+  padding:6px 8px;
+  margin-left:6px;
+  border-radius:4px;
 }
 
 
-/* =========================
-Draft Option Inputs
-========================= */
+/* ======================================================
+DRAFT OPTIONS
+====================================================== */
 
 .draft-page .option-row{
   display:flex;
@@ -335,18 +350,42 @@ QUESTION BANK
 
 
 /* ======================================================
-LOADING & ERROR STATES
+STATE MESSAGES
 ====================================================== */
 
-.loading-state{
+.empty-state{
   padding:20px;
   text-align:center;
+  color:#777;
+}
+
+.loading{
+  padding:20px;
+  text-align:center;
+  color:#888;
 }
 
 .error-state{
   padding:20px;
   text-align:center;
   color:#c0392b;
+}
+
+
+/* ======================================================
+DRAFT ACTIONS
+====================================================== */
+
+.draft-actions{
+  display:flex;
+  gap:10px;
+  margin-top:20px;
+}
+
+#status{
+  margin-top:10px;
+  font-size:13px;
+  color:#555;
 }
 
 
@@ -372,6 +411,7 @@ MOBILE
   padding:20px;
   overflow:auto;
   border-left:none;
+  box-shadow:-3px 0 8px rgba(0,0,0,0.1);
 }
 
 .question-bank-panel.active{
