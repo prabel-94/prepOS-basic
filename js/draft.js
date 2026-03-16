@@ -84,6 +84,7 @@ function scheduleAutosave(){
 // LOAD DRAFT
 // ===============================
 async function loadDraft(){
+console.log("loadDraft started")
 
   try{
 
