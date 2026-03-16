@@ -227,6 +227,10 @@ REVIEW MODE
 DRAFT EDITOR
 ====================================================== */
 
+/* ======================================================
+DRAFT WORKSPACE LAYOUT (SAFE SIDEBAR)
+====================================================== */
+
 .workspace{
   display:flex;
   gap:30px;
@@ -234,33 +238,39 @@ DRAFT EDITOR
   align-items:flex-start;
 }
 
+/* main editor */
+
 .draft-area{
-  flex:2;
+  flex:1;
+  min-width:0;
 }
+
+/* question bank sidebar */
 
 .question-bank-panel{
-  flex:1;
-  min-width:260px;
+  width:300px;
+  background:#fff;
   border-left:1px solid #ddd;
   padding-left:20px;
-  background:#fff;
-  display:none;
+
+  /* keep it outside the editor until opened */
+  position:fixed;
+  top:0;
+  right:-320px;
+  height:100%;
+
+  overflow:auto;
+  transition:right 0.25s ease;
+
+  /* prevent it from blocking the editor */
+  pointer-events:none;
 }
+
+/* when opened */
 
 .question-bank-panel.active{
-  display:block;
-}
-
-.draft-header{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  margin-bottom:10px;
-}
-
-.draft-toolbar{
-  display:flex;
-  gap:10px;
+  right:0;
+  pointer-events:auto;
 }
 
 
