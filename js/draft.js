@@ -209,27 +209,37 @@ function renderDraft(draft){
 // ===============================
 function createNewQuestion(){
 
-  normalizeDraftSchema(currentDraft)
+  // Ensure schema exists
+  if(!currentDraft.schema_json){
+    currentDraft.schema_json = {}
+  }
+
+  if(!currentDraft.schema_json.sections){
+    currentDraft.schema_json.sections = [{
+      questions:[]
+    }]
+  }
+
+  if(!currentDraft.schema_json.sections[0].questions){
+    currentDraft.schema_json.sections[0].questions = []
+  }
 
   const questions =
   currentDraft.schema_json.sections[0].questions
 
+  // Create proper question object
   questions.push({
-
     id: crypto.randomUUID(),
-    question:"",
-    options:["","","",""],
-    correct:0,
-    explanation:""
-
+    question: "",
+    options: ["","","",""],
+    correct: 0,
+    explanation: ""
   })
 
   renderDraft(currentDraft)
 
   scheduleAutosave()
-
 }
-
 
 
 // ===============================
