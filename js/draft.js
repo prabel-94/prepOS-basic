@@ -36,6 +36,40 @@ const sb = window.supabase.createClient(
 let currentDraft = null
 let logoURL = null
 
+// ===============================
+// Normalize Draft Schema
+// ===============================
+function normalizeDraftSchema(draft){
+
+  if(!draft.schema_json){
+    draft.schema_json = {}
+  }
+
+  // Convert legacy format
+  if(!draft.schema_json.sections && draft.schema_json.questions){
+
+    draft.schema_json.sections = [
+      {
+        questions: draft.schema_json.questions
+      }
+    ]
+
+  }
+
+  // Ensure structure exists
+  if(!draft.schema_json.sections){
+    draft.schema_json.sections = [
+      {
+        questions:[]
+      }
+    ]
+  }
+
+  if(!draft.schema_json.sections[0].questions){
+    draft.schema_json.sections[0].questions = []
+  }
+
+}
 
 // ===============================
 // Ensure Question Section
