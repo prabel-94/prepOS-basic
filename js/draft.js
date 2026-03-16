@@ -55,25 +55,31 @@ function normalizeDraftSchema(draft){
 
 }
 
-
 // ===============================
 // AUTOSAVE
 // ===============================
 function scheduleAutosave(){
 
+  // don't schedule while saving
+  if(isSaving) return
+
   if(autosaveTimer){
     clearTimeout(autosaveTimer)
   }
 
-  const status =
-  document.getElementById("status")
+  const status = document.getElementById("status")
 
   if(status){
     status.textContent = "Saving..."
   }
 
   autosaveTimer = setTimeout(()=>{
-    saveDraft(true)
+
+    // double check before saving
+    if(!isSaving){
+      saveDraft(true)
+    }
+
   },1500)
 
 }
