@@ -1,17 +1,16 @@
 /* ======================================================
-BASE STYLES
+BASE LAYOUT
 ====================================================== */
 
 body{
   font-family: Arial, Helvetica, sans-serif;
-  max-width:1100px;
-  margin:40px auto;
-  padding:30px 20px;
   background:#f7f7f7;
+  margin:0;
+  padding:30px 20px;
 }
 
-h1{
-  margin-bottom:10px;
+h1,h2,h3{
+  margin-top:0;
 }
 
 input, textarea{
@@ -22,12 +21,11 @@ input, textarea{
 }
 
 textarea{
-  min-height:140px;
+  min-height:120px;
 }
 
 button{
   padding:10px 14px;
-  margin-right:10px;
   margin-top:10px;
   cursor:pointer;
 }
@@ -43,30 +41,27 @@ button:hover{
 
 
 /* ======================================================
-COMMON COMPONENTS
+WRAPPERS
 ====================================================== */
 
-.card{
-  background:white;
-  border-radius:8px;
-  padding:20px;
-  margin-bottom:15px;
-  box-shadow:0 2px 6px rgba(0,0,0,0.08);
+.exam-wrapper,
+.draft-wrapper{
+  max-width:800px;
+  margin:auto;
 }
 
-.modal{
-  position:fixed;
-  top:10%;
-  left:50%;
-  transform:translateX(-50%);
-  background:white;
+.exam-wrapper{
   padding:20px;
-  border:1px solid #ccc;
-  max-height:70vh;
-  overflow:auto;
-  width:320px;
-  display:none;
 }
+
+.draft-wrapper{
+  padding:20px;
+}
+
+
+/* ======================================================
+LOGO
+====================================================== */
 
 .logo-section{
   margin-bottom:16px;
@@ -83,52 +78,35 @@ COMMON COMPONENTS
 
 
 /* ======================================================
-CREATOR PAGE
-====================================================== */
-
-body.creator{
-  max-width:800px;
-  padding:20px;
-}
-
-.creator button{
-  padding:10px 20px;
-}
-
-.recent-item{
-  padding:8px 0;
-  border-bottom:1px solid #eee;
-}
-
-
-/* ======================================================
 EXAM PAGE
 ====================================================== */
 
-.exam-wrapper{
-  max-width:800px;
-  margin:auto;
-  padding:20px;
+.exam-header{
+  display:flex;
+  align-items:center;
+  gap:15px;
+  margin-bottom:20px;
+}
+
+.exam-logo{
+  max-height:50px;
+}
+
+.student-info{
+  margin-bottom:20px;
 }
 
 .question{
-  margin-bottom:20px;
-  padding:16px;
+  background:white;
   border:1px solid #ddd;
-  border-radius:6px;
-  background:#fff;
+  border-radius:8px;
+  padding:20px;
+  margin-bottom:25px;
 }
 
 .question-text{
-  white-space:pre-line;
   margin-bottom:12px;
-}
-
-#studentName{
-  display:block;
-  margin:10px 0 20px;
-  padding:8px;
-  width:100%;
+  white-space:pre-line;
 }
 
 
@@ -140,8 +118,13 @@ Exam Options
   display:flex;
   align-items:flex-start;
   gap:10px;
-  margin:10px 0;
-  cursor:pointer;
+  margin:8px 0;
+  padding:4px;
+  border-radius:6px;
+}
+
+.exam-page .option-row:hover{
+  background:#f3f3f3;
 }
 
 .exam-page .option-row input[type="radio"]{
@@ -150,23 +133,16 @@ Exam Options
 
 .exam-page .option-text{
   flex:1;
-  line-height:1.5;
-}
-
-.exam-page .option-row:hover{
-  background:#f5f5f5;
-  border-radius:6px;
-  padding:4px;
+  line-height:1.4;
 }
 
 
 /* ======================================================
-RESULTS PAGE
+RESULTS
 ====================================================== */
 
-#result{
+.result-container{
   margin-top:30px;
-  scroll-margin-top:20px;
 }
 
 .result-highlight{
@@ -178,25 +154,9 @@ RESULTS PAGE
   100%{background-color:transparent;}
 }
 
-.header{
-  display:flex;
-  gap:10px;
-  align-items:center;
-  margin-bottom:12px;
-}
-
-.result-item{
-  padding:10px;
-  border-bottom:1px solid #ddd;
-}
-
-.recent{
-  background:#e8f5e9;
-}
-
 
 /* ======================================================
-REVIEW PAGE
+REVIEW MODE
 ====================================================== */
 
 .review-card{
@@ -205,12 +165,6 @@ REVIEW PAGE
   padding:15px;
   margin-bottom:20px;
   background:#fff;
-  box-shadow:0 2px 6px rgba(0,0,0,.05);
-}
-
-.review-q{
-  margin-bottom:10px;
-  font-size:16px;
 }
 
 .option{
@@ -240,7 +194,6 @@ REVIEW PAGE
   border:none;
   border-radius:6px;
   background:#eee;
-  cursor:pointer;
 }
 
 .explanation{
@@ -331,12 +284,11 @@ Draft Option Inputs
 .draft-page .option-row{
   display:flex;
   align-items:center;
-  gap:12px;
+  gap:10px;
   margin:8px 0;
 }
 
 .draft-page .option-row input[type="radio"]{
-  flex:0 0 auto;
   margin:0;
 }
 
@@ -347,8 +299,6 @@ Draft Option Inputs
 
 .draft-page .option-row input[type="text"]{
   flex:1;
-  width:100%;
-  padding:8px;
 }
 
 
@@ -385,6 +335,22 @@ QUESTION BANK
 
 
 /* ======================================================
+LOADING & ERROR STATES
+====================================================== */
+
+.loading-state{
+  padding:20px;
+  text-align:center;
+}
+
+.error-state{
+  padding:20px;
+  text-align:center;
+  color:#c0392b;
+}
+
+
+/* ======================================================
 MOBILE
 ====================================================== */
 
@@ -410,6 +376,11 @@ MOBILE
 
 .question-bank-panel.active{
   right:0;
+}
+
+.exam-wrapper,
+.draft-wrapper{
+  padding:10px;
 }
 
 }
