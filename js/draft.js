@@ -1,4 +1,4 @@
-	// ===============================
+// ===============================
 // PrepOS Draft Editor — Phase 6
 // ===============================
 
@@ -45,23 +45,17 @@ function normalizeDraftSchema(draft){
     draft.schema_json = {}
   }
 
-  // Convert legacy format
   if(!draft.schema_json.sections && draft.schema_json.questions){
 
     draft.schema_json.sections = [
-      {
-        questions: draft.schema_json.questions
-      }
+      { questions: draft.schema_json.questions }
     ]
 
   }
 
-  // Ensure structure exists
   if(!draft.schema_json.sections){
     draft.schema_json.sections = [
-      {
-        questions:[]
-      }
+      { questions:[] }
     ]
   }
 
@@ -81,9 +75,7 @@ function ensureQuestionSection(){
   }
 
   if(!currentDraft.schema_json.sections){
-    currentDraft.schema_json.sections = [{
-      questions:[]
-    }]
+    currentDraft.schema_json.sections = [{questions:[]}]
   }
 
   if(!currentDraft.schema_json.sections[0].questions){
@@ -92,21 +84,18 @@ function ensureQuestionSection(){
 
 }
 
-
 // ===============================
 // Autosave scheduler
 // ===============================
 function scheduleAutosave(){
 
-  if (autosaveTimer) clearTimeout(autosaveTimer)
+  if(autosaveTimer) clearTimeout(autosaveTimer)
 
   autosaveTimer = setTimeout(()=>{
     saveDraft(true)
   },1500)
 
 }
-
-
 
 // ===============================
 // Load Draft
@@ -121,18 +110,20 @@ async function loadDraft(){
       .eq("id", draftId)
       .single()
 
-    if (error) throw error
+    if(error) throw error
 
     renderDraft(data)
 
   }catch(e){
+
     console.error(e)
     alert("Failed to load draft")
+
   }
+
 }
 
 loadDraft()
-
 
 // ===============================
 // Render Draft
@@ -149,31 +140,22 @@ function renderDraft(draft){
   const preview = document.getElementById("logoPreview")
   const container = document.getElementById("questions")
 
-  // -------------------------------
-  // Metadata
-  // -------------------------------
-
   titleEl.value = draft.title || ""
   durationEl.value = draft.duration || ""
 
   if(!titleEl.dataset.bound){
+
     titleEl.addEventListener("input", scheduleAutosave)
     durationEl.addEventListener("input", scheduleAutosave)
-    titleEl.dataset.bound = "true"
-  }
 
-  // -------------------------------
-  // Logo preview
-  // -------------------------------
+    titleEl.dataset.bound = "true"
+
+  }
 
   if(logoURL && preview){
     preview.src = logoURL
     preview.style.display = "block"
   }
-
-  // -------------------------------
-  // Questions
-  // -------------------------------
 
   const questions = draft.schema_json.sections[0].questions
 
@@ -187,7 +169,6 @@ function renderDraft(draft){
         Click <b>+ New Question</b> to start.
       </div>
     `
-
     return
   }
 
@@ -203,7 +184,8 @@ function renderDraft(draft){
       correctIndex = 0
     }
 
-    const opts = q.options || ["","","",""]
+    const opts = [...(q.options || [])]
+    while(opts.length < 4) opts.push("")
 
     const div = document.createElement("div")
     div.className = "question-card"
@@ -277,19 +259,15 @@ placeholder="Option ${label}"
 
   })
 
-  // -------------------------------
-  // Attach input listeners
-  // -------------------------------
-
   container.querySelectorAll(".qtext,.opt,.exp")
-    .forEach(el=>{
-      el.addEventListener("input", scheduleAutosave)
-    })
+  .forEach(el=>{
+    el.addEventListener("input", scheduleAutosave)
+  })
 
   container.querySelectorAll(".correct-radio")
-    .forEach(el=>{
-      el.addEventListener("change", scheduleAutosave)
-    })
+  .forEach(el=>{
+    el.addEventListener("change", scheduleAutosave)
+  })
 
 }
 
@@ -298,62 +276,50 @@ placeholder="Option ${label}"
 // ===============================
 function createNewQuestion(){
 
-  if(!currentDraft){
-    console.warn("Draft not loaded yet")
-    return
-  }
+  if(!currentDraft) return
 
-  // Ensure schema structure
   normalizeDraftSchema(currentDraft)
 
   const questions =
-    currentDraft.schema_json.sections[0].questions
+  currentDraft.schema_json.sections[0].questions
 
-  // Create new question object
   const newQuestion = {
     id: crypto.randomUUID(),
-    question: "",
-    options: ["","","",""],
-    correct: 0,
-    explanation: ""
+    question:"",
+    options:["","","",""],
+    correct:0,
+    explanation:""
   }
 
-  // Add to draft
   questions.push(newQuestion)
 
-  // Re-render editor
   renderDraft(currentDraft)
 
-  // Trigger autosave
   scheduleAutosave()
 
-  // UX improvement: focus the new question
   setTimeout(()=>{
-    const lastTextarea =
-      document.querySelector(".qtext:last-of-type")
-
-    if(lastTextarea){
-      lastTextarea.focus()
-    }
+    document
+    .querySelector(".qtext:last-of-type")
+    ?.focus()
   },50)
 
 }
 
 // ===============================
-// QUESTION ACTIONS (delete / move / duplicate)
+// Question Actions
 // ===============================
-
 document
 .getElementById("questions")
-?.addEventListener("click", function(e){
+?.addEventListener("click",function(e){
+
+  if(!currentDraft) return
 
   const btn = e.target
   const i = +btn.dataset.i
 
   const questions =
-    currentDraft.schema_json.sections[0].questions
+  currentDraft.schema_json.sections[0].questions
 
-  // DELETE
   if(btn.classList.contains("delete-q")){
 
     questions.splice(i,1)
@@ -364,7 +330,6 @@ document
 
   }
 
-  // DUPLICATE
   if(btn.classList.contains("duplicate-q")){
 
     const copy =
@@ -380,10 +345,9 @@ document
 
   }
 
-  // MOVE UP
   if(btn.classList.contains("move-up")){
 
-    if(i === 0) return
+    if(i===0) return
 
     const temp = questions[i]
 
@@ -396,10 +360,9 @@ document
 
   }
 
-  // MOVE DOWN
   if(btn.classList.contains("move-down")){
 
-    if(i >= questions.length-1) return
+    if(i>=questions.length-1) return
 
     const temp = questions[i]
 
@@ -414,22 +377,19 @@ document
 
 })
 
-
-
 // ===============================
 // Save Draft
 // ===============================
 async function saveDraft(silent=false){
 
-  if(!currentDraft) return
-  if(isSaving) return
+  if(!currentDraft || isSaving) return
 
   isSaving = true
 
   try{
 
     const questions =
-      currentDraft.schema_json?.sections?.[0]?.questions || []
+    currentDraft.schema_json.sections[0].questions
 
     document.querySelectorAll(".qtext").forEach(el=>{
       const i = +el.dataset.i
@@ -448,11 +408,7 @@ async function saveDraft(silent=false){
 
         const i = +el.dataset.i
 
-        if(questions[i]){
-
-          questions[i].correct = +el.value
-
-        }
+        if(questions[i]) questions[i].correct = +el.value
 
       }
 
@@ -464,363 +420,39 @@ async function saveDraft(silent=false){
     })
 
     const durationVal =
-      document.getElementById("duration").value
+    document.getElementById("duration").value
 
     const { error } = await sb
-      .from("draft_exams")
-      .update({
-        title: document.getElementById("title").value,
-        duration: durationVal ? parseInt(durationVal) : null,
-        schema_json: currentDraft.schema_json,
-        logo_url: logoURL
-      })
-      .eq("id", draftId)
+    .from("draft_exams")
+    .update({
+      title: document.getElementById("title").value,
+      duration: durationVal ? parseInt(durationVal) : null,
+      schema_json: currentDraft.schema_json,
+      logo_url: logoURL
+    })
+    .eq("id", draftId)
 
     if(error) throw error
 
     if(!silent){
-      const status = document.getElementById("status")
+
+      const status =
+      document.getElementById("status")
+
       if(status) status.textContent = "Saved"
+
     }
 
   }catch(e){
+
     console.error(e)
     alert("Save failed")
+
   }
 
   isSaving = false
-}
-
-
-
-// ===============================
-// QUESTION BANK
-// ===============================
-
-async function loadQuestionBank(search=""){
-
-  try{
-
-    let query = sb
-      .from("questions")
-      .select("*")
-      .limit(50)
-
-    if(search){
-
-      query = query.ilike(
-        "question_text",
-        `%${search}%`
-      )
-
-    }
-
-    const { data, error } = await query
-
-    if(error) throw error
-
-    renderQuestionBank(data)
-
-  }catch(e){
-    console.error("QB load error",e)
-  }
 
 }
-
-
-function renderQuestionBank(questions){
-
-  const container =
-  document.getElementById("questionBankResults")
-
-  if(!container) return
-
-  container.innerHTML = ""
-
-  if(!questions.length){
-    container.innerHTML = "<p>No results</p>"
-    return
-  }
-
-  questions.forEach(q=>{
-
-    const div = document.createElement("div")
-    div.className = "qb-question"
-
-    div.innerHTML = `
-      <span>${q.question_text}</span>
-      <button class="insertQB" data-id="${q.id}">
-        Insert
-      </button>
-    `
-
-    container.appendChild(div)
-
-  })
-
-}
-
-
-// ===============================
-// Insert question from bank
-// ===============================
-async function insertQuestionFromBank(id){
-
-  ensureQuestionSection()
-
-  const { data, error } = await sb
-    .from("questions")
-    .select("*")
-    .eq("id", id)
-    .single()
-
-  if(error){
-    console.error(error)
-    return
-  }
-
-  const questions =
-  currentDraft.schema_json.sections[0].questions
-
-  questions.push({
-
-    id: crypto.randomUUID(),
-
-    question: data.question_text,
-
-    options:[
-      data.option_a,
-      data.option_b,
-      data.option_c,
-      data.option_d
-    ],
-
-    correct:["A","B","C","D"].indexOf(data.correct_option),
-
-    explanation: data.explanation || "",
-
-    source_question_id: data.id
-
-  })
-
-  renderDraft(currentDraft)
-
-  scheduleAutosave()
-
-}
-
-
-
-// ===============================
-// Question Bank Listeners
-// ===============================
-document
-.getElementById("questionBankResults")
-?.addEventListener("click",function(e){
-
-  if(e.target.classList.contains("insertQB")){
-
-    const id = e.target.dataset.id
-
-    insertQuestionFromBank(id)
-
-  }
-
-})
-
-
-document
-.getElementById("qbSearch")
-?.addEventListener("input",function(){
-
-  loadQuestionBank(this.value)
-
-})
-
-
-const openQBBtn =
-document.getElementById("openQuestionBankBtn")
-
-const qbPanel =
-document.getElementById("questionBankPanel")
-
-openQBBtn?.addEventListener("click",()=>{
-
-  qbPanel.classList.add("active")
-
-  loadQuestionBank()
-
-})
-
-
-// ===============================
-// Logo Upload
-// ===============================
-async function handleLogoUpload(e){
-
-  const file = e.target.files[0]
-  if(!file) return
-
-  const compressed = await compressImage(file)
-
-  const fileName = `logo-${Date.now()}.png`
-  const path = `drafts/${draftId}/${fileName}`
-
-  const uploadUrl =
-  `${SUPABASE_URL}/storage/v1/object/logos/${path}`
-
-  const res = await fetch(uploadUrl,{
-    method:"POST",
-    headers:{
-      "Authorization":`Bearer ${SUPABASE_ANON_KEY}`,
-      "Content-Type":"image/png",
-      "x-upsert":"true"
-    },
-    body:compressed
-  })
-
-  if(!res.ok){
-    const err = await res.text()
-    console.error(err)
-    alert("Logo upload failed")
-    return
-  }
-
-  logoURL =
-  `${SUPABASE_URL}/storage/v1/object/public/logos/${path}`
-
-  localStorage.setItem("defaultLogo", logoURL)
-
-  const preview =
-  document.getElementById("logoPreview")
-
-  if(preview){
-    preview.src = logoURL
-    preview.style.display = "block"
-  }
-
-  saveDraft(true)
-}
-
-
-
-// ===============================
-// Image Compression
-// ===============================
-async function compressImage(file){
-
-  const img = await createImageBitmap(file)
-
-  const canvas = document.createElement("canvas")
-
-  const maxWidth = 600
-  const scale = maxWidth / img.width
-
-  canvas.width = maxWidth
-  canvas.height = img.height * scale
-
-  const ctx = canvas.getContext("2d")
-
-  ctx.drawImage(img,0,0,canvas.width,canvas.height)
-
-  return new Promise(resolve=>{
-    canvas.toBlob(resolve,"image/png",0.8)
-  })
-}
-
-
-
-// ===============================
-// Clone Draft
-// ===============================
-async function cloneDraft(){
-
-  await saveDraft(true)
-
-  try{
-
-    const res = await fetch(CLONE_FUNCTION_URL,{
-      method:"POST",
-      headers:{
-        "Content-Type":"application/json",
-        "apikey":SUPABASE_ANON_KEY,
-        "Authorization":`Bearer ${SUPABASE_ANON_KEY}`
-      },
-      body:JSON.stringify({ draftId })
-    })
-
-    if(!res.ok){
-      alert("Clone request failed")
-      return
-    }
-
-    const data = await res.json()
-
-    if(!data.success){
-      alert(data.error || "Clone failed")
-      return
-    }
-
-    window.location.href = data.draftLink
-
-  }catch(e){
-    console.error(e)
-    alert("Network error")
-  }
-
-}
-
-
-
-// ===============================
-// Publish Draft
-// ===============================
-async function publishDraft(){
-
-  await saveDraft(true)
-
-  try{
-
-    const res = await fetch(PUBLISH_FUNCTION_URL,{
-      method:"POST",
-      headers:{
-        "Content-Type":"application/json",
-        "apikey":SUPABASE_ANON_KEY,
-        "Authorization":`Bearer ${SUPABASE_ANON_KEY}`
-      },
-      body:JSON.stringify({ draftId })
-    })
-
-    if(!res.ok){
-      alert("Publish request failed")
-      return
-    }
-
-    const data = await res.json()
-
-    if(!data.success){
-      alert(data.error || "Publish failed")
-      return
-    }
-
-    if(data.examLink){
-
-      navigator.clipboard.writeText(data.examLink)
-
-      alert("Exam link copied:\n"+data.examLink)
-
-      window.open(data.examLink,"_blank")
-
-    }
-
-  }catch(e){
-    console.error(e)
-    alert("Network error")
-  }
-
-}
-
-
 
 // ===============================
 // Init
