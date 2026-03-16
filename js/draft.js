@@ -117,6 +117,15 @@ function renderDraft(draft){
   normalizeDraftSchema(draft)
 
   currentDraft = draft
+// enable question button after draft loads
+  document
+  .getElementById("newQuestionBtn")
+  ?.removeAttribute("disabled")
+
+  logoURL =
+  draft.logo_url ||
+  localStorage.getItem("defaultLogo") ||
+  null
 
   logoURL =
   draft.logo_url ||
