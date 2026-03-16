@@ -462,7 +462,38 @@ document
   ?.classList.remove("active")
 })
 
+// ===============================
+// LOGO UPLOAD
+// ===============================
+function handleLogoUpload(e){
 
+  const file = e.target.files[0]
+
+  if(!file) return
+
+  const reader = new FileReader()
+
+  reader.onload = function(){
+
+    logoURL = reader.result
+
+    const preview =
+    document.getElementById("logoPreview")
+
+    if(preview){
+
+      preview.src = logoURL
+      preview.style.display = "block"
+
+    }
+
+    scheduleAutosave()
+
+  }
+
+  reader.readAsDataURL(file)
+
+}
 
 // ===============================
 // INIT
