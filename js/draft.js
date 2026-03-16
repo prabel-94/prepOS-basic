@@ -188,7 +188,70 @@ function renderDraft(draft){
     const div = document.createElement("div")
     div.className = "question-card"
 
-    div.innerHTML = `...` // unchanged
+    div.innerHTML = `
+
+<div class="question-header">
+
+<b>Q${i+1}</b>
+
+<div class="q-actions">
+
+<button class="move-up" data-i="${i}">↑</button>
+<button class="move-down" data-i="${i}">↓</button>
+<button class="duplicate-q" data-i="${i}">Duplicate</button>
+<button class="delete-q" data-i="${i}">Delete</button>
+
+</div>
+
+</div>
+
+<label>Question</label>
+
+<textarea data-i="${i}" class="qtext" rows="3">${q.question || ""}</textarea>
+
+<label>Options</label>
+
+${opts.map((opt,oi)=>{
+
+const label = ["A","B","C","D"][oi]
+
+return `
+<div class="option-row">
+
+<label class="option-container">
+
+<input
+type="radio"
+name="correct-${i}"
+class="correct-radio"
+data-i="${i}"
+value="${oi}"
+${correctIndex===oi?"checked":""}
+>
+
+<span class="option-label">${label}</span>
+
+</label>
+
+<input
+type="text"
+class="opt"
+data-i="${i}"
+data-oi="${oi}"
+value="${opt || ""}"
+placeholder="Option ${label}"
+>
+
+</div>
+`
+
+}).join("")}
+
+<label>Explanation</label>
+
+<textarea class="exp" data-i="${i}" rows="2">${q.explanation || ""}</textarea>
+
+`
 
     container.appendChild(div)
 
