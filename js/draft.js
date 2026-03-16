@@ -279,8 +279,6 @@ console.log("button clicked", currentDraft)
 
   if(!currentDraft) return
 
-  if(!currentDraft) return
-
   normalizeDraftSchema(currentDraft)
 
   const questions =
