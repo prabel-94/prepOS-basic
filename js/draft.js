@@ -339,9 +339,33 @@ function createNewQuestion(){
 
 }
 
+// ===============================
+// QUESTION ACTIONS (delete / move / duplicate)
+// ===============================
 
-  // Duplicate
-  if(e.target.classList.contains("duplicate-q")){
+document
+.getElementById("questions")
+?.addEventListener("click", function(e){
+
+  const btn = e.target
+  const i = +btn.dataset.i
+
+  const questions =
+    currentDraft.schema_json.sections[0].questions
+
+  // DELETE
+  if(btn.classList.contains("delete-q")){
+
+    questions.splice(i,1)
+
+    renderDraft(currentDraft)
+
+    scheduleAutosave()
+
+  }
+
+  // DUPLICATE
+  if(btn.classList.contains("duplicate-q")){
 
     const copy =
     JSON.parse(JSON.stringify(questions[i]))
@@ -356,16 +380,14 @@ function createNewQuestion(){
 
   }
 
+  // MOVE UP
+  if(btn.classList.contains("move-up")){
 
-  // Move up
-  if(e.target.classList.contains("move-up")){
-
-    if(i == 0) return
+    if(i === 0) return
 
     const temp = questions[i]
 
     questions[i] = questions[i-1]
-
     questions[i-1] = temp
 
     renderDraft(currentDraft)
@@ -374,16 +396,14 @@ function createNewQuestion(){
 
   }
 
-
-  // Move down
-  if(e.target.classList.contains("move-down")){
+  // MOVE DOWN
+  if(btn.classList.contains("move-down")){
 
     if(i >= questions.length-1) return
 
     const temp = questions[i]
 
     questions[i] = questions[i+1]
-
     questions[i+1] = temp
 
     renderDraft(currentDraft)
