@@ -112,7 +112,7 @@ console.log("loadDraft started")
 // ===============================
 function renderDraft(draft){
 
-  console.log("renderDraft called")
+  console.trace("renderDraft called")
 
   normalizeDraftSchema(draft)
 
