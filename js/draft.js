@@ -1,15 +1,31 @@
 // ===============================
-// PrepOS Draft Editor — Phase 6
+// PrepOS Draft Editor
 // ===============================
 
 let autosaveTimer = null
 let isSaving = false
 
+let currentDraft = null
+let logoURL = null
+
 // ===============================
-// URL param
+// URL PARAM
 // ===============================
 const params = new URLSearchParams(window.location.search)
 const draftId = params.get("id")
+
+if(!draftId){
+  alert("Missing draft id")
+  throw new Error("No draft id")
+}
+
+// ===============================
+// Supabase Client
+// ===============================
+const sb = window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_ANON_KEY
+)
 
 const PUBLISH_FUNCTION_URL =
 "https://bcqjfosxneuyoyuzhdiq.supabase.co/functions/v1/publish-draft"
@@ -17,27 +33,9 @@ const PUBLISH_FUNCTION_URL =
 const CLONE_FUNCTION_URL =
 "https://bcqjfosxneuyoyuzhdiq.supabase.co/functions/v1/clone-draft"
 
-if (!draftId) {
-  alert("Missing draft id")
-  throw new Error("No draft id")
-}
 
 // ===============================
-// Supabase client
-// ===============================
-const sb = window.supabase.createClient(
-  SUPABASE_URL,
-  SUPABASE_ANON_KEY
-)
-
-// ===============================
-// Local state
-// ===============================
-let currentDraft = null
-let logoURL = null
-
-// ===============================
-// Normalize Draft Schema
+// SCHEMA NORMALIZATION
 // ===============================
 function normalizeDraftSchema(draft){
 
@@ -45,18 +43,10 @@ function normalizeDraftSchema(draft){
     draft.schema_json = {}
   }
 
-  if(!draft.schema_json.sections && draft.schema_json.questions){
-
-    draft.schema_json.sections = [
-      { questions: draft.schema_json.questions }
-    ]
-
-  }
-
   if(!draft.schema_json.sections){
-    draft.schema_json.sections = [
-      { questions:[] }
-    ]
+    draft.schema_json.sections = [{
+      questions:[]
+    }]
   }
 
   if(!draft.schema_json.sections[0].questions){
@@ -65,31 +55,22 @@ function normalizeDraftSchema(draft){
 
 }
 
-// ===============================
-// Ensure Question Section
-// ===============================
-function ensureQuestionSection(){
-
-  if(!currentDraft.schema_json){
-    currentDraft.schema_json = {}
-  }
-
-  if(!currentDraft.schema_json.sections){
-    currentDraft.schema_json.sections = [{questions:[]}]
-  }
-
-  if(!currentDraft.schema_json.sections[0].questions){
-    currentDraft.schema_json.sections[0].questions = []
-  }
-
-}
 
 // ===============================
-// Autosave scheduler
+// AUTOSAVE
 // ===============================
 function scheduleAutosave(){
 
-  if(autosaveTimer) clearTimeout(autosaveTimer)
+  if(autosaveTimer){
+    clearTimeout(autosaveTimer)
+  }
+
+  const status =
+  document.getElementById("status")
+
+  if(status){
+    status.textContent = "Saving..."
+  }
 
   autosaveTimer = setTimeout(()=>{
     saveDraft(true)
@@ -97,17 +78,19 @@ function scheduleAutosave(){
 
 }
 
+
+
 // ===============================
-// Load Draft
+// LOAD DRAFT
 // ===============================
 async function loadDraft(){
 
   try{
 
-    const { data, error } = await sb
+    const {data,error} = await sb
       .from("draft_exams")
       .select("*")
-      .eq("id", draftId)
+      .eq("id",draftId)
       .single()
 
     if(error) throw error
@@ -123,30 +106,34 @@ async function loadDraft(){
 
 }
 
-loadDraft()
+
 
 // ===============================
-// Render Draft
+// RENDER DRAFT
 // ===============================
 function renderDraft(draft){
 
   normalizeDraftSchema(draft)
 
   currentDraft = draft
-  logoURL = draft.logo_url || localStorage.getItem("defaultLogo") || null
+
+  logoURL =
+  draft.logo_url ||
+  localStorage.getItem("defaultLogo") ||
+  null
 
   const titleEl = document.getElementById("title")
   const durationEl = document.getElementById("duration")
-  const preview = document.getElementById("logoPreview")
   const container = document.getElementById("questions")
+  const preview = document.getElementById("logoPreview")
 
   titleEl.value = draft.title || ""
   durationEl.value = draft.duration || ""
 
   if(!titleEl.dataset.bound){
 
-    titleEl.addEventListener("input", scheduleAutosave)
-    durationEl.addEventListener("input", scheduleAutosave)
+    titleEl.addEventListener("input",scheduleAutosave)
+    durationEl.addEventListener("input",scheduleAutosave)
 
     titleEl.dataset.bound = "true"
 
@@ -157,7 +144,8 @@ function renderDraft(draft){
     preview.style.display = "block"
   }
 
-  const questions = draft.schema_json.sections[0].questions
+  const questions =
+  draft.schema_json.sections[0].questions
 
   container.innerHTML = ""
 
@@ -165,27 +153,28 @@ function renderDraft(draft){
 
     container.innerHTML = `
       <div class="empty-state">
-        No questions yet.<br>
-        Click <b>+ New Question</b> to start.
+      No questions yet.<br>
+      Click <b>+ New Question</b> to start.
       </div>
     `
+
     return
   }
 
   questions.forEach((q,i)=>{
 
-    let correctIndex = q.correct
+    const opts = [...(q.options || [])]
+
+    while(opts.length < 4){
+      opts.push("")
+    }
+
+    let correctIndex = q.correct ?? 0
 
     if(typeof correctIndex === "string"){
-      correctIndex = ["A","B","C","D"].indexOf(correctIndex)
+      correctIndex =
+      ["A","B","C","D"].indexOf(correctIndex)
     }
-
-    if(correctIndex < 0 || correctIndex > 3){
-      correctIndex = 0
-    }
-
-    const opts = [...(q.options || [])]
-    while(opts.length < 4) opts.push("")
 
     const div = document.createElement("div")
     div.className = "question-card"
@@ -209,13 +198,15 @@ function renderDraft(draft){
 
 <label>Question</label>
 
-<textarea data-i="${i}" class="qtext" rows="3">${q.question || ""}</textarea>
+<textarea class="qtext" data-i="${i}" rows="3">
+${q.question || ""}
+</textarea>
 
 <label>Options</label>
 
 ${opts.map((opt,oi)=>{
 
-const label = ["A","B","C","D"][oi]
+const label=["A","B","C","D"][oi]
 
 return `
 <div class="option-row">
@@ -240,7 +231,7 @@ type="text"
 class="opt"
 data-i="${i}"
 data-oi="${oi}"
-value="${opt || ""}"
+value="${opt}"
 placeholder="Option ${label}"
 >
 
@@ -251,7 +242,9 @@ placeholder="Option ${label}"
 
 <label>Explanation</label>
 
-<textarea class="exp" data-i="${i}" rows="2">${q.explanation || ""}</textarea>
+<textarea class="exp" data-i="${i}" rows="2">
+${q.explanation || ""}
+</textarea>
 
 `
 
@@ -261,30 +254,32 @@ placeholder="Option ${label}"
 
   container.querySelectorAll(".qtext,.opt,.exp")
   .forEach(el=>{
-    el.addEventListener("input", scheduleAutosave)
+    el.addEventListener("input",scheduleAutosave)
   })
 
   container.querySelectorAll(".correct-radio")
   .forEach(el=>{
-    el.addEventListener("change", scheduleAutosave)
+    el.addEventListener("change",scheduleAutosave)
   })
 
 }
 
+
+
 // ===============================
-// Create New Question
+// CREATE QUESTION
 // ===============================
 function createNewQuestion(){
-console.log("button clicked", currentDraft)
 
-  if(!currentDraft) return
-
-  normalizeDraftSchema(currentDraft)
+  if(!currentDraft){
+    console.warn("Draft not loaded yet")
+    return
+  }
 
   const questions =
   currentDraft.schema_json.sections[0].questions
 
-  const newQuestion = {
+  const q = {
     id: crypto.randomUUID(),
     question:"",
     options:["","","",""],
@@ -292,26 +287,20 @@ console.log("button clicked", currentDraft)
     explanation:""
   }
 
-  questions.push(newQuestion)
+  questions.push(q)
 
   renderDraft(currentDraft)
 
   scheduleAutosave()
 
-  setTimeout(()=>{
-    document
-    .querySelector(".qtext:last-of-type")
-    ?.focus()
-  },50)
-
 }
 
+
+
 // ===============================
-// Question Actions
+// QUESTION ACTIONS
 // ===============================
-document
-.getElementById("questions")
-?.addEventListener("click",function(e){
+function handleQuestionActions(e){
 
   if(!currentDraft) return
 
@@ -325,10 +314,6 @@ document
 
     questions.splice(i,1)
 
-    renderDraft(currentDraft)
-
-    scheduleAutosave()
-
   }
 
   if(btn.classList.contains("duplicate-q")){
@@ -340,10 +325,6 @@ document
 
     questions.splice(i,0,copy)
 
-    renderDraft(currentDraft)
-
-    scheduleAutosave()
-
   }
 
   if(btn.classList.contains("move-up")){
@@ -351,13 +332,8 @@ document
     if(i===0) return
 
     const temp = questions[i]
-
     questions[i] = questions[i-1]
     questions[i-1] = temp
-
-    renderDraft(currentDraft)
-
-    scheduleAutosave()
 
   }
 
@@ -366,20 +342,20 @@ document
     if(i>=questions.length-1) return
 
     const temp = questions[i]
-
     questions[i] = questions[i+1]
     questions[i+1] = temp
 
-    renderDraft(currentDraft)
-
-    scheduleAutosave()
-
   }
 
-})
+  renderDraft(currentDraft)
+  scheduleAutosave()
+
+}
+
+
 
 // ===============================
-// Save Draft
+// SAVE DRAFT
 // ===============================
 async function saveDraft(silent=false){
 
@@ -392,56 +368,54 @@ async function saveDraft(silent=false){
     const questions =
     currentDraft.schema_json.sections[0].questions
 
-    document.querySelectorAll(".qtext").forEach(el=>{
-      const i = +el.dataset.i
-      if(questions[i]) questions[i].question = el.value
+    document.querySelectorAll(".qtext")
+    .forEach(el=>{
+      const i=+el.dataset.i
+      if(questions[i]) questions[i].question=el.value
     })
 
-    document.querySelectorAll(".opt").forEach(el=>{
-      const i = +el.dataset.i
-      const oi = +el.dataset.oi
-      if(questions[i]) questions[i].options[oi] = el.value
+    document.querySelectorAll(".opt")
+    .forEach(el=>{
+      const i=+el.dataset.i
+      const oi=+el.dataset.oi
+      if(questions[i])
+      questions[i].options[oi]=el.value
     })
 
-    document.querySelectorAll(".correct-radio").forEach(el=>{
-
+    document.querySelectorAll(".correct-radio")
+    .forEach(el=>{
       if(el.checked){
-
-        const i = +el.dataset.i
-
-        if(questions[i]) questions[i].correct = +el.value
-
+        const i=+el.dataset.i
+        questions[i].correct=+el.value
       }
-
     })
 
-    document.querySelectorAll(".exp").forEach(el=>{
-      const i = +el.dataset.i
-      if(questions[i]) questions[i].explanation = el.value
+    document.querySelectorAll(".exp")
+    .forEach(el=>{
+      const i=+el.dataset.i
+      if(questions[i]) questions[i].explanation=el.value
     })
 
     const durationVal =
     document.getElementById("duration").value
 
-    const { error } = await sb
+    const {error} = await sb
     .from("draft_exams")
     .update({
-      title: document.getElementById("title").value,
-      duration: durationVal ? parseInt(durationVal) : null,
-      schema_json: currentDraft.schema_json,
-      logo_url: logoURL
+      title:document.getElementById("title").value,
+      duration:durationVal ? parseInt(durationVal) : null,
+      schema_json:currentDraft.schema_json,
+      logo_url:logoURL
     })
-    .eq("id", draftId)
+    .eq("id",draftId)
 
     if(error) throw error
 
-    if(!silent){
+    const status =
+    document.getElementById("status")
 
-      const status =
-      document.getElementById("status")
-
-      if(status) status.textContent = "Saved"
-
+    if(status){
+      status.textContent="Saved"
     }
 
   }catch(e){
@@ -451,27 +425,74 @@ async function saveDraft(silent=false){
 
   }
 
-  isSaving = false
+  isSaving=false
 
 }
 
-console.log(
-  "newQuestionBtn element:",
-  document.getElementById("newQuestionBtn")
-)
+
 
 // ===============================
-// Init
+// QUESTION BANK SEARCH
 // ===============================
+let qbTimer
 
-document.addEventListener("DOMContentLoaded", function(){
+document
+.getElementById("qbSearch")
+?.addEventListener("input",function(){
 
+  clearTimeout(qbTimer)
+
+  qbTimer=setTimeout(()=>{
+    loadQuestionBank(this.value)
+  },400)
+
+})
+
+
+
+// ===============================
+// QB CLOSE PANEL
+// ===============================
+document
+.getElementById("closeQB")
+?.addEventListener("click",()=>{
   document
-  .getElementById("logoUpload")
-  ?.addEventListener("change", handleLogoUpload)
+  .getElementById("questionBankPanel")
+  ?.classList.remove("active")
+})
+
+
+
+// ===============================
+// INIT
+// ===============================
+function init(){
+
+  console.log("Draft editor init")
 
   document
   .getElementById("newQuestionBtn")
-  ?.addEventListener("click", createNewQuestion)
+  ?.addEventListener("click",createNewQuestion)
 
-})
+  document
+  .getElementById("questions")
+  ?.addEventListener("click",handleQuestionActions)
+
+  document
+  .getElementById("logoUpload")
+  ?.addEventListener("change",handleLogoUpload)
+
+  loadDraft()
+
+}
+
+document.addEventListener("DOMContentLoaded",init)
+
+
+
+// ===============================
+// GLOBALS
+// ===============================
+window.saveDraft=saveDraft
+window.cloneDraft=cloneDraft
+window.publishDraft=publishDraft
