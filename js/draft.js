@@ -1,4 +1,4 @@
-// ===============================
+	// ===============================
 // PrepOS Draft Editor — Phase 6
 // ===============================
 
@@ -134,7 +134,6 @@ async function loadDraft(){
 loadDraft()
 
 
-
 // ===============================
 // Render Draft
 // ===============================
@@ -147,27 +146,48 @@ function renderDraft(draft){
 
   const titleEl = document.getElementById("title")
   const durationEl = document.getElementById("duration")
+  const preview = document.getElementById("logoPreview")
+  const container = document.getElementById("questions")
+
+  // -------------------------------
+  // Metadata
+  // -------------------------------
 
   titleEl.value = draft.title || ""
   durationEl.value = draft.duration || ""
 
-  titleEl.addEventListener("input", scheduleAutosave)
-  durationEl.addEventListener("input", scheduleAutosave)
+  if(!titleEl.dataset.bound){
+    titleEl.addEventListener("input", scheduleAutosave)
+    durationEl.addEventListener("input", scheduleAutosave)
+    titleEl.dataset.bound = "true"
+  }
 
-  const preview = document.getElementById("logoPreview")
+  // -------------------------------
+  // Logo preview
+  // -------------------------------
 
   if(logoURL && preview){
     preview.src = logoURL
     preview.style.display = "block"
   }
 
-  const container = document.getElementById("questions")
-  container.innerHTML = ""
+  // -------------------------------
+  // Questions
+  // -------------------------------
 
   const questions = draft.schema_json.sections[0].questions
 
+  container.innerHTML = ""
+
   if(!questions.length){
-    container.innerHTML = "<p>No questions</p>"
+
+    container.innerHTML = `
+      <div class="empty-state">
+        No questions yet.<br>
+        Click <b>+ New Question</b> to start.
+      </div>
+    `
+
     return
   }
 
@@ -255,13 +275,21 @@ placeholder="Option ${label}"
 
     container.appendChild(div)
 
-    div.querySelectorAll(".qtext,.opt,.exp")
-      .forEach(el => el.addEventListener("input", scheduleAutosave))
-
-    div.querySelectorAll(".correct-radio")
-      .forEach(el => el.addEventListener("change", scheduleAutosave))
-
   })
+
+  // -------------------------------
+  // Attach input listeners
+  // -------------------------------
+
+  container.querySelectorAll(".qtext,.opt,.exp")
+    .forEach(el=>{
+      el.addEventListener("input", scheduleAutosave)
+    })
+
+  container.querySelectorAll(".correct-radio")
+    .forEach(el=>{
+      el.addEventListener("change", scheduleAutosave)
+    })
 
 }
 
