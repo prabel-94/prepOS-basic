@@ -17,7 +17,13 @@
 
 <main class="draft-wrapper">
 
+<header class="draft-title">
+
 <h2>Draft Editor</h2>
+
+<div id="status" class="save-status"></div>
+
+</header>
 
 
 <!-- ======================
@@ -26,19 +32,26 @@ Draft Metadata
 
 <section class="draft-meta">
 
+<div class="meta-field">
 <label for="title">Title</label>
+
 <input
 id="title"
 type="text"
-placeholder="Enter title"
+placeholder="Enter exam title"
 />
+</div>
 
+
+<div class="meta-field">
 <label for="duration">Duration (minutes)</label>
+
 <input
 id="duration"
 type="number"
 placeholder="Enter duration in minutes"
 />
+</div>
 
 </section>
 
@@ -50,7 +63,7 @@ Logo Upload
 
 <section class="logo-section">
 
-<label>Exam Logo (optional)</label>
+<label for="logoUpload">Exam Logo (optional)</label>
 
 <input
 type="file"
@@ -58,7 +71,11 @@ id="logoUpload"
 accept="image/png,image/jpeg,image/jpg,image/svg+xml"
 />
 
-<img id="logoPreview" alt="Logo preview">
+<img
+id="logoPreview"
+alt="Exam logo preview"
+style="display:none"
+/>
 
 </section>
 
@@ -83,11 +100,19 @@ Draft Area
 
 <div class="draft-toolbar">
 
-<button type="button" id="newQuestionBtn">
+<button
+type="button"
+id="newQuestionBtn"
+class="primary-btn"
+>
 + New Question
 </button>
 
-<button type="button" id="openQuestionBankBtn">
+<button
+type="button"
+id="openQuestionBankBtn"
+class="secondary-btn"
+>
 + Add from Question Bank
 </button>
 
@@ -96,11 +121,9 @@ Draft Area
 </div>
 
 
-<div id="questions">
+<div id="questions" class="questions-container">
 
-<p class="small">
-No questions yet. Click "New Question" to start.
-</p>
+<!-- Draft.js renders questions here -->
 
 </div>
 
@@ -119,7 +142,13 @@ id="questionBankPanel"
 
 <div class="qb-header">
 
-<button type="button" id="closeQB">← Back</button>
+<button
+type="button"
+id="closeQB"
+class="qb-close-btn"
+>
+← Back
+</button>
 
 <h3>Question Bank</h3>
 
@@ -129,14 +158,15 @@ id="questionBankPanel"
 <input
 type="text"
 id="qbSearch"
-placeholder="Search questions..."
->
+placeholder="Search question bank..."
+autocomplete="off"
+/>
 
 
 <div id="questionBankResults">
 
 <div class="qb-loading">
-Search questions to begin
+Type in the search box to load questions
 </div>
 
 </div>
@@ -154,21 +184,32 @@ Draft Actions
 
 <section class="draft-actions">
 
-<button type="button" onclick="saveDraft()">
+<button
+type="button"
+class="secondary-btn"
+onclick="saveDraft()"
+>
 Save Draft
 </button>
 
-<button type="button" onclick="cloneDraft()">
-Clone
+<button
+type="button"
+class="secondary-btn"
+onclick="cloneDraft()"
+>
+Clone Draft
 </button>
 
-<button type="button" onclick="publishDraft()">
+<button
+type="button"
+class="primary-btn"
+onclick="publishDraft()"
+>
 Publish Exam
 </button>
 
 </section>
 
-<div id="status"></div>
 
 </main>
 
@@ -190,15 +231,21 @@ Debug Console (Dev Only)
 ====================== -->
 
 <script>
-(function(){
-  var script=document.createElement('script');
-  script.src="https://cdn.jsdelivr.net/npm/eruda";
-  script.onload=function(){
-    eruda.init();
-  };
-  document.body.appendChild(script);
-})();
+if(location.hostname === "localhost" ||
+   location.hostname.includes("github")){
+
+  (function(){
+    var script=document.createElement('script');
+    script.src="https://cdn.jsdelivr.net/npm/eruda";
+    script.onload=function(){
+      eruda.init();
+    };
+    document.body.appendChild(script);
+  })();
+
+}
 </script>
+
 
 </body>
 </html>
