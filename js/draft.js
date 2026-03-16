@@ -107,31 +107,26 @@ console.log("loadDraft started")
 
 }
 
-
-
 // ===============================
 // RENDER DRAFT
 // ===============================
 function renderDraft(draft){
-console.log("renderDraft called")
+
+  console.log("renderDraft called")
 
   normalizeDraftSchema(draft)
 
   currentDraft = draft
-// enable question button after draft loads
+
+  // enable new question button
   document
   .getElementById("newQuestionBtn")
   ?.removeAttribute("disabled")
 
   logoURL =
-  draft.logo_url ||
-  localStorage.getItem("defaultLogo") ||
-  null
-
-  logoURL =
-  draft.logo_url ||
-  localStorage.getItem("defaultLogo") ||
-  null
+    draft.logo_url ||
+    localStorage.getItem("defaultLogo") ||
+    null
 
   const titleEl = document.getElementById("title")
   const durationEl = document.getElementById("duration")
@@ -141,36 +136,43 @@ console.log("renderDraft called")
   titleEl.value = draft.title || ""
   durationEl.value = draft.duration || ""
 
+  // bind metadata listeners once
   if(!titleEl.dataset.bound){
 
-    titleEl.addEventListener("input",scheduleAutosave)
-    durationEl.addEventListener("input",scheduleAutosave)
+    titleEl.addEventListener("input", scheduleAutosave)
+    durationEl.addEventListener("input", scheduleAutosave)
 
     titleEl.dataset.bound = "true"
 
   }
 
+  // logo preview
   if(logoURL && preview){
     preview.src = logoURL
     preview.style.display = "block"
   }
 
   const questions =
-  draft.schema_json.sections[0].questions
+    draft.schema_json.sections[0].questions
 
   container.innerHTML = ""
 
+  // empty state
   if(!questions.length){
 
     container.innerHTML = `
       <div class="empty-state">
-      No questions yet.<br>
-      Click <b>+ New Question</b> to start.
+        No questions yet.<br>
+        Click <b>+ New Question</b> to start.
       </div>
     `
 
     return
   }
+
+  // ===============================
+  // Render Questions
+  // ===============================
 
   questions.forEach((q,i)=>{
 
@@ -184,7 +186,7 @@ console.log("renderDraft called")
 
     if(typeof correctIndex === "string"){
       correctIndex =
-      ["A","B","C","D"].indexOf(correctIndex)
+        ["A","B","C","D"].indexOf(correctIndex)
     }
 
     const div = document.createElement("div")
@@ -197,21 +199,17 @@ console.log("renderDraft called")
 <b>Q${i+1}</b>
 
 <div class="q-actions">
-
 <button class="move-up" data-i="${i}">↑</button>
 <button class="move-down" data-i="${i}">↓</button>
 <button class="duplicate-q" data-i="${i}">Duplicate</button>
 <button class="delete-q" data-i="${i}">Delete</button>
-
 </div>
 
 </div>
 
 <label>Question</label>
 
-<textarea class="qtext" data-i="${i}" rows="3">
-${q.question || ""}
-</textarea>
+<textarea class="qtext" data-i="${i}" rows="3">${q.question || ""}</textarea>
 
 <label>Options</label>
 
@@ -253,9 +251,7 @@ placeholder="Option ${label}"
 
 <label>Explanation</label>
 
-<textarea class="exp" data-i="${i}" rows="2">
-${q.explanation || ""}
-</textarea>
+<textarea class="exp" data-i="${i}" rows="2">${q.explanation || ""}</textarea>
 
 `
 
@@ -263,15 +259,36 @@ ${q.explanation || ""}
 
   })
 
-  container.querySelectorAll(".qtext,.opt,.exp")
-  .forEach(el=>{
-    el.addEventListener("input",scheduleAutosave)
-  })
 
-  container.querySelectorAll(".correct-radio")
-  .forEach(el=>{
-    el.addEventListener("change",scheduleAutosave)
-  })
+  // ===============================
+  // Bind Input Listeners ONCE
+  // ===============================
+
+  if(!container.dataset.listenersBound){
+
+    container.addEventListener("input",(e)=>{
+
+      if(
+        e.target.classList.contains("qtext") ||
+        e.target.classList.contains("opt") ||
+        e.target.classList.contains("exp")
+      ){
+        scheduleAutosave()
+      }
+
+    })
+
+    container.addEventListener("change",(e)=>{
+
+      if(e.target.classList.contains("correct-radio")){
+        scheduleAutosave()
+      }
+
+    })
+
+    container.dataset.listenersBound = "true"
+
+  }
 
 }
 
