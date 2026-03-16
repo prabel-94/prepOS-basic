@@ -455,6 +455,11 @@ async function saveDraft(silent=false){
 
 }
 
+console.log(
+  "newQuestionBtn element:",
+  document.getElementById("newQuestionBtn")
+)
+
 // ===============================
 // Init
 // ===============================
