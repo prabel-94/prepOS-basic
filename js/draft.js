@@ -1,561 +1,420 @@
 // ===============================
-// PrepOS Draft Editor
+// PrepOS Draft Editor (Stable v2)
 // ===============================
 
-let autosaveTimer = null
-let isSaving = false
+// --------------------------------
+// GLOBAL STATE
+// --------------------------------
+let autosaveTimer = null;
+let isSaving = false;
 
-let currentDraft = null
-let logoURL = null
+let currentDraft = null;
+let logoURL = null;
 
-// ===============================
+// --------------------------------
 // URL PARAM
-// ===============================
-const params = new URLSearchParams(window.location.search)
-const draftId = params.get("id")
+// --------------------------------
+const params = new URLSearchParams(window.location.search);
+const draftId = params.get("id");
 
-if(!draftId){
-  alert("Missing draft id")
-  throw new Error("No draft id")
+if (!draftId) {
+  alert("Missing draft id");
+  throw new Error("No draft id");
 }
 
-// ===============================
-// Supabase Client
-// ===============================
-const sb = window.supabase.createClient(
-  SUPABASE_URL,
-  SUPABASE_ANON_KEY
-)
+// --------------------------------
+// SUPABASE
+// --------------------------------
+const sb = window.supabaseClient;
 
+// Edge functions
 const PUBLISH_FUNCTION_URL =
-"https://bcqjfosxneuyoyuzhdiq.supabase.co/functions/v1/publish-draft"
+  "https://bcqjfosxneuyoyuzhdiq.supabase.co/functions/v1/publish-draft";
 
 const CLONE_FUNCTION_URL =
-"https://bcqjfosxneuyoyuzhdiq.supabase.co/functions/v1/clone-draft"
+  "https://bcqjfosxneuyoyuzhdiq.supabase.co/functions/v1/clone-draft";
 
+// --------------------------------
+// HELPERS
+// --------------------------------
+async function getAccessToken() {
+  const { data } = await sb.auth.getSession();
+  return data?.session?.access_token;
+}
 
-// ===============================
+function setStatus(message, isError = false) {
+  const el = document.getElementById("status");
+  if (!el) return;
+  el.textContent = message;
+  el.style.color = isError ? "#c0392b" : "#555";
+}
+
+function setActionButtonsDisabled(state) {
+  document.querySelectorAll(".draft-actions button").forEach(btn => {
+    btn.disabled = state;
+  });
+}
+
+// --------------------------------
 // SCHEMA NORMALIZATION
-// ===============================
-function normalizeDraftSchema(draft){
+// --------------------------------
+function normalizeDraftSchema(draft) {
+  if (!draft.schema_json) draft.schema_json = {};
 
-  if(!draft.schema_json){
-    draft.schema_json = {}
+  if (!draft.schema_json.sections) {
+    draft.schema_json.sections = [{ questions: [] }];
   }
 
-  if(!draft.schema_json.sections){
-    draft.schema_json.sections = [{
-      questions:[]
-    }]
+  if (!draft.schema_json.sections[0].questions) {
+    draft.schema_json.sections[0].questions = [];
   }
-
-  if(!draft.schema_json.sections[0].questions){
-    draft.schema_json.sections[0].questions = []
-  }
-
 }
 
-// ===============================
+// --------------------------------
 // AUTOSAVE
-// ===============================
-function scheduleAutosave(){
+// --------------------------------
+function scheduleAutosave() {
+  if (isSaving) return;
 
-  if(isSaving) return
+  if (autosaveTimer) clearTimeout(autosaveTimer);
 
-  if(autosaveTimer){
-    clearTimeout(autosaveTimer)
-  }
+  setStatus("Saving...");
 
-  const status = document.getElementById("status")
-
-  if(status){
-    status.textContent = "Saving..."
-  }
-
-  autosaveTimer = setTimeout(()=>{
-
-    if(!isSaving){
-      saveDraft(true)
-    }
-
-  },1500)
-
+  autosaveTimer = setTimeout(() => {
+    if (!isSaving) saveDraft(true);
+  }, 1200);
 }
 
-
-
-// ===============================
+// --------------------------------
 // LOAD DRAFT
-// ===============================
-async function loadDraft(){
-console.log("loadDraft started")
+// --------------------------------
+async function loadDraft() {
+  try {
+    setStatus("Loading...");
 
-  try{
-
-    const {data,error} = await sb
+    const { data, error } = await sb
       .from("draft_exams")
       .select("*")
-      .eq("id",draftId)
-      .single()
+      .eq("id", draftId)
+      .single();
 
-    if(error) throw error
+    if (error) throw error;
 
-    renderDraft(data)
+    renderDraft(data);
+    setStatus("Loaded");
 
-  }catch(e){
-
-    console.error(e)
-    alert("Failed to load draft")
-
+  } catch (e) {
+    console.error(e);
+    setStatus("Failed to load draft", true);
+    alert("Failed to load draft");
   }
-
 }
 
-// ===============================
-// RENDER DRAFT
-// ===============================
-function renderDraft(draft){
+// --------------------------------
+// RENDER
+// --------------------------------
+function renderDraft(draft) {
+  normalizeDraftSchema(draft);
+  currentDraft = draft;
 
-  console.trace("renderDraft called")
+  const titleEl = document.getElementById("title");
+  const durationEl = document.getElementById("duration");
+  const container = document.getElementById("questions");
+  const preview = document.getElementById("logoPreview");
 
-  normalizeDraftSchema(draft)
+  titleEl.value = draft.title || "";
+  durationEl.value = draft.duration || "";
 
-  currentDraft = draft
+  // bind once
+  if (!titleEl.dataset.bound) {
+    titleEl.addEventListener("input", scheduleAutosave);
+    durationEl.addEventListener("input", scheduleAutosave);
+    titleEl.dataset.bound = "true";
+  }
 
-  // enable new question button
-  document
-  .getElementById("newQuestionBtn")
-  ?.removeAttribute("disabled")
-
+  // logo
   logoURL =
     draft.logo_url ||
     localStorage.getItem("defaultLogo") ||
-    null
+    null;
 
-  const titleEl = document.getElementById("title")
-  const durationEl = document.getElementById("duration")
-  const container = document.getElementById("questions")
-  const preview = document.getElementById("logoPreview")
-
-  titleEl.value = draft.title || ""
-  durationEl.value = draft.duration || ""
-
-  // bind metadata listeners once
-  if(!titleEl.dataset.bound){
-
-    titleEl.addEventListener("input", scheduleAutosave)
-    durationEl.addEventListener("input", scheduleAutosave)
-
-    titleEl.dataset.bound = "true"
-
+  if (logoURL && preview) {
+    preview.src = logoURL;
+    preview.style.display = "block";
   }
 
-  // logo preview
-  if(logoURL && preview){
-    preview.src = logoURL
-    preview.style.display = "block"
-  }
+  const questions = draft.schema_json.sections[0].questions;
 
-  const questions =
-    draft.schema_json.sections[0].questions
+  container.innerHTML = "";
 
-  container.innerHTML = ""
-
-  // empty state
-  if(!questions.length){
-
+  if (!questions.length) {
     container.innerHTML = `
       <div class="empty-state">
         No questions yet.<br>
         Click <b>+ New Question</b> to start.
       </div>
-    `
-
-    return
+    `;
+    return;
   }
 
-  // ===============================
-  // Render Questions
-  // ===============================
+  questions.forEach((q, i) => {
+    const opts = [...(q.options || [])];
+    while (opts.length < 4) opts.push("");
 
-  questions.forEach((q,i)=>{
-
-    const opts = [...(q.options || [])]
-
-    while(opts.length < 4){
-      opts.push("")
+    let correctIndex = q.correct ?? 0;
+    if (typeof correctIndex === "string") {
+      correctIndex = ["A", "B", "C", "D"].indexOf(correctIndex);
     }
 
-    let correctIndex = q.correct ?? 0
-
-    if(typeof correctIndex === "string"){
-      correctIndex =
-        ["A","B","C","D"].indexOf(correctIndex)
-    }
-
-    const div = document.createElement("div")
-    div.className = "question-card"
+    const div = document.createElement("div");
+    div.className = "question-card";
 
     div.innerHTML = `
-
 <div class="question-header">
-
-<b>Q${i+1}</b>
-
+<b>Q${i + 1}</b>
 <div class="q-actions">
 <button class="move-up" data-i="${i}">↑</button>
 <button class="move-down" data-i="${i}">↓</button>
 <button class="duplicate-q" data-i="${i}">Duplicate</button>
 <button class="delete-q" data-i="${i}">Delete</button>
 </div>
-
 </div>
 
 <label>Question</label>
-
-<textarea class="qtext" data-i="${i}" rows="3">${q.question || ""}</textarea>
+<textarea class="qtext" data-i="${i}">${q.question || ""}</textarea>
 
 <label>Options</label>
 
-${opts.map((opt,oi)=>{
-
-const label=["A","B","C","D"][oi]
-
-return `
+${opts.map((opt, oi) => {
+  const label = ["A", "B", "C", "D"][oi];
+  return `
 <div class="option-row">
-
-<label class="option-container">
-
-<input
-type="radio"
-name="correct-${i}"
-class="correct-radio"
-data-i="${i}"
-value="${oi}"
-${correctIndex===oi?"checked":""}
->
-
+<input type="radio" name="correct-${i}" class="correct-radio"
+data-i="${i}" value="${oi}" ${correctIndex === oi ? "checked" : ""}>
 <span class="option-label">${label}</span>
-
-</label>
-
-<input
-type="text"
-class="opt"
-data-i="${i}"
-data-oi="${oi}"
-value="${opt}"
-placeholder="Option ${label}"
->
-
-</div>
-`
-
+<input type="text" class="opt" data-i="${i}" data-oi="${oi}"
+value="${opt}" placeholder="Option ${label}">
+</div>`;
 }).join("")}
 
 <label>Explanation</label>
+<textarea class="exp" data-i="${i}">${q.explanation || ""}</textarea>
+`;
 
-<textarea class="exp" data-i="${i}" rows="2">${q.explanation || ""}</textarea>
+    container.appendChild(div);
+  });
 
-`
-
-    container.appendChild(div)
-
-  })
-
-
-  // ===============================
-  // Bind Input Listeners ONCE
-  // ===============================
-
-  if(!container.dataset.listenersBound){
-
-    container.addEventListener("input",(e)=>{
-
-      if(
-        e.target.classList.contains("qtext") ||
-        e.target.classList.contains("opt") ||
-        e.target.classList.contains("exp")
-      ){
-        scheduleAutosave()
+  // bind once
+  if (!container.dataset.bound) {
+    container.addEventListener("input", e => {
+      if (["qtext", "opt", "exp"].some(c => e.target.classList.contains(c))) {
+        scheduleAutosave();
       }
+    });
 
-    })
-
-    container.addEventListener("change",(e)=>{
-
-      if(e.target.classList.contains("correct-radio")){
-        scheduleAutosave()
+    container.addEventListener("change", e => {
+      if (e.target.classList.contains("correct-radio")) {
+        scheduleAutosave();
       }
+    });
 
-    })
-
-    container.dataset.listenersBound = "true"
-
+    container.dataset.bound = "true";
   }
-
 }
 
-
-
-// ===============================
+// --------------------------------
 // CREATE QUESTION
-// ===============================
-function createNewQuestion(){
+// --------------------------------
+function createNewQuestion() {
+  if (!currentDraft) return;
 
-  if(!currentDraft){
-    console.warn("Draft not loaded yet")
-    return
-  }
+  const questions = currentDraft.schema_json.sections[0].questions;
 
-  const questions =
-  currentDraft.schema_json.sections[0].questions
-
-  const q = {
+  questions.push({
     id: crypto.randomUUID(),
-    question:"",
-    options:["","","",""],
-    correct:0,
-    explanation:""
-  }
+    question: "",
+    options: ["", "", "", ""],
+    correct: 0,
+    explanation: ""
+  });
 
-  questions.push(q)
-
-  renderDraft(currentDraft)
-
-  scheduleAutosave()
-
+  renderDraft(currentDraft);
+  scheduleAutosave();
 }
 
-
-
-// ===============================
+// --------------------------------
 // QUESTION ACTIONS
-// ===============================
-function handleQuestionActions(e){
+// --------------------------------
+function handleQuestionActions(e) {
+  if (!currentDraft) return;
 
-  if(!currentDraft) return
+  const i = +e.target.dataset.i;
+  const questions = currentDraft.schema_json.sections[0].questions;
 
-  const btn = e.target
-  const i = +btn.dataset.i
-
-  const questions =
-  currentDraft.schema_json.sections[0].questions
-
-  if(btn.classList.contains("delete-q")){
-
-    questions.splice(i,1)
-
+  if (e.target.classList.contains("delete-q")) {
+    questions.splice(i, 1);
   }
 
-  if(btn.classList.contains("duplicate-q")){
-
-    const copy =
-    JSON.parse(JSON.stringify(questions[i]))
-
-    copy.id = crypto.randomUUID()
-
-    questions.splice(i,0,copy)
-
+  if (e.target.classList.contains("duplicate-q")) {
+    const copy = JSON.parse(JSON.stringify(questions[i]));
+    copy.id = crypto.randomUUID();
+    questions.splice(i, 0, copy);
   }
 
-  if(btn.classList.contains("move-up")){
-
-    if(i===0) return
-
-    const temp = questions[i]
-    questions[i] = questions[i-1]
-    questions[i-1] = temp
-
+  if (e.target.classList.contains("move-up") && i > 0) {
+    [questions[i - 1], questions[i]] = [questions[i], questions[i - 1]];
   }
 
-  if(btn.classList.contains("move-down")){
-
-    if(i>=questions.length-1) return
-
-    const temp = questions[i]
-    questions[i] = questions[i+1]
-    questions[i+1] = temp
-
+  if (e.target.classList.contains("move-down") && i < questions.length - 1) {
+    [questions[i + 1], questions[i]] = [questions[i], questions[i + 1]];
   }
 
-  renderDraft(currentDraft)
-  scheduleAutosave()
-
+  renderDraft(currentDraft);
+  scheduleAutosave();
 }
 
-
-
-// ===============================
+// --------------------------------
 // SAVE DRAFT
-// ===============================
-async function saveDraft(silent=false){
+// --------------------------------
+async function saveDraft(silent = false) {
+  if (!currentDraft || isSaving) return;
 
-  if(!currentDraft || isSaving) return
+  isSaving = true;
 
-  isSaving = true
+  try {
+    const questions = currentDraft.schema_json.sections[0].questions;
 
-  try{
+    document.querySelectorAll(".qtext").forEach(el => {
+      questions[+el.dataset.i].question = el.value;
+    });
 
-    const questions =
-    currentDraft.schema_json.sections[0].questions
+    document.querySelectorAll(".opt").forEach(el => {
+      questions[+el.dataset.i].options[+el.dataset.oi] = el.value;
+    });
 
-    document.querySelectorAll(".qtext")
-    .forEach(el=>{
-      const i=+el.dataset.i
-      if(questions[i]) questions[i].question=el.value
-    })
-
-    document.querySelectorAll(".opt")
-    .forEach(el=>{
-      const i=+el.dataset.i
-      const oi=+el.dataset.oi
-      if(questions[i])
-      questions[i].options[oi]=el.value
-    })
-
-    document.querySelectorAll(".correct-radio")
-    .forEach(el=>{
-      if(el.checked){
-        const i=+el.dataset.i
-        questions[i].correct=+el.value
+    document.querySelectorAll(".correct-radio").forEach(el => {
+      if (el.checked) {
+        questions[+el.dataset.i].correct = +el.value;
       }
-    })
+    });
 
-    document.querySelectorAll(".exp")
-    .forEach(el=>{
-      const i=+el.dataset.i
-      if(questions[i]) questions[i].explanation=el.value
-    })
+    document.querySelectorAll(".exp").forEach(el => {
+      questions[+el.dataset.i].explanation = el.value;
+    });
 
-    const durationVal =
-    document.getElementById("duration").value
+    const { error } = await sb
+      .from("draft_exams")
+      .update({
+        title: document.getElementById("title").value,
+        duration: parseInt(document.getElementById("duration").value) || null,
+        schema_json: currentDraft.schema_json,
+        logo_url: logoURL
+      })
+      .eq("id", draftId);
 
-    const {error} = await sb
-    .from("draft_exams")
-    .update({
-      title:document.getElementById("title").value,
-      duration:durationVal ? parseInt(durationVal) : null,
-      schema_json:currentDraft.schema_json,
-      logo_url:logoURL
-    })
-    .eq("id",draftId)
+    if (error) throw error;
 
-    if(error) throw error
+    if (!silent) setStatus("Saved");
 
-    const status =
-    document.getElementById("status")
-
-    if(status){
-      status.textContent="Saved"
-    }
-
-  }catch(e){
-
-    console.error(e)
-    alert("Save failed")
-
+  } catch (e) {
+    console.error(e);
+    setStatus("Save failed", true);
   }
 
-  isSaving=false
-
+  isSaving = false;
 }
 
+// --------------------------------
+// CLONE DRAFT (EDGE)
+// --------------------------------
+async function cloneDraft() {
+  try {
+    setActionButtonsDisabled(true);
 
+    const token = await getAccessToken();
 
-// ===============================
-// QUESTION BANK SEARCH
-// ===============================
-let qbTimer
+    const res = await fetch(CLONE_FUNCTION_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify({ draftId })
+    });
 
-document
-.getElementById("qbSearch")
-?.addEventListener("input",function(){
+    const data = await res.json();
 
-  clearTimeout(qbTimer)
+    if (!res.ok) throw data;
 
-  qbTimer=setTimeout(()=>{
-    loadQuestionBank(this.value)
-  },400)
+    window.location.href = `/draft.html?id=${data.newDraftId}`;
 
-})
-
-
-
-// ===============================
-// QB CLOSE PANEL
-// ===============================
-document
-.getElementById("closeQB")
-?.addEventListener("click",()=>{
-  document
-  .getElementById("questionBankPanel")
-  ?.classList.remove("active")
-})
-
-// ===============================
-// LOGO UPLOAD
-// ===============================
-function handleLogoUpload(e){
-
-  const file = e.target.files[0]
-
-  if(!file) return
-
-  const reader = new FileReader()
-
-  reader.onload = function(){
-
-    logoURL = reader.result
-
-    const preview =
-    document.getElementById("logoPreview")
-
-    if(preview){
-
-      preview.src = logoURL
-      preview.style.display = "block"
-
-    }
-
-    scheduleAutosave()
-
+  } catch (e) {
+    console.error(e);
+    alert("Clone failed");
+  } finally {
+    setActionButtonsDisabled(false);
   }
-
-  reader.readAsDataURL(file)
-
 }
 
-// ===============================
+// --------------------------------
+// PUBLISH DRAFT (EDGE)
+// --------------------------------
+async function publishDraft() {
+  try {
+    await saveDraft(true);
+
+    setActionButtonsDisabled(true);
+
+    const token = await getAccessToken();
+
+    const res = await fetch(PUBLISH_FUNCTION_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify({ draftId })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) throw data;
+
+    setStatus("Published");
+    alert("Exam published successfully");
+
+  } catch (e) {
+    console.error(e);
+    alert("Publish failed");
+  } finally {
+    setActionButtonsDisabled(false);
+  }
+}
+
+// --------------------------------
 // INIT
-// ===============================
-function init(){
-
-  console.log("Draft editor init")
+// --------------------------------
+function init() {
+  document
+    .getElementById("newQuestionBtn")
+    ?.addEventListener("click", createNewQuestion);
 
   document
-  .getElementById("newQuestionBtn")
-  ?.addEventListener("click",createNewQuestion)
+    .getElementById("questions")
+    ?.addEventListener("click", handleQuestionActions);
 
   document
-  .getElementById("questions")
-  ?.addEventListener("click",handleQuestionActions)
+    .getElementById("logoUpload")
+    ?.addEventListener("change", handleLogoUpload);
 
-  document
-  .getElementById("logoUpload")
-  ?.addEventListener("change",handleLogoUpload)
-
-  loadDraft()
-
+  loadDraft();
 }
 
-init()
+init();
 
-
-
-// ===============================
+// --------------------------------
 // GLOBALS
-// ===============================
-window.saveDraft=saveDraft
-window.cloneDraft=cloneDraft
-window.publishDraft=publishDraft
+// --------------------------------
+window.saveDraft = saveDraft;
+window.cloneDraft = cloneDraft;
+window.publishDraft = publishDraft;
