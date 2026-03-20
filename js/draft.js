@@ -462,7 +462,23 @@ console.log("=== PUBLISH DEBUG END ===");
 }
 
     // ✅ Generate link
-    const link = `${window.location.origin}/exam.html?id=${examId}`;
+    const examId = data.examId;
+
+// ✅ Use backend link FIRST
+const link = data.examLink || `${window.location.origin}/exam.html?id=${examId}`;
+
+if (!link) {
+  console.warn("No link generated", data);
+  alert("Published, but no link generated");
+  return;
+}
+
+// ✅ Show clickable link
+const el = document.getElementById("examLink");
+
+if (el) {
+  el.innerHTML = `<a href="${link}" target="_blank">${link}</a>`;
+}
 
     // ✅ Show in UI
     const el = document.getElementById("examLink");
