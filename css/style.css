@@ -20,25 +20,20 @@ h1,h2,h3{
 
 
 /* ======================================================
-FORM ELEMENTS (EDITOR SCOPED)
+GLOBAL LAYOUT
 ====================================================== */
 
-.draft-page input,
-.draft-page textarea{
-  width:100%;
-  padding:8px;
-  font-size:14px;
-  margin-bottom:16px;
-  border:1px solid #ccc;
-  border-radius:4px;
+.container{
+  max-width:900px;
+  margin:auto;
+  padding:20px;
 }
 
-.qtext{
-  min-height:120px;
-}
-
-.exp{
-  min-height:80px;
+.exam-wrapper,
+.draft-wrapper{
+  max-width:900px;
+  margin:auto;
+  padding:20px;
 }
 
 
@@ -52,6 +47,7 @@ button{
   border-radius:6px;
   background:#eee;
   cursor:pointer;
+  transition:background 0.2s ease;
 }
 
 button:hover{
@@ -63,16 +59,48 @@ button:disabled{
   cursor:not-allowed;
 }
 
+/* variants */
+
+.primary-btn{
+  background:#2563eb;
+  color:#fff;
+}
+
+.primary-btn:hover{
+  background:#1d4ed8;
+}
+
+.secondary-btn{
+  background:#eee;
+  color:#333;
+}
+
 
 /* ======================================================
-WRAPPERS
+FORM ELEMENTS (EDITOR SCOPED)
 ====================================================== */
 
-.exam-wrapper,
-.draft-wrapper{
-  max-width:900px;
-  margin:auto;
-  padding:20px;
+.draft-page input,
+.draft-page textarea{
+  width:100%;
+  padding:8px;
+  font-size:14px;
+  margin-bottom:16px;
+  border:1px solid #ccc;
+  border-radius:4px;
+}
+
+textarea,
+input[type="text"]{
+  width:100%;
+}
+
+.qtext{
+  min-height:120px;
+}
+
+.exp{
+  min-height:80px;
 }
 
 
@@ -92,6 +120,20 @@ LOGO
   padding:4px;
   background:#fff;
   border-radius:4px;
+}
+
+
+/* ======================================================
+CARD SYSTEM
+====================================================== */
+
+.question-card{
+  border:1px solid #ddd;
+  border-radius:8px;
+  padding:16px;
+  margin-bottom:16px;
+  background:#fff;
+  box-shadow:0 1px 3px rgba(0,0,0,0.05);
 }
 
 
@@ -174,7 +216,7 @@ RESULTS
 
 
 /* ======================================================
-REVIEW MODE
+REVIEW MODE (Exam Attempt Review)
 ====================================================== */
 
 .review-card{
@@ -224,11 +266,22 @@ REVIEW MODE
 
 
 /* ======================================================
-DRAFT EDITOR
+PARSER REVIEW (NEW)
 ====================================================== */
 
+.review-header{
+  margin-bottom:16px;
+}
+
+.review-actions{
+  display:flex;
+  gap:10px;
+  margin-bottom:16px;
+}
+
+
 /* ======================================================
-DRAFT WORKSPACE LAYOUT (SAFE SIDEBAR)
+DRAFT WORKSPACE
 ====================================================== */
 
 .workspace{
@@ -238,54 +291,15 @@ DRAFT WORKSPACE LAYOUT (SAFE SIDEBAR)
   align-items:flex-start;
 }
 
-/* main editor */
-
 .draft-area{
   flex:1;
   min-width:0;
 }
 
-/* question bank sidebar */
-
-.question-bank-panel{
-  width:300px;
-  background:#fff;
-  border-left:1px solid #ddd;
-  padding-left:20px;
-
-  /* keep it outside the editor until opened */
-  position:fixed;
-  top:0;
-  right:-320px;
-  height:100%;
-
-  overflow:auto;
-  transition:right 0.25s ease;
-
-  /* prevent it from blocking the editor */
-  pointer-events:none;
-}
-
-/* when opened */
-
-.question-bank-panel.active{
-  right:0;
-  pointer-events:auto;
-}
-
 
 /* ======================================================
-QUESTION CARDS
+QUESTION CARDS (EDITOR)
 ====================================================== */
-
-.question-card{
-  border:1px solid #ddd;
-  border-radius:8px;
-  padding:18px;
-  margin-bottom:20px;
-  background:#fff;
-  box-shadow:0 1px 2px rgba(0,0,0,0.04);
-}
 
 .question-header{
   display:flex;
@@ -328,8 +342,30 @@ DRAFT OPTIONS
 
 
 /* ======================================================
-QUESTION BANK
+QUESTION BANK PANEL (FIXED VERSION)
 ====================================================== */
+
+.question-bank-panel{
+  width:300px;
+  background:#fff;
+  border-left:1px solid #ddd;
+  padding-left:20px;
+
+  position:fixed;
+  top:0;
+  right:-320px;
+  height:100%;
+
+  overflow:auto;
+  transition:right 0.25s ease;
+
+  pointer-events:none;
+}
+
+.question-bank-panel.active{
+  right:0;
+  pointer-events:auto;
+}
 
 .qb-header{
   display:flex;
@@ -358,20 +394,7 @@ QUESTION BANK
   padding:20px 0;
 }
 
-.question-bank-panel{
-  flex:1;
-  min-width:260px;
-  border-left:1px solid #ddd;
-  padding-left:20px;
-  background:#fff;
-  display:none;
-  pointer-events:none;
-}
 
-.question-bank-panel.active{
-  display:block;
-  pointer-events:auto;
-}
 /* ======================================================
 STATE MESSAGES
 ====================================================== */
@@ -446,4 +469,81 @@ MOBILE
   padding:10px;
 }
 
+}
+
+/* ======================================================
+UTILITY CLASSES (PrepOS v1)
+====================================================== */
+
+/* Spacing */
+
+.mt-10{ margin-top:10px; }
+.mt-12{ margin-top:12px; }
+.mt-16{ margin-top:16px; }
+.mt-20{ margin-top:20px; }
+
+.mb-10{ margin-bottom:10px; }
+.mb-16{ margin-bottom:16px; }
+
+.p-10{ padding:10px; }
+.p-16{ padding:16px; }
+.p-8{ padding:8px; }
+
+
+/* Layout */
+
+.flex{
+  display:flex;
+}
+
+.flex-col{
+  display:flex;
+  flex-direction:column;
+}
+
+.items-center{
+  align-items:center;
+}
+
+.justify-between{
+  justify-content:space-between;
+}
+
+.gap-10{
+  gap:10px;
+}
+
+.gap-16{
+  gap:16px;
+}
+
+
+/* Width */
+
+.w-full{
+  width:100%;
+}
+
+.max-w-600{
+  max-width:600px;
+  margin:auto;
+}
+
+
+/* Text */
+
+.text-center{
+  text-align:center;
+}
+
+.text-muted{
+  color:#666;
+  font-size:14px;
+}
+
+
+/* Visibility */
+
+.hidden{
+  display:none;
 }

@@ -116,37 +116,41 @@ const text = document.getElementById("input").value;
 const questions = parseQuiz(text);
 
 if(!questions.length){
-alert("No valid questions detected.");
-return;
+  alert("No valid questions detected.");
+  return;
 }
 
 /* ⭐ build dynamic title */
 function buildExamTitle(base="PrepOS Quiz"){
-const d = new Date();
+  const d = new Date();
 
-const date =
-d.toLocaleDateString(undefined,{
-day:"2-digit",
-month:"short"
-});
+  const date =
+  d.toLocaleDateString(undefined,{
+    day:"2-digit",
+    month:"short"
+  });
 
-const time =
-d.toLocaleTimeString([],{
-hour:"2-digit",
-minute:"2-digit"
-});
+  const time =
+  d.toLocaleTimeString([],{
+    hour:"2-digit",
+    minute:"2-digit"
+  });
 
-return `${base} — ${date} ${time}`;
+  return `${base} — ${date} ${time}`;
 }
 
-const title = buildExamTitle();   // ✅ changed
+const title = buildExamTitle();
 const duration =
 parseInt(document.getElementById("duration").value)||10;
 
-const draftLink = await createDraft(title,questions,duration);
+/* 🔥 NEW: Store instead of creating draft */
+sessionStorage.setItem("parsedData", JSON.stringify({
+  title,
+  duration,
+  questions
+}));
 
-if(draftLink){
-window.location.href = draftLink;
-}
+/* 🔥 Redirect to review */
+window.location.href = "parser-review.html";
 
 }

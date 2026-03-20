@@ -15,12 +15,11 @@ let logoURL = null;
 // URL PARAM
 // --------------------------------
 const params = new URLSearchParams(window.location.search);
-const draftId = params.get("id");
 
-if (!draftId) {
-  alert("Missing draft id");
-  throw new Error("No draft id");
-}
+let draftId = params.get("id");
+const mode = params.get("mode");
+
+console.log("Draft init:", { draftId, mode });
 
 // --------------------------------
 // SUPABASE
@@ -84,6 +83,34 @@ function scheduleAutosave() {
     if (!isSaving) saveDraft(true);
   }, 1200);
 }
+// --------------------------------
+// ADD EMPTY DRAFT SUPPORT
+// --------------------------------
+function createEmptyDraft() {
+  console.log("Creating empty draft");
+
+  currentDraft = {
+    id: null,
+    title: "",
+    duration: 60,
+    logo_url: null,
+    schema_json: {
+      sections: [
+        {
+          questions: []
+        }
+      ]
+    }
+  };
+
+  renderDraft(currentDraft);
+
+  // Enable button immediately
+  const btn = document.getElementById("newQuestionBtn");
+  if (btn) btn.disabled = false;
+
+  setStatus("New draft");
+}
 
 // --------------------------------
 // LOAD DRAFT
@@ -101,6 +128,8 @@ async function loadDraft() {
     if (error) throw error;
 
     renderDraft(data);
+    const btn = document.getElementById("newQuestionBtn");
+    if (btn) btn.disabled = false;
     setStatus("Loaded");
 
   } catch (e) {
@@ -302,15 +331,45 @@ async function saveDraft(silent = false) {
       questions[+el.dataset.i].explanation = el.value;
     });
 
-    const { error } = await sb
-      .from("draft_exams")
-      .update({
-        title: document.getElementById("title").value,
-        duration: parseInt(document.getElementById("duration").value) || null,
-        schema_json: currentDraft.schema_json,
-        logo_url: logoURL
-      })
-      .eq("id", draftId);
+    if (!draftId) {
+  // CREATE NEW DRAFT FIRST TIME
+  const { data, error } = await sb
+    .from("draft_exams")
+    .insert([{
+      title: document.getElementById("title").value || "Untitled Draft",
+      duration: parseInt(document.getElementById("duration").value) || null,
+      schema_json: currentDraft.schema_json,
+      logo_url: logoURL,
+      status: "draft"
+    }])
+    .select()
+    .single();
+
+  if (error) throw error;
+
+  draftId = data.id;
+
+  // Update URL WITHOUT reload
+  history.replaceState(null, "", `draft.html?id=${draftId}`);
+
+  setStatus("Draft created");
+
+} else {
+  // NORMAL UPDATE
+  const { error } = await sb
+    .from("draft_exams")
+    .update({
+      title: document.getElementById("title").value,
+      duration: parseInt(document.getElementById("duration").value) || null,
+      schema_json: currentDraft.schema_json,
+      logo_url: logoURL
+    })
+    .eq("id", draftId);
+
+  if (error) throw error;
+
+  if (!silent) setStatus("Saved");
+}
 
     if (error) throw error;
 
@@ -407,7 +466,14 @@ function init() {
     .getElementById("logoUpload")
     ?.addEventListener("change", handleLogoUpload);
 
-  loadDraft();
+  if (draftId) {
+    loadDraft();
+  } else if (mode === "new") {
+    createEmptyDraft();
+  } else {
+    console.warn("No id or mode, fallback to new");
+    createEmptyDraft();
+  }
 }
 
 init();
