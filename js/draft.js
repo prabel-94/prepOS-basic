@@ -439,6 +439,14 @@ async function publishDraft() {
     });
 
     const data = await res.json();
+    // 🔴 ADD THIS BLOCK
+console.log("=== PUBLISH DEBUG START ===");
+console.log("HTTP Status:", res.status);
+console.log("Raw response object:", res);
+console.log("Parsed JSON data:", data);
+console.log("data.examId:", data.examId);
+console.log("data.examLink:", data.examLink);
+console.log("=== PUBLISH DEBUG END ===");
 
     if (!res.ok) throw data;
 
