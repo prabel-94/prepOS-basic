@@ -480,10 +480,6 @@ if (el) {
   el.innerHTML = `<a href="${link}" target="_blank">${link}</a>`;
 }
 
-    // ✅ Show in UI
-    const el = document.getElementById("examLink");
-    if (el) el.innerText = link;
-
     setStatus("Published");
     alert("Exam published successfully");
 
