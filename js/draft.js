@@ -461,8 +461,6 @@ console.log("=== PUBLISH DEBUG END ===");
   return;
 }
 
-    // ✅ Generate link
-    const examId = data.examId;
 
 // ✅ Use backend link FIRST
 const link = data.examLink || `${window.location.origin}/exam.html?id=${examId}`;
