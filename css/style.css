@@ -80,7 +80,7 @@ button:disabled{
 FORM ELEMENTS (EDITOR SCOPED)
 ====================================================== */
 
-.draft-page input,
+.draft-page input[type="text"],
 .draft-page textarea{
   width:100%;
   padding:8px;
