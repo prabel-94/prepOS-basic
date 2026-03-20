@@ -303,7 +303,7 @@ function handleQuestionActions(e) {
 }
 
 // --------------------------------
-// SAVE DRAFT
+// SAVE DRAFT (Clean v3)
 // --------------------------------
 async function saveDraft(silent = false) {
   if (!currentDraft || isSaving) return;
@@ -313,6 +313,9 @@ async function saveDraft(silent = false) {
   try {
     const questions = currentDraft.schema_json.sections[0].questions;
 
+    // -----------------------------
+    // SYNC DOM → STATE
+    // -----------------------------
     document.querySelectorAll(".qtext").forEach(el => {
       questions[+el.dataset.i].question = el.value;
     });
@@ -331,56 +334,56 @@ async function saveDraft(silent = false) {
       questions[+el.dataset.i].explanation = el.value;
     });
 
-    if (!draftId) {
-  // CREATE NEW DRAFT FIRST TIME
-  const { data, error } = await sb
-    .from("draft_exams")
-    .insert([{
+    // -----------------------------
+    // PREPARE PAYLOAD
+    // -----------------------------
+    const payload = {
       title: document.getElementById("title").value || "Untitled Draft",
       duration: parseInt(document.getElementById("duration").value) || null,
       schema_json: currentDraft.schema_json,
       logo_url: logoURL,
-      status: "draft"
-    }])
-    .select()
-    .single();
+    };
 
-  if (error) throw error;
+    // -----------------------------
+    // CREATE NEW DRAFT
+    // -----------------------------
+    if (!draftId) {
+      const res = await sb
+        .from("draft_exams")
+        .insert([{ ...payload, status: "draft" }])
+        .select()
+        .single();
 
-  draftId = data.id;
+      if (res.error) throw res.error;
 
-  // Update URL WITHOUT reload
-  history.replaceState(null, "", `draft.html?id=${draftId}`);
+      draftId = res.data.id;
 
-  setStatus("Draft created");
+      // Update URL without reload
+      history.replaceState(null, "", `draft.html?id=${draftId}`);
 
-} else {
-  // NORMAL UPDATE
-  const { error } = await sb
-    .from("draft_exams")
-    .update({
-      title: document.getElementById("title").value,
-      duration: parseInt(document.getElementById("duration").value) || null,
-      schema_json: currentDraft.schema_json,
-      logo_url: logoURL
-    })
-    .eq("id", draftId);
+      setStatus("Draft created");
+    }
 
-  if (error) throw error;
+    // -----------------------------
+    // UPDATE EXISTING DRAFT
+    // -----------------------------
+    else {
+      const res = await sb
+        .from("draft_exams")
+        .update(payload)
+        .eq("id", draftId);
 
-  if (!silent) setStatus("Saved");
-}
+      if (res.error) throw res.error;
 
-    if (error) throw error;
-
-    if (!silent) setStatus("Saved");
+      if (!silent) setStatus("Saved");
+    }
 
   } catch (e) {
-    console.error(e);
+    console.error("Save error:", e);
     setStatus("Save failed", true);
+  } finally {
+    isSaving = false;
   }
-
-  isSaving = false;
 }
 
 // --------------------------------
@@ -447,6 +450,49 @@ async function publishDraft() {
     alert("Publish failed");
   } finally {
     setActionButtonsDisabled(false);
+  }
+}
+
+// --------------------------------
+// LOGO UPLOAD
+// --------------------------------
+async function handleLogoUpload(e) {
+  try {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setStatus("Uploading logo...");
+
+    const fileExt = file.name.split(".").pop();
+    const fileName = `logo-${Date.now()}.${fileExt}`;
+
+    // Upload to Supabase storage (logos bucket)
+    const { error: uploadError } = await sb.storage
+      .from("logos")
+      .upload(fileName, file);
+
+    if (uploadError) throw uploadError;
+
+    // Get public URL
+    const { data } = sb.storage
+      .from("logos")
+      .getPublicUrl(fileName);
+
+    logoURL = data.publicUrl;
+
+    // Update preview
+    const preview = document.getElementById("logoPreview");
+    if (preview) {
+      preview.src = logoURL;
+      preview.style.display = "block";
+    }
+
+    scheduleAutosave();
+    setStatus("Logo uploaded");
+
+  } catch (err) {
+    console.error(err);
+    setStatus("Logo upload failed", true);
   }
 }
 
