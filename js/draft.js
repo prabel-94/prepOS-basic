@@ -451,13 +451,15 @@ console.log("=== PUBLISH DEBUG END ===");
     if (!res.ok) throw data;
 
     // ✅ IMPORTANT: Extract examId from response
+    console.log("Extracting examId from:", data);
     const examId = data.examId || data.id;
 
     if (!examId) {
-      console.warn("No examId returned from publish function", data);
-      alert("Published, but no link generated");
-      return;
-    }
+  console.warn("❌ No examId returned");
+  console.log("Full response:", data);
+  alert("Published, but no link generated");
+  return;
+}
 
     // ✅ Generate link
     const link = `${window.location.origin}/exam.html?id=${examId}`;
