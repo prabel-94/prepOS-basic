@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Create Exam</title>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f6fa;
+      margin: 0;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: auto;
+      padding: 20px;
+    }
+
+    h2 {
+      margin-bottom: 20px;
+    }
+
+    .option {
+      background: white;
+      padding: 16px;
+      margin-bottom: 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    }
+
+    .option:hover {
+      background: #eef2ff;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="container">
+  <h2>Create Exam</h2>
+
+  <div class="option" onclick="goParser()">
+    📄 Upload / Paste Questions (Use Parser)
+  </div>
+
+  <div class="option" onclick="goManual()">
+    ✍️ Start from Scratch (Manual Entry)
+  </div>
+
+</div>
+
+<script>
+  function goParser() {
+    window.location.href = "exam-creator.html";
+  }
+
+  function goManual() {
+    window.location.href = "draft.html?mode=new";
+  }
+</script>
+
+</body>
+</html>

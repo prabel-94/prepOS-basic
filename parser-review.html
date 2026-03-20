@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Review Questions</title>
+
+<link rel="stylesheet" href="css/style.css">
+
+
+</head>
+
+<body>
+
+<h2>Review & Edit Questions</h2>
+
+<div class="flex gap-10 mb-16">
+<button onclick="selectAll()">Select All</button>
+<button onclick="deselectAll()">Deselect All</button>
+</div>
+
+<div id="questionList"></div>
+
+<div class="mt-20">
+  <button class="primary-btn w-full" onclick="createFromSelection()">
+    Add Selected to Draft
+  </button>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/creator.js"></script>
+
+<script>
+
+const data = JSON.parse(sessionStorage.getItem("parsedData") || "{}");
+let questions = data.questions || [];
+
+function render(){
+
+  const container = document.getElementById("questionList");
+  container.innerHTML = "";
+
+  questions.forEach((q,i)=>{
+
+    const correctIndex =
+      typeof q.correct === "string"
+        ? ["A","B","C","D"].indexOf(q.correct)
+        : q.correct ?? 0;
+
+    const div = document.createElement("div");
+    div.className = "question-card";
+
+    div.innerHTML = `
+
+<label>
+  <input type="checkbox" id="q-${i}" checked>
+  <span class="q-title">Q${i+1}</span>
+</label>
+
+<label>Question</label>
+<textarea data-i="${i}" class="qtext">${q.question || ""}</textarea>
+
+<label>Options</label>
+
+${q.options.map((opt,oi)=>{
+  const label = ["A","B","C","D"][oi];
+
+  return `
+  <div class="option-row">
+    <input type="radio" name="correct-${i}" 
+      data-i="${i}" value="${oi}"
+      ${oi===correctIndex ? "checked" : ""}>
+    <span>${label}</span>
+    <input type="text" class="opt"
+      data-i="${i}" data-oi="${oi}"
+      value="${opt}">
+  </div>
+  `;
+}).join("")}
+
+<label>Explanation</label>
+<textarea class="exp" data-i="${i}">${q.explanation || ""}</textarea>
+
+    `;
+
+    container.appendChild(div);
+  });
+
+}
+
+// -----------------------
+// SYNC EDITS → STATE
+// -----------------------
+
+document.addEventListener("input", e=>{
+
+  if(e.target.classList.contains("qtext")){
+    questions[e.target.dataset.i].question = e.target.value;
+  }
+
+  if(e.target.classList.contains("opt")){
+    const i = e.target.dataset.i;
+    const oi = e.target.dataset.oi;
+    questions[i].options[oi] = e.target.value;
+  }
+
+  if(e.target.classList.contains("exp")){
+    questions[e.target.dataset.i].explanation = e.target.value;
+  }
+
+});
+
+document.addEventListener("change", e=>{
+
+  if(e.target.type === "radio"){
+    const i = e.target.dataset.i;
+    questions[i].correct = +e.target.value;
+  }
+
+});
+
+// -----------------------
+// SELECTION
+// -----------------------
+
+function getSelected(){
+  return questions.filter((q,i)=>{
+    return document.getElementById(`q-${i}`).checked;
+  });
+}
+
+function selectAll(){
+  questions.forEach((_,i)=>{
+    document.getElementById(`q-${i}`).checked = true;
+  });
+}
+
+function deselectAll(){
+  questions.forEach((_,i)=>{
+    document.getElementById(`q-${i}`).checked = false;
+  });
+}
+
+// -----------------------
+// CREATE DRAFT
+// -----------------------
+
+async function createFromSelection(){
+
+  const selected = getSelected();
+
+  if(!selected.length){
+    alert("Select at least one question");
+    return;
+  }
+
+  const draftLink = await createDraft(
+    data.title,
+    selected,
+    data.duration
+  );
+
+  if(draftLink){
+    window.location.href = draftLink;
+  }
+
+}
+
+render();
+
+</script>
+
+</body>
+</html>

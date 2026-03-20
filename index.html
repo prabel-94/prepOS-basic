@@ -19,35 +19,17 @@
 
 
 <!-- =========================
-Create Exam
+Create Exam (PRIMARY ENTRY)
 ========================= -->
 
 <div class="card">
 
 <h3>Create Exam</h3>
 
-<p>Paste questions, clean with QCP, generate exam link.</p>
+<p>Start a new exam using parser or manual entry.</p>
 
-<button onclick="location.href='exam-creator.html'">
-Open Creator
-</button>
-
-</div>
-
-
-
-<!-- =========================
-Draft Editor
-========================= -->
-
-<div class="card">
-
-<h3>Draft Editor</h3>
-
-<p>Create and manage draft exams.</p>
-
-<button onclick="createDraft()">
-New Draft
+<button onclick="goToCreatorMode()">
+Create Exam
 </button>
 
 </div>
@@ -101,7 +83,7 @@ Open Exam
 <input
 id="examId2"
 placeholder="Paste exam id"
-style="width:100%;padding:8px;margin-top:6px;"
+class="w-full p-8 mt-10"
 >
 
 <button onclick="openExam()">
@@ -123,6 +105,16 @@ Scripts
 <script>
 
 /* =========================
+Navigation: Creator Mode
+========================= */
+
+function goToCreatorMode(){
+  location.href = "creator-mode.html"
+}
+
+
+
+/* =========================
 Open Exam
 ========================= */
 
@@ -136,47 +128,6 @@ return
 }
 
 location.href = `exam.html?id=${id}`
-
-}
-
-
-
-/* =========================
-Create Draft
-========================= */
-
-window.createDraft = async function(){
-
-try{
-
-const sb = window.supabaseClient
-
-const { data, error } = await sb
-.from("draft_exams")
-.insert([
-{
-title:"Untitled Draft",
-duration:60,
-schema_json:{questions:[]},
-status:"draft"
-}
-])
-.select()
-.single()
-
-if(error){
-throw error
-}
-
-location.href = `draft.html?id=${data.id}`
-
-}catch(err){
-
-console.error("Draft creation failed:",err)
-
-alert("Failed to create draft")
-
-}
 
 }
 
@@ -277,13 +228,8 @@ Dashboard Init
 
 function initDashboard(){
 
-// Load recent exams slightly later
-// This keeps UI fast
-
 setTimeout(()=>{
-
 loadRecentExams()
-
 },100)
 
 }
@@ -313,5 +259,4 @@ eruda.init()
 
 
 </body>
-
 </html>
