@@ -442,6 +442,22 @@ async function publishDraft() {
 
     if (!res.ok) throw data;
 
+    // ✅ IMPORTANT: Extract examId from response
+    const examId = data.examId || data.id;
+
+    if (!examId) {
+      console.warn("No examId returned from publish function", data);
+      alert("Published, but no link generated");
+      return;
+    }
+
+    // ✅ Generate link
+    const link = `${window.location.origin}/exam.html?id=${examId}`;
+
+    // ✅ Show in UI
+    const el = document.getElementById("examLink");
+    if (el) el.innerText = link;
+
     setStatus("Published");
     alert("Exam published successfully");
 
@@ -450,49 +466,6 @@ async function publishDraft() {
     alert("Publish failed");
   } finally {
     setActionButtonsDisabled(false);
-  }
-}
-
-// --------------------------------
-// LOGO UPLOAD
-// --------------------------------
-async function handleLogoUpload(e) {
-  try {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    setStatus("Uploading logo...");
-
-    const fileExt = file.name.split(".").pop();
-    const fileName = `logo-${Date.now()}.${fileExt}`;
-
-    // Upload to Supabase storage (logos bucket)
-    const { error: uploadError } = await sb.storage
-      .from("logos")
-      .upload(fileName, file);
-
-    if (uploadError) throw uploadError;
-
-    // Get public URL
-    const { data } = sb.storage
-      .from("logos")
-      .getPublicUrl(fileName);
-
-    logoURL = data.publicUrl;
-
-    // Update preview
-    const preview = document.getElementById("logoPreview");
-    if (preview) {
-      preview.src = logoURL;
-      preview.style.display = "block";
-    }
-
-    scheduleAutosave();
-    setStatus("Logo uploaded");
-
-  } catch (err) {
-    console.error(err);
-    setStatus("Logo upload failed", true);
   }
 }
 
