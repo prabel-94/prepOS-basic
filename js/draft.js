@@ -470,6 +470,49 @@ async function publishDraft() {
 }
 
 // --------------------------------
+// LOGO UPLOAD
+// --------------------------------
+async function handleLogoUpload(e) {
+  try {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setStatus("Uploading logo...");
+
+    const fileExt = file.name.split(".").pop();
+    const fileName = `logo-${Date.now()}.${fileExt}`;
+
+    // Upload to Supabase storage (logos bucket)
+    const { error: uploadError } = await sb.storage
+      .from("logos")
+      .upload(fileName, file);
+
+    if (uploadError) throw uploadError;
+
+    // Get public URL
+    const { data } = sb.storage
+      .from("logos")
+      .getPublicUrl(fileName);
+
+    logoURL = data.publicUrl;
+
+    // Update preview
+    const preview = document.getElementById("logoPreview");
+    if (preview) {
+      preview.src = logoURL;
+      preview.style.display = "block";
+    }
+
+    scheduleAutosave();
+    setStatus("Logo uploaded");
+
+  } catch (err) {
+    console.error(err);
+    setStatus("Logo upload failed", true);
+  }
+}
+
+// --------------------------------
 // INIT
 // --------------------------------
 function init() {
