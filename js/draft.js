@@ -474,8 +474,11 @@ if (!link) {
 // ✅ Show clickable link
 const el = document.getElementById("examLink");
 
-if (el) {
+if (el && link) {
   el.innerHTML = `<a href="${link}" target="_blank">${link}</a>`;
+  
+  // ✅ MAKE IT VISIBLE
+  el.style.display = "block";
 }
 
     setStatus("Published");
