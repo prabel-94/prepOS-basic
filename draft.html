@@ -36,10 +36,10 @@ DRAFT META
 <section class="draft-meta mt-20">
 
 <label for="title">Title</label>
-<input id="title" type="text" placeholder="Enter title" />
+<input id="title" name="title" type="text" placeholder="Enter title" />
 
 <label for="duration">Duration (minutes)</label>
-<input id="duration" type="number" placeholder="Enter duration in minutes" />
+<input id="duration" name="duration" type="number" placeholder="Enter duration in minutes" />
 
 </section>
 
@@ -54,10 +54,11 @@ LOGO
 <input
 type="file"
 id="logoUpload"
+name="logo"
 accept="image/png,image/jpeg,image/jpg,image/svg+xml"
 />
 
-<img id="logoPreview" alt="Logo preview" style="display:none">
+<img id="logoPreview" alt="Logo preview" class="hidden">
 
 </section>
 
@@ -125,6 +126,7 @@ QUESTION BANK PANEL
 <input
 type="text"
 id="qbSearch"
+name="qb_search"
 placeholder="Search questions..."
 class="mt-20"
 />
@@ -149,18 +151,18 @@ DRAFT ACTIONS
 <section class="draft-actions mt-20">
 
 <section class="publish-result mt-20">
-  <div id="examLink" class="question-card" style="display:none"></div>
+  <div id="examLink" class="question-card hidden"></div>
 </section>
 
-<button type="button" onclick="saveDraft()">
+<button type="button" id="saveDraftBtn">
 Save Draft
 </button>
 
-<button type="button" onclick="cloneDraft()">
+<button type="button" id="cloneDraftBtn">
 Clone
 </button>
 
-<button type="button" onclick="publishDraft()">
+<button type="button" id="publishDraftBtn" class="primary-btn">
 Publish Exam
 </button>
 
@@ -176,6 +178,13 @@ SCRIPTS
 
 <script src="js/config.js"></script>
 <script src="js/draft.js"></script>
+
+<script>
+// EVENT BINDING (UI → Logic separation)
+document.getElementById("saveDraftBtn").addEventListener("click", saveDraft);
+document.getElementById("cloneDraftBtn").addEventListener("click", cloneDraft);
+document.getElementById("publishDraftBtn").addEventListener("click", publishDraft);
+</script>
 
 
 <!-- ======================
