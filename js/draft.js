@@ -1,5 +1,5 @@
 // ===============================
-// PrepOS Draft Editor (v5 - Stable)
+// PrepOS Draft Editor (v6 - Stable)
 // ===============================
 
 // --------------------------------
@@ -32,7 +32,7 @@ function setStatus(message, isError = false) {
 }
 
 // --------------------------------
-// HASH
+// HASH (Duplicate detection)
 // --------------------------------
 function generateHash(q) {
   const base = (
@@ -160,9 +160,6 @@ async function saveQuestionToBank(q) {
   return { questionId, isDuplicate };
 }
 
-// --------------------------------
-// SAVE ALL
-// --------------------------------
 async function saveAllQuestionsToBank() {
   const qs = currentDraft.schema_json.sections[0].questions;
 
@@ -208,6 +205,37 @@ function createEmptyDraft() {
 }
 
 // --------------------------------
+// LOAD EXISTING DRAFT
+// --------------------------------
+async function loadDraft() {
+  if (!draftId) return;
+
+  setStatus("Loading...");
+
+  const { data, error } = await sb
+    .from("draft_exams")
+    .select("*")
+    .eq("id", draftId)
+    .single();
+
+  if (error) {
+    console.error(error);
+    setStatus("Load failed", true);
+    return;
+  }
+
+  currentDraft = data;
+  logoURL = data.logo_url || null;
+
+  renderDraft(currentDraft);
+
+  document.getElementById("title").value = data.title || "";
+  document.getElementById("duration").value = data.duration || "";
+
+  setStatus("Loaded");
+}
+
+// --------------------------------
 // RENDER
 // --------------------------------
 function renderDraft(draft) {
@@ -224,7 +252,6 @@ function renderDraft(draft) {
   }
 
   questions.forEach((q, i) => {
-
     const opts = [...(q.options || [])];
     while (opts.length < 4) opts.push("");
 
@@ -277,100 +304,9 @@ function renderDraft(draft) {
 }
 
 // --------------------------------
-// QB SEARCH
-// --------------------------------
-document.getElementById("qbSearch")?.addEventListener("input", async (e) => {
-  const query = e.target.value;
-
-  const { data } = await sb
-    .from("questions")
-    .select("*")
-    .ilike("question_text", `%${query}%`)
-    .limit(20);
-
-  renderQBResults(data || []);
-});
-
-function renderQBResults(list) {
-  const container = document.getElementById("questionBankResults");
-
-  if (!list.length) {
-    container.innerHTML = "No results";
-    return;
-  }
-
-  container.innerHTML = "";
-
-  list.forEach(q => {
-    const div = document.createElement("div");
-    div.className = "qb-question";
-
-    div.innerHTML = `
-      <span>${q.question_text}</span>
-      <button>Add</button>
-    `;
-
-    div.querySelector("button").onclick = () => addFromBank(q);
-
-    container.appendChild(div);
-  });
-}
-
-function addFromBank(q) {
-  const mapped = {
-    id: crypto.randomUUID(),
-    text: q.question_text,
-    options: [q.option_a, q.option_b, q.option_c, q.option_d],
-    correct: q.correct_option,
-    explanation: q.explanation || "",
-    topics: [],
-    bank_status: "saved"
-  };
-
-  currentDraft.schema_json.sections[0].questions.push(mapped);
-
-  renderDraft(currentDraft);
-
-  document.getElementById("questionBankPanel").classList.add("hidden");
-
-  setStatus("Question added to draft ✅");
-}
-
-// --------------------------------
-// EVENTS (DELEGATED)
-// --------------------------------
-document.getElementById("questions")?.addEventListener("click", async (e) => {
-
-  if (e.target.classList.contains("save-q")) {
-    const i = +e.target.dataset.i;
-    const q = currentDraft.schema_json.sections[0].questions[i];
-
-    const res = await saveQuestionToBank(q);
-    q.bank_status = res.isDuplicate ? "duplicate" : "saved";
-
-    renderDraft(currentDraft);
-    setStatus("Saved to Question Bank ✅");
-  }
-
-  if (e.target.classList.contains("remove-topic")) {
-    removeTopic(+e.target.dataset.q, +e.target.dataset.ti);
-  }
-
-  if (e.target.classList.contains("topic-select")) {
-    const qIndex = +e.target.dataset.q;
-    const name = e.target.dataset.name;
-
-    addTopicToQuestion(qIndex, name);
-
-    e.target.closest(".topic-box")
-      .querySelector(".topic-suggestions").innerHTML = "";
-  }
-});
-
-// --------------------------------
 // INPUT EVENTS
 // --------------------------------
-document.getElementById("questions")?.addEventListener("input", async (e) => {
+document.getElementById("questions")?.addEventListener("input", (e) => {
 
   if (e.target.classList.contains("qtext")) {
     currentDraft.schema_json.sections[0].questions[+e.target.dataset.i].text = e.target.value;
@@ -386,46 +322,7 @@ document.getElementById("questions")?.addEventListener("input", async (e) => {
     currentDraft.schema_json.sections[0].questions[+e.target.dataset.i].explanation = e.target.value;
   }
 
-  if (e.target.classList.contains("topic-input")) {
-    const qIndex = +e.target.dataset.i;
-    const box = e.target.parentElement;
-    const suggestionBox = box.querySelector(".topic-suggestions");
-
-    clearTimeout(topicTimer);
-
-    topicTimer = setTimeout(async () => {
-      const results = await searchTopics(e.target.value);
-
-      suggestionBox.innerHTML = results.map(r => `
-        <div data-q="${qIndex}" data-name="${r.name}" class="topic-select">
-          ${r.name}
-        </div>
-      `).join("");
-    }, 250);
-  }
-
   scheduleAutosave();
-});
-
-// --------------------------------
-// ENTER → CREATE TOPIC
-// --------------------------------
-document.getElementById("questions")?.addEventListener("keydown", (e) => {
-
-  if (e.target.classList.contains("topic-input") && e.key === "Enter") {
-    e.preventDefault();
-
-    const qIndex = +e.target.dataset.i;
-    const value = e.target.value.trim();
-
-    if (!value) return;
-
-    addTopicToQuestion(qIndex, value);
-
-    e.target.value = "";
-
-    e.target.parentElement.querySelector(".topic-suggestions").innerHTML = "";
-  }
 });
 
 // --------------------------------
@@ -447,27 +344,119 @@ function createNewQuestion() {
 }
 
 // --------------------------------
-// SAVE DRAFT
+// SAVE DRAFT (FIXED)
 // --------------------------------
-async function saveDraft() {
-  if (!currentDraft) return;
+async function saveDraft(silent = false) {
+  if (!currentDraft || isSaving) return;
 
-  await sb.from("draft_exams").upsert({
-    id: draftId,
-    title: currentDraft.title,
-    schema_json: currentDraft.schema_json
-  });
+  isSaving = true;
 
-  setStatus("Draft saved");
+  try {
+    const payload = {
+      title: document.getElementById("title").value || "Untitled Draft",
+      duration: parseInt(document.getElementById("duration").value) || 60,
+      schema_json: currentDraft.schema_json,
+      logo_url: logoURL,
+      status: "draft"
+    };
+
+    if (!draftId) {
+      const { data, error } = await sb
+        .from("draft_exams")
+        .insert([payload])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      draftId = data.id;
+
+      history.replaceState(null, "", `draft.html?id=${draftId}`);
+      setStatus("Draft created");
+    } else {
+      const { error } = await sb
+        .from("draft_exams")
+        .update(payload)
+        .eq("id", draftId);
+
+      if (error) throw error;
+
+      if (!silent) setStatus("Saved");
+    }
+
+  } catch (e) {
+    console.error(e);
+    setStatus("Save failed", true);
+  } finally {
+    isSaving = false;
+  }
+}
+
+// --------------------------------
+// ✅ PUBLISH DRAFT (NEW)
+// --------------------------------
+async function publishDraft() {
+  if (!draftId) {
+    alert("Save draft before publishing");
+    return;
+  }
+
+  try {
+    await saveDraft(true);
+
+    setStatus("Publishing...");
+
+    const payload = {
+      title: currentDraft.title || "Untitled Exam",
+      duration: currentDraft.duration || 60,
+      schema_json: currentDraft.schema_json,
+      logo_url: logoURL || null
+    };
+
+    const { data: exam, error: examError } = await sb
+      .from("exams")
+      .insert([payload])
+      .select()
+      .single();
+
+    if (examError) throw examError;
+
+    await sb
+      .from("draft_exams")
+      .update({
+        published_exam_id: exam.id,
+        status: "published"
+      })
+      .eq("id", draftId);
+
+    setStatus("Published ✅");
+
+    const linkBox = document.getElementById("examLink");
+    if (linkBox) {
+      linkBox.classList.remove("hidden");
+      linkBox.innerHTML = `
+        <b>Exam Published</b><br>
+        <a href="exam.html?id=${exam.id}" target="_blank">
+          Open Exam
+        </a>
+      `;
+    }
+
+  } catch (err) {
+    console.error(err);
+    setStatus("Publish failed", true);
+  }
 }
 
 // --------------------------------
 // INIT
 // --------------------------------
 function init() {
-
   document.getElementById("newQuestionBtn")
     ?.addEventListener("click", createNewQuestion);
+
+  document.getElementById("saveAllToBankBtn")
+    ?.addEventListener("click", saveAllQuestionsToBank);
 
   document.getElementById("openQuestionBankBtn")
     ?.addEventListener("click", () => {
@@ -479,10 +468,8 @@ function init() {
       document.getElementById("questionBankPanel").classList.add("hidden");
     });
 
-  document.getElementById("saveAllToBankBtn")
-    ?.addEventListener("click", saveAllQuestionsToBank);
-
-  if (mode === "new") createEmptyDraft();
+  if (draftId) loadDraft();
+  else createEmptyDraft();
 }
 
 init();
@@ -490,5 +477,5 @@ init();
 // --------------------------------
 // GLOBALS
 // --------------------------------
-window.createNewQuestion = createNewQuestion;
 window.saveDraft = saveDraft;
+window.publishDraft = publishDraft;
