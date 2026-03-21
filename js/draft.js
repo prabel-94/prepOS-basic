@@ -1,46 +1,29 @@
 // ===============================
-// PrepOS Draft Editor (Stable v2)
+// PrepOS Draft Editor (v5 - Stable)
 // ===============================
 
 // --------------------------------
 // GLOBAL STATE
 // --------------------------------
 let autosaveTimer = null;
+let topicTimer = null;
 let isSaving = false;
 
 let currentDraft = null;
 let logoURL = null;
 
+const sb = window.supabaseClient;
+
 // --------------------------------
 // URL PARAM
 // --------------------------------
 const params = new URLSearchParams(window.location.search);
-
 let draftId = params.get("id");
 const mode = params.get("mode");
-
-console.log("Draft init:", { draftId, mode });
-
-// --------------------------------
-// SUPABASE
-// --------------------------------
-const sb = window.supabaseClient;
-
-// Edge functions
-const PUBLISH_FUNCTION_URL =
-  "https://bcqjfosxneuyoyuzhdiq.supabase.co/functions/v1/publish-draft";
-
-const CLONE_FUNCTION_URL =
-  "https://bcqjfosxneuyoyuzhdiq.supabase.co/functions/v1/clone-draft";
 
 // --------------------------------
 // HELPERS
 // --------------------------------
-async function getAccessToken() {
-  const { data } = await sb.auth.getSession();
-  return data?.session?.access_token;
-}
-
 function setStatus(message, isError = false) {
   const el = document.getElementById("status");
   if (!el) return;
@@ -48,25 +31,150 @@ function setStatus(message, isError = false) {
   el.style.color = isError ? "#c0392b" : "#555";
 }
 
-function setActionButtonsDisabled(state) {
-  document.querySelectorAll(".draft-actions button").forEach(btn => {
-    btn.disabled = state;
-  });
+// --------------------------------
+// HASH
+// --------------------------------
+function generateHash(q) {
+  const base = (
+    q.text +
+    (q.options || []).join("") +
+    q.correct
+  ).toLowerCase().replace(/\s+/g, "");
+
+  return btoa(base);
 }
 
 // --------------------------------
-// SCHEMA NORMALIZATION
+// TOPIC SYSTEM
 // --------------------------------
-function normalizeDraftSchema(draft) {
-  if (!draft.schema_json) draft.schema_json = {};
+async function searchTopics(query) {
+  if (!query) return [];
 
-  if (!draft.schema_json.sections) {
-    draft.schema_json.sections = [{ questions: [] }];
+  const { data } = await sb
+    .from("topics")
+    .select("name")
+    .ilike("name", `%${query}%`)
+    .limit(5);
+
+  return data || [];
+}
+
+function addTopicToQuestion(qIndex, topicName) {
+  const q = currentDraft.schema_json.sections[0].questions[qIndex];
+
+  if (!q.topics) q.topics = [];
+
+  const normalized = topicName.trim().toLowerCase();
+
+  if (q.topics.some(t => t.toLowerCase() === normalized)) return;
+
+  q.topics.push(topicName.trim());
+
+  renderDraft(currentDraft);
+}
+
+function removeTopic(qIndex, topicIndex) {
+  const q = currentDraft.schema_json.sections[0].questions[qIndex];
+  q.topics.splice(topicIndex, 1);
+  renderDraft(currentDraft);
+}
+
+// --------------------------------
+// TOPIC DB LINKING
+// --------------------------------
+async function getOrCreateTopic(name) {
+  const normalized = name.trim().toLowerCase();
+
+  const { data: existing } = await sb
+    .from("topics")
+    .select("id")
+    .eq("normalized_name", normalized)
+    .maybeSingle();
+
+  if (existing) return existing.id;
+
+  const { data } = await sb
+    .from("topics")
+    .insert({
+      name: name.trim(),
+      normalized_name: normalized
+    })
+    .select()
+    .single();
+
+  return data.id;
+}
+
+async function attachTopics(questionId, topics = []) {
+  for (const t of topics) {
+    const topicId = await getOrCreateTopic(t);
+
+    await sb.from("question_topics").upsert({
+      question_id: questionId,
+      topic_id: topicId
+    });
+  }
+}
+
+// --------------------------------
+// QUESTION BANK SAVE
+// --------------------------------
+async function saveQuestionToBank(q) {
+  const hash = generateHash(q);
+
+  const { data: existing } = await sb
+    .from("questions")
+    .select("id")
+    .eq("question_hash", hash)
+    .maybeSingle();
+
+  let questionId;
+  let isDuplicate = false;
+
+  if (existing) {
+    questionId = existing.id;
+    isDuplicate = true;
+  } else {
+    const { data, error } = await sb
+      .from("questions")
+      .insert({
+        question_text: q.text,
+        option_a: q.options[0],
+        option_b: q.options[1],
+        option_c: q.options[2],
+        option_d: q.options[3],
+        correct_option: q.correct,
+        explanation: q.explanation,
+        question_hash: hash
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    questionId = data.id;
   }
 
-  if (!draft.schema_json.sections[0].questions) {
-    draft.schema_json.sections[0].questions = [];
+  await attachTopics(questionId, q.topics);
+
+  return { questionId, isDuplicate };
+}
+
+// --------------------------------
+// SAVE ALL
+// --------------------------------
+async function saveAllQuestionsToBank() {
+  const qs = currentDraft.schema_json.sections[0].questions;
+
+  for (const q of qs) {
+    if (q.bank_status === "saved") continue;
+
+    const res = await saveQuestionToBank(q);
+    q.bank_status = res.isDuplicate ? "duplicate" : "saved";
   }
+
+  renderDraft(currentDraft);
+  setStatus("All questions saved to bank ✅");
 }
 
 // --------------------------------
@@ -75,490 +183,306 @@ function normalizeDraftSchema(draft) {
 function scheduleAutosave() {
   if (isSaving) return;
 
-  if (autosaveTimer) clearTimeout(autosaveTimer);
-
-  setStatus("Saving...");
+  clearTimeout(autosaveTimer);
 
   autosaveTimer = setTimeout(() => {
-    if (!isSaving) saveDraft(true);
-  }, 1200);
+    saveDraft(true);
+  }, 1000);
 }
+
 // --------------------------------
-// ADD EMPTY DRAFT SUPPORT
+// CREATE EMPTY DRAFT
 // --------------------------------
 function createEmptyDraft() {
-  console.log("Creating empty draft");
-
   currentDraft = {
     id: null,
     title: "",
     duration: 60,
     logo_url: null,
     schema_json: {
-      sections: [
-        {
-          questions: []
-        }
-      ]
+      sections: [{ questions: [] }]
     }
   };
 
   renderDraft(currentDraft);
-
-  // Enable button immediately
-  const btn = document.getElementById("newQuestionBtn");
-  if (btn) btn.disabled = false;
-
-  setStatus("New draft");
-}
-
-// --------------------------------
-// LOAD DRAFT
-// --------------------------------
-async function loadDraft() {
-  try {
-    setStatus("Loading...");
-
-    const { data, error } = await sb
-      .from("draft_exams")
-      .select("*")
-      .eq("id", draftId)
-      .single();
-
-    if (error) throw error;
-
-    renderDraft(data);
-    const btn = document.getElementById("newQuestionBtn");
-    if (btn) btn.disabled = false;
-    setStatus("Loaded");
-
-  } catch (e) {
-    console.error(e);
-    setStatus("Failed to load draft", true);
-    alert("Failed to load draft");
-  }
 }
 
 // --------------------------------
 // RENDER
 // --------------------------------
 function renderDraft(draft) {
-  normalizeDraftSchema(draft);
   currentDraft = draft;
 
-  const titleEl = document.getElementById("title");
-  const durationEl = document.getElementById("duration");
   const container = document.getElementById("questions");
-  const preview = document.getElementById("logoPreview");
-
-  titleEl.value = draft.title || "";
-  durationEl.value = draft.duration || "";
-
-  // bind once
-  if (!titleEl.dataset.bound) {
-    titleEl.addEventListener("input", scheduleAutosave);
-    durationEl.addEventListener("input", scheduleAutosave);
-    titleEl.dataset.bound = "true";
-  }
-
-  // logo
-  logoURL =
-    draft.logo_url ||
-    localStorage.getItem("defaultLogo") ||
-    null;
-
-  if (logoURL && preview) {
-    preview.src = logoURL;
-    preview.style.display = "block";
-  }
+  container.innerHTML = "";
 
   const questions = draft.schema_json.sections[0].questions;
 
-  container.innerHTML = "";
-
   if (!questions.length) {
-    container.innerHTML = `
-      <div class="empty-state">
-        No questions yet.<br>
-        Click <b>+ New Question</b> to start.
-      </div>
-    `;
+    container.innerHTML = `<div>No questions yet</div>`;
     return;
   }
 
   questions.forEach((q, i) => {
+
     const opts = [...(q.options || [])];
     while (opts.length < 4) opts.push("");
 
-    let correctIndex = q.correct ?? 0;
-    if (typeof correctIndex === "string") {
-      correctIndex = ["A", "B", "C", "D"].indexOf(correctIndex);
-    }
+    const status = q.bank_status || "draft";
+
+    const topicsHTML = (q.topics || []).map((t, ti) => `
+      <div class="topic-tag">
+        ${t}
+        <button data-q="${i}" data-ti="${ti}" class="remove-topic">×</button>
+      </div>
+    `).join("");
 
     const div = document.createElement("div");
     div.className = "question-card";
 
     div.innerHTML = `
-<div class="question-header">
-<b>Q${i + 1}</b>
-<div class="q-actions">
-<button class="move-up" data-i="${i}">↑</button>
-<button class="move-down" data-i="${i}">↓</button>
-<button class="duplicate-q" data-i="${i}">Duplicate</button>
-<button class="delete-q" data-i="${i}">Delete</button>
-</div>
-</div>
+      <div class="question-header">
+        <b>Q${i + 1}</b>
+        <button data-i="${i}" class="save-q">Save</button>
+      </div>
 
-<label>Question</label>
-<textarea class="qtext" data-i="${i}">${q.question || ""}</textarea>
+      <div class="status ${status}">
+        ${status.toUpperCase()}
+      </div>
 
-<label>Options</label>
+      <textarea class="qtext" data-i="${i}">${q.text || ""}</textarea>
 
-${opts.map((opt, oi) => {
-  const label = ["A", "B", "C", "D"][oi];
-  return `
-<div class="option-row">
-<input type="radio" name="correct-${i}" class="correct-radio"
-data-i="${i}" value="${oi}" ${correctIndex === oi ? "checked" : ""}>
-<span class="option-label">${label}</span>
-<input type="text" class="opt" data-i="${i}" data-oi="${oi}"
-value="${opt}" placeholder="Option ${label}">
-</div>`;
-}).join("")}
+      ${opts.map((opt, oi) => {
+        const label = ["A","B","C","D"][oi];
+        return `
+          <div>
+            <input type="radio" name="c-${i}" data-i="${i}" value="${label}"
+            ${q.correct === label ? "checked":""}>
+            <input class="opt" data-i="${i}" data-oi="${oi}" value="${opt}">
+          </div>
+        `;
+      }).join("")}
 
-<label>Explanation</label>
-<textarea class="exp" data-i="${i}">${q.explanation || ""}</textarea>
-`;
+      <textarea class="exp" data-i="${i}">${q.explanation || ""}</textarea>
+
+      <div class="topic-box">
+        <input class="topic-input" data-i="${i}" placeholder="Add topic..." />
+        <div class="topic-suggestions"></div>
+        <div class="topic-tags">${topicsHTML}</div>
+      </div>
+    `;
 
     container.appendChild(div);
   });
-
-  // bind once
-  if (!container.dataset.bound) {
-    container.addEventListener("input", e => {
-      if (["qtext", "opt", "exp"].some(c => e.target.classList.contains(c))) {
-        scheduleAutosave();
-      }
-    });
-
-    container.addEventListener("change", e => {
-      if (e.target.classList.contains("correct-radio")) {
-        scheduleAutosave();
-      }
-    });
-
-    container.dataset.bound = "true";
-  }
 }
+
+// --------------------------------
+// QB SEARCH
+// --------------------------------
+document.getElementById("qbSearch")?.addEventListener("input", async (e) => {
+  const query = e.target.value;
+
+  const { data } = await sb
+    .from("questions")
+    .select("*")
+    .ilike("question_text", `%${query}%`)
+    .limit(20);
+
+  renderQBResults(data || []);
+});
+
+function renderQBResults(list) {
+  const container = document.getElementById("questionBankResults");
+
+  if (!list.length) {
+    container.innerHTML = "No results";
+    return;
+  }
+
+  container.innerHTML = "";
+
+  list.forEach(q => {
+    const div = document.createElement("div");
+    div.className = "qb-question";
+
+    div.innerHTML = `
+      <span>${q.question_text}</span>
+      <button>Add</button>
+    `;
+
+    div.querySelector("button").onclick = () => addFromBank(q);
+
+    container.appendChild(div);
+  });
+}
+
+function addFromBank(q) {
+  const mapped = {
+    id: crypto.randomUUID(),
+    text: q.question_text,
+    options: [q.option_a, q.option_b, q.option_c, q.option_d],
+    correct: q.correct_option,
+    explanation: q.explanation || "",
+    topics: [],
+    bank_status: "saved"
+  };
+
+  currentDraft.schema_json.sections[0].questions.push(mapped);
+
+  renderDraft(currentDraft);
+
+  document.getElementById("questionBankPanel").classList.add("hidden");
+
+  setStatus("Question added to draft ✅");
+}
+
+// --------------------------------
+// EVENTS (DELEGATED)
+// --------------------------------
+document.getElementById("questions")?.addEventListener("click", async (e) => {
+
+  if (e.target.classList.contains("save-q")) {
+    const i = +e.target.dataset.i;
+    const q = currentDraft.schema_json.sections[0].questions[i];
+
+    const res = await saveQuestionToBank(q);
+    q.bank_status = res.isDuplicate ? "duplicate" : "saved";
+
+    renderDraft(currentDraft);
+    setStatus("Saved to Question Bank ✅");
+  }
+
+  if (e.target.classList.contains("remove-topic")) {
+    removeTopic(+e.target.dataset.q, +e.target.dataset.ti);
+  }
+
+  if (e.target.classList.contains("topic-select")) {
+    const qIndex = +e.target.dataset.q;
+    const name = e.target.dataset.name;
+
+    addTopicToQuestion(qIndex, name);
+
+    e.target.closest(".topic-box")
+      .querySelector(".topic-suggestions").innerHTML = "";
+  }
+});
+
+// --------------------------------
+// INPUT EVENTS
+// --------------------------------
+document.getElementById("questions")?.addEventListener("input", async (e) => {
+
+  if (e.target.classList.contains("qtext")) {
+    currentDraft.schema_json.sections[0].questions[+e.target.dataset.i].text = e.target.value;
+  }
+
+  if (e.target.classList.contains("opt")) {
+    const i = +e.target.dataset.i;
+    const oi = +e.target.dataset.oi;
+    currentDraft.schema_json.sections[0].questions[i].options[oi] = e.target.value;
+  }
+
+  if (e.target.classList.contains("exp")) {
+    currentDraft.schema_json.sections[0].questions[+e.target.dataset.i].explanation = e.target.value;
+  }
+
+  if (e.target.classList.contains("topic-input")) {
+    const qIndex = +e.target.dataset.i;
+    const box = e.target.parentElement;
+    const suggestionBox = box.querySelector(".topic-suggestions");
+
+    clearTimeout(topicTimer);
+
+    topicTimer = setTimeout(async () => {
+      const results = await searchTopics(e.target.value);
+
+      suggestionBox.innerHTML = results.map(r => `
+        <div data-q="${qIndex}" data-name="${r.name}" class="topic-select">
+          ${r.name}
+        </div>
+      `).join("");
+    }, 250);
+  }
+
+  scheduleAutosave();
+});
+
+// --------------------------------
+// ENTER → CREATE TOPIC
+// --------------------------------
+document.getElementById("questions")?.addEventListener("keydown", (e) => {
+
+  if (e.target.classList.contains("topic-input") && e.key === "Enter") {
+    e.preventDefault();
+
+    const qIndex = +e.target.dataset.i;
+    const value = e.target.value.trim();
+
+    if (!value) return;
+
+    addTopicToQuestion(qIndex, value);
+
+    e.target.value = "";
+
+    e.target.parentElement.querySelector(".topic-suggestions").innerHTML = "";
+  }
+});
 
 // --------------------------------
 // CREATE QUESTION
 // --------------------------------
 function createNewQuestion() {
+  const q = {
+    id: crypto.randomUUID(),
+    text: "",
+    options: ["","","",""],
+    correct: "A",
+    explanation: "",
+    topics: [],
+    bank_status: "draft"
+  };
+
+  currentDraft.schema_json.sections[0].questions.push(q);
+  renderDraft(currentDraft);
+}
+
+// --------------------------------
+// SAVE DRAFT
+// --------------------------------
+async function saveDraft() {
   if (!currentDraft) return;
 
-  const questions = currentDraft.schema_json.sections[0].questions;
-
-  questions.push({
-    id: crypto.randomUUID(),
-    question: "",
-    options: ["", "", "", ""],
-    correct: 0,
-    explanation: ""
+  await sb.from("draft_exams").upsert({
+    id: draftId,
+    title: currentDraft.title,
+    schema_json: currentDraft.schema_json
   });
 
-  renderDraft(currentDraft);
-  scheduleAutosave();
-}
-
-// --------------------------------
-// QUESTION ACTIONS
-// --------------------------------
-function handleQuestionActions(e) {
-  if (!currentDraft) return;
-
-  const i = +e.target.dataset.i;
-  const questions = currentDraft.schema_json.sections[0].questions;
-
-  if (e.target.classList.contains("delete-q")) {
-    questions.splice(i, 1);
-  }
-
-  if (e.target.classList.contains("duplicate-q")) {
-    const copy = JSON.parse(JSON.stringify(questions[i]));
-    copy.id = crypto.randomUUID();
-    questions.splice(i, 0, copy);
-  }
-
-  if (e.target.classList.contains("move-up") && i > 0) {
-    [questions[i - 1], questions[i]] = [questions[i], questions[i - 1]];
-  }
-
-  if (e.target.classList.contains("move-down") && i < questions.length - 1) {
-    [questions[i + 1], questions[i]] = [questions[i], questions[i + 1]];
-  }
-
-  renderDraft(currentDraft);
-  scheduleAutosave();
-}
-
-// --------------------------------
-// SAVE DRAFT (Clean v3)
-// --------------------------------
-async function saveDraft(silent = false) {
-  if (!currentDraft || isSaving) return;
-
-  isSaving = true;
-
-  try {
-    const questions = currentDraft.schema_json.sections[0].questions;
-
-    // -----------------------------
-    // SYNC DOM → STATE
-    // -----------------------------
-    document.querySelectorAll(".qtext").forEach(el => {
-      questions[+el.dataset.i].question = el.value;
-    });
-
-    document.querySelectorAll(".opt").forEach(el => {
-      questions[+el.dataset.i].options[+el.dataset.oi] = el.value;
-    });
-
-    document.querySelectorAll(".correct-radio").forEach(el => {
-      if (el.checked) {
-        questions[+el.dataset.i].correct = +el.value;
-      }
-    });
-
-    document.querySelectorAll(".exp").forEach(el => {
-      questions[+el.dataset.i].explanation = el.value;
-    });
-
-    // -----------------------------
-    // PREPARE PAYLOAD
-    // -----------------------------
-    const payload = {
-      title: document.getElementById("title").value || "Untitled Draft",
-      duration: parseInt(document.getElementById("duration").value) || null,
-      schema_json: currentDraft.schema_json,
-      logo_url: logoURL,
-    };
-
-    // -----------------------------
-    // CREATE NEW DRAFT
-    // -----------------------------
-    if (!draftId) {
-      const res = await sb
-        .from("draft_exams")
-        .insert([{ ...payload, status: "draft" }])
-        .select()
-        .single();
-
-      if (res.error) throw res.error;
-
-      draftId = res.data.id;
-
-      // Update URL without reload
-      history.replaceState(null, "", `draft.html?id=${draftId}`);
-
-      setStatus("Draft created");
-    }
-
-    // -----------------------------
-    // UPDATE EXISTING DRAFT
-    // -----------------------------
-    else {
-      const res = await sb
-        .from("draft_exams")
-        .update(payload)
-        .eq("id", draftId);
-
-      if (res.error) throw res.error;
-
-      if (!silent) setStatus("Saved");
-    }
-
-  } catch (e) {
-    console.error("Save error:", e);
-    setStatus("Save failed", true);
-  } finally {
-    isSaving = false;
-  }
-}
-
-// --------------------------------
-// CLONE DRAFT (EDGE)
-// --------------------------------
-async function cloneDraft() {
-  try {
-    setActionButtonsDisabled(true);
-
-    const token = await getAccessToken();
-
-    const res = await fetch(CLONE_FUNCTION_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`
-      },
-      body: JSON.stringify({ draftId })
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) throw data;
-
-    window.location.href = `/draft.html?id=${data.newDraftId}`;
-
-  } catch (e) {
-    console.error(e);
-    alert("Clone failed");
-  } finally {
-    setActionButtonsDisabled(false);
-  }
-}
-
-// --------------------------------
-// PUBLISH DRAFT (EDGE)
-// --------------------------------
-async function publishDraft() {
-  try {
-    await saveDraft(true);
-
-    setActionButtonsDisabled(true);
-
-    const token = await getAccessToken();
-
-    const res = await fetch(PUBLISH_FUNCTION_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`
-      },
-      body: JSON.stringify({ draftId })
-    });
-
-    const data = await res.json();
-    // 🔴 ADD THIS BLOCK
-console.log("=== PUBLISH DEBUG START ===");
-console.log("HTTP Status:", res.status);
-console.log("Raw response object:", res);
-console.log("Parsed JSON data:", data);
-console.log("data.examId:", data.examId);
-console.log("data.examLink:", data.examLink);
-console.log("=== PUBLISH DEBUG END ===");
-
-    if (!res.ok) throw data;
-
-    // ✅ IMPORTANT: Extract examId from response
-    console.log("Extracting examId from:", data);
-    const examId = data.examId || data.id;
-
-    if (!examId) {
-  console.warn("❌ No examId returned");
-  console.log("Full response:", data);
-  alert("Published, but no link generated");
-  return;
-}
-
-
-// ✅ Use backend link FIRST
-const link = data.examLink || `${window.location.origin}/exam.html?id=${examId}`;
-
-if (!link) {
-  console.warn("No link generated", data);
-  alert("Published, but no link generated");
-  return;
-}
-
-// ✅ Show clickable link
-const el = document.getElementById("examLink");
-
-if (el && link) {
-  el.innerHTML = `<a href="${link}" target="_blank">${link}</a>`;
-  
-  // ✅ MAKE IT VISIBLE
-  el.style.display = "block";
-}
-
-    setStatus("Published");
-    alert("Exam published successfully");
-
-  } catch (e) {
-    console.error(e);
-    alert("Publish failed");
-  } finally {
-    setActionButtonsDisabled(false);
-  }
-}
-
-// --------------------------------
-// LOGO UPLOAD
-// --------------------------------
-async function handleLogoUpload(e) {
-  try {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    setStatus("Uploading logo...");
-
-    const fileExt = file.name.split(".").pop();
-    const fileName = `logo-${Date.now()}.${fileExt}`;
-
-    // Upload to Supabase storage (logos bucket)
-    const { error: uploadError } = await sb.storage
-      .from("logos")
-      .upload(fileName, file);
-
-    if (uploadError) throw uploadError;
-
-    // Get public URL
-    const { data } = sb.storage
-      .from("logos")
-      .getPublicUrl(fileName);
-
-    logoURL = data.publicUrl;
-
-    // Update preview
-    const preview = document.getElementById("logoPreview");
-    if (preview) {
-      preview.src = logoURL;
-      preview.style.display = "block";
-    }
-
-    scheduleAutosave();
-    setStatus("Logo uploaded");
-
-  } catch (err) {
-    console.error(err);
-    setStatus("Logo upload failed", true);
-  }
+  setStatus("Draft saved");
 }
 
 // --------------------------------
 // INIT
 // --------------------------------
 function init() {
-  document
-    .getElementById("newQuestionBtn")
+
+  document.getElementById("newQuestionBtn")
     ?.addEventListener("click", createNewQuestion);
 
-  document
-    .getElementById("questions")
-    ?.addEventListener("click", handleQuestionActions);
+  document.getElementById("openQuestionBankBtn")
+    ?.addEventListener("click", () => {
+      document.getElementById("questionBankPanel").classList.remove("hidden");
+    });
 
-  document
-    .getElementById("logoUpload")
-    ?.addEventListener("change", handleLogoUpload);
+  document.getElementById("closeQB")
+    ?.addEventListener("click", () => {
+      document.getElementById("questionBankPanel").classList.add("hidden");
+    });
 
-  if (draftId) {
-    loadDraft();
-  } else if (mode === "new") {
-    createEmptyDraft();
-  } else {
-    console.warn("No id or mode, fallback to new");
-    createEmptyDraft();
-  }
+  document.getElementById("saveAllToBankBtn")
+    ?.addEventListener("click", saveAllQuestionsToBank);
+
+  if (mode === "new") createEmptyDraft();
 }
 
 init();
@@ -566,6 +490,5 @@ init();
 // --------------------------------
 // GLOBALS
 // --------------------------------
+window.createNewQuestion = createNewQuestion;
 window.saveDraft = saveDraft;
-window.cloneDraft = cloneDraft;
-window.publishDraft = publishDraft;

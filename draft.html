@@ -4,6 +4,7 @@
 <head>
 
 <link rel="icon" type="image/png" href="assets/prepos-icon.png">
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
@@ -13,11 +14,13 @@
 
 </head>
 
-
 <body class="draft-page">
 
-<main class="draft-wrapper">
+<main class="draft-wrapper container">
 
+<!-- ======================
+HEADER
+====================== -->
 <header class="draft-title">
 
 <h2>Draft Editor</h2>
@@ -28,36 +31,23 @@
 
 
 <!-- ======================
-Draft Metadata
+DRAFT META
 ====================== -->
-
-<section class="draft-meta">
+<section class="draft-meta mt-20">
 
 <label for="title">Title</label>
-
-<input
-id="title"
-type="text"
-placeholder="Enter title"
-/>
+<input id="title" type="text" placeholder="Enter title" />
 
 <label for="duration">Duration (minutes)</label>
-
-<input
-id="duration"
-type="number"
-placeholder="Enter duration in minutes"
-/>
+<input id="duration" type="number" placeholder="Enter duration in minutes" />
 
 </section>
 
 
-
 <!-- ======================
-Logo Upload
+LOGO
 ====================== -->
-
-<section class="logo-section">
+<section class="logo-section mt-20">
 
 <label for="logoUpload">Exam Logo (optional)</label>
 
@@ -67,27 +57,19 @@ id="logoUpload"
 accept="image/png,image/jpeg,image/jpg,image/svg+xml"
 />
 
-<img
-id="logoPreview"
-alt="Logo preview"
-style="display:none"
->
+<img id="logoPreview" alt="Logo preview" style="display:none">
 
 </section>
 
 
+<!-- ======================
+WORKSPACE
+====================== -->
+<section class="workspace mt-20">
 
 <!-- ======================
-Workspace
+DRAFT AREA
 ====================== -->
-
-<section class="workspace">
-
-
-<!-- ======================
-Draft Area
-====================== -->
-
 <div class="draft-area">
 
 <div class="draft-header">
@@ -96,26 +78,23 @@ Draft Area
 
 <div class="draft-toolbar">
 
-<button
-type="button"
-id="newQuestionBtn"
-disabled
->
+<button type="button" id="newQuestionBtn" disabled>
 + New Question
 </button>
 
-<button
-type="button"
-id="openQuestionBankBtn"
->
-+ Add from Question Bank
+<button type="button" id="openQuestionBankBtn">
++ Add from Bank
+</button>
+
+<button type="button" id="saveAllToBankBtn">
+Save All to Bank
 </button>
 
 </div>
 
 </div>
 
-
+<!-- QUESTIONS -->
 <div id="questions">
 
 <div class="loading">
@@ -127,23 +106,14 @@ Loading draft...
 </div>
 
 
-
 <!-- ======================
-Question Bank Panel
+QUESTION BANK PANEL
 ====================== -->
-
-<aside
-class="question-bank-panel"
-id="questionBankPanel"
->
+<aside class="question-bank-panel hidden" id="questionBankPanel">
 
 <div class="qb-header">
 
-<button
-type="button"
-id="closeQB"
-aria-label="Close question bank"
->
+<button type="button" id="closeQB">
 ← Back
 </button>
 
@@ -151,15 +121,16 @@ aria-label="Close question bank"
 
 </div>
 
-
+<!-- SEARCH -->
 <input
 type="text"
 id="qbSearch"
 placeholder="Search questions..."
->
+class="mt-20"
+/>
 
-
-<div id="questionBankResults">
+<!-- RESULTS -->
+<div id="questionBankResults" class="mt-20">
 
 <div class="qb-loading">
 Search questions to begin
@@ -169,44 +140,27 @@ Search questions to begin
 
 </aside>
 
-
 </section>
-
 
 
 <!-- ======================
-Draft Actions
+DRAFT ACTIONS
 ====================== -->
-
-<section class="draft-actions">
-  <!-- ======================
-Publish Result
-====================== -->
+<section class="draft-actions mt-20">
 
 <section class="publish-result mt-20">
-
   <div id="examLink" class="question-card" style="display:none"></div>
-
 </section>
 
-<button
-type="button"
-onclick="saveDraft()"
->
+<button type="button" onclick="saveDraft()">
 Save Draft
 </button>
 
-<button
-type="button"
-onclick="cloneDraft()"
->
+<button type="button" onclick="cloneDraft()">
 Clone
 </button>
 
-<button
-type="button"
-onclick="publishDraft()"
->
+<button type="button" onclick="publishDraft()">
 Publish Exam
 </button>
 
@@ -215,22 +169,18 @@ Publish Exam
 </main>
 
 
-
 <!-- ======================
-Scripts
+SCRIPTS
 ====================== -->
-
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script src="js/config.js"></script>
 <script src="js/draft.js"></script>
 
 
-
 <!-- ======================
-Debug Console (Dev Only)
+DEV DEBUG (REMOVE IN PROD)
 ====================== -->
-
 <script>
 (function(){
   var script=document.createElement('script');
