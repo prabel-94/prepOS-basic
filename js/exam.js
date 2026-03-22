@@ -425,7 +425,6 @@ function renderQuiz(questions){
   btn.onclick = submitExam;
 
   container.appendChild(btn);
-}
 
 /* ======================================================
    SUBMIT
