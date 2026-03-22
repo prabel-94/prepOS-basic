@@ -1,13 +1,40 @@
 /* ======================================================
+DESIGN SYSTEM (NEW)
+====================================================== */
+
+:root{
+  --primary:#2563eb;
+  --primary-dark:#1d4ed8;
+
+  --bg:#f4f6f8;
+  --card:#ffffff;
+
+  --text:#222;
+  --muted:#666;
+
+  --border:#e0e0e0;
+
+  --success:#16a34a;
+  --success-bg:#f0fdf4;
+
+  --danger:#dc2626;
+  --danger-bg:#fef2f2;
+
+  --radius:10px;
+  --shadow:0 2px 6px rgba(0,0,0,0.05);
+}
+
+
+/* ======================================================
 BASE
 ====================================================== */
 
 body{
   font-family: system-ui, -apple-system, sans-serif;
-  background:#f4f6f8;
+  background:var(--bg);
   margin:0;
   padding:30px 20px;
-  color:#222;
+  color:var(--text);
 }
 
 h1,h2,h3{
@@ -15,13 +42,13 @@ h1,h2,h3{
 }
 
 .small{
-  color:#666;
+  color:var(--muted);
   font-size:14px;
 }
 
 
 /* ======================================================
-GLOBAL LAYOUT
+LAYOUT
 ====================================================== */
 
 .container,
@@ -57,12 +84,12 @@ button:disabled{
 }
 
 .primary-btn{
-  background:#2563eb;
+  background:var(--primary);
   color:#fff;
 }
 
 .primary-btn:hover{
-  background:#1d4ed8;
+  background:var(--primary-dark);
 }
 
 .secondary-btn{
@@ -106,15 +133,15 @@ EXAM HEADER
 
 
 /* ======================================================
-QUESTION CARD (NEW UPGRADE)
+QUESTION CARD
 ====================================================== */
 
 .question{
-  background:#fff;
-  border-radius:10px;
+  background:var(--card);
+  border-radius:var(--radius);
   padding:18px;
   margin-bottom:16px;
-  box-shadow:0 2px 6px rgba(0,0,0,0.05);
+  box-shadow:var(--shadow);
 }
 
 .question-text{
@@ -126,7 +153,7 @@ QUESTION CARD (NEW UPGRADE)
 
 
 /* ======================================================
-OPTIONS (FIXED — VERTICAL)
+OPTIONS (EXAM)
 ====================================================== */
 
 .question-options{
@@ -142,7 +169,7 @@ OPTIONS (FIXED — VERTICAL)
 
   padding:10px;
   border-radius:8px;
-  border:1px solid #e0e0e0;
+  border:1px solid var(--border);
   background:#fff;
 
   cursor:pointer;
@@ -150,7 +177,7 @@ OPTIONS (FIXED — VERTICAL)
 }
 
 .option-row:hover{
-  border-color:#2563eb;
+  border-color:var(--primary);
   background:#f8fbff;
 }
 
@@ -163,17 +190,16 @@ OPTIONS (FIXED — VERTICAL)
   flex:1;
 }
 
-
-/* SELECTED STATE */
+/* SELECTED */
 
 .option-row input[type="radio"]:checked + .option-text{
   font-weight:600;
-  color:#2563eb;
+  color:var(--primary);
 }
 
 
 /* ======================================================
-SUBMIT BUTTON (EXAM)
+SUBMIT BUTTON
 ====================================================== */
 
 #examContent button{
@@ -181,17 +207,132 @@ SUBMIT BUTTON (EXAM)
   width:100%;
   font-size:16px;
   font-weight:600;
-  background:#2563eb;
+  background:var(--primary);
   color:#fff;
 }
 
 #examContent button:hover{
-  background:#1d4ed8;
+  background:var(--primary-dark);
 }
 
 
 /* ======================================================
-DRAFT CARD (UNCHANGED)
+REVIEW UI (UPGRADED)
+====================================================== */
+
+.review-card{
+  background:var(--card);
+  border-radius:var(--radius);
+  padding:18px;
+  margin-bottom:16px;
+  box-shadow:var(--shadow);
+}
+
+.review-question{
+  font-size:16px;
+  font-weight:600;
+  margin-bottom:12px;
+  line-height:1.5;
+}
+
+/* OPTIONS */
+
+.review-options{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+.option{
+  padding:10px;
+  border-radius:8px;
+  border:1px solid var(--border);
+  background:#fff;
+}
+
+/* CORRECT */
+
+.option.correct{
+  border-color:var(--success);
+  background:var(--success-bg);
+  color:#166534;
+  font-weight:600;
+}
+
+/* WRONG */
+
+.option.wrong{
+  border-color:var(--danger);
+  background:var(--danger-bg);
+  color:#991b1b;
+  font-weight:600;
+}
+
+/* META BADGES */
+
+.review-meta{
+  margin-top:10px;
+}
+
+.badge{
+  display:inline-block;
+  padding:4px 10px;
+  border-radius:6px;
+  font-size:12px;
+  font-weight:600;
+}
+
+.badge.correct{
+  background:#dcfce7;
+  color:#166534;
+}
+
+.badge.wrong{
+  background:#fee2e2;
+  color:#991b1b;
+}
+
+
+/* ======================================================
+EXPLANATION
+====================================================== */
+
+.explain-btn{
+  margin-top:10px;
+  font-size:13px;
+  padding:6px 10px;
+  background:#eee;
+}
+
+.explanation{
+  margin-top:10px;
+  padding:10px;
+  background:#f8fafc;
+  border-left:4px solid var(--primary);
+  border-radius:6px;
+  font-size:14px;
+}
+
+
+/* ======================================================
+RESULT CARD
+====================================================== */
+
+#result{
+  background:var(--card);
+  border-radius:var(--radius);
+  padding:16px;
+  margin-bottom:20px;
+  box-shadow:var(--shadow);
+}
+
+#result h3{
+  margin:0 0 10px 0;
+}
+
+
+/* ======================================================
+DRAFT SYSTEM (UNCHANGED)
 ====================================================== */
 
 .question-card{
@@ -249,7 +390,7 @@ QUESTION BANK PANEL
 
 
 /* ======================================================
-TOPIC SYSTEM
+TOPIC TAGS
 ====================================================== */
 
 .topic-box{
@@ -265,7 +406,7 @@ TOPIC SYSTEM
 
 .topic-tag{
   background:#eef3ff;
-  color:#1d4ed8;
+  color:var(--primary);
   padding:4px 8px;
   border-radius:6px;
   font-size:12px;
@@ -309,7 +450,7 @@ STATUS
 
 
 /* ======================================================
-UTILITY
+UTILITIES
 ====================================================== */
 
 .mt-10{ margin-top:10px; }
@@ -328,6 +469,10 @@ MOBILE
 ====================================================== */
 
 @media (max-width:768px){
+
+  body{
+    padding:20px 12px;
+  }
 
   .workspace{
     flex-direction:column;
