@@ -707,6 +707,73 @@ async function publishDraft() {
 // --------------------------------
 function init() {
 
+  document.getElementById("createNewBtn")
+  ?.addEventListener("click", async () => {
+
+  const q = currentDraft.schema_json.sections[0].questions[selectedQuestionIndex];
+
+  try {
+    // force insert (ignore duplicate)
+    const { data, error } = await sb
+      .from("questions")
+      .insert({
+        question_text: q.text,
+        option_a: q.options[0],
+        option_b: q.options[1],
+        option_c: q.options[2],
+        option_d: q.options[3],
+        correct_option: q.correct,
+        explanation: q.explanation,
+        question_hash: generateHash(q) + Date.now() // force uniqueness
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    await attachTopics(data.id, q.topics);
+
+    q.bank_status = "saved";
+
+    renderDraft(currentDraft);
+
+    document.getElementById("addToBankPanel").classList.add("hidden");
+    document.getElementById("duplicateBox").classList.add("hidden");
+
+    setStatus("New question created ✅");
+
+  } catch (err) {
+    console.error(err);
+    alert("Failed to create new question");
+  }
+
+});
+
+  document.getElementById("useExistingBtn")
+  ?.addEventListener("click", async () => {
+
+  const q = currentDraft.schema_json.sections[0].questions[selectedQuestionIndex];
+
+  try {
+    // attach topics only (no new question)
+    await attachTopics(window.duplicateQuestionId, q.topics);
+
+    q.bank_status = "duplicate";
+
+    renderDraft(currentDraft);
+
+    document.getElementById("addToBankPanel").classList.add("hidden");
+    document.getElementById("duplicateBox").classList.add("hidden");
+
+    setStatus("Linked to existing question ✅");
+
+  } catch (err) {
+    console.error(err);
+    alert("Failed to link question");
+  }
+
+});
+
   const topicInput = document.getElementById("bankTopicInput");
 const topicTagsContainer = document.getElementById("bankTopicTags");
 
@@ -783,11 +850,29 @@ document.getElementById("confirmAddToBank")
     const res = await saveQuestionToBank(q);
 
     if (res.isDuplicate) {
-      alert("Duplicate detected. Linked to existing question.");
-      q.bank_status = "duplicate";
-    } else {
-      q.bank_status = "saved";
-    }
+
+  // show duplicate UI
+  document.getElementById("duplicateBox").classList.remove("hidden");
+
+  // store duplicate question id globally
+  window.duplicateQuestionId = res.questionId;
+
+  // OPTIONAL: show better status message
+  setStatus("Duplicate detected. Choose an action.");
+
+  return; // ⛔ STOP normal flow here
+}
+
+// --------------------------------
+// NON-DUPLICATE FLOW (unchanged)
+// --------------------------------
+q.bank_status = "saved";
+
+renderDraft(currentDraft);
+
+document.getElementById("addToBankPanel").classList.add("hidden");
+
+setStatus("Question saved to bank ✅");
 
     renderDraft(currentDraft);
 
