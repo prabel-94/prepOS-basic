@@ -5,6 +5,7 @@
 // --------------------------------
 // GLOBAL STATE
 // --------------------------------
+let selectedQuestionIndex = null;
 let autosaveTimer = null;
 let topicTimer = null;
 let isSaving = false;
@@ -456,40 +457,38 @@ document.getElementById("questions")?.addEventListener("input", (e) => {
 // --------------------------------
 // CLICK EVENTS (delegated)
 // --------------------------------
+
 document.getElementById("questions")?.addEventListener("click", (e) => {
 
-  // ADD TO BANK (PER QUESTION)
-if (e.target.classList.contains("add-to-bank-btn")) {
-  console.log("CLICK DETECTED");
-  const btn = e.target;
-  const qIndex = +btn.dataset.q;
+  // --------------------------------
+  // ADD TO BANK → OPEN PANEL
+  // --------------------------------
+  if (e.target.classList.contains("add-to-bank-btn")) {
 
-  const q = currentDraft.schema_json.sections[0].questions[qIndex];
+    selectedQuestionIndex = +e.target.dataset.q;
 
-  if (!q || q.bank_status !== "draft") return;
+    const q = currentDraft.schema_json.sections[0].questions[selectedQuestionIndex];
 
-  (async () => {
-    try {
-      btn.disabled = true;
-      btn.innerText = "Saving...";
+    // OPEN PANEL
+    document.getElementById("addToBankPanel")?.classList.remove("hidden");
 
-      const res = await saveQuestionToBank(q);
-
-      q.bank_status = res.isDuplicate ? "duplicate" : "saved";
-
-      renderDraft(currentDraft);
-      setStatus("Question saved to bank ✅");
-
-    } catch (err) {
-      console.error(err);
-      btn.disabled = false;
-      btn.innerText = "+ Add to Bank";
-      setStatus("Failed to save question", true);
+    // SHOW QUESTION PREVIEW
+    const preview = document.getElementById("bankQuestionPreview");
+    if (preview) {
+      preview.innerHTML = `
+        <div><b>Question:</b></div>
+        <div>${q.text || "(empty question)"}</div>
+      `;
     }
-  })();
-}
 
+    // RESET topic UI
+    document.getElementById("bankTopicInput").value = "";
+    document.getElementById("bankTopicTags").innerHTML = "";
+  }
+
+  // --------------------------------
   // REMOVE TOPIC
+  // --------------------------------
   if (e.target.classList.contains("remove-topic")) {
     const qIndex = +e.target.dataset.q;
     const tIndex = +e.target.dataset.ti;
