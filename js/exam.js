@@ -95,6 +95,27 @@ function stripLeadingNumber(text){
     .replace(/^(Q?\d+[\).\s]+)/i, "")
     .trim();
 }
+
+/* ---------- question normalizer ---------- */
+function normalizeQuestion(q){
+
+  let correct = q.correct;
+
+  // Convert numeric index → letter
+  if(typeof correct === "number"){
+    correct = String.fromCharCode(65 + correct);
+  }
+
+  // Normalize to uppercase string
+  correct = String(correct || "").toUpperCase();
+
+  return {
+    text: q.text || q.question || q.question_text || "",
+    options: q.options || [],
+    correct,
+    explanation: q.explanation || q.explanation_text || ""
+  };
+}
 /* ---------- scroll to result ---------- */
 function scrollToResult(){
   const resultEl = document.getElementById("result")
@@ -158,30 +179,30 @@ if(!attemptState || attemptState.attemptId !== attemptId){
   localStorage.setItem(ATTEMPT_KEY, JSON.stringify(attemptState));
 }
 /* ======================================================
-   FETCH EXAM
+   FETCH EXAM (Clean + Scalable)
 ====================================================== */
 
 async function loadExam(){
 
   console.log("Exam loading started");
-
   showLoading();
 
   try{
 
+    /* ---------- FETCH FROM SUPABASE ---------- */
+
     const res = await fetch(
-      SUPABASE_URL + "/rest/v1/exam_sessions?id=eq." + examId,
+      `${SUPABASE_URL}/rest/v1/exam_sessions?id=eq.${examId}`,
       {
         headers:{
           apikey: SUPABASE_ANON_KEY,
-          Authorization: "Bearer " + SUPABASE_ANON_KEY
+          Authorization: `Bearer ${SUPABASE_ANON_KEY}`
         }
       }
     );
 
-    /* HTTP failure */
     if(!res.ok){
-      throw new Error("Server error (" + res.status + ")");
+      throw new Error(`Server error (${res.status})`);
     }
 
     const data = await res.json();
@@ -192,78 +213,60 @@ async function loadExam(){
     }
 
     const exam = data[0];
-window.examTitle = exam.title || "Exam";
-window.examLogo = exam.logo_url || "";
+
+    /* ---------- BASIC EXAM INFO ---------- */
+
+    window.examTitle = exam.title || "Exam";
+    window.examLogo = exam.logo_url || "";
 
     const logoEl = document.getElementById("examLogo");
+    if(window.examLogo && logoEl){
+      logoEl.src = window.examLogo;
+      logoEl.style.display = "block";
+    }
 
-if(window.examLogo && logoEl){
-  logoEl.src = window.examLogo;
-  logoEl.style.display = "block";
-}
+    const titleEl = document.getElementById("examTitle");
+    if(titleEl){
+      titleEl.textContent = window.examTitle;
+    }
 
-const titleEl = document.getElementById("examTitle");
-if(titleEl){
-  titleEl.textContent = window.examTitle;
-}
+    /* ---------- EXTRACT QUESTIONS ---------- */
 
     let questions = [];
 
-    /* ---------- NEW SCHEMA (sections) ---------- */
-
-    if(exam.schema_json && exam.schema_json.sections){
-
-      questions = exam.schema_json.sections.flatMap(function(section){
-        return section.questions;
-      });
-
+    if(exam.schema_json?.sections){
+      // New schema
+      questions = exam.schema_json.sections.flatMap(section => section.questions || []);
     }
-
-    /* ---------- OLD SCHEMA (direct questions) ---------- */
-
-    else if(exam.schema_json && exam.schema_json.questions){
-
+    else if(exam.schema_json?.questions){
+      // Old schema
       questions = exam.schema_json.questions;
-
     }
 
-    if(!questions || !questions.length){
+    if(!questions.length){
       throw new Error("No questions found in exam");
     }
 
-    /* RAW QUESTIONS */
+    /* ---------- NORMALIZE (CORE STEP) ---------- */
 
-    window.examQuestionsRaw = questions.map(q => ({
-  question: q.question || q.question_text || "",
-  options: q.options || [],
-  correct: q.correct,
-  explanation: q.explanation || q.explanation_text || ""
-}));
+    window.examQuestionsRaw = questions.map(normalizeQuestion);
 
-    /* STUDENT ATTEMPT STRUCTURE */
+    /* ---------- UI STRUCTURE ---------- */
 
-    window.examQuestionsAttempt = questions.map(function(q){
-
-      return {
-        question: q.question,
-        options: q.options
-      };
-
-    });
-
+    /* ---------- STORE ORIGINAL ---------- */
     window.examQuestions = questions;
 
-    /* RENDER QUIZ */
+    console.log("Normalized Questions:", window.examQuestionsRaw);
 
-    renderQuiz(window.examQuestionsAttempt);
+    /* ---------- RENDER ---------- */
 
+    renderQuiz(window.examQuestionsRaw);
     showExam();
 
   }
   catch(err){
 
     console.error("Exam loading failed:", err);
-
     showError(err.message || "Failed to load exam");
 
   }
@@ -273,7 +276,8 @@ if(titleEl){
    RENDER QUIZ
 ====================================================== */
 
-function renderQuiz(questions){
+function renderQuiz(questions)  // now always normalized data
+{
 
   const container = document.getElementById("examContent");
   container.innerHTML = "";
@@ -307,7 +311,7 @@ function renderQuiz(questions){
 
     div.innerHTML = `
       <p class="question-text">
-        ${escapeHTML(q.question)}
+        ${escapeHTML(q.text)}
       </p>
 
       <div class="question-options">
@@ -323,7 +327,7 @@ function renderQuiz(questions){
      AUTOSAVE
   ============================== */
 
-  document.querySelectorAll('input[type="radio"]').forEach(r=>{
+  container.querySelectorAll('input[type="radio"]').forEach(r=>{
     r.addEventListener("change", e=>{
 
       const name = e.target.name;
@@ -403,14 +407,9 @@ const selected =
 
     const chosen = selected ? selected.value : "-";
 
-    const correctLetter =
-  typeof q.correct === "number"
-    ? String.fromCharCode(65 + q.correct)
-    : q.correct;
-
     answers.push({q:i,chosen});
 
-    if(chosen===correctLetter) score++;
+    if(chosen === q.correct) score++;
   });
 
   try{
@@ -450,22 +449,18 @@ const selected =
     studentInput.disabled = true; // ⭐ polish
 
     /* ---------- build review ---------- */
-    window.reviewData =
+   window.reviewData =
   window.examQuestionsRaw.map((q,i)=>{
 
     const student = answers[i]?.chosen || "-";
-    const correct =
-  typeof q.correct === "number"
-    ? String.fromCharCode(65 + q.correct)
-    : String(q.correct).toUpperCase();
 
     return{
-      question:q.question,
-      options:q.options,
-      correct,
+      question: q.text,
+      options: q.options,
+      correct: q.correct,   // ✅ already normalized
       student,
-      explanation:q.explanation || q.explanation_text || "",
-      isCorrect:student===correct
+      explanation: q.explanation,
+      isCorrect: student === q.correct
     };
   });
 
@@ -771,7 +766,7 @@ async function addPDFHeader(){
 
       <h2>${examTitle}</h2>
 
-      <p><b>Student:</b> ${studentName}</p>
+      <p><b>Student:</b> ${escapeHTML(studentName)}</p>
       <p><b>Date:</b> ${date}</p>
       <p><b>${scoreText}</b></p>
 
