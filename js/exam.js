@@ -233,7 +233,12 @@ if(titleEl){
 
     /* RAW QUESTIONS */
 
-    window.examQuestionsRaw = questions;
+    window.examQuestionsRaw = questions.map(q => ({
+  question: q.question || q.question_text || "",
+  options: q.options || [],
+  correct: q.correct,
+  explanation: q.explanation || q.explanation_text || ""
+}));
 
     /* STUDENT ATTEMPT STRUCTURE */
 
