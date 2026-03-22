@@ -48,6 +48,9 @@ button{
   background:#eee;
   cursor:pointer;
   transition:background 0.2s ease;
+
+  color:#222; /* 🔥 CRITICAL FIX */
+  font-size:14px;
 }
 
 button:hover{
@@ -57,6 +60,7 @@ button:hover{
 button:disabled{
   opacity:0.5;
   cursor:not-allowed;
+  color:#666; /* ensure readable */
 }
 
 .primary-btn{
