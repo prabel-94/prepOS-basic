@@ -393,13 +393,15 @@ localStorage.setItem("studentName", studentName);
 
   window.examQuestionsRaw.forEach((q,i)=>{
 
-    const selected =
-      document.querySelector(`input[name=q${i}]:checked`);
+const selected =
+  document.querySelector(`input[name="q_${i}"]:checked`);
 
     const chosen = selected ? selected.value : "-";
 
     const correctLetter =
-      String.fromCharCode(65 + q.correct);
+  typeof q.correct === "number"
+    ? String.fromCharCode(65 + q.correct)
+    : q.correct;
 
     answers.push({q:i,chosen});
 
@@ -447,7 +449,10 @@ localStorage.setItem("studentName", studentName);
   window.examQuestionsRaw.map((q,i)=>{
 
     const student = answers[i]?.chosen || "-";
-    const correct = String.fromCharCode(65 + q.correct);
+    const correct =
+  typeof q.correct === "number"
+    ? String.fromCharCode(65 + q.correct)
+    : String(q.correct).toUpperCase();
 
     return{
       question:q.question,

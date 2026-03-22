@@ -393,7 +393,7 @@ async function saveDraft(silent = false) {
 }
 
 // --------------------------------
-// ✅ PUBLISH DRAFT (NEW)
+// ✅ PUBLISH DRAFT (FINAL VERSION)
 // --------------------------------
 async function publishDraft() {
   if (!draftId) {
@@ -403,7 +403,6 @@ async function publishDraft() {
 
   try {
     await saveDraft(true);
-
     setStatus("Publishing...");
 
     const payload = {
@@ -413,30 +412,33 @@ async function publishDraft() {
       logo_url: logoURL || null
     };
 
-    const { data: exam, error: examError } = await sb
-      .from("exams")
+    // ✅ Insert into exam_sessions (NOT exams)
+    const { data: session, error } = await sb
+      .from("exam_sessions")
       .insert([payload])
       .select()
       .single();
 
-    if (examError) throw examError;
+    if (error) throw error;
 
+    // ✅ Update draft
     await sb
       .from("draft_exams")
       .update({
-        published_exam_id: exam.id,
-        status: "published"
+        status: "published",
+        published_exam_id: session.id
       })
       .eq("id", draftId);
 
     setStatus("Published ✅");
 
+    // ✅ Use session id
     const linkBox = document.getElementById("examLink");
     if (linkBox) {
       linkBox.classList.remove("hidden");
       linkBox.innerHTML = `
         <b>Exam Published</b><br>
-        <a href="exam.html?id=${exam.id}" target="_blank">
+        <a href="exam.html?id=${session.id}" target="_blank">
           Open Exam
         </a>
       `;
@@ -452,7 +454,6 @@ async function publishDraft() {
 // INIT
 // --------------------------------
 function init() {
-  
    // 🔥 FORCE RESET UI STATE
   const newBtn = document.getElementById("newQuestionBtn");
   if (newBtn) newBtn.disabled = false;
