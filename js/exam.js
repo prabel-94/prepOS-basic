@@ -272,55 +272,110 @@ async function loadExam(){
   }
 
 }
-/* ======================================================
-   RENDER QUIZ
-====================================================== */
 
-function renderQuiz(questions)  // now always normalized data
-{
+/* ---------- COMPONENT: OPTION ROW ---------- */
+function createOptionRow(qIndex, optionText, optionIndex){
 
-  const container = document.getElementById("examContent");
-  container.innerHTML = "";
+  const letter = String.fromCharCode(65 + optionIndex);
 
-  questions.forEach((q,i)=>{
+  return `
+    <label class="option-row">
 
-    const div = document.createElement("div");
-    div.className = "question";
+      <input
+        type="radio"
+        name="q_${qIndex}"
+        value="${letter}"
+      >
 
-    const optionsHTML = q.options.map((o,idx)=>{
+      <span class="option-text">
+        ${letter}. ${escapeHTML(optionText)}
+      </span>
 
-      const letter = String.fromCharCode(65+idx);
+    </label>
+  `;
+}
 
-      return `
-        <label class="option-row">
 
-          <input
-            type="radio"
-            name="q_${i}"
-            value="${letter}"
-          >
+/* ---------- COMPONENT: QUESTION CARD ---------- */
+function createQuestionCard(q, index){
 
-          <span class="option-text">
-            ${letter}. ${escapeHTML(o)}
-          </span>
+  const optionsHTML = q.options
+    .map((opt, i) => createOptionRow(index, opt, i))
+    .join("");
 
-        </label>
-      `;
+  return `
+    <div class="question">
 
-    }).join("");
-
-    div.innerHTML = `
       <p class="question-text">
-        ${escapeHTML(q.text)}
+        Q${index + 1}. ${escapeHTML(stripLeadingNumber(q.text))}
       </p>
 
       <div class="question-options">
         ${optionsHTML}
       </div>
-    `;
 
-    container.appendChild(div);
+    </div>
+  `;
+}
+
+
+/* ======================================================
+   RENDER QUIZ
+====================================================== */
+
+function renderQuiz(questions){
+
+  const container = document.getElementById("examContent");
+  container.innerHTML = "";
+
+  /* ---------- RENDER QUESTIONS ---------- */
+
+  const html = questions
+    .map((q, i) => createQuestionCard(q, i))
+    .join("");
+
+  container.innerHTML = html;
+
+  /* ---------- AUTOSAVE ---------- */
+
+  container.querySelectorAll('input[type="radio"]').forEach(r=>{
+    r.addEventListener("change", e=>{
+
+      const name = e.target.name;
+      attemptState.answers[name] = e.target.value;
+
+      localStorage.setItem(
+        ATTEMPT_KEY,
+        JSON.stringify(attemptState)
+      );
+
+    });
   });
+
+  /* ---------- RESTORE ANSWERS ---------- */
+
+  if(attemptState.answers){
+
+    Object.entries(attemptState.answers).forEach(([name,val])=>{
+
+      const el = container.querySelector(
+        `input[name="${name}"][value="${val}"]`
+      );
+
+      if(el) el.checked = true;
+
+    });
+
+  }
+
+  /* ---------- SUBMIT BUTTON ---------- */
+
+  const btn = document.createElement("button");
+  btn.innerText = "Submit";
+  btn.onclick = submitExam;
+
+  container.appendChild(btn);
+}
 
 
   /* ==============================
