@@ -372,10 +372,24 @@ function renderDraft(draft) {
 
       </div>
 
-      <!-- STATUS -->
-      <div class="status ${status}">
-        ${status.toUpperCase()}
-      </div>
+      <!-- STATUS + ACTION -->
+<div class="flex gap-10 mt-10">
+
+  <div class="status ${status}">
+    ${status.toUpperCase()}
+  </div>
+
+  <button 
+    class="secondary-btn add-to-bank-btn"
+    data-q="${i}"
+    ${status !== "draft" ? "disabled" : ""}
+  >
+    ${status === "saved" ? "✓ Saved" : 
+      status === "duplicate" ? "Duplicate" : 
+      "+ Add to Bank"}
+  </button>
+
+</div>
 
       <!-- QUESTION -->
       <textarea 
@@ -443,6 +457,36 @@ document.getElementById("questions")?.addEventListener("input", (e) => {
 // CLICK EVENTS (delegated)
 // --------------------------------
 document.getElementById("questions")?.addEventListener("click", (e) => {
+
+  // ADD TO BANK (PER QUESTION)
+if (e.target.classList.contains("add-to-bank-btn")) {
+  const btn = e.target;
+  const qIndex = +btn.dataset.q;
+
+  const q = currentDraft.schema_json.sections[0].questions[qIndex];
+
+  if (!q || q.bank_status !== "draft") return;
+
+  (async () => {
+    try {
+      btn.disabled = true;
+      btn.innerText = "Saving...";
+
+      const res = await saveQuestionToBank(q);
+
+      q.bank_status = res.isDuplicate ? "duplicate" : "saved";
+
+      renderDraft(currentDraft);
+      setStatus("Question saved to bank ✅");
+
+    } catch (err) {
+      console.error(err);
+      btn.disabled = false;
+      btn.innerText = "+ Add to Bank";
+      setStatus("Failed to save question", true);
+    }
+  })();
+}
 
   // REMOVE TOPIC
   if (e.target.classList.contains("remove-topic")) {

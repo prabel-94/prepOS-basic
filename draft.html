@@ -16,16 +16,15 @@
 
 <body class="draft-page">
 
-<main class="draft-wrapper container">
+<main class="container draft-wrapper">
 
 <!-- ======================
 HEADER
 ====================== -->
 <header class="draft-title">
 
-<h2>Draft Editor</h2>
-
-<div id="status" class="save-status"></div>
+  <h2>Draft Editor</h2>
+  <div id="status" class="save-status"></div>
 
 </header>
 
@@ -35,11 +34,15 @@ DRAFT META
 ====================== -->
 <section class="draft-meta mt-20">
 
-<label for="title">Title</label>
-<input id="title" name="title" type="text" placeholder="Enter title" />
+  <div class="form-group">
+    <label for="title">Title</label>
+    <input id="title" name="title" type="text" placeholder="Enter title" />
+  </div>
 
-<label for="duration">Duration (minutes)</label>
-<input id="duration" name="duration" type="number" placeholder="Enter duration in minutes" />
+  <div class="form-group">
+    <label for="duration">Duration (minutes)</label>
+    <input id="duration" name="duration" type="number" placeholder="Enter duration in minutes" />
+  </div>
 
 </section>
 
@@ -49,16 +52,16 @@ LOGO
 ====================== -->
 <section class="logo-section mt-20">
 
-<label for="logoUpload">Exam Logo (optional)</label>
+  <label for="logoUpload">Exam Logo (optional)</label>
 
-<input
-type="file"
-id="logoUpload"
-name="logo"
-accept="image/png,image/jpeg,image/jpg,image/svg+xml"
-/>
+  <input
+    type="file"
+    id="logoUpload"
+    name="logo"
+    accept="image/png,image/jpeg,image/jpg,image/svg+xml"
+  />
 
-<img id="logoPreview" alt="Logo preview" class="hidden">
+  <img id="logoPreview" alt="Logo preview" class="hidden">
 
 </section>
 
@@ -68,79 +71,75 @@ WORKSPACE
 ====================== -->
 <section class="workspace mt-20">
 
-<!-- ======================
-DRAFT AREA
-====================== -->
-<div class="draft-area">
+  <!-- ======================
+  DRAFT AREA
+  ====================== -->
+  <div class="draft-area">
 
-<div class="draft-header">
+    <!-- HEADER -->
+    <div class="draft-header">
 
-<h3>Questions</h3>
+      <h3>Questions</h3>
 
-<div class="draft-toolbar">
+      <div class="draft-toolbar">
 
-  <button type="button" id="newQuestionBtn" class="primary-btn">
-    + New Question
-  </button>
+        <button type="button" id="newQuestionBtn" class="primary-btn">
+          + New Question
+        </button>
 
-  <button type="button" id="openQuestionBankBtn" class="secondary-btn">
-    + Add from Bank
-  </button>
+        <button type="button" id="openQuestionBankBtn" class="secondary-btn">
+          + Add from Bank
+        </button>
 
-  <button type="button" id="saveAllToBankBtn" class="secondary-btn">
-    Save All to Bank
-  </button>
+        <button type="button" id="saveAllToBankBtn" class="secondary-btn">
+          Save All to Bank
+        </button>
 
-</div>
+      </div>
 
-</div>
+    </div>
 
-<!-- QUESTIONS -->
-<div id="questions">
+    <!-- QUESTIONS CONTAINER -->
+    <div id="questions" class="question-list">
 
-<div class="loading">
-Loading draft...
-</div>
+      <div class="loading">
+        Loading draft...
+      </div>
 
-</div>
+    </div>
 
-</div>
+  </div>
 
 
-<!-- ======================
-QUESTION BANK PANEL
-====================== -->
-<aside class="question-bank-panel hidden" id="questionBankPanel">
+  <!-- ======================
+  QUESTION BANK PANEL
+  ====================== -->
+  <aside class="question-bank-panel hidden" id="questionBankPanel">
 
-<div class="qb-header">
+    <div class="qb-header">
+      <button type="button" id="closeQB">← Back</button>
+      <h3>Question Bank</h3>
+    </div>
 
-<button type="button" id="closeQB">
-← Back
-</button>
+    <!-- SEARCH -->
+    <input
+      type="text"
+      id="qbSearch"
+      name="qb_search"
+      placeholder="Search questions..."
+      class="mt-20"
+    />
 
-<h3>Question Bank</h3>
+    <!-- RESULTS -->
+    <div id="questionBankResults" class="mt-20">
 
-</div>
+      <div class="qb-loading">
+        Search questions to begin
+      </div>
 
-<!-- SEARCH -->
-<input
-type="text"
-id="qbSearch"
-name="qb_search"
-placeholder="Search questions..."
-class="mt-20"
-/>
+    </div>
 
-<!-- RESULTS -->
-<div id="questionBankResults" class="mt-20">
-
-<div class="qb-loading">
-Search questions to begin
-</div>
-
-</div>
-
-</aside>
+  </aside>
 
 </section>
 
@@ -150,19 +149,21 @@ DRAFT ACTIONS
 ====================== -->
 <section class="draft-actions mt-20">
 
-<section class="publish-result mt-20">
-  <div id="examLink" class="question-card hidden"></div>
-</section>
+  <div class="publish-result mt-20">
+    <div id="examLink" class="question-card hidden"></div>
+  </div>
 
-<button type="button" id="saveDraftBtn">
-Save Draft
-</button>
+  <div class="actions-row">
 
+    <button type="button" id="saveDraftBtn" class="secondary-btn">
+      Save Draft
+    </button>
 
+    <button type="button" id="publishDraftBtn" class="primary-btn">
+      Publish Exam
+    </button>
 
-<button type="button" id="publishDraftBtn" class="primary-btn">
-Publish Exam
-</button>
+  </div>
 
 </section>
 
@@ -179,8 +180,8 @@ SCRIPTS
 
 <script>
 // EVENT BINDING (UI → Logic separation)
-document.getElementById("saveDraftBtn").addEventListener("click", saveDraft);
-document.getElementById("publishDraftBtn").addEventListener("click", publishDraft);
+document.getElementById("saveDraftBtn")?.addEventListener("click", saveDraft);
+document.getElementById("publishDraftBtn")?.addEventListener("click", publishDraft);
 </script>
 
 
