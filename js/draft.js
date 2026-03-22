@@ -352,6 +352,40 @@ async function saveDraft(silent = false) {
   isSaving = true;
 
   try {
+    // --------------------------------
+// SYNC DOM → DATA (CRITICAL FIX)
+// --------------------------------
+document.querySelectorAll(".qtext").forEach(el => {
+  const i = +el.dataset.i;
+  currentDraft.schema_json.sections[0].questions[i].text = el.value;
+});
+
+document.querySelectorAll(".opt").forEach(el => {
+  const i = +el.dataset.i;
+  const oi = +el.dataset.oi;
+  currentDraft.schema_json.sections[0].questions[i].options[oi] = el.value;
+});
+
+document.querySelectorAll(".exp").forEach(el => {
+  const i = +el.dataset.i;
+  currentDraft.schema_json.sections[0].questions[i].explanation = el.value;
+});
+
+document.querySelectorAll('input[type="radio"]:checked').forEach(el => {
+  const i = +el.dataset.i;
+  currentDraft.schema_json.sections[0].questions[i].correct = el.value;
+});
+
+// --------------------------------
+    // 🔴 VALIDATION (ADD HERE)
+    // --------------------------------
+    const questions = currentDraft.schema_json.sections[0].questions;
+
+    for (const q of questions) {
+      if (!q.text || !q.text.trim()) {
+        throw new Error("Empty question detected");
+      }
+    }
     const payload = {
       title: document.getElementById("title").value || "Untitled Draft",
       duration: parseInt(document.getElementById("duration").value) || 60,
