@@ -235,6 +235,48 @@ async function loadDraft() {
   setStatus("Loaded");
 }
 
+function deleteQuestion(index) {
+  if (!currentDraft) return;
+
+  const confirmDelete = confirm("Delete this question?");
+  if (!confirmDelete) return;
+
+  currentDraft.schema_json.sections[0].questions.splice(index, 1);
+
+  renderDraft(currentDraft);
+}
+
+function duplicateQuestion(index) {
+  const q = currentDraft.schema_json.sections[0].questions[index];
+
+  const clone = JSON.parse(JSON.stringify(q));
+  clone.id = crypto.randomUUID();
+
+  currentDraft.schema_json.sections[0].questions.splice(index + 1, 0, clone);
+
+  renderDraft(currentDraft);
+}
+
+function moveQuestionUp(index) {
+  if (index === 0) return;
+
+  const qs = currentDraft.schema_json.sections[0].questions;
+
+  [qs[index - 1], qs[index]] = [qs[index], qs[index - 1]];
+
+  renderDraft(currentDraft);
+}
+
+function moveQuestionDown(index) {
+  const qs = currentDraft.schema_json.sections[0].questions;
+
+  if (index === qs.length - 1) return;
+
+  [qs[index + 1], qs[index]] = [qs[index], qs[index + 1]];
+
+  renderDraft(currentDraft);
+}
+
 // --------------------------------
 // RENDER
 // --------------------------------
@@ -246,8 +288,14 @@ function renderDraft(draft) {
 
   const questions = draft.schema_json.sections[0].questions;
 
+  // ✅ EMPTY STATE
   if (!questions.length) {
-    container.innerHTML = `<div>No questions yet</div>`;
+    container.innerHTML = `
+      <div class="empty-state">
+        No questions yet.<br>
+        Click <b>+ New Question</b> to start.
+      </div>
+    `;
     return;
   }
 
@@ -257,46 +305,112 @@ function renderDraft(draft) {
 
     const status = q.bank_status || "draft";
 
+    // --------------------------
+    // TOPICS
+    // --------------------------
     const topicsHTML = (q.topics || []).map((t, ti) => `
       <div class="topic-tag">
         ${t}
-        <button data-q="${i}" data-ti="${ti}" class="remove-topic">×</button>
+        <button 
+          class="remove-topic" 
+          data-q="${i}" 
+          data-ti="${ti}"
+        >×</button>
       </div>
     `).join("");
 
+    // --------------------------
+    // OPTIONS
+    // --------------------------
+    const optionsHTML = opts.map((opt, oi) => {
+      const label = ["A", "B", "C", "D"][oi];
+
+      return `
+        <label class="option-row">
+          <input 
+            type="radio" 
+            name="correct-${i}" 
+            data-i="${i}" 
+            value="${label}"
+            ${q.correct === label ? "checked" : ""}
+          />
+
+          <span class="opt-label">${label}</span>
+
+          <input 
+            class="opt" 
+            data-i="${i}" 
+            data-oi="${oi}" 
+            value="${opt}" 
+            placeholder="Option ${label}"
+          />
+        </label>
+      `;
+    }).join("");
+
+    // --------------------------
+    // CARD
+    // --------------------------
     const div = document.createElement("div");
     div.className = "question-card";
 
     div.innerHTML = `
-      <div class="question-header">
-        <b>Q${i + 1}</b>
-        <button data-i="${i}" class="save-q">Save</button>
+      
+      <!-- HEADER -->
+      <div class="q-header">
+
+        <div class="q-title">
+          Q${i + 1}
+        </div>
+
+        <div class="question-actions">
+          <button onclick="deleteQuestion(${i})" class="icon-btn">🗑</button>
+          <button onclick="duplicateQuestion(${i})" class="icon-btn">⧉</button>
+          <button onclick="moveQuestionUp(${i})" class="icon-btn">↑</button>
+          <button onclick="moveQuestionDown(${i})" class="icon-btn">↓</button>
+        </div>
+
       </div>
 
+      <!-- STATUS -->
       <div class="status ${status}">
         ${status.toUpperCase()}
       </div>
 
-      <textarea class="qtext" data-i="${i}">${q.text || ""}</textarea>
+      <!-- QUESTION -->
+      <textarea 
+        class="qtext" 
+        data-i="${i}" 
+        placeholder="Enter question..."
+      >${q.text || ""}</textarea>
 
-      ${opts.map((opt, oi) => {
-        const label = ["A","B","C","D"][oi];
-        return `
-          <div>
-            <input type="radio" name="c-${i}" data-i="${i}" value="${label}"
-            ${q.correct === label ? "checked":""}>
-            <input class="opt" data-i="${i}" data-oi="${oi}" value="${opt}">
-          </div>
-        `;
-      }).join("")}
-
-      <textarea class="exp" data-i="${i}">${q.explanation || ""}</textarea>
-
-      <div class="topic-box">
-        <input class="topic-input" data-i="${i}" placeholder="Add topic..." />
-        <div class="topic-suggestions"></div>
-        <div class="topic-tags">${topicsHTML}</div>
+      <!-- OPTIONS -->
+      <div class="options">
+        ${optionsHTML}
       </div>
+
+      <!-- EXPLANATION -->
+      <textarea 
+        class="explanation" 
+        data-i="${i}" 
+        placeholder="Explanation (optional)"
+      >${q.explanation || ""}</textarea>
+
+      <!-- TOPICS -->
+      <div class="topic-box">
+
+        <input 
+          class="topic-input" 
+          data-i="${i}" 
+          placeholder="Add topic..."
+        />
+
+        <div class="topic-tags">
+          ${topicsHTML}
+        </div>
+
+      </div>
+
     `;
 
     container.appendChild(div);
@@ -318,13 +432,27 @@ document.getElementById("questions")?.addEventListener("input", (e) => {
     currentDraft.schema_json.sections[0].questions[i].options[oi] = e.target.value;
   }
 
-  if (e.target.classList.contains("exp")) {
+  if (e.target.classList.contains("explanation")) {
     currentDraft.schema_json.sections[0].questions[+e.target.dataset.i].explanation = e.target.value;
   }
 
   scheduleAutosave();
 });
 
+// --------------------------------
+// CLICK EVENTS (delegated)
+// --------------------------------
+document.getElementById("questions")?.addEventListener("click", (e) => {
+
+  // REMOVE TOPIC
+  if (e.target.classList.contains("remove-topic")) {
+    const qIndex = +e.target.dataset.q;
+    const tIndex = +e.target.dataset.ti;
+
+    removeTopic(qIndex, tIndex);
+  }
+
+});
 // --------------------------------
 // CREATE QUESTION
 // --------------------------------
@@ -366,7 +494,7 @@ document.querySelectorAll(".opt").forEach(el => {
   currentDraft.schema_json.sections[0].questions[i].options[oi] = el.value;
 });
 
-document.querySelectorAll(".exp").forEach(el => {
+document.querySelectorAll(".explanation").forEach(el => {
   const i = +el.dataset.i;
   currentDraft.schema_json.sections[0].questions[i].explanation = el.value;
 });
@@ -519,3 +647,7 @@ init();
 // --------------------------------
 window.saveDraft = saveDraft;
 window.publishDraft = publishDraft;
+window.deleteQuestion = deleteQuestion;
+window.duplicateQuestion = duplicateQuestion;
+window.moveQuestionUp = moveQuestionUp;
+window.moveQuestionDown = moveQuestionDown;

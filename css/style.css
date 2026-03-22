@@ -1,5 +1,5 @@
 /* ======================================================
-DESIGN SYSTEM (NEW)
+DESIGN SYSTEM
 ====================================================== */
 
 :root{
@@ -24,7 +24,6 @@ DESIGN SYSTEM (NEW)
   --shadow:0 2px 6px rgba(0,0,0,0.05);
 }
 
-
 /* ======================================================
 BASE
 ====================================================== */
@@ -46,7 +45,6 @@ h1,h2,h3{
   font-size:14px;
 }
 
-
 /* ======================================================
 LAYOUT
 ====================================================== */
@@ -59,13 +57,12 @@ LAYOUT
   padding:20px;
 }
 
-
 /* ======================================================
 BUTTON SYSTEM
 ====================================================== */
 
 button{
-  padding:12px 14px;
+  padding:10px 14px;
   border:none;
   border-radius:8px;
   background:#eee;
@@ -86,6 +83,7 @@ button:disabled{
 .primary-btn{
   background:var(--primary);
   color:#fff;
+  font-weight:600;
 }
 
 .primary-btn:hover{
@@ -93,10 +91,9 @@ button:disabled{
 }
 
 .secondary-btn{
-  background:#eee;
+  background:#f3f4f6;
   color:#333;
 }
-
 
 /* ======================================================
 FORM ELEMENTS
@@ -107,242 +104,10 @@ textarea{
   width:100%;
   padding:10px;
   font-size:14px;
-  margin-bottom:16px;
-  border:1px solid #ccc;
-  border-radius:6px;
-}
-
-.qtext{ min-height:120px; }
-.exp{ min-height:80px; }
-
-
-/* ======================================================
-EXAM HEADER
-====================================================== */
-
-#examTitle{
-  font-size:24px;
-  font-weight:700;
-  margin-bottom:10px;
-}
-
-#examLogo{
-  max-height:50px;
-  margin-bottom:10px;
-}
-
-
-/* ======================================================
-QUESTION CARD
-====================================================== */
-
-.question{
-  background:var(--card);
-  border-radius:var(--radius);
-  padding:18px;
-  margin-bottom:16px;
-  box-shadow:var(--shadow);
-}
-
-.question-text{
-  font-size:16px;
-  font-weight:600;
   margin-bottom:12px;
-  line-height:1.5;
-}
-
-
-/* ======================================================
-OPTIONS (EXAM)
-====================================================== */
-
-.question-options{
-  display:flex;
-  flex-direction:column;
-  gap:10px;
-}
-
-.option-row{
-  display:flex;
-  align-items:center;
-  gap:10px;
-
-  padding:10px;
-  border-radius:8px;
   border:1px solid var(--border);
-  background:#fff;
-
-  cursor:pointer;
-  transition:all 0.2s ease;
-}
-
-.option-row:hover{
-  border-color:var(--primary);
-  background:#f8fbff;
-}
-
-.option-row input[type="radio"]{
-  transform:scale(1.1);
-  cursor:pointer;
-}
-
-.option-text{
-  flex:1;
-}
-
-/* SELECTED */
-
-.option-row input[type="radio"]:checked + .option-text{
-  font-weight:600;
-  color:var(--primary);
-}
-
-
-/* ======================================================
-SUBMIT BUTTON
-====================================================== */
-
-#examContent button{
-  margin-top:20px;
-  width:100%;
-  font-size:16px;
-  font-weight:600;
-  background:var(--primary);
-  color:#fff;
-}
-
-#examContent button:hover{
-  background:var(--primary-dark);
-}
-
-
-/* ======================================================
-REVIEW UI (UPGRADED)
-====================================================== */
-
-.review-card{
-  background:var(--card);
-  border-radius:var(--radius);
-  padding:18px;
-  margin-bottom:16px;
-  box-shadow:var(--shadow);
-}
-
-.review-question{
-  font-size:16px;
-  font-weight:600;
-  margin-bottom:12px;
-  line-height:1.5;
-}
-
-/* OPTIONS */
-
-.review-options{
-  display:flex;
-  flex-direction:column;
-  gap:10px;
-}
-
-.option{
-  padding:10px;
-  border-radius:8px;
-  border:1px solid var(--border);
-  background:#fff;
-}
-
-/* CORRECT */
-
-.option.correct{
-  border-color:var(--success);
-  background:var(--success-bg);
-  color:#166534;
-  font-weight:600;
-}
-
-/* WRONG */
-
-.option.wrong{
-  border-color:var(--danger);
-  background:var(--danger-bg);
-  color:#991b1b;
-  font-weight:600;
-}
-
-/* META BADGES */
-
-.review-meta{
-  margin-top:10px;
-}
-
-.badge{
-  display:inline-block;
-  padding:4px 10px;
   border-radius:6px;
-  font-size:12px;
-  font-weight:600;
 }
-
-.badge.correct{
-  background:#dcfce7;
-  color:#166534;
-}
-
-.badge.wrong{
-  background:#fee2e2;
-  color:#991b1b;
-}
-
-
-/* ======================================================
-EXPLANATION
-====================================================== */
-
-.explain-btn{
-  margin-top:10px;
-  font-size:13px;
-  padding:6px 10px;
-  background:#eee;
-}
-
-.explanation{
-  margin-top:10px;
-  padding:10px;
-  background:#f8fafc;
-  border-left:4px solid var(--primary);
-  border-radius:6px;
-  font-size:14px;
-}
-
-
-/* ======================================================
-RESULT CARD
-====================================================== */
-
-#result{
-  background:var(--card);
-  border-radius:var(--radius);
-  padding:16px;
-  margin-bottom:20px;
-  box-shadow:var(--shadow);
-}
-
-#result h3{
-  margin:0 0 10px 0;
-}
-
-
-/* ======================================================
-DRAFT SYSTEM (UNCHANGED)
-====================================================== */
-
-.question-card{
-  border:1px solid #ddd;
-  border-radius:8px;
-  padding:16px;
-  margin-bottom:16px;
-  background:#fff;
-}
-
 
 /* ======================================================
 WORKSPACE
@@ -360,41 +125,163 @@ WORKSPACE
   min-width:0;
 }
 
-
 /* ======================================================
-QUESTION BANK PANEL
+DRAFT TOOLBAR
 ====================================================== */
 
-.question-bank-panel{
-  width:320px;
+.draft-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+.draft-toolbar{
+  display:flex;
+  gap:10px;
+}
+
+/* ======================================================
+QUESTION CARD (BUILDER)
+====================================================== */
+
+.question-card{
+  background:var(--card);
+  border-radius:var(--radius);
+  padding:16px;
+  margin-bottom:18px;
+  box-shadow:var(--shadow);
+  border:1px solid var(--border);
+  transition:all 0.2s ease;
+}
+
+.question-card:hover{
+  box-shadow:0 4px 12px rgba(0,0,0,0.08);
+}
+
+/* HEADER */
+
+.q-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:8px;
+}
+
+.q-title{
+  font-weight:600;
+  font-size:15px;
+}
+
+.question-actions{
+  display:flex;
+  gap:8px;
+}
+
+.icon-btn{
+  border:none;
+  background:#f3f4f6;
+  padding:6px 8px;
+  border-radius:6px;
+  cursor:pointer;
+  font-size:14px;
+}
+
+.icon-btn:hover{
+  background:#e5e7eb;
+}
+
+/* STATUS */
+
+.status{
+  font-size:11px;
+  padding:3px 8px;
+  border-radius:6px;
+  display:inline-block;
+  margin-bottom:8px;
+  font-weight:500;
+}
+
+.status.draft{
+  background:#eee;
+}
+
+.status.saved{
+  background:#d4edda;
+  color:#155724;
+}
+
+.status.duplicate{
+  background:#fff3cd;
+  color:#856404;
+}
+
+/* QUESTION */
+
+.qtext{
+  min-height:110px;
+}
+
+/* OPTIONS */
+
+.options{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  margin-bottom:10px;
+}
+
+.option-row{
+  display:flex;
+  align-items:center;
+  gap:10px;
+
+  padding:8px;
+  border-radius:6px;
+  border:1px solid var(--border);
   background:#fff;
-  border-left:1px solid #ddd;
-
-  position:fixed;
-  top:0;
-  right:0;
-  height:100%;
-
-  padding:20px;
-  overflow:auto;
-
-  transform:translateX(100%);
-  transition:transform 0.25s ease;
-
-  z-index:1000;
 }
 
-.question-bank-panel:not(.hidden){
-  transform:translateX(0);
+.option-row:hover{
+  border-color:var(--primary);
+  background:#f8fbff;
 }
 
+.option-row input[type="radio"]{
+  transform:scale(1.1);
+}
 
-/* ======================================================
-TOPIC TAGS
-====================================================== */
+.opt-label{
+  width:18px;
+  font-weight:600;
+  color:var(--muted);
+}
+
+.opt {
+  flex:1;
+  border:none;
+  outline:none;
+  background:transparent;
+  padding:4px 0;
+  font-size:14px;
+}
+
+/* EXPLANATION */
+
+.explanation{
+  min-height:80px;
+}
+
+/* TOPICS */
 
 .topic-box{
   margin-top:10px;
+}
+
+.topic-input{
+  width:200px;
+  padding:6px;
+  border:1px solid var(--border);
+  border-radius:6px;
 }
 
 .topic-tags{
@@ -421,33 +308,45 @@ TOPIC TAGS
   cursor:pointer;
 }
 
-
 /* ======================================================
-STATUS
+EMPTY STATE
 ====================================================== */
 
-.status{
-  font-size:12px;
-  padding:4px 8px;
-  border-radius:6px;
-  display:inline-block;
-  margin-bottom:8px;
+.empty-state{
+  padding:30px;
+  text-align:center;
+  color:var(--muted);
+  background:#fafafa;
+  border:1px dashed var(--border);
+  border-radius:8px;
 }
 
-.status.draft{
-  background:#eee;
+/* ======================================================
+QUESTION BANK PANEL
+====================================================== */
+
+.question-bank-panel{
+  width:320px;
+  background:#fff;
+  border-left:1px solid var(--border);
+
+  position:fixed;
+  top:0;
+  right:0;
+  height:100%;
+
+  padding:20px;
+  overflow:auto;
+
+  transform:translateX(100%);
+  transition:transform 0.25s ease;
+
+  z-index:1000;
 }
 
-.status.saved{
-  background:#d4edda;
-  color:#155724;
+.question-bank-panel:not(.hidden){
+  transform:translateX(0);
 }
-
-.status.duplicate{
-  background:#fff3cd;
-  color:#856404;
-}
-
 
 /* ======================================================
 UTILITIES
@@ -462,7 +361,6 @@ UTILITIES
 .w-full{ width:100%; }
 
 .hidden{ display:none; }
-
 
 /* ======================================================
 MOBILE
