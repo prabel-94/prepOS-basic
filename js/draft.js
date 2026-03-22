@@ -452,6 +452,11 @@ async function publishDraft() {
 // INIT
 // --------------------------------
 function init() {
+  
+   // 🔥 FORCE RESET UI STATE
+  const newBtn = document.getElementById("newQuestionBtn");
+  if (newBtn) newBtn.disabled = false;
+
   document.getElementById("newQuestionBtn")
     ?.addEventListener("click", createNewQuestion);
 
