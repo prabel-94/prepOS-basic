@@ -377,55 +377,6 @@ function renderQuiz(questions){
   container.appendChild(btn);
 }
 
-
-  /* ==============================
-     AUTOSAVE
-  ============================== */
-
-  container.querySelectorAll('input[type="radio"]').forEach(r=>{
-    r.addEventListener("change", e=>{
-
-      const name = e.target.name;
-      attemptState.answers[name] = e.target.value;
-
-      localStorage.setItem(
-        ATTEMPT_KEY,
-        JSON.stringify(attemptState)
-      );
-
-    });
-  });
-
-
-  /* ==============================
-     RESTORE PREVIOUS ANSWERS
-  ============================== */
-
-  if(attemptState.answers){
-
-    Object.entries(attemptState.answers).forEach(([name,val])=>{
-
-      const el = container.querySelector(
-        `input[name="${name}"][value="${val}"]`
-      );
-
-      if(el) el.checked = true;
-
-    });
-
-  }
-
-
-  /* ==============================
-     SUBMIT BUTTON
-  ============================== */
-
-  const btn = document.createElement("button");
-  btn.innerText = "Submit";
-  btn.onclick = submitExam;
-
-  container.appendChild(btn);
-
 /* ======================================================
    SUBMIT
 ====================================================== */
