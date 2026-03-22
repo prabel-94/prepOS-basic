@@ -48,6 +48,34 @@ function generateHash(q) {
 // --------------------------------
 // TOPIC SYSTEM
 // --------------------------------
+function addTopicTag(name) {
+  const container = document.getElementById("bankTopicTags");
+
+  const normalized = name.toLowerCase();
+
+  // prevent duplicates
+  const existing = Array.from(container.children).some(
+    el => el.dataset.value === normalized
+  );
+
+  if (existing) return;
+
+  const div = document.createElement("div");
+  div.className = "topic-tag";
+  div.dataset.value = normalized;
+
+  div.innerHTML = `
+    ${name}
+    <button type="button">×</button>
+  `;
+
+  // remove tag
+  div.querySelector("button").addEventListener("click", () => {
+    div.remove();
+  });
+
+  container.appendChild(div);
+}
 async function searchTopics(query) {
   if (!query) return [];
 
@@ -679,6 +707,26 @@ async function publishDraft() {
 // --------------------------------
 function init() {
 
+  const topicInput = document.getElementById("bankTopicInput");
+const topicTagsContainer = document.getElementById("bankTopicTags");
+
+if (topicInput) {
+  topicInput.addEventListener("keydown", (e) => {
+
+    if (e.key === "Enter") {
+      e.preventDefault();
+
+      const value = topicInput.value.trim();
+      if (!value) return;
+
+      addTopicTag(value);
+
+      topicInput.value = "";
+    }
+
+  });
+}
+
   document.getElementById("closeAddToBank")
   ?.addEventListener("click", () => {
     document.getElementById("addToBankPanel").classList.add("hidden");
@@ -703,6 +751,56 @@ function init() {
     ?.addEventListener("click", () => {
       document.getElementById("questionBankPanel").classList.add("hidden");
     });
+  // --------------------------------
+// CONFIRM ADD TO BANK (NEW)
+// --------------------------------
+document.getElementById("confirmAddToBank")
+  ?.addEventListener("click", async () => {
+
+  if (selectedQuestionIndex === null) return;
+
+  const q = currentDraft.schema_json.sections[0].questions[selectedQuestionIndex];
+
+  // --------------------------------
+  // EXTRACT TOPICS FROM TAGS
+  // --------------------------------
+  const topics = Array.from(
+    document.querySelectorAll("#bankTopicTags .topic-tag")
+  ).map(el => el.dataset.value);
+
+  // --------------------------------
+  // VALIDATION
+  // --------------------------------
+  if (!topics.length) {
+    alert("Please add at least one topic");
+    return;
+  }
+
+  // assign topics
+  q.topics = topics;
+
+  try {
+    const res = await saveQuestionToBank(q);
+
+    if (res.isDuplicate) {
+      alert("Duplicate detected. Linked to existing question.");
+      q.bank_status = "duplicate";
+    } else {
+      q.bank_status = "saved";
+    }
+
+    renderDraft(currentDraft);
+
+    document.getElementById("addToBankPanel").classList.add("hidden");
+
+    setStatus("Question saved to bank ✅");
+
+  } catch (err) {
+    console.error(err);
+    alert("Failed to save question");
+  }
+
+});
 
   if (draftId) loadDraft();
   else createEmptyDraft();
