@@ -348,6 +348,13 @@ QUESTION BANK PANEL
   transform:translateX(0);
 }
 
+#duplicateBox {
+  border: 1px solid #facc15;
+  padding: 12px;
+  border-radius: 8px;
+  background: #fffbe6;
+}
+
 /* ======================================================
 UTILITIES
 ====================================================== */
