@@ -46,6 +46,101 @@ function generateHash(q) {
 }
 
 // --------------------------------
+// SEARCH QUESTION BANK
+// --------------------------------
+async function searchQuestionBank(query) {
+
+  if (!query) return [];
+
+  const { data, error } = await sb
+    .from("questions")
+    .select("*")
+    .ilike("question_text", `%${query}%`)
+    .limit(20);
+
+  if (error) {
+    console.error("Search error:", error);
+    return [];
+  }
+
+  return data || [];
+}
+
+// --------------------------------
+// ADD QUESTION FROM BANK → DRAFT
+// --------------------------------
+async function addQuestionFromBank(qId) {
+
+  const { data, error } = await sb
+    .from("questions")
+    .select("*")
+    .eq("id", qId)
+    .single();
+
+  if (error) {
+    console.error("Fetch error:", error);
+    return;
+  }
+
+  const newQuestion = {
+    id: crypto.randomUUID(),
+    text: data.question_text,
+    options: [
+      data.option_a || "",
+      data.option_b || "",
+      data.option_c || "",
+      data.option_d || ""
+    ],
+    correct: data.correct_option || "A",
+    explanation: data.explanation || "",
+    topics: [], // 🔥 IMPORTANT: don't auto-fill for now
+    bank_status: "saved"
+  };
+
+  currentDraft.schema_json.sections[0].questions.push(newQuestion);
+
+  renderDraft(currentDraft);
+}
+// --------------------------------
+// RENDER QUESTION BANK RESULTS
+// --------------------------------
+function renderQuestionBankResults(questions) {
+
+  const container = document.getElementById("questionBankResults");
+  if (!container) return;
+
+  if (!questions.length) {
+    container.innerHTML = `<div class="qb-loading">No results found</div>`;
+    return;
+  }
+
+  container.innerHTML = questions.map(q => {
+
+    return `
+      <div class="question-card">
+
+        <div><b>${q.question_text}</b></div>
+
+        <div class="mt-10 small">
+          A. ${q.option_a || "-"}<br>
+          B. ${q.option_b || "-"}<br>
+          C. ${q.option_c || "-"}<br>
+          D. ${q.option_d || "-"}
+        </div>
+
+        <button 
+          class="primary-btn mt-10 add-from-bank-btn"
+          data-id="${q.id}"
+        >
+          + Add to Draft
+        </button>
+
+      </div>
+    `;
+
+  }).join("");
+}
+// --------------------------------
 // TOPIC SYSTEM
 // --------------------------------
 function addTopicTag(name) {
@@ -489,6 +584,20 @@ document.getElementById("questions")?.addEventListener("input", (e) => {
 document.getElementById("questions")?.addEventListener("click", (e) => {
 
   // --------------------------------
+// ADD FROM QUESTION BANK
+// --------------------------------
+document.getElementById("questionBankResults")?.addEventListener("click", (e) => {
+
+  if (e.target.classList.contains("add-from-bank-btn")) {
+
+    const qId = e.target.dataset.id;
+
+    addQuestionFromBank(qId);
+  }
+
+});
+
+  // --------------------------------
   // ADD TO BANK → OPEN PANEL
   // --------------------------------
   if (e.target.classList.contains("add-to-bank-btn")) {
@@ -706,6 +815,16 @@ async function publishDraft() {
 // INIT
 // --------------------------------
 function init() {
+
+  document.getElementById("qbSearch")
+  ?.addEventListener("input", async (e) => {
+
+  const query = e.target.value.trim();
+
+  const results = await searchQuestionBank(query);
+
+  renderQuestionBankResults(results);
+});
 
   document.getElementById("createNewBtn")
   ?.addEventListener("click", async () => {
