@@ -1,12 +1,13 @@
 /* ======================================================
-BASE (UNCHANGED)
+BASE
 ====================================================== */
 
 body{
-  font-family: Arial, Helvetica, sans-serif;
-  background:#f7f7f7;
+  font-family: system-ui, -apple-system, sans-serif;
+  background:#f4f6f8;
   margin:0;
   padding:30px 20px;
+  color:#222;
 }
 
 h1,h2,h3{
@@ -20,15 +21,10 @@ h1,h2,h3{
 
 
 /* ======================================================
-GLOBAL LAYOUT (UNCHANGED)
+GLOBAL LAYOUT
 ====================================================== */
 
-.container{
-  max-width:900px;
-  margin:auto;
-  padding:20px;
-}
-
+.container,
 .exam-wrapper,
 .draft-wrapper{
   max-width:900px;
@@ -38,18 +34,16 @@ GLOBAL LAYOUT (UNCHANGED)
 
 
 /* ======================================================
-BUTTON SYSTEM (UNCHANGED)
+BUTTON SYSTEM
 ====================================================== */
 
 button{
-  padding:10px 14px;
+  padding:12px 14px;
   border:none;
-  border-radius:6px;
+  border-radius:8px;
   background:#eee;
   cursor:pointer;
-  transition:background 0.2s ease;
-
-  color:#222; /* 🔥 CRITICAL FIX */
+  transition:all 0.2s ease;
   font-size:14px;
 }
 
@@ -60,7 +54,6 @@ button:hover{
 button:disabled{
   opacity:0.5;
   cursor:not-allowed;
-  color:#666; /* ensure readable */
 }
 
 .primary-btn{
@@ -79,17 +72,17 @@ button:disabled{
 
 
 /* ======================================================
-FORM ELEMENTS (UNCHANGED)
+FORM ELEMENTS
 ====================================================== */
 
-.draft-page input[type="text"],
-.draft-page textarea{
+input[type="text"],
+textarea{
   width:100%;
-  padding:8px;
+  padding:10px;
   font-size:14px;
   margin-bottom:16px;
   border:1px solid #ccc;
-  border-radius:4px;
+  border-radius:6px;
 }
 
 .qtext{ min-height:120px; }
@@ -97,7 +90,108 @@ FORM ELEMENTS (UNCHANGED)
 
 
 /* ======================================================
-CARD SYSTEM (UNCHANGED)
+EXAM HEADER
+====================================================== */
+
+#examTitle{
+  font-size:24px;
+  font-weight:700;
+  margin-bottom:10px;
+}
+
+#examLogo{
+  max-height:50px;
+  margin-bottom:10px;
+}
+
+
+/* ======================================================
+QUESTION CARD (NEW UPGRADE)
+====================================================== */
+
+.question{
+  background:#fff;
+  border-radius:10px;
+  padding:18px;
+  margin-bottom:16px;
+  box-shadow:0 2px 6px rgba(0,0,0,0.05);
+}
+
+.question-text{
+  font-size:16px;
+  font-weight:600;
+  margin-bottom:12px;
+  line-height:1.5;
+}
+
+
+/* ======================================================
+OPTIONS (FIXED — VERTICAL)
+====================================================== */
+
+.question-options{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+.option-row{
+  display:flex;
+  align-items:center;
+  gap:10px;
+
+  padding:10px;
+  border-radius:8px;
+  border:1px solid #e0e0e0;
+  background:#fff;
+
+  cursor:pointer;
+  transition:all 0.2s ease;
+}
+
+.option-row:hover{
+  border-color:#2563eb;
+  background:#f8fbff;
+}
+
+.option-row input[type="radio"]{
+  transform:scale(1.1);
+  cursor:pointer;
+}
+
+.option-text{
+  flex:1;
+}
+
+
+/* SELECTED STATE */
+
+.option-row input[type="radio"]:checked + .option-text{
+  font-weight:600;
+  color:#2563eb;
+}
+
+
+/* ======================================================
+SUBMIT BUTTON (EXAM)
+====================================================== */
+
+#examContent button{
+  margin-top:20px;
+  width:100%;
+  font-size:16px;
+  font-weight:600;
+  background:#2563eb;
+  color:#fff;
+}
+
+#examContent button:hover{
+  background:#1d4ed8;
+}
+
+
+/* ======================================================
+DRAFT CARD (UNCHANGED)
 ====================================================== */
 
 .question-card{
@@ -106,12 +200,11 @@ CARD SYSTEM (UNCHANGED)
   padding:16px;
   margin-bottom:16px;
   background:#fff;
-  box-shadow:0 1px 3px rgba(0,0,0,0.05);
 }
 
 
 /* ======================================================
-DRAFT WORKSPACE (UNCHANGED)
+WORKSPACE
 ====================================================== */
 
 .workspace{
@@ -128,7 +221,7 @@ DRAFT WORKSPACE (UNCHANGED)
 
 
 /* ======================================================
-QUESTION BANK PANEL (FIXED)
+QUESTION BANK PANEL
 ====================================================== */
 
 .question-bank-panel{
@@ -150,35 +243,13 @@ QUESTION BANK PANEL (FIXED)
   z-index:1000;
 }
 
-/* 🔥 FIXED: now uses .hidden */
 .question-bank-panel:not(.hidden){
   transform:translateX(0);
 }
 
-.qb-header{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  margin-bottom:15px;
-}
-
-.qb-question{
-  border-bottom:1px solid #eee;
-  padding:10px 0;
-  display:flex;
-  justify-content:space-between;
-  gap:10px;
-}
-
-.qb-loading{
-  color:#888;
-  font-size:14px;
-  padding:20px 0;
-}
-
 
 /* ======================================================
-TOPIC SYSTEM (NEW)
+TOPIC SYSTEM
 ====================================================== */
 
 .topic-box{
@@ -207,35 +278,11 @@ TOPIC SYSTEM (NEW)
   border:none;
   background:none;
   cursor:pointer;
-  font-size:12px;
-}
-
-.topic-input{
-  margin-top:6px;
-}
-
-.topic-suggestions{
-  background:#fff;
-  border:1px solid #ddd;
-  border-radius:6px;
-  margin-top:4px;
-  max-height:120px;
-  overflow:auto;
-  box-shadow:0 2px 6px rgba(0,0,0,0.08);
-}
-
-.topic-suggestions div{
-  padding:6px 10px;
-  cursor:pointer;
-}
-
-.topic-suggestions div:hover{
-  background:#f5f5f5;
 }
 
 
 /* ======================================================
-BANK STATUS (NEW)
+STATUS
 ====================================================== */
 
 .status{
@@ -262,41 +309,7 @@ BANK STATUS (NEW)
 
 
 /* ======================================================
-STATE MESSAGES (UNCHANGED)
-====================================================== */
-
-.empty-state{
-  padding:20px;
-  text-align:center;
-  color:#777;
-}
-
-.loading{
-  padding:20px;
-  text-align:center;
-  color:#888;
-}
-
-
-/* ======================================================
-DRAFT ACTIONS (UNCHANGED)
-====================================================== */
-
-.draft-actions{
-  display:flex;
-  gap:10px;
-  margin-top:20px;
-}
-
-#status{
-  margin-top:10px;
-  font-size:13px;
-  color:#555;
-}
-
-
-/* ======================================================
-UTILITY CLASSES (UNCHANGED)
+UTILITY
 ====================================================== */
 
 .mt-10{ margin-top:10px; }
@@ -311,17 +324,17 @@ UTILITY CLASSES (UNCHANGED)
 
 
 /* ======================================================
-MOBILE (UPDATED PANEL)
+MOBILE
 ====================================================== */
 
 @media (max-width:768px){
 
-.workspace{
-  flex-direction:column;
-}
+  .workspace{
+    flex-direction:column;
+  }
 
-.question-bank-panel{
-  width:100%;
-}
+  .question-bank-panel{
+    width:100%;
+  }
 
 }
