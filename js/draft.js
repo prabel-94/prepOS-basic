@@ -460,6 +460,7 @@ document.getElementById("questions")?.addEventListener("click", (e) => {
 
   // ADD TO BANK (PER QUESTION)
 if (e.target.classList.contains("add-to-bank-btn")) {
+  console.log("CLICK DETECTED");
   const btn = e.target;
   const qIndex = +btn.dataset.q;
 
