@@ -474,12 +474,30 @@ document.getElementById("questions")?.addEventListener("click", (e) => {
 
     // SHOW QUESTION PREVIEW
     const preview = document.getElementById("bankQuestionPreview");
-    if (preview) {
-      preview.innerHTML = `
-        <div><b>Question:</b></div>
-        <div>${q.text || "(empty question)"}</div>
-      `;
-    }
+
+if (preview) {
+  const opts = q.options || [];
+
+  preview.innerHTML = `
+    <div><b>Question:</b></div>
+    <div class="mt-10">${q.text || "(empty question)"}</div>
+
+    <div class="mt-10"><b>Options:</b></div>
+    <ul class="mt-10">
+      ${opts.map((o, i) => `
+        <li>
+          ${["A","B","C","D"][i]}: ${o || "-"}
+          ${q.correct === ["A","B","C","D"][i] ? " ✅" : ""}
+        </li>
+      `).join("")}
+    </ul>
+
+    ${q.explanation ? `
+      <div class="mt-10"><b>Explanation:</b></div>
+      <div class="mt-10">${q.explanation}</div>
+    ` : ""}
+  `;
+}
 
     // RESET topic UI
     document.getElementById("bankTopicInput").value = "";
@@ -660,6 +678,12 @@ async function publishDraft() {
 // INIT
 // --------------------------------
 function init() {
+
+  document.getElementById("closeAddToBank")
+  ?.addEventListener("click", () => {
+    document.getElementById("addToBankPanel").classList.add("hidden");
+  });
+
    // 🔥 FORCE RESET UI STATE
   const newBtn = document.getElementById("newQuestionBtn");
   if (newBtn) newBtn.disabled = false;
