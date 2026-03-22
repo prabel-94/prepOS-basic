@@ -156,11 +156,29 @@ async function createFromSelection(){
     return;
   }
 
-  const draftLink = await createDraft(
-    data.title,
-    selected,
-    data.duration
-  );
+  const mapped = selected.map((q, i) => ({
+  id: `q${Date.now()}_${i}`,
+
+  // 🔴 FIX: map question → text
+  text: q.question || "",
+
+  options: q.options || [],
+
+  // normalize correct
+  correct: typeof q.correct === "number"
+    ? ["A","B","C","D"][q.correct]
+    : q.correct || "A",
+
+  explanation: q.explanation || "",
+
+  topics: []
+}));
+
+const draftLink = await createDraft(
+  data.title,
+  mapped,
+  data.duration
+);
 
   if(draftLink){
     window.location.href = draftLink;
