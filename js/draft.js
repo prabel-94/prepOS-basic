@@ -183,6 +183,24 @@ async function searchTopics(query) {
   return data || [];
 }
 
+async function searchTopicsForDropdown(query) {
+
+  if (!query) return [];
+
+  const { data, error } = await sb
+    .from("topics")
+    .select("id, name")
+    .ilike("name", `%${query}%`)
+    .limit(5);
+
+  if (error) {
+    console.error("Topic search error:", error);
+    return [];
+  }
+
+  return data || [];
+}
+
 function addTopicToQuestion(qIndex, topicName) {
   const q = currentDraft.schema_json.sections[0].questions[qIndex];
 
@@ -824,8 +842,57 @@ function init() {
   console.log("SEARCH QUERY:", query); // 👈 add this
   const results = await searchQuestionBank(query);
   console.log("RESULTS:", results); // 👈 add this
-  
+
   renderQuestionBankResults(results);
+});
+
+document.getElementById("topicSearch")
+  ?.addEventListener("input", async (e) => {
+
+  const query = e.target.value.trim();
+
+  const topics = await searchTopicsForDropdown(query);
+
+  const dropdown = document.getElementById("topicDropdown");
+
+  if (!topics.length) {
+    dropdown.classList.add("hidden");
+    return;
+  }
+
+  dropdown.classList.remove("hidden");
+
+  dropdown.innerHTML = topics.map(t => `
+    <div class="topic-tag topic-option" data-id="${t.id}">
+      ${t.name}
+    </div>
+  `).join("");
+});
+
+document.getElementById("topicDropdown")
+  ?.addEventListener("click", async (e) => {
+
+  if (!e.target.classList.contains("topic-option")) return;
+
+  const topicId = e.target.dataset.id;
+
+  const { data, error } = await sb
+    .from("question_topics")
+    .select(`
+      questions (*)
+    `)
+    .eq("topic_id", topicId);
+
+  if (error) {
+    console.error("Topic fetch error:", error);
+    return;
+  }
+
+  const questions = data.map(qt => qt.questions);
+
+  renderQuestionBankResults(questions);
+
+  document.getElementById("topicDropdown").classList.add("hidden");
 });
 
   document.getElementById("createNewBtn")
