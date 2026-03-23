@@ -821,8 +821,10 @@ function init() {
 
   const query = e.target.value.trim();
 
+  console.log("SEARCH QUERY:", query); // 👈 add this
   const results = await searchQuestionBank(query);
-
+  console.log("RESULTS:", results); // 👈 add this
+  
   renderQuestionBankResults(results);
 });
 
