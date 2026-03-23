@@ -602,20 +602,6 @@ document.getElementById("questions")?.addEventListener("input", (e) => {
 document.getElementById("questions")?.addEventListener("click", (e) => {
 
   // --------------------------------
-// ADD FROM QUESTION BANK
-// --------------------------------
-document.getElementById("questionBankResults")?.addEventListener("click", (e) => {
-
-  if (e.target.classList.contains("add-from-bank-btn")) {
-
-    const qId = e.target.dataset.id;
-
-    addQuestionFromBank(qId);
-  }
-
-});
-
-  // --------------------------------
   // ADD TO BANK → OPEN PANEL
   // --------------------------------
   if (e.target.classList.contains("add-to-bank-btn")) {
@@ -833,6 +819,22 @@ async function publishDraft() {
 // INIT
 // --------------------------------
 function init() {
+  
+  // --------------------------------
+// ADD FROM QUESTION BANK (FIXED)
+// --------------------------------
+document.getElementById("questionBankResults")
+  ?.addEventListener("click", (e) => {
+
+  const btn = e.target.closest(".add-from-bank-btn");
+  if (!btn) return;
+
+  const qId = btn.dataset.id;
+
+  console.log("Adding question:", qId);
+
+  addQuestionFromBank(qId);
+});
 
   document.getElementById("qbSearch")
   ?.addEventListener("input", async (e) => {
