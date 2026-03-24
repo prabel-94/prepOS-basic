@@ -1070,8 +1070,6 @@ if (topicInput) {
 }
 
 const confirmBtn = document.getElementById("confirmAddToBank");
-const topicTagsContainer = document.getElementById("bankTopicTags");
-
 function updateConfirmState() {
   const hasTopics = topicTagsContainer.children.length > 0;
 
