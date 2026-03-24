@@ -5,6 +5,7 @@
 // --------------------------------
 // GLOBAL STATE
 // --------------------------------
+let currentSearchResults = [];
 let selectedQuestionIndex = null;
 let autosaveTimer = null;
 let topicTimer = null;
@@ -67,9 +68,9 @@ async function searchQuestionBank(query) {
 }
 
 // --------------------------------
-// ADD QUESTION FROM BANK → DRAFT
+// ADD QUESTION FROM BANK → DRAFT (UPDATED)
 // --------------------------------
-async function addQuestionFromBank(qId) {
+async function addQuestionFromBank(qId, btn) {
 
   const { data, error } = await sb
     .from("questions")
@@ -79,6 +80,22 @@ async function addQuestionFromBank(qId) {
 
   if (error) {
     console.error("Fetch error:", error);
+    return;
+  }
+
+  // 🚨 PREVENT DUPLICATE
+  const exists = currentDraft.schema_json.sections[0].questions
+    .some(q => q.text === data.question_text);
+
+  if (exists) {
+    setStatus("Already in draft ⚠️");
+
+    // 🔥 soft feedback
+    if (btn) {
+      btn.innerText = "Already Added";
+      btn.classList.add("secondary-btn");
+    }
+
     return;
   }
 
@@ -93,18 +110,27 @@ async function addQuestionFromBank(qId) {
     ],
     correct: data.correct_option || "A",
     explanation: data.explanation || "",
-    topics: [], // 🔥 IMPORTANT: don't auto-fill for now
+    topics: [],
     bank_status: "saved"
   };
 
   currentDraft.schema_json.sections[0].questions.push(newQuestion);
 
   renderDraft(currentDraft);
+
+  setStatus("Question added to draft ✅");
+
+  // 🔥 visual confirmation
+  if (btn) {
+    btn.innerText = "Added ✓";
+  }
 }
 // --------------------------------
 // RENDER QUESTION BANK RESULTS
 // --------------------------------
 function renderQuestionBankResults(questions) {
+
+  currentSearchResults = questions; // 🔥 store results
 
   const container = document.getElementById("questionBankResults");
   if (!container) return;
@@ -139,6 +165,50 @@ function renderQuestionBankResults(questions) {
     `;
 
   }).join("");
+}
+
+async function addAllResultsToDraft() {
+
+  if (!currentSearchResults.length) {
+    setStatus("No results to add ⚠️");
+    return;
+  }
+
+  let added = 0;
+  let skipped = 0;
+
+  const existingTexts = currentDraft.schema_json.sections[0].questions
+    .map(q => q.text);
+
+  currentSearchResults.forEach(data => {
+
+    if (existingTexts.includes(data.question_text)) {
+      skipped++;
+      return;
+    }
+
+    const newQuestion = {
+      id: crypto.randomUUID(),
+      text: data.question_text,
+      options: [
+        data.option_a || "",
+        data.option_b || "",
+        data.option_c || "",
+        data.option_d || ""
+      ],
+      correct: data.correct_option || "A",
+      explanation: data.explanation || "",
+      topics: [],
+      bank_status: "saved"
+    };
+
+    currentDraft.schema_json.sections[0].questions.push(newQuestion);
+    added++;
+  });
+
+  renderDraft(currentDraft);
+
+  setStatus(`Added ${added}, skipped ${skipped}`);
 }
 // --------------------------------
 // TOPIC SYSTEM
@@ -823,6 +893,9 @@ function init() {
   // --------------------------------
 // ADD FROM QUESTION BANK (FIXED)
 // --------------------------------
+document.getElementById("addAllResultsBtn")
+  ?.addEventListener("click", addAllResultsToDraft);
+  
 document.getElementById("questionBankResults")
   ?.addEventListener("click", (e) => {
 
@@ -830,8 +903,6 @@ document.getElementById("questionBankResults")
   if (!btn) return;
 
   const qId = btn.dataset.id;
-
-  console.log("Adding question:", qId);
 
   addQuestionFromBank(qId);
 });
