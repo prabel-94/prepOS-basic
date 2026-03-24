@@ -239,9 +239,11 @@ function addTopicTag(name) {
   // remove tag
   div.querySelector("button").addEventListener("click", () => {
     div.remove();
+    updateConfirmState(); // 🔥 ADD THIS
   });
 
   container.appendChild(div);
+  updateConfirmState(); // 🔥 ADD THIS
 }
 async function searchTopics(query) {
   if (!query) return [];
@@ -715,6 +717,7 @@ if (preview) {
     // RESET topic UI
     document.getElementById("bankTopicInput").value = "";
     document.getElementById("bankTopicTags").innerHTML = "";
+    updateConfirmState();
   }
 
   // --------------------------------
@@ -1066,6 +1069,21 @@ if (topicInput) {
 
 }
 
+const confirmBtn = document.getElementById("confirmAddToBank");
+const topicTagsContainer = document.getElementById("bankTopicTags");
+
+function updateConfirmState() {
+  const hasTopics = topicTagsContainer.children.length > 0;
+
+  if (!hasTopics) {
+    confirmBtn.disabled = true;
+    confirmBtn.classList.add("disabled");
+  } else {
+    confirmBtn.disabled = false;
+    confirmBtn.classList.remove("disabled");
+  }
+}
+
   document.getElementById("closeAddToBank")
   ?.addEventListener("click", () => {
     document.getElementById("addToBankPanel").classList.add("hidden");
@@ -1106,14 +1124,6 @@ document.getElementById("confirmAddToBank")
   const topics = Array.from(
     document.querySelectorAll("#bankTopicTags .topic-tag")
   ).map(el => el.dataset.value);
-
-  // --------------------------------
-  // VALIDATION
-  // --------------------------------
-  if (!topics.length) {
-    alert("Please add at least one topic");
-    return;
-  }
 
   // assign topics
   q.topics = topics;
