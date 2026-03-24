@@ -132,7 +132,7 @@ async function addQuestionFromBank(qId, btn) {
 // --------------------------------
 function renderQuestionBankResults(questions) {
 
-  currentSearchResults = questions; // 🔥 store results
+  currentSearchResults = questions;
 
   const container = document.getElementById("questionBankResults");
   if (!container) return;
@@ -142,7 +142,15 @@ function renderQuestionBankResults(questions) {
     return;
   }
 
+  const draftQuestions =
+    currentDraft?.schema_json?.sections?.[0]?.questions || [];
+
   container.innerHTML = questions.map(q => {
+
+    // ✅ DEFINE exists HERE
+    const exists = draftQuestions.some(
+      dq => dq.text === q.question_text
+    );
 
     return `
       <div class="question-card">
@@ -157,18 +165,17 @@ function renderQuestionBankResults(questions) {
         </div>
 
         <button
-      class="${exists ? "secondary-btn" : "primary-btn"} mt-10 add-from-bank-btn"
-      data-id="${q.id}"
-    >
-      ${exists ? "Already Added" : "+ Add to Draft"}
-    </button>
+          class="${exists ? "secondary-btn" : "primary-btn"} mt-10 add-from-bank-btn"
+          data-id="${q.id}"
+        >
+          ${exists ? "Already Added" : "+ Add to Draft"}
+        </button>
 
       </div>
     `;
 
   }).join("");
 }
-
 async function addAllResultsToDraft() {
 
   if (!currentSearchResults.length) {
