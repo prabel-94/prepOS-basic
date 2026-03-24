@@ -34,6 +34,8 @@ body{
   margin:0;
   padding:30px 20px;
   color:var(--text);
+
+  overflow-x: hidden; /* 🔥 ADD THIS */
 }
 
 h1,h2,h3{
@@ -52,9 +54,11 @@ LAYOUT
 .container,
 .exam-wrapper,
 .draft-wrapper{
+  width:100%;              /* 🔥 ADD */
   max-width:900px;
   margin:auto;
-  padding:20px;
+  padding:16px;            /* slightly tighter for mobile */
+  box-sizing:border-box;   /* 🔥 ADD */
 }
 
 /* ======================================================
@@ -118,11 +122,15 @@ WORKSPACE
   gap:30px;
   margin-top:20px;
   align-items:flex-start;
+
+  width:100%;        /* 🔥 ADD */
+  overflow:hidden;   /* 🔥 ADD */
 }
 
 .draft-area{
   flex:1;
   min-width:0;
+  width:100%; /* 🔥 ADD */
 }
 
 /* ======================================================
@@ -152,6 +160,10 @@ QUESTION CARD (BUILDER)
   box-shadow:var(--shadow);
   border:1px solid var(--border);
   transition:all 0.2s ease;
+
+  max-width:100%;              /* 🔥 ADD */
+  word-wrap:break-word;        /* 🔥 ADD */
+  overflow-wrap:break-word;    /* 🔥 ADD */
 }
 
 .question-card:hover{
@@ -384,7 +396,9 @@ MOBILE
   }
 
   .question-bank-panel{
-    width:100%;
-  }
+  width:100%;
+  left:0;    /* 🔥 ADD */
+  right:0;   /* 🔥 ADD */
+}
 
 }
