@@ -119,6 +119,8 @@ async function addQuestionFromBank(qId, btn) {
   renderDraft(currentDraft);
 
   setStatus("Question added to draft ✅");
+  // 🔥 AUTO REFRESH SEARCH RESULTS
+  renderQuestionBankResults(currentSearchResults);
 
   // 🔥 visual confirmation
   if (btn) {
@@ -154,12 +156,12 @@ function renderQuestionBankResults(questions) {
           D. ${q.option_d || "-"}
         </div>
 
-        <button 
-          class="primary-btn mt-10 add-from-bank-btn"
-          data-id="${q.id}"
-        >
-          + Add to Draft
-        </button>
+        <button
+      class="${exists ? "secondary-btn" : "primary-btn"} mt-10 add-from-bank-btn"
+      data-id="${q.id}"
+    >
+      ${exists ? "Already Added" : "+ Add to Draft"}
+    </button>
 
       </div>
     `;
@@ -1035,24 +1037,33 @@ document.getElementById("topicDropdown")
 
 });
 
-  const topicInput = document.getElementById("bankTopicInput");
+ const topicInput = document.getElementById("bankTopicInput");
 const topicTagsContainer = document.getElementById("bankTopicTags");
 
 if (topicInput) {
-  topicInput.addEventListener("keydown", (e) => {
 
+  // 🔁 Single source of truth
+  function processTopicInput() {
+    const value = topicInput.value.trim();
+    if (!value) return;
+
+    addTopicTag(value);
+    topicInput.value = "";
+  }
+
+  // ✅ ENTER KEY
+  topicInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
-
-      const value = topicInput.value.trim();
-      if (!value) return;
-
-      addTopicTag(value);
-
-      topicInput.value = "";
+      processTopicInput();
     }
-
   });
+
+  // ✅ BLUR AUTO-ADD (🔥 core fix)
+  topicInput.addEventListener("blur", () => {
+    processTopicInput();
+  });
+
 }
 
   document.getElementById("closeAddToBank")
