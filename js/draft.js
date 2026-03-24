@@ -895,7 +895,7 @@ function init() {
 // --------------------------------
 document.getElementById("addAllResultsBtn")
   ?.addEventListener("click", addAllResultsToDraft);
-  
+
 document.getElementById("questionBankResults")
   ?.addEventListener("click", (e) => {
 
@@ -904,7 +904,7 @@ document.getElementById("questionBankResults")
 
   const qId = btn.dataset.id;
 
-  addQuestionFromBank(qId);
+  addQuestionFromBank(qId, btn);
 });
 
   document.getElementById("qbSearch")
