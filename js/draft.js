@@ -693,6 +693,7 @@ document.getElementById("questions")?.addEventListener("click", (e) => {
 
     // OPEN PANEL
     document.getElementById("addToBankPanel")?.classList.remove("hidden");
+    document.body.style.overflow = "hidden"; // 🔥 ADD
 
     // SHOW QUESTION PREVIEW
     const preview = document.getElementById("bankQuestionPreview");
@@ -1092,6 +1093,7 @@ function updateConfirmState() {
   document.getElementById("closeAddToBank")
   ?.addEventListener("click", () => {
     document.getElementById("addToBankPanel").classList.add("hidden");
+    document.body.style.overflow = ""; // 🔥 ADD
   });
 
    // 🔥 FORCE RESET UI STATE
@@ -1107,11 +1109,13 @@ function updateConfirmState() {
   document.getElementById("openQuestionBankBtn")
     ?.addEventListener("click", () => {
       document.getElementById("questionBankPanel").classList.remove("hidden");
+      document.body.style.overflow = "hidden";
     });
 
   document.getElementById("closeQB")
     ?.addEventListener("click", () => {
       document.getElementById("questionBankPanel").classList.add("hidden");
+      document.body.style.overflow = ""; // 🔥 ADD
     });
   // --------------------------------
 // CONFIRM ADD TO BANK (NEW)
