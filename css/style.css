@@ -338,14 +338,15 @@ QUESTION BANK PANEL
 ====================================================== */
 
 .question-bank-panel{
-  width:320px;
-  background:#fff;
-  border-left:1px solid var(--border);
-
-  position:fixed;
+  position: fixed;
   top:0;
   right:0;
   height:100%;
+
+  width:320px; /* desktop */
+
+  background:#fff;
+  border-left:1px solid var(--border);
 
   padding:20px;
   overflow:auto;
@@ -354,6 +355,14 @@ QUESTION BANK PANEL
   transition:transform 0.25s ease;
 
   z-index:1000;
+
+  box-shadow: -2px 0 10px rgba(0,0,0,0.1); /* 🔥 ADD */
+}
+.qb-header{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-bottom:10px;
 }
 
 .question-bank-panel:not(.hidden){
@@ -397,8 +406,16 @@ MOBILE
 
   .question-bank-panel{
   width:100%;
-  left:0;    /* 🔥 ADD */
-  right:0;   /* 🔥 ADD */
+  left:0;
+  right:0;
+
+  border-left:none;   /* 🔥 REMOVE desktop feel */
+  border-radius:0;    /* 🔥 full screen feel */
+
+  transform:translateX(100%);
+}
+.question-bank-panel:not(.hidden){
+  transform:translateX(0);
 }
 
 }
