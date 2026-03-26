@@ -1,3 +1,13 @@
+function cleanQuestionText(text) {
+  return text
+    .trim()
+    // remove Q1. / Q 1. / Q1) / 1. / 1)
+    .replace(/^Q?\s*\d+[\.\)]\s*/i, "")
+    // remove (1)
+    .replace(/^\(\d+\)\s*/, "")
+    .trim();
+}
+
 // ===============================
 // CREATE DRAFT (Edge Function)
 // ===============================
@@ -46,7 +56,7 @@ return null;
 function parseQuiz(text){
 
 const blocks = text
-.split(/\n(?=Q\d+\.)/g)
+.split(/\n(?=(Q?\s*\d+[\.\)]))/g)
 .map(b=>b.trim())
 .filter(Boolean);
 
@@ -73,7 +83,8 @@ explanation = lines
 const options = lines.slice(answerIndex-4,answerIndex);
 if(options.length!==4) return null;
 
-const question = lines.slice(0,answerIndex-4).join("\n");
+const rawQuestion = lines.slice(0,answerIndex-4).join("\n");
+const question = cleanQuestionText(rawQuestion);
 
 return{
 question:question,
