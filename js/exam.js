@@ -726,7 +726,13 @@ async function addPDFHeader(){
   header.innerHTML = `
     <div class="pdf-header">
 
-      ${logo ? `<img src="${logo}" class="pdf-logo">` : ""}
+      ${logo ? `
+  <img 
+    src="${logo}" 
+    class="pdf-logo"
+    style="max-height:60px;max-width:120px;display:block;margin:0 auto 10px;"
+  >
+` : ""}
 
       <h2>${examTitle}</h2>
 
