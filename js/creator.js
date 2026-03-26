@@ -89,10 +89,16 @@ explanation = lines
 .trim();
 }
 
-const options = lines.slice(answerIndex-4,answerIndex);
-if(options.length!==4) return null;
+// 🔍 detect options (A. B. C. D.)
+const optionLines = lines.filter(l => /^[A-D]\.\s*/.test(l));
 
-const rawQuestion = lines.slice(0,answerIndex-4).join("\n");
+if(optionLines.length !== 4) return null;
+
+const options = optionLines.map(o => o.replace(/^[A-D]\.\s*/, ""));
+
+const firstOptionIndex = lines.findIndex(l => /^[A-D]\.\s*/.test(l));
+
+const rawQuestion = lines.slice(0, firstOptionIndex).join("\n");
 const question = cleanQuestionText(rawQuestion);
 
 return{
