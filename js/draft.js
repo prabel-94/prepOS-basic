@@ -39,7 +39,7 @@ function setStatus(message, isError = false) {
 function generateHash(q) {
   const base = (
     q.text +
-    (q.options || []).join("") +
+    (q.options || []).map(o => o.text).join("") +
     q.correct
   ).toLowerCase().replace(/\s+/g, "");
 
@@ -103,11 +103,11 @@ async function addQuestionFromBank(qId, btn) {
     id: crypto.randomUUID(),
     text: data.question_text,
     options: [
-      data.option_a || "",
-      data.option_b || "",
-      data.option_c || "",
-      data.option_d || ""
-    ],
+  { id:"A", text: data.option_a || "" },
+  { id:"B", text: data.option_b || "" },
+  { id:"C", text: data.option_c || "" },
+  { id:"D", text: data.option_d || "" }
+],
     correct: data.correct_option || "A",
     explanation: data.explanation || "",
     topics: [],
@@ -200,11 +200,11 @@ async function addAllResultsToDraft() {
       id: crypto.randomUUID(),
       text: data.question_text,
       options: [
-        data.option_a || "",
-        data.option_b || "",
-        data.option_c || "",
-        data.option_d || ""
-      ],
+  { id:"A", text: data.option_a || "" },
+  { id:"B", text: data.option_b || "" },
+  { id:"C", text: data.option_c || "" },
+  { id:"D", text: data.option_d || "" }
+],
       correct: data.correct_option || "A",
       explanation: data.explanation || "",
       topics: [],
@@ -362,10 +362,10 @@ async function saveQuestionToBank(q) {
       .from("questions")
       .insert({
         question_text: q.text,
-        option_a: q.options[0],
-        option_b: q.options[1],
-        option_c: q.options[2],
-        option_d: q.options[3],
+        option_a: q.options[0]?.text || "",
+        option_b: q.options[1]?.text || "",
+        option_c: q.options[2]?.text || "",
+        option_d: q.options[3]?.text || "",
         correct_option: q.correct,
         explanation: q.explanation,
         question_hash: hash
@@ -524,7 +524,7 @@ function renderDraft(draft) {
 
   questions.forEach((q, i) => {
     const opts = [...(q.options || [])];
-    while (opts.length < 4) opts.push("");
+    while (opts.length < 4) opts.push({ id: "", text: "" });
 
     const status = q.bank_status || "draft";
 
@@ -564,7 +564,7 @@ function renderDraft(draft) {
             class="opt" 
             data-i="${i}" 
             data-oi="${oi}" 
-            value="${opt}" 
+            value="${opt.text || ""}" 
             placeholder="Option ${label}"
           />
         </label>
@@ -664,10 +664,17 @@ document.getElementById("questions")?.addEventListener("input", (e) => {
   }
 
   if (e.target.classList.contains("opt")) {
-    const i = +e.target.dataset.i;
-    const oi = +e.target.dataset.oi;
-    currentDraft.schema_json.sections[0].questions[i].options[oi] = e.target.value;
+  const i = +e.target.dataset.i;
+  const oi = +e.target.dataset.oi;
+
+  const q = currentDraft.schema_json.sections[0].questions[i];
+
+  if (!q.options[oi]) {
+    q.options[oi] = { id: ["A","B","C","D"][oi], text: "" };
   }
+
+  q.options[oi].text = e.target.value;
+}
 
   if (e.target.classList.contains("explanation")) {
     currentDraft.schema_json.sections[0].questions[+e.target.dataset.i].explanation = e.target.value;
@@ -708,8 +715,8 @@ if (preview) {
     <div class="mt-10"><b>Options:</b></div>
     <ul class="mt-10">
       ${opts.map((o, i) => `
-        <li>
-          ${["A","B","C","D"][i]}: ${o || "-"}
+  <li>
+    ${["A", "B", "C", "D"][i]}: ${o?.text || "-"}
           ${q.correct === ["A","B","C","D"][i] ? " ✅" : ""}
         </li>
       `).join("")}
@@ -746,7 +753,12 @@ function createNewQuestion() {
   const q = {
     id: crypto.randomUUID(),
     text: "",
-    options: ["","","",""],
+    options: [
+  { id:"A", text:"" },
+  { id:"B", text:"" },
+  { id:"C", text:"" },
+  { id:"D", text:"" }
+],
     correct: "A",
     explanation: "",
     topics: [],
@@ -777,7 +789,14 @@ document.querySelectorAll(".qtext").forEach(el => {
 document.querySelectorAll(".opt").forEach(el => {
   const i = +el.dataset.i;
   const oi = +el.dataset.oi;
-  currentDraft.schema_json.sections[0].questions[i].options[oi] = el.value;
+
+  const q = currentDraft.schema_json.sections[0].questions[i];
+
+  if (!q.options[oi]) {
+    q.options[oi] = { id: ["A","B","C","D"][oi], text: "" };
+  }
+
+  q.options[oi].text = el.value;
 });
 
 document.querySelectorAll(".explanation").forEach(el => {
@@ -992,10 +1011,10 @@ document.getElementById("topicDropdown")
       .from("questions")
       .insert({
         question_text: q.text,
-        option_a: q.options[0],
-        option_b: q.options[1],
-        option_c: q.options[2],
-        option_d: q.options[3],
+        option_a: q.options[0]?.text || "",
+        option_b: q.options[1]?.text || "",
+        option_c: q.options[2]?.text || "",
+        option_d: q.options[3]?.text || "",
         correct_option: q.correct,
         explanation: q.explanation,
         question_hash: generateHash(q) + Date.now() // force uniqueness
