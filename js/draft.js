@@ -26,6 +26,16 @@ const mode = params.get("mode");
 // --------------------------------
 // HELPERS
 // --------------------------------
+
+function formatTopicName(name) {
+  return name
+    .trim()
+    .replace(/\s+/g, " ")
+    .replace(/\w\S*/g, w =>
+      w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()
+    );
+}
+
 function setStatus(message, isError = false) {
   const el = document.getElementById("status");
   if (!el) return;
@@ -33,6 +43,75 @@ function setStatus(message, isError = false) {
   el.style.color = isError ? "#c0392b" : "#555";
 }
 
+function getTopicWarnings(input) {
+
+  const warnings = [];
+  const clean = input.trim();
+
+  if (!clean) return warnings;
+
+  const lower = clean.toLowerCase();
+
+  // ----------------------------
+  // 1. PLURAL DETECTION
+  // ----------------------------
+  if (lower.endsWith("s") && lower.length > 3) {
+    warnings.push({
+      type: "plural",
+      message: `Use singular → ${formatTopicName(clean.slice(0, -1))}`,
+      suggestion: formatTopicName(clean.slice(0, -1))
+    });
+  }
+
+  // ----------------------------
+  // 2. BAD KEYWORDS (type leakage)
+  // ----------------------------
+  const badWords = ["questions", "problems", "easy", "hard", "important"];
+
+  for (const word of badWords) {
+    if (lower.includes(word)) {
+      warnings.push({
+        type: "bad_word",
+        message: `Avoid words like "${word}" in topic name`
+      });
+      break;
+    }
+  }
+
+  // ----------------------------
+  // 3. TOO LONG (likely not a topic)
+  // ----------------------------
+  if (clean.split(" ").length > 4) {
+    warnings.push({
+      type: "length",
+      message: "Topic name seems too long"
+    });
+  }
+
+  return warnings;
+}
+
+function renderTopicWarnings(warnings) {
+  const container = document.getElementById("topicWarnings");
+
+  if (!container) return;
+
+  if (!warnings.length) {
+    container.innerHTML = "";
+    return;
+  }
+
+  container.innerHTML = warnings.map(w => `
+    <div class="warning-text">
+      ⚠ ${w.message}
+      ${
+        w.suggestion
+          ? `<button class="fix-btn" data-fix="${w.suggestion}">Fix</button>`
+          : ""
+      }
+    </div>
+  `).join("");
+}
 // --------------------------------
 // HASH (Duplicate detection)
 // --------------------------------
@@ -222,10 +301,12 @@ async function addAllResultsToDraft() {
 // --------------------------------
 // TOPIC SYSTEM
 // --------------------------------
+
+
 function addTopicTag(name) {
   const container = document.getElementById("bankTopicTags");
 
-  const normalized = name.toLowerCase();
+  const normalized = name.trim().replace(/\s+/g, " ").toLowerCase();
 
   // prevent duplicates
   const existing = Array.from(container.children).some(
@@ -306,8 +387,12 @@ function removeTopic(qIndex, topicIndex) {
 // TOPIC DB LINKING
 // --------------------------------
 async function getOrCreateTopic(name) {
-  const normalized = name.trim().toLowerCase();
 
+  const clean = name.trim().replace(/\s+/g, " ");
+  const formatted = formatTopicName(clean);
+  const normalized = clean.toLowerCase();
+
+  // Try fetch
   const { data: existing } = await sb
     .from("topics")
     .select("id")
@@ -316,14 +401,26 @@ async function getOrCreateTopic(name) {
 
   if (existing) return existing.id;
 
-  const { data } = await sb
+  // Try insert (safe because of UNIQUE index)
+  const { data, error } = await sb
     .from("topics")
     .insert({
-      name: name.trim(),
+      name: formatted,
       normalized_name: normalized
     })
     .select()
     .single();
+
+  // 🔥 Handle race condition
+  if (error && error.code === "23505") {
+    const { data: retry } = await sb
+      .from("topics")
+      .select("id")
+      .eq("normalized_name", normalized)
+      .single();
+
+    return retry.id;
+  }
 
   return data.id;
 }
@@ -734,6 +831,7 @@ if (preview) {
     document.getElementById("bankTopicInput").value = "";
     document.getElementById("bankTopicTags").innerHTML = "";
     updateConfirmState();
+    renderTopicWarnings([]);
   }
 
   // --------------------------------
@@ -981,6 +1079,11 @@ document.getElementById("topicSearch")
   const query = e.target.value.trim();
 
   const topics = await searchTopicsForDropdown(query);
+  const normalizedQuery = query.trim().toLowerCase();
+
+const exactMatch = topics.some(
+  t => t.name.trim().toLowerCase() === normalizedQuery
+);
 
   const dropdown = document.getElementById("topicDropdown");
 
@@ -989,13 +1092,27 @@ document.getElementById("topicSearch")
     return;
   }
 
-  dropdown.classList.remove("hidden");
+    dropdown.classList.remove("hidden");
 
-  dropdown.innerHTML = topics.map(t => `
-    <div class="topic-tag topic-option" data-id="${t.id}">
-      ${t.name}
+    let html = "";
+
+    // Existing topics
+    html += topics.map(t => `
+  <div class="topic-tag topic-option" data-id="${t.id}">
+    ${t.name}
+  </div>
+`).join("");
+
+    // 🔥 Add "Create New" only if NO exact match
+    if (!exactMatch && query.trim()) {
+      html += `
+    <div class="topic-tag create-new" data-value="${query}">
+      + Create "${formatTopicName(query)}"
     </div>
-  `).join("");
+  `;
+    }
+
+    dropdown.innerHTML = html;
 });
 
 document.getElementById("topicDropdown")
@@ -1101,8 +1218,11 @@ if (topicInput) {
     const value = topicInput.value.trim();
     if (!value) return;
 
-    addTopicTag(value);
+    const formatted = formatTopicName(value);
+    addTopicTag(formatted);
     topicInput.value = "";
+     // 🔥 clear warnings
+  renderTopicWarnings([]);
   }
 
   // ✅ ENTER KEY
@@ -1117,6 +1237,12 @@ if (topicInput) {
   topicInput.addEventListener("blur", () => {
     processTopicInput();
   });
+  // 🔥 LIVE WARNINGS
+topicInput.addEventListener("input", (e) => {
+  const value = e.target.value;
+  const warnings = getTopicWarnings(value);
+  renderTopicWarnings(warnings);
+});
 
 }
 
@@ -1222,7 +1348,6 @@ document.getElementById("confirmAddToBank")
 
   return; // ⛔ STOP normal flow here
 }
-
 // --------------------------------
 // NON-DUPLICATE FLOW (unchanged)
 // --------------------------------
@@ -1249,6 +1374,18 @@ setStatus("Question saved to bank ✅");
 
   if (draftId) loadDraft();
   else createEmptyDraft();
+
+  document.getElementById("topicWarnings")
+  ?.addEventListener("click", (e) => {
+
+  if (e.target.classList.contains("fix-btn")) {
+    const topicInput = document.getElementById("bankTopicInput");
+
+    topicInput.value = e.target.dataset.fix;
+
+    topicInput.dispatchEvent(new Event("input"));
+  }
+});
 }
 
 init();

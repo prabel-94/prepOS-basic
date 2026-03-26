@@ -372,6 +372,26 @@ QUESTION CARD (BUILDER)
   cursor:pointer;
 }
 
+.topic-warnings {
+  margin-top: 6px;
+}
+
+.warning-text {
+  font-size: 12px;
+  color: #e67e22;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.fix-btn {
+  font-size: 11px;
+  border: none;
+  background: none;
+  color: #3498db;
+  cursor: pointer;
+}
+
 /* ======================================================
 EMPTY STATE
 ====================================================== */
