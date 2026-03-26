@@ -113,6 +113,14 @@ textarea{
   border-radius:6px;
 }
 
+.logo-preview {
+  max-height: 80px;
+  max-width: 200px;
+  height: auto;
+  object-fit: contain;
+  display: block;
+  margin-top: 10px;
+}
 /* ======================================================
 WORKSPACE
 ====================================================== */
