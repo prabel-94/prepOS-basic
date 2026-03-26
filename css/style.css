@@ -60,7 +60,35 @@ LAYOUT
   padding:16px;            /* slightly tighter for mobile */
   box-sizing:border-box;   /* 🔥 ADD */
 }
+/* EXAM HEADER */
 
+.exam-header{
+  display:flex;
+  align-items:center;
+  gap:15px;
+  margin-bottom:20px;
+}
+
+.exam-header-left{
+  flex-shrink:0;
+}
+
+.exam-logo{
+  max-height:60px;
+  max-width:120px;
+  object-fit:contain;
+}
+
+.exam-header-right h2{
+  margin:0;
+  font-size:20px;
+}
+
+.exam-subtitle{
+  font-size:13px;
+  color:var(--muted);
+  margin-top:4px;
+}
 /* ======================================================
 BUTTON SYSTEM
 ====================================================== */
