@@ -60,9 +60,7 @@ function render(){
 </label>
 
 <label>Question</label>
-<textarea data-i="${i}" class="qtext">${
-  (q.question || "").replace(/\n\d+\.\s/g, "\n• ")
-}</textarea>
+<textarea data-i="${i}" class="qtext">${q.question || ""}</textarea>
 
 <label>Options</label>
 
