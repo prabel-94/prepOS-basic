@@ -56,13 +56,22 @@ return null;
 function parseQuiz(text){
 
 const blocks = text
-.split(/\n(?=(Q?\s*\d+[\.\)]))/g)
+.split(/\n(?=Q?\s*\d+[\.\)]\s+)/g)
 .map(b=>b.trim())
 .filter(Boolean);
 
 return blocks.map(block=>{
 
-const lines = block.split("\n").map(l=>l.trim()).filter(Boolean);
+let lines = block
+  .split("\n")
+  .map(l => l.trim())
+  .filter(Boolean);
+
+// 🔥 Merge orphan numbering lines (Q15. → next line)
+if (/^Q?\s*\d+[\.\)]$/.test(lines[0]) && lines[1]) {
+  lines[1] = lines[0] + " " + lines[1];
+  lines.shift();
+}
 
 const answerIndex = lines.findIndex(l=>/^Answer\s*:/i.test(l));
 if(answerIndex===-1) return null;
