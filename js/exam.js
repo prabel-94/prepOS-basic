@@ -110,11 +110,15 @@ function normalizeQuestion(q){
   correct = String(correct || "").toUpperCase();
 
   return {
-    text: q.text || q.question || q.question_text || "",
-    options: q.options || [],
-    correct,
-    explanation: q.explanation || q.explanation_text || ""
-  };
+  text: q.text || q.question || q.question_text || "",
+  options: (q.options || []).map(o =>
+    typeof o === "string"
+      ? { id: "", text: o } // fallback for old data
+      : o
+  ),
+  correct,
+  explanation: q.explanation || q.explanation_text || ""
+};
 }
 /* ---------- scroll to result ---------- */
 function scrollToResult(){
@@ -300,7 +304,7 @@ function createOptionRow(qIndex, optionText, optionIndex){
 function createQuestionCard(q, index){
 
   const optionsHTML = q.options
-    .map((opt, i) => createOptionRow(index, opt, i))
+  .map((opt, i) => createOptionRow(index, opt.text, i))
     .join("");
 
   return `
@@ -459,9 +463,13 @@ const selected =
 
     const student = answers[i]?.chosen || "-";
 
-    return{
+    return {
       question: q.text,
-      options: q.options,
+      options: (q.options || []).map(o =>
+        typeof o === "string"
+          ? { id: "", text: o }
+          : o
+      ),
       correct: q.correct,   // ✅ already normalized
       student,
       explanation: q.explanation,
@@ -516,7 +524,7 @@ function createReviewOption(opt, idx, correct, student){
 
   return `
     <div class="${className}">
-      ${letter}. ${escapeHTML(opt)}
+      ${letter}. ${escapeHTML(opt.text)}
     </div>
   `;
 }
