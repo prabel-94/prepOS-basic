@@ -76,7 +76,11 @@ if (/^Q?\s*\d+[\.\)]$/.test(lines[0]) && lines[1]) {
 const answerIndex = lines.findIndex(l=>/^Answer\s*:/i.test(l));
 if(answerIndex===-1) return null;
 
-const answer = (lines[answerIndex].split(":")[1]||"").trim();
+let answer = (lines[answerIndex].split(":")[1] || "").trim().toUpperCase();
+
+// normalize formats like "Option D"
+const match = answer.match(/[A-D]/);
+answer = match ? match[0] : "A";
 
 const explanationIndex = lines.findIndex(l=>/^Explanation\s*:/i.test(l));
 
@@ -90,20 +94,28 @@ explanation = lines
 }
 
 // 🔍 detect options (A. B. C. D.)
-const optionLines = lines.filter(l => /^[A-D]\.\s*/.test(l));
+const optionRegex = /^[A-Da-d][\.\)\:\-]\s*/;
+
+const optionLines = lines.filter(l => optionRegex.test(l));
 
 if(optionLines.length !== 4) return null;
 
-const options = optionLines.map(o => o.replace(/^[A-D]\.\s*/, ""));
+const options = optionLines.map(o =>
+  o.replace(optionRegex, "")
+);
 
-const firstOptionIndex = lines.findIndex(l => /^[A-D]\.\s*/.test(l));
+const firstOptionIndex = lines.findIndex(l => optionRegex.test(l));
+
+// 🔒 SAFETY GUARD
+if(firstOptionIndex === -1 || firstOptionIndex > answerIndex){
+  return null;
+}
 
 const rawQuestion = lines.slice(0, firstOptionIndex).join("\n");
 const question = cleanQuestionText(rawQuestion);
-
 return{
 question:question,
-options:options.map(o=>o.replace(/^[A-D]\.\s*/,"")),
+options: options,
 correct:answer,
 explanation:explanation
 };
@@ -124,7 +136,7 @@ text = text.replace(/-+/g,"");
 text = text.replace(/\b(Ans|Correct option)\b\s*[:\-]?\s*/gi,"Answer: ");
 text = text.replace(/\bExplanation\b\s*[:\-]?\s*/gi,"Explanation: ");
 text = text.replace(/[ \t]+/g," ");
-text = text.replace(/\n(?=Q\d+\.)/g,"\n\n");
+text = text.replace(/\n(?=Q?\s*\d+[\.\)])/g, "\n\n");
 text = text.trim();
 
 document.getElementById("input").value = text;
