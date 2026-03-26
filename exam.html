@@ -3,142 +3,109 @@
 
 <head>
 
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 
-<title>PrepOS Exam</title>
+  <title>PrepOS Exam</title>
 
-<meta name="description" content="PrepOS Online Exam Platform">
+  <meta name="description" content="PrepOS Online Exam Platform">
 
-<link rel="stylesheet" href="css/style.css">
+  <!-- Styles -->
+  <link rel="stylesheet" href="css/style.css">
 
-<!-- PDF Generator -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <!-- PDF Generator -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
-<!-- Supabase (MUST come first) -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-<!-- App Config -->
-<script src="js/config.js" defer></script>
-
-<!-- Exam Logic -->
-<script src="js/exam.js" defer></script>
-
-<header class="exam-header">
-
-  <div class="exam-header-left">
-    <img 
-      id="examLogo"
-      class="exam-logo hidden"
-      alt="Exam logo"
-    >
-  </div>
-
-  <div class="exam-header-right">
-    <h2 id="examTitle">PrepOS Exam</h2>
-    <div id="examSubtitle" class="exam-subtitle"></div>
-  </div>
-
-</header>
+  <!-- Config + Logic -->
+  <script src="js/config.js" defer></script>
+  <script src="js/exam.js" defer></script>
 
 </head>
 
 
 <body class="exam-page">
 
-<main class="exam-wrapper">
+  <main class="exam-wrapper">
 
-<!-- ================= HEADER ================= -->
+    <!-- ================= HEADER ================= -->
 
-<header class="exam-header">
+    <header class="exam-header">
 
-<img 
-id="examLogo"
-class="exam-logo"
-alt="Exam logo"
-class="exam-logo hidden"
->
+      <div class="exam-header-left">
+        <img 
+          id="examLogo"
+          class="exam-logo hidden"
+          alt="Exam logo"
+        >
+      </div>
 
-<h2 id="examTitle">PrepOS Exam</h2>
+      <div class="exam-header-right">
+        <h2 id="examTitle">PrepOS Exam</h2>
+        <div id="examSubtitle" class="exam-subtitle"></div>
+      </div>
 
-</header>
-
-
-<!-- ================= STUDENT INFO ================= -->
-
-<section class="student-info">
-
-<label for="studentName">Enter your name</label>
-
-<input
-id="studentName"
-type="text"
-placeholder="Your name"
-autocomplete="off"
-required
->
-
-</section>
+    </header>
 
 
-<!-- ================= QUIZ AREA ================= -->
+    <!-- ================= STUDENT INFO ================= -->
 
-<section id="quiz" class="quiz-container">
+    <section class="student-info">
 
+      <label for="studentName">Enter your name</label>
 
-<!-- Loading State -->
+      <input
+        id="studentName"
+        type="text"
+        placeholder="Your name"
+        autocomplete="off"
+        required
+      >
 
-<div id="loadingState" class="loading-state">
-
-<p>Loading exam...</p>
-
-</div>
-
-
-
-<!-- Error State -->
-
-<div id="errorState" class="error-state" style="display:none">
-
-<p id="errorMessage"></p>
-
-<button onclick="location.reload()">Retry</button>
-
-</div>
+    </section>
 
 
+    <!-- ================= QUIZ AREA ================= -->
 
-<!-- Exam Content -->
+    <section id="quiz" class="quiz-container">
 
-<div id="examContent" class="exam-content" style="display:none">
+      <!-- Loading State -->
+      <div id="loadingState" class="loading-state">
+        <p>Loading exam...</p>
+      </div>
 
-<!-- Questions render here -->
+      <!-- Error State -->
+      <div id="errorState" class="error-state hidden">
+        <p id="errorMessage"></p>
+        <button onclick="location.reload()">Retry</button>
+      </div>
 
-</div>
+      <!-- Exam Content -->
+      <div id="examContent" class="exam-content hidden">
+        <!-- Questions render here -->
+      </div>
+
+    </section>
 
 
-</section>
+    <!-- ================= RESULT AREA ================= -->
+
+    <section id="result" class="result-container"></section>
+
+  </main>
 
 
-<!-- ================= RESULT AREA ================= -->
+  <!-- ================= NOSCRIPT ================= -->
 
-<section id="result" class="result-container"></section>
-
-</main>
-
-
-<!-- ================= NOSCRIPT FALLBACK ================= -->
-
-<noscript>
-
-<div style="padding:20px;font-size:18px;text-align:center">
-
-This exam requires JavaScript to run.  
-Please enable JavaScript in your browser.
-
-</div>
-
-</noscript>
+  <noscript>
+    <div style="padding:20px;font-size:18px;text-align:center">
+      This exam requires JavaScript to run.<br>
+      Please enable JavaScript in your browser.
+    </div>
+  </noscript>
 
 </body>
+
 </html>
