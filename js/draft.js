@@ -456,6 +456,7 @@ async function loadDraft() {
   document.getElementById("duration").value = data.duration || "";
 
   setStatus("Loaded");
+
 }
 
 function deleteQuestion(index) {
@@ -873,8 +874,8 @@ async function publishDraft() {
     setStatus("Publishing...");
 
     const payload = {
-      title: currentDraft.title || "Untitled Exam",
-      duration: currentDraft.duration || 60,
+      title: document.getElementById("title").value || "Untitled Exam",
+      duration: parseInt(document.getElementById("duration").value) || 60,
       schema_json: currentDraft.schema_json,
       logo_url: logoURL || null
     };
@@ -1136,6 +1137,7 @@ function updateConfirmState() {
       document.getElementById("questionBankPanel").classList.add("hidden");
       document.body.style.overflow = ""; // 🔥 ADD
     });
+
   // --------------------------------
 // CONFIRM ADD TO BANK (NEW)
 // --------------------------------
