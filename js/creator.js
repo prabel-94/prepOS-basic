@@ -56,7 +56,7 @@ return null;
 function parseQuiz(text){
 
 const blocks = text
-.split(/\n(?=Q?\s*\d+[\.\)]\s+)/g)
+.split(/\n(?=Q?\s*\d+[\.\)])/g)
 .map(b=>b.trim())
 .filter(Boolean);
 
