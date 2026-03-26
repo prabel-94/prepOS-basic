@@ -918,6 +918,29 @@ async function publishDraft() {
   }
 }
 
+async function uploadLogo(file) {
+
+  const fileExt = file.name.split(".").pop();
+  const fileName = `logo-${Date.now()}.${fileExt}`;
+
+  const { data, error } = await sb.storage
+    .from("logos")
+    .upload(fileName, file, {
+      cacheControl: "3600",
+      upsert: true
+    });
+
+  if (error) {
+    console.error("Logo upload failed:", error);
+    return null;
+  }
+
+  const { data: publicUrlData } = sb.storage
+    .from("logos")
+    .getPublicUrl(fileName);
+
+  return publicUrlData.publicUrl;
+}
 // --------------------------------
 // INIT
 // --------------------------------
@@ -1137,6 +1160,31 @@ function updateConfirmState() {
       document.getElementById("questionBankPanel").classList.add("hidden");
       document.body.style.overflow = ""; // 🔥 ADD
     });
+
+  document.getElementById("logoUpload")
+  ?.addEventListener("change", async (e) => {
+
+  const file = e.target.files[0];
+  if (!file) return;
+
+  // 🔥 Instant preview (UX)
+  const previewURL = URL.createObjectURL(file);
+
+  const preview = document.getElementById("logoPreview");
+  if (preview) {
+    preview.src = previewURL;
+    preview.classList.remove("hidden");
+  }
+
+  // 🔥 Upload to Supabase (REAL FIX)
+  const uploadedURL = await uploadLogo(file);
+
+  if (uploadedURL) {
+    logoURL = uploadedURL;
+    console.log("Logo stored at:", logoURL);
+  }
+
+});
 
   // --------------------------------
 // CONFIRM ADD TO BANK (NEW)
