@@ -114,11 +114,8 @@ const options = optionLines.map(o =>
   o.replace(optionRegex, "")
 );
 
-const firstOptionIndex = lines.findIndex((l, idx) =>
-  idx < answerIndex &&
-  optionRegex.test(l) &&
-  !/^\d+\.\s*/.test(l)
-);
+const firstOptionLine = optionLines[0];
+const firstOptionIndex = lines.indexOf(firstOptionLine);
 
 // 🔒 SAFETY GUARD
 if(firstOptionIndex === -1){
