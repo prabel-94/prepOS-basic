@@ -96,9 +96,11 @@ explanation = lines
 // 🔍 detect options (A. B. C. D.)
 const optionRegex = /^[A-Da-d][\.\)\:\-]\s*/;
 
-const optionLines = lines
-  .slice(0, answerIndex) // 🔒 only before Answer
-  .filter(l => optionRegex.test(l));
+const optionLines = lines.filter((l, idx) =>
+  idx < answerIndex &&
+  optionRegex.test(l) &&
+  !/^\d+\.\s*/.test(l) // ❌ exclude numbered statements
+);
 
 if(optionLines.length !== 4) return null;
 
@@ -107,7 +109,9 @@ const options = optionLines.map(o =>
 );
 
 const firstOptionIndex = lines.findIndex((l, idx) =>
-  idx < answerIndex && optionRegex.test(l)
+  idx < answerIndex &&
+  optionRegex.test(l) &&
+  !/^\d+\.\s*/.test(l)
 );
 
 // 🔒 SAFETY GUARD
