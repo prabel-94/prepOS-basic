@@ -621,7 +621,11 @@ function renderDraft(draft) {
   }
 
   questions.forEach((q, i) => {
-    const opts = [...(q.options || [])];
+    const opts = (q.options || []).map(o =>
+  typeof o === "string"
+    ? { id: "", text: o }
+    : o
+);
     while (opts.length < 4) opts.push({ id: "", text: "" });
 
     const status = q.bank_status || "draft";

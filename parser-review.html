@@ -195,7 +195,10 @@ async function createFromSelection(){
   const mapped = selected.map((q, i) => ({
     id: `q${Date.now()}_${i}`,
     text: q.question || "",
-    options: q.options || [],
+    options: (q.options || []).map((opt, i) => ({
+  id: ["A","B","C","D"][i],
+  text: opt
+})),
     correct: typeof q.correct === "number"
       ? ["A","B","C","D"][q.correct]
       : q.correct || "A",
