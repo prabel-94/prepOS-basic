@@ -71,7 +71,7 @@ let lines = block
   .filter(Boolean);
 
 // 🔥 Merge orphan numbering lines (Q15. → next line)
-if (/^Q?\s*\d+[\.\)]$/.test(lines[0]) && lines[1]) {
+if (/^Q?\s*\d+\s*$/.test(lines[0]) && lines[1]) {
   lines[1] = lines[0] + " " + lines[1];
   lines.shift();
 }
