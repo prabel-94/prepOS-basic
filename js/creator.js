@@ -55,15 +55,17 @@ return null;
 // ===============================
 function parseQuiz(text){
 
+  // 🔥 NORMALIZE LINE ENDINGS
+text = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
 const blocks = text
-  .split(/\n(?=Q?\s*\d+\s*[\.\)]?)/g)
-  .map(b => b.trim())
-  .filter(b => b.length > 10);
+.split(/\n(?=Q\d+\.)/g)
+.map(b=>b.trim())
+.filter(Boolean);
 
 return blocks.map(block=>{
 
 let lines = block
-  .split("\n")
+  .split(/\n+/)
   .map(l => l.trim())
   .filter(Boolean);
 
