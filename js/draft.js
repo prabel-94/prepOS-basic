@@ -27,6 +27,23 @@ const mode = params.get("mode");
 // HELPERS
 // --------------------------------
 
+function updateConfirmState() {
+  const confirmBtn = document.getElementById("confirmAddToBank");
+  const topicTagsContainer = document.getElementById("bankTopicTags");
+
+  if (!confirmBtn || !topicTagsContainer) return;
+
+  const hasTopics = topicTagsContainer.children.length > 0;
+
+  confirmBtn.disabled = !hasTopics;
+
+  if (hasTopics) {
+    confirmBtn.classList.remove("disabled");
+  } else {
+    confirmBtn.classList.add("disabled");
+  }
+}
+
 function formatTopicName(name) {
   return name
     .trim()
@@ -145,7 +162,6 @@ async function searchQuestionBank(query) {
 
   return data || [];
 }
-
 // --------------------------------
 // ADD QUESTION FROM BANK → DRAFT (UPDATED)
 // --------------------------------
@@ -1246,21 +1262,8 @@ topicInput.addEventListener("input", (e) => {
   const value = e.target.value;
   const warnings = getTopicWarnings(value);
   renderTopicWarnings(warnings);
-});
+ });
 
-}
-
-const confirmBtn = document.getElementById("confirmAddToBank");
-function updateConfirmState() {
-  const hasTopics = topicTagsContainer.children.length > 0;
-
-  if (!hasTopics) {
-    confirmBtn.disabled = true;
-    confirmBtn.classList.add("disabled");
-  } else {
-    confirmBtn.disabled = false;
-    confirmBtn.classList.remove("disabled");
-  }
 }
 
   document.getElementById("closeAddToBank")
