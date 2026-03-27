@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>PrepOS Question Bank Manager</title>
+
+<link rel="stylesheet" href="css/styles.css">
+
+</head>
+
+<body>
+
+<div class="container">
+
+  <!-- =========================
+       HEADER
+  ========================== -->
+  <div class="exam-header">
+    <div class="exam-header-right">
+      <h2>Question Bank Manager</h2>
+      <div class="exam-subtitle">
+        Manage your knowledge system
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================
+       OVERVIEW BAR
+  ========================== -->
+  <div class="flex gap-10 mt-20">
+
+    <div class="question-card">
+      <div id="total-questions">0</div>
+      <div class="small">Questions</div>
+    </div>
+
+    <div class="question-card">
+      <div id="total-topics">0</div>
+      <div class="small">Topics</div>
+    </div>
+
+    <div class="question-card">
+      <div id="avg-per-topic">0</div>
+      <div class="small">Avg / Topic</div>
+    </div>
+
+    <div class="question-card">
+      <div id="weak-topics">0</div>
+      <div class="small">Weak Topics</div>
+    </div>
+
+  </div>
+
+  <!-- =========================
+       CONTROL BAR
+  ========================== -->
+  <div class="flex gap-10 mt-20">
+
+    <input 
+      type="text" 
+      id="search-input"
+      placeholder="Search questions..."
+      class="w-full"
+    />
+
+    <select id="topic-filter"></select>
+
+    <div class="flex gap-10">
+      <button id="view-questions" class="primary-btn">
+        Questions
+      </button>
+      <button id="view-topics">
+        Topics
+      </button>
+    </div>
+
+    <button id="add-question-btn" class="primary-btn">
+      + Add
+    </button>
+
+  </div>
+
+  <!-- =========================
+       ADD / EDIT FORM
+  ========================== -->
+  <div id="question-form" class="question-card mt-20 hidden">
+
+    <h3>Add / Edit Question</h3>
+
+    <textarea 
+      id="question-text"
+      placeholder="Enter question"
+    ></textarea>
+
+    <input id="optA" placeholder="Option A">
+    <input id="optB" placeholder="Option B">
+    <input id="optC" placeholder="Option C">
+    <input id="optD" placeholder="Option D">
+
+    <select id="correct-option">
+      <option value="A">Correct: A</option>
+      <option value="B">Correct: B</option>
+      <option value="C">Correct: C</option>
+      <option value="D">Correct: D</option>
+    </select>
+
+    <textarea 
+      id="explanation"
+      placeholder="Explanation (optional)"
+    ></textarea>
+
+    <!-- TOPIC INPUT -->
+    <input 
+      id="topic-input"
+      placeholder="Enter topics (comma separated)"
+    />
+
+    <div id="topicWarnings" class="topic-warnings"></div>
+
+    <div class="flex gap-10 mt-10">
+      <button id="save-question-btn" class="primary-btn">
+        Save Question
+      </button>
+      <button onclick="location.reload()">
+        Cancel
+      </button>
+    </div>
+
+  </div>
+
+  <!-- =========================
+       WORKSPACE
+  ========================== -->
+  <div class="workspace">
+
+    <!-- QUESTIONS VIEW -->
+    <div id="questions-view" class="draft-area w-full"></div>
+
+    <!-- TOPICS VIEW -->
+    <div id="topics-view" class="draft-area w-full hidden"></div>
+
+  </div>
+
+</div>
+
+<!-- =========================
+     SCRIPTS
+========================== -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+
+<!-- your supabase init -->
+<script src="js/supabaseClient.js"></script>
+
+<!-- QB Manager logic -->
+<script src="js/qb-manager.js"></script>
+
+</body>
+</html>
