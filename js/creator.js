@@ -74,7 +74,10 @@ if (/^Q?\s*\d+[\.\)]$/.test(lines[0]) && lines[1]) {
 }
 
 const answerIndex = lines.findIndex(l=>/^Answer\s*:/i.test(l));
-if(answerIndex===-1) return null;
+if(answerIndex===-1){
+  console.log("❌ No answer found", lines);
+  return null;
+}
 
 let answer = (lines[answerIndex].split(":")[1] || "").trim().toUpperCase();
 
@@ -102,7 +105,10 @@ const optionLines = lines.filter((l, idx) =>
   !/^\d+\.\s*/.test(l) // ❌ exclude numbered statements
 );
 
-if(optionLines.length !== 4) return null;
+if(optionLines.length !== 4){
+  console.log("❌ Options issue:", optionLines, lines);
+  return null;
+}
 
 const options = optionLines.map(o =>
   o.replace(optionRegex, "")
@@ -115,7 +121,8 @@ const firstOptionIndex = lines.findIndex((l, idx) =>
 );
 
 // 🔒 SAFETY GUARD
-if(firstOptionIndex === -1 || firstOptionIndex > answerIndex){
+if(firstOptionIndex === -1){
+  console.log("❌ Option index issue", lines);
   return null;
 }
 
