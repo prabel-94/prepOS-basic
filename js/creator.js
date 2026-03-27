@@ -58,7 +58,7 @@ function parseQuiz(text){
 const blocks = text
   .split(/\n(?=Q?\s*\d+\s*[\.\)]?)/g)
   .map(b => b.trim())
-  .filter(b => b.length > 20);
+  .filter(b => b.length > 10);
 
 return blocks.map(block=>{
 
