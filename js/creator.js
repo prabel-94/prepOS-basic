@@ -166,9 +166,12 @@ alert("Cleaned with QCP");
 // GENERATE → REDIRECT TO DRAFT
 // ===============================
 async function generate(){
+  console.log("🔥 GENERATE TRIGGERED");
 
 const text = document.getElementById("input").value;
+console.log("🔥 BEFORE PARSE");
 const questions = parseQuiz(text);
+console.log("🔥 AFTER PARSE", questions);
 
 if(!questions.length){
   alert("No valid questions detected.");
