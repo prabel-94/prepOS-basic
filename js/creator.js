@@ -121,6 +121,8 @@ if(firstOptionIndex === -1 || firstOptionIndex > answerIndex){
 
 const rawQuestion = lines.slice(0, firstOptionIndex).join("\n");
 const question = cleanQuestionText(rawQuestion);
+
+console.log("FINAL QUESTION:", question);
 return{
 question:question,
 options: options,
