@@ -96,7 +96,9 @@ explanation = lines
 // 🔍 detect options (A. B. C. D.)
 const optionRegex = /^[A-Da-d][\.\)\:\-]\s*/;
 
-const optionLines = lines.filter(l => optionRegex.test(l));
+const optionLines = lines
+  .slice(0, answerIndex) // 🔒 only before Answer
+  .filter(l => optionRegex.test(l));
 
 if(optionLines.length !== 4) return null;
 
@@ -104,7 +106,9 @@ const options = optionLines.map(o =>
   o.replace(optionRegex, "")
 );
 
-const firstOptionIndex = lines.findIndex(l => optionRegex.test(l));
+const firstOptionIndex = lines.findIndex((l, idx) =>
+  idx < answerIndex && optionRegex.test(l)
+);
 
 // 🔒 SAFETY GUARD
 if(firstOptionIndex === -1 || firstOptionIndex > answerIndex){
