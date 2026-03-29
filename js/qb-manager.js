@@ -222,7 +222,9 @@ function renderTopics() {
 
     return `
       <div class="question-card ${weak}">
-        <div class="q-title">${t.name}</div>
+        <div class="q-title">
+  ${t.name} (${t.count})
+</div>
         <div class="small mt-5">${t.count} questions</div>
 
         <button class="secondary-btn mt-10 view-topic-btn" data-id="${t.id}">
