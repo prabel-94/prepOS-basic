@@ -22,10 +22,8 @@
 HEADER
 ====================== -->
 <header class="draft-title">
-
   <h2>Draft Editor</h2>
   <div id="status" class="save-status"></div>
-
 </header>
 
 
@@ -76,13 +74,10 @@ WORKSPACE
   ====================== -->
   <div class="draft-area">
 
-    <!-- HEADER -->
     <div class="draft-header">
-
       <h3>Questions</h3>
 
       <div class="draft-toolbar">
-
         <button type="button" id="newQuestionBtn" class="primary-btn">
           + New Question
         </button>
@@ -94,18 +89,11 @@ WORKSPACE
         <button type="button" id="saveAllToBankBtn" class="secondary-btn">
           Save All to Bank
         </button>
-
       </div>
-
     </div>
 
-    <!-- QUESTIONS CONTAINER -->
     <div id="questions" class="question-list">
-
-      <div class="loading">
-        Loading draft...
-      </div>
-
+      <div class="loading">Loading draft...</div>
     </div>
 
   </div>
@@ -121,7 +109,6 @@ WORKSPACE
       <h3>Question Bank</h3>
     </div>
 
-    <!-- SEARCH -->
     <input
       type="text"
       id="qbSearch"
@@ -129,35 +116,30 @@ WORKSPACE
       placeholder="Search questions..."
       class="mt-20"
     />
+
     <div class="mt-20">
-    
       <input type="text" id="topicSearch" placeholder="Search by topic..." />
-    
       <div id="topicDropdown" class="topic-tags mt-10 hidden"></div>
-    
     </div>
- </div>
- 
-<div class="mt-10 flex gap-10">
 
-  <button id="addAllResultsBtn" class="secondary-btn">
-    + Add All Results
-  </button>
+    <div class="mt-10 flex gap-10">
+      <button id="addAllResultsBtn" class="secondary-btn">
+        + Add All Results
+      </button>
+    </div>
 
-</div>
-    <!-- RESULTS -->
     <div id="questionBankResults" class="mt-20">
-
-      <div class="qb-loading">
-        Search questions to begin
-      </div>
-
+      <div class="qb-loading">Search questions to begin</div>
     </div>
 
   </aside>
 
 </section>
 
+
+<!-- ======================
+ADD TO BANK PANEL
+====================== -->
 <aside class="question-bank-panel hidden" id="addToBankPanel">
 
   <div class="qb-header">
@@ -175,45 +157,48 @@ WORKSPACE
       placeholder="Add topic and press Enter..."
       class="mt-20"
     />
-    <!-- 🔥 NEW: WARNING SYSTEM -->
-<div id="topicWarnings" class="topic-warnings"></div>
 
-<div id="bankTopicTags" class="topic-tags mt-10"></div>
+    <div id="topicWarnings" class="topic-warnings"></div>
+    <div id="bankTopicTags" class="topic-tags mt-10"></div>
 
-    <!-- 🔥 INLINE HINT (ADD HERE) -->
-<div id="topicHint" class="input-hint">
-  Add at least one topic to save this question
-</div>
+    <div id="topicHint" class="input-hint">
+      Add at least one topic to save this question
+    </div>
 
     <button id="confirmAddToBank" class="primary-btn w-full mt-20">
       Save to Bank
     </button>
 
   </div>
+
   <div id="duplicateBox" class="hidden mt-20">
 
-  <div class="status duplicate">
-    Duplicate question found ⚠️
+    <div class="status duplicate">
+      Duplicate question found ⚠️
+    </div>
+
+    <div class="mt-10 small">
+      This question already exists in the question bank.
+    </div>
+
+    <div class="flex gap-10 mt-20">
+      <button id="useExistingBtn" class="secondary-btn w-full">
+        Use Existing
+      </button>
+
+      <button id="createNewBtn" class="primary-btn w-full">
+        Create New
+      </button>
+    </div>
+
   </div>
-
-  <div class="mt-10 small">
-    This question already exists in the question bank.
-  </div>
-
-  <div class="flex gap-10 mt-20">
-    <button id="useExistingBtn" class="secondary-btn w-full">
-      Use Existing
-    </button>
-
-    <button id="createNewBtn" class="primary-btn w-full">
-      Create New
-    </button>
-  </div>
-
-</div>
 
 </aside>
 
+
+<!-- ======================
+SAVE ALL PANEL (FIXED)
+====================== -->
 <aside class="question-bank-panel hidden" id="saveAllPanel">
 
   <div class="qb-header">
@@ -226,21 +211,19 @@ WORKSPACE
     <div class="question-card">
       Assign topics to all questions that don’t have topics.
     </div>
-<div id="missingTopicWarning" class="status warning mt-10"></div>
 
-    <!-- 🔥 REUSE SAME INPUT -->
+    <div id="missingTopicWarning" class="status warning mt-10"></div>
+
+    <!-- ✅ FIXED UNIQUE IDS -->
     <input
       type="text"
-      id="bankTopicInput"
+      id="bulkTopicInput"
       placeholder="Add topic and press Enter..."
       class="mt-20"
     />
 
-    <!-- 🔥 SAME WARNING SYSTEM -->
-    <div id="topicWarnings" class="topic-warnings"></div>
-
-    <!-- 🔥 SAME TAG CONTAINER -->
-    <div id="bankTopicTags" class="topic-tags mt-10"></div>
+    <div id="bulkTopicWarnings" class="topic-warnings"></div>
+    <div id="bulkTopicTags" class="topic-tags mt-10"></div>
 
     <div class="input-hint">
       These topics will be applied to all untagged questions
@@ -265,7 +248,6 @@ DRAFT ACTIONS
   </div>
 
   <div class="actions-row">
-
     <button type="button" id="saveDraftBtn" class="secondary-btn">
       Save Draft
     </button>
@@ -273,7 +255,6 @@ DRAFT ACTIONS
     <button type="button" id="publishDraftBtn" class="primary-btn">
       Publish Exam
     </button>
-
   </div>
 
 </section>
@@ -285,19 +266,17 @@ DRAFT ACTIONS
 SCRIPTS
 ====================== -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
 <script src="js/config.js"></script>
 <script src="js/draft.js"></script>
 
 <script>
-// EVENT BINDING (UI → Logic separation)
 document.getElementById("saveDraftBtn")?.addEventListener("click", saveDraft);
 document.getElementById("publishDraftBtn")?.addEventListener("click", publishDraft);
 </script>
 
 
 <!-- ======================
-DEV DEBUG (REMOVE IN PROD)
+DEV DEBUG
 ====================== -->
 <script>
 (function(){
