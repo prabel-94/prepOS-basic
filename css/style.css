@@ -470,6 +470,11 @@ QUESTION CARD (BUILDER)
   align-items: center;
 }
 
+.warning{
+  border-color: #f59e0b;
+  background: #fffbeb;
+}
+
 .fix-btn {
   font-size: 11px;
   border: none;
