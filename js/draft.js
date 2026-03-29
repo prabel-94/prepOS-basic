@@ -1278,6 +1278,7 @@ document.getElementById("topicDropdown")
 
   input.value = "";
   renderTopicWarnings([], warningsId);
+  updateConfirmState(); // 🔥 ADD THIS
 }
 
   // ENTER
