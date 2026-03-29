@@ -1367,7 +1367,7 @@ document.getElementById("saveAllToBankBtn")
     document.getElementById("bankTopicInput").value = "";
     document.getElementById("bankTopicTags").innerHTML = "";
 
-    renderTopicWarnings([], warningsId);
+    renderTopicWarnings([], "bulkTopicWarnings");
     updateConfirmState();
 
   });
