@@ -1343,12 +1343,14 @@ document.getElementById("saveAllToBankBtn")
     const warningBox = document.getElementById("missingTopicWarning");
 
     if (warningBox) {
-      if (missing > 0) {
-        warningBox.innerText = `⚠ ${missing} questions missing topics`;
-      } else {
-        warningBox.innerText = "All questions already have topics ✅";
-      }
-    }
+  if (missing > 0) {
+    warningBox.className = "status warning mt-10";
+    warningBox.innerText = `⚠ ${missing} questions missing topics`;
+  } else {
+    warningBox.className = "status success mt-10";
+    warningBox.innerText = "All questions already have topics ✅";
+  }
+}
 
     // --------------------------------
     // OPEN PANEL
