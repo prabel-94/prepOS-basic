@@ -42,9 +42,9 @@ function formatTopicName(name) {
   return name
     .trim()
     .replace(/\s+/g, " ")
-    .replace(/\w\S*/g(w =>
+    .replace(/\w\S*/g, w =>
       w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()
-    ));
+    );
 }
 
 function generateHash(q) {
