@@ -322,6 +322,38 @@ async function addAllResultsToDraft() {
 // TOPIC SYSTEM
 // --------------------------------
 
+function createTopicTag(container, name) {
+  if (!container || !name) return;
+
+  const formatted = formatTopicName(name);
+  const normalized = formatted.toLowerCase();
+
+  // جلوگیری duplicates
+  const exists = Array.from(container.children).some(
+    el => el.dataset.value === normalized
+  );
+
+  if (exists) return;
+
+  const div = document.createElement("div");
+  div.className = "topic-tag";
+  div.dataset.value = normalized;
+
+  div.innerHTML = `
+    ${formatted}
+    <button type="button">×</button>
+  `;
+
+  // Remove tag
+  div.querySelector("button").addEventListener("click", () => {
+    div.remove();
+    updateConfirmState();
+  });
+
+  container.appendChild(div);
+  updateConfirmState();
+}
+
 
 function addTopicTag(name) {
   const container = document.getElementById("bankTopicTags");
