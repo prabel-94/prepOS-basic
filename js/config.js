@@ -20,10 +20,10 @@ client creation when pages reload scripts.
 
 if(!window.supabaseClient){
 
-window.supabaseClient = supabase.createClient(
-SUPABASE_URL,
-SUPABASE_ANON_KEY
-)
+window.supabaseClient = (window.supabase || supabase).createClient(
+  SUPABASE_URL,
+  SUPABASE_ANON_KEY
+);
 
 }
 
