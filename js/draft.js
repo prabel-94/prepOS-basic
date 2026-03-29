@@ -1310,11 +1310,21 @@ topicInput.addEventListener("input", (e) => {
   document.getElementById("newQuestionBtn")
     ?.addEventListener("click", createNewQuestion);
 
-  document.getElementById("saveAllToBankBtn")
+  // --------------------------------
+// SAVE ALL → OPEN PANEL
+// --------------------------------
+document.getElementById("saveAllToBankBtn")
   ?.addEventListener("click", () => {
 
-    document.getElementById("saveAllPanel").classList.remove("hidden");
+    document.getElementById("saveAllPanel")?.classList.remove("hidden");
     document.body.style.overflow = "hidden";
+
+    // 🔥 RESET TOPIC SYSTEM (CRITICAL)
+    document.getElementById("bankTopicInput").value = "";
+    document.getElementById("bankTopicTags").innerHTML = "";
+
+    renderTopicWarnings([]);
+    updateConfirmState();
 
   });
 
