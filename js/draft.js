@@ -1321,6 +1321,12 @@ document.getElementById("topicDropdown")
   });
 }
 
+// --------------------------------
+// INIT TOPIC INPUT SYSTEMS
+// --------------------------------
+setupTopicInput("bankTopicInput", "bankTopicTags", "topicWarnings");
+setupTopicInput("bulkTopicInput", "bulkTopicTags", "bulkTopicWarnings");
+
   document.getElementById("closeAddToBank")
   ?.addEventListener("click", () => {
     document.getElementById("addToBankPanel").classList.add("hidden");
