@@ -1262,8 +1262,64 @@ document.getElementById("topicDropdown")
 
 });
 
- const topicInput = document.getElementById("bankTopicInput");
-const topicTagsContainer = document.getElementById("bankTopicTags");
+ function setupTopicInput(inputId, tagsId, warningsId) {
+  const input = document.getElementById(inputId);
+  const container = document.getElementById(tagsId);
+
+  if (!input || !container) return;
+
+  function process() {
+    const value = input.value.trim();
+    if (!value) return;
+
+    const formatted = formatTopicName(value);
+
+    // reuse addTopicTag but scoped
+    const normalized = formatted.toLowerCase();
+
+    const exists = Array.from(container.children).some(
+      el => el.dataset.value === normalized
+    );
+
+    if (exists) return;
+
+    const div = document.createElement("div");
+    div.className = "topic-tag";
+    div.dataset.value = normalized;
+
+    div.innerHTML = `
+      ${formatted}
+      <button type="button">×</button>
+    `;
+
+    div.querySelector("button").addEventListener("click", () => {
+      div.remove();
+      updateConfirmState();
+    });
+
+    container.appendChild(div);
+
+    input.value = "";
+    renderTopicWarnings([]);
+    updateConfirmState();
+  }
+
+  // ENTER
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      process();
+    }
+  });
+
+  // BLUR
+  input.addEventListener("blur", process);
+
+  // WARNINGS
+  input.addEventListener("input", (e) => {
+    renderTopicWarnings(getTopicWarnings(e.target.value));
+  });
+}
 
 if (topicInput) {
 
