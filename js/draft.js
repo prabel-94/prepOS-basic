@@ -1317,7 +1317,7 @@ document.getElementById("topicDropdown")
 
   // WARNINGS
   input.addEventListener("input", (e) => {
-    renderTopicWarnings(getTopicWarnings(e.target.value));
+    renderTopicWarnings(getTopicWarnings(e.target.value), warningsId);
   });
 }
 
