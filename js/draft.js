@@ -1302,40 +1302,14 @@ document.getElementById("topicDropdown")
   if (!input || !container) return;
 
   function process() {
-    const value = input.value.trim();
-    if (!value) return;
+  const value = input.value.trim();
+  if (!value) return;
 
-    const formatted = formatTopicName(value);
+  createTopicTag(container, value);
 
-    // reuse addTopicTag but scoped
-    const normalized = formatted.toLowerCase();
-
-    const exists = Array.from(container.children).some(
-      el => el.dataset.value === normalized
-    );
-
-    if (exists) return;
-
-    const div = document.createElement("div");
-    div.className = "topic-tag";
-    div.dataset.value = normalized;
-
-    div.innerHTML = `
-      ${formatted}
-      <button type="button">×</button>
-    `;
-
-    div.querySelector("button").addEventListener("click", () => {
-      div.remove();
-      updateConfirmState();
-    });
-
-    container.appendChild(div);
-
-    input.value = "";
-    renderTopicWarnings([]);
-    updateConfirmState();
-  }
+  input.value = "";
+  renderTopicWarnings([], warningsId);
+}
 
   // ENTER
   input.addEventListener("keydown", (e) => {
