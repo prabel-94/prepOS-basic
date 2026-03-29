@@ -1485,16 +1485,24 @@ document.getElementById("confirmSaveAll")
   if (draftId) loadDraft();
   else createEmptyDraft();
 
-  document.getElementById("topicWarnings")
-  ?.addEventListener("click", (e) => {
+  // --------------------------------
+// GLOBAL FIX BUTTON HANDLER (MULTI-CONTAINER SAFE)
+// --------------------------------
+document.addEventListener("click", (e) => {
+  if (!e.target.classList.contains("fix-btn")) return;
 
-  if (e.target.classList.contains("fix-btn")) {
-    const topicInput = document.getElementById("bankTopicInput");
+  // find closest warning container
+  const warningBox = e.target.closest("[id$='Warnings']");
+  if (!warningBox) return;
 
-    topicInput.value = e.target.dataset.fix;
+  // map to correct input
+  const inputId = warningBox.id.replace("Warnings", "Input");
+  const input = document.getElementById(inputId);
 
-    topicInput.dispatchEvent(new Event("input"));
-  }
+  if (!input) return;
+
+  input.value = e.target.dataset.fix;
+  input.dispatchEvent(new Event("input"));
 });
 }
 
