@@ -87,6 +87,7 @@ async function attachTopics(questionId, topicNames = []) {
 // FETCH DATA
 // --------------------------------
 async function fetchQuestions() {
+console.log("Fetching questions...");
   const { data, error } = await sb
     .from("questions")
     .select(`
