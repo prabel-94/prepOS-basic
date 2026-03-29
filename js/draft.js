@@ -500,18 +500,45 @@ if (!q.topics || q.topics.length === 0) {
   return { questionId, isDuplicate };
 }
 
-async function saveAllQuestionsToBank() {
+async function saveAllQuestionsToBank(globalTopics = []) {
   const qs = currentDraft.schema_json.sections[0].questions;
 
+  let saved = 0;
+  let skipped = 0;
+  let errors = 0;
+
   for (const q of qs) {
+
     if (q.bank_status === "saved") continue;
 
-    const res = await saveQuestionToBank(q);
-    q.bank_status = res.isDuplicate ? "duplicate" : "saved";
+    // --------------------------------
+    // APPLY GLOBAL TOPICS (ONLY IF EMPTY)
+    // --------------------------------
+    if ((!q.topics || q.topics.length === 0) && globalTopics.length) {
+      q.topics = [...globalTopics];
+    }
+
+    // --------------------------------
+    // VALIDATION
+    // --------------------------------
+    if (!q.topics || q.topics.length === 0) {
+      errors++;
+      continue;
+    }
+
+    try {
+      const res = await saveQuestionToBank(q);
+      q.bank_status = res.isDuplicate ? "duplicate" : "saved";
+      saved++;
+    } catch (err) {
+      console.error(err);
+      errors++;
+    }
   }
 
   renderDraft(currentDraft);
-  setStatus("All questions saved to bank ✅");
+
+  setStatus(`Saved: ${saved} | Skipped: ${skipped} | Errors: ${errors}`);
 }
 
 // --------------------------------
