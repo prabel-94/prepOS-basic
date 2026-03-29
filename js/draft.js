@@ -1303,6 +1303,17 @@ topicInput.addEventListener("input", (e) => {
     document.body.style.overflow = ""; // 🔥 ADD
   });
 
+// --------------------------------
+// CLOSE SAVE ALL PANEL
+// --------------------------------
+document.getElementById("closeSaveAll")
+  ?.addEventListener("click", () => {
+
+    document.getElementById("saveAllPanel")?.classList.add("hidden");
+    document.body.style.overflow = "";
+
+  });
+
    // 🔥 FORCE RESET UI STATE
   const newBtn = document.getElementById("newQuestionBtn");
   if (newBtn) newBtn.disabled = false;
