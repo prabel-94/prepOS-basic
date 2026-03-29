@@ -1435,7 +1435,7 @@ document.getElementById("confirmSaveAll")
   ?.addEventListener("click", async () => {
 
     const topics = Array.from(
-      document.querySelectorAll("#bulkTopicTags .topic-tag")
+      document.querySelectorAll("#bankTopicTags .topic-tag")
     ).map(el => el.dataset.value);
 
     if (!topics.length) {
