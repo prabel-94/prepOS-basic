@@ -13,7 +13,7 @@ const sb = window.supabaseClient;
 const state = {
   questions: [],
   topics: [],
-  view: "questions",
+  view: "topics",  
   search: "",
   topicFilter: null
 };
