@@ -1,30 +1,50 @@
 // ===============================
-// PrepOS QB Manager (v1)
+// PrepOS QB Manager (v2 - Clean Architecture)
 // ===============================
 
 // --------------------------------
-// GLOBAL STATE
+// INIT
 // --------------------------------
 const sb = window.supabaseClient;
 
-let questions = [];
-let topics = [];
-
-let currentView = "questions"; // "questions" | "topics"
-let activeTopicFilter = null;
-let searchQuery = "";
-let editingQuestionId = null;
+// --------------------------------
+// STATE
+// --------------------------------
+const state = {
+  questions: [],
+  topics: [],
+  view: "questions", // "questions" | "topics"
+  search: "",
+  topicFilter: null,
+  editingId: null
+};
 
 // --------------------------------
-// UTIL (REUSED FROM DRAFT)
+// DOM CACHE
+// --------------------------------
+const el = {
+  questionsView: document.getElementById("questions-view"),
+  topicsView: document.getElementById("topics-view"),
+  searchInput: document.getElementById("search-input"),
+  topicFilter: document.getElementById("topic-filter"),
+  form: document.getElementById("question-form"),
+
+  totalQuestions: document.getElementById("total-questions"),
+  totalTopics: document.getElementById("total-topics"),
+  avgPerTopic: document.getElementById("avg-per-topic"),
+  weakTopics: document.getElementById("weak-topics")
+};
+
+// --------------------------------
+// UTIL
 // --------------------------------
 function formatTopicName(name) {
   return name
     .trim()
     .replace(/\s+/g, " ")
-    .replace(/\w\S*/g, w =>
+    .replace(/\w\S*/g(w =>
       w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()
-    );
+    ));
 }
 
 function generateHash(q) {
@@ -37,6 +57,9 @@ function generateHash(q) {
   return btoa(base);
 }
 
+// --------------------------------
+// TOPIC HELPERS
+// --------------------------------
 async function getOrCreateTopic(name) {
   const clean = name.trim().replace(/\s+/g, " ");
   const formatted = formatTopicName(clean);
@@ -52,10 +75,7 @@ async function getOrCreateTopic(name) {
 
   const { data, error } = await sb
     .from("topics")
-    .insert({
-      name: formatted,
-      normalized_name: normalized
-    })
+    .insert({ name: formatted, normalized_name: normalized })
     .select()
     .single();
 
@@ -84,10 +104,9 @@ async function attachTopics(questionId, topicNames = []) {
 }
 
 // --------------------------------
-// FETCH DATA
+// FETCH
 // --------------------------------
 async function fetchQuestions() {
-console.log("Fetching questions...");
   const { data, error } = await sb
     .from("questions")
     .select(`
@@ -99,15 +118,10 @@ console.log("Fetching questions...");
     `)
     .order("created_at", { ascending: false });
 
-  if (error) {
-    console.error(error);
-    return;
-  }
+  if (error) return console.error(error);
 
-console.log("Questions response:", data, error);
-  questions = data || [];
+  state.questions = data || [];
   render();
-  updateOverview();
 }
 
 async function fetchTopics() {
@@ -118,85 +132,89 @@ async function fetchTopics() {
       topics ( id, name )
     `);
 
-  if (error) {
-    console.error(error);
-    return;
-  }
+  if (error) return console.error(error);
 
   const map = {};
 
   data.forEach(row => {
+    if (!row.topics) return;
+
     const t = row.topics;
 
     if (!map[t.id]) {
-      map[t.id] = {
-        id: t.id,
-        name: t.name,
-        count: 0
-      };
+      map[t.id] = { id: t.id, name: t.name, count: 0 };
     }
 
     map[t.id].count++;
   });
 
-  topics = Object.values(map);
-  renderTopicsFilter();
-}
+  state.topics = Object.values(map);
 
-// --------------------------------
-// OVERVIEW
-// --------------------------------
-function updateOverview() {
-  document.getElementById("total-questions").textContent = questions.length;
-  document.getElementById("total-topics").textContent = topics.length;
-
-  const avg = topics.length
-    ? Math.round(questions.length / topics.length)
-    : 0;
-
-  document.getElementById("avg-per-topic").textContent = avg;
-
-  const weak = topics.filter(t => t.count < 5).length;
-  document.getElementById("weak-topics").textContent = weak;
+  renderTopicFilter();
+  renderOverview();
 }
 
 // --------------------------------
 // RENDER ROOT
 // --------------------------------
 function render() {
-  if (currentView === "questions") {
+  if (state.view === "questions") {
+    el.questionsView.classList.remove("hidden");
+    el.topicsView.classList.add("hidden");
     renderQuestions();
   } else {
+    el.topicsView.classList.remove("hidden");
+    el.questionsView.classList.add("hidden");
     renderTopics();
   }
+
+  renderOverview();
 }
 
 // --------------------------------
-// QUESTIONS VIEW
+// OVERVIEW
+// --------------------------------
+function renderOverview() {
+  el.totalQuestions.textContent = state.questions.length;
+  el.totalTopics.textContent = state.topics.length;
+
+  const avg = state.topics.length
+    ? Math.round(state.questions.length / state.topics.length)
+    : 0;
+
+  el.avgPerTopic.textContent = avg;
+
+  const weak = state.topics.filter(t => t.count < 5).length;
+  el.weakTopics.textContent = weak;
+}
+
+// --------------------------------
+// QUESTIONS
 // --------------------------------
 function renderQuestions() {
-  const container = document.getElementById("questions-view");
+  let list = [...state.questions];
 
-  let filtered = [...questions];
-
-  if (searchQuery) {
-    filtered = filtered.filter(q =>
-      q.question_text.toLowerCase().includes(searchQuery.toLowerCase())
+  if (state.search) {
+    list = list.filter(q =>
+      q.question_text.toLowerCase().includes(state.search.toLowerCase())
     );
   }
 
-  if (activeTopicFilter) {
-    filtered = filtered.filter(q =>
-      q.question_topics.some(qt => qt.topic_id === activeTopicFilter)
+  if (state.topicFilter) {
+    list = list.filter(q =>
+      (q.question_topics || []).some(
+        qt => qt.topic_id == state.topicFilter
+      )
     );
   }
 
-  if (!filtered.length) {
-    container.innerHTML = `<div class="empty-state">No questions found</div>`;
+  if (!list.length) {
+    el.questionsView.innerHTML =
+      `<div class="empty-state">No questions found</div>`;
     return;
   }
 
-  container.innerHTML = filtered.map(q => {
+  el.questionsView.innerHTML = list.map(q => {
 
     const topicsHTML = (q.question_topics || [])
       .map(qt => `<div class="topic-tag">${qt.topics.name}</div>`)
@@ -218,7 +236,6 @@ function renderQuestions() {
     return `
       <div class="question-card">
 
-        <!-- HEADER -->
         <div class="q-header">
           <div class="q-title">Question</div>
 
@@ -228,17 +245,12 @@ function renderQuestions() {
           </div>
         </div>
 
-        <!-- QUESTION TEXT -->
-        <div class="qtext">
-          ${q.question_text}
-        </div>
+        <div class="qtext">${q.question_text}</div>
 
-        <!-- OPTIONS -->
         <div class="options mt-10">
           ${optionsHTML}
         </div>
 
-        <!-- TOPICS -->
         <div class="topic-tags mt-10">
           ${topicsHTML}
         </div>
@@ -247,32 +259,28 @@ function renderQuestions() {
     `;
   }).join("");
 }
+
 // --------------------------------
-// TOPICS VIEW
+// TOPICS
 // --------------------------------
 function renderTopics() {
-  const container = document.getElementById("topics-view");
-
-  if (!topics.length) {
-    container.innerHTML = `<div class="empty-state">No topics</div>`;
+  if (!state.topics.length) {
+    el.topicsView.innerHTML =
+      `<div class="empty-state">No topics</div>`;
     return;
   }
 
-  container.innerHTML = topics.map(t => {
-
+  el.topicsView.innerHTML = state.topics.map(t => {
     const weak = t.count < 5 ? "warning" : "";
 
     return `
-      <div class="topic-card ${weak}">
+      <div class="question-card ${weak}">
+        <div class="q-title">${t.name}</div>
+        <div class="small mt-5">${t.count} questions</div>
 
-        <div class="topic-name">${t.name}</div>
-
-        <div class="mt-5">${t.count} questions</div>
-
-        <button class="view-topic-btn mt-10" data-id="${t.id}">
+        <button class="secondary-btn mt-10 view-topic-btn" data-id="${t.id}">
           View Questions
         </button>
-
       </div>
     `;
   }).join("");
@@ -281,17 +289,26 @@ function renderTopics() {
 // --------------------------------
 // FILTER DROPDOWN
 // --------------------------------
-function renderTopicsFilter() {
-  const select = document.getElementById("topic-filter");
-
-  select.innerHTML = `
+function renderTopicFilter() {
+  el.topicFilter.innerHTML = `
     <option value="">All Topics</option>
-    ${topics.map(t => `
+    ${state.topics.map(t => `
       <option value="${t.id}">
         ${t.name} (${t.count})
       </option>
     `).join("")}
   `;
+}
+
+// --------------------------------
+// FORM CONTROL
+// --------------------------------
+function openForm() {
+  el.form.classList.remove("hidden");
+}
+
+function closeForm() {
+  el.form.classList.add("hidden");
 }
 
 // --------------------------------
@@ -307,11 +324,12 @@ async function deleteQuestion(id) {
 }
 
 // --------------------------------
-// CREATE / UPDATE
+// SAVE
 // --------------------------------
 async function saveQuestion() {
 
   const text = document.getElementById("question-text").value.trim();
+
   const options = [
     document.getElementById("optA").value,
     document.getElementById("optB").value,
@@ -335,7 +353,7 @@ async function saveQuestion() {
 
   let questionId;
 
-  if (editingQuestionId) {
+  if (state.editingId) {
     await sb.from("questions").update({
       question_text: text,
       option_a: options[0],
@@ -344,9 +362,9 @@ async function saveQuestion() {
       option_d: options[3],
       correct_option: correct,
       explanation
-    }).eq("id", editingQuestionId);
+    }).eq("id", state.editingId);
 
-    questionId = editingQuestionId;
+    questionId = state.editingId;
   } else {
     const { data } = await sb
       .from("questions")
@@ -378,10 +396,12 @@ async function saveQuestion() {
 // EDIT LOAD
 // --------------------------------
 function loadEdit(id) {
-  const q = questions.find(q => q.id == id);
+  const q = state.questions.find(q => q.id == id);
   if (!q) return;
 
-  editingQuestionId = id;
+  state.editingId = id;
+
+  openForm();
 
   document.getElementById("question-text").value = q.question_text;
   document.getElementById("optA").value = q.option_a;
@@ -396,17 +416,15 @@ function loadEdit(id) {
     .join(", ");
 
   document.getElementById("topic-input").value = topicNames;
-
-  document.getElementById("question-form").classList.remove("hidden");
 }
 
 // --------------------------------
-// RESET FORM
+// RESET
 // --------------------------------
 function resetForm() {
-  editingQuestionId = null;
+  state.editingId = null;
 
-  document.getElementById("question-form").classList.add("hidden");
+  closeForm();
 
   document.querySelectorAll("#question-form input, #question-form textarea")
     .forEach(el => el.value = "");
@@ -417,59 +435,53 @@ function resetForm() {
 // --------------------------------
 function bindEvents() {
 
-  document.getElementById("search-input")
-    ?.addEventListener("input", (e) => {
-      searchQuery = e.target.value;
-      renderQuestions();
-    });
+  el.searchInput.addEventListener("input", e => {
+    state.search = e.target.value;
+    renderQuestions();
+  });
 
-  document.getElementById("topic-filter")
-    ?.addEventListener("change", (e) => {
-      activeTopicFilter = e.target.value || null;
-      renderQuestions();
-    });
+  el.topicFilter.addEventListener("change", e => {
+    state.topicFilter = e.target.value || null;
+    renderQuestions();
+  });
 
   document.getElementById("view-questions")
-    ?.addEventListener("click", () => {
-      currentView = "questions";
+    .addEventListener("click", () => {
+      state.view = "questions";
       render();
     });
 
   document.getElementById("view-topics")
-    ?.addEventListener("click", () => {
-      currentView = "topics";
+    .addEventListener("click", () => {
+      state.view = "topics";
       render();
     });
 
   document.getElementById("add-question-btn")
-    ?.addEventListener("click", () => {
-      document.getElementById("question-form").classList.remove("hidden");
-    });
+    .addEventListener("click", openForm);
 
-  document.getElementById("questions-view")
-    ?.addEventListener("click", (e) => {
+  el.questionsView.addEventListener("click", e => {
 
-      if (e.target.classList.contains("delete-btn")) {
-        deleteQuestion(e.target.dataset.id);
-      }
+    if (e.target.classList.contains("delete-btn")) {
+      deleteQuestion(e.target.dataset.id);
+    }
 
-      if (e.target.classList.contains("edit-btn")) {
-        loadEdit(e.target.dataset.id);
-      }
-    });
+    if (e.target.classList.contains("edit-btn")) {
+      loadEdit(e.target.dataset.id);
+    }
+  });
 
-  document.getElementById("topics-view")
-    ?.addEventListener("click", (e) => {
+  el.topicsView.addEventListener("click", e => {
 
-      if (e.target.classList.contains("view-topic-btn")) {
-        activeTopicFilter = e.target.dataset.id;
-        currentView = "questions";
-        render();
-      }
-    });
+    if (e.target.classList.contains("view-topic-btn")) {
+      state.topicFilter = e.target.dataset.id;
+      state.view = "questions";
+      render();
+    }
+  });
 
   document.getElementById("save-question-btn")
-    ?.addEventListener("click", saveQuestion);
+    .addEventListener("click", saveQuestion);
 }
 
 // --------------------------------
