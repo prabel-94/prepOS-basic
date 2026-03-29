@@ -1364,10 +1364,9 @@ document.getElementById("saveAllToBankBtn")
     // --------------------------------
     // RESET TOPIC SYSTEM
     // --------------------------------
-    document.getElementById("bankTopicInput").value = "";
-    document.getElementById("bankTopicTags").innerHTML = "";
-
-    renderTopicWarnings([], "bulkTopicWarnings");
+    document.getElementById("bulkTopicInput").value = "";
+document.getElementById("bulkTopicTags").innerHTML = "";
+renderTopicWarnings([], "bulkTopicWarnings");
     updateConfirmState();
 
   });
