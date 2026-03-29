@@ -1311,7 +1311,12 @@ topicInput.addEventListener("input", (e) => {
     ?.addEventListener("click", createNewQuestion);
 
   document.getElementById("saveAllToBankBtn")
-    ?.addEventListener("click", saveAllQuestionsToBank);
+  ?.addEventListener("click", () => {
+
+    document.getElementById("saveAllPanel").classList.remove("hidden");
+    document.body.style.overflow = "hidden";
+
+  });
 
   document.getElementById("openQuestionBankBtn")
     ?.addEventListener("click", () => {
