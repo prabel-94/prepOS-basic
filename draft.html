@@ -214,6 +214,45 @@ WORKSPACE
 
 </aside>
 
+<aside class="question-bank-panel hidden" id="saveAllPanel">
+
+  <div class="qb-header">
+    <button type="button" id="closeSaveAll">← Back</button>
+    <h3>Save All Questions</h3>
+  </div>
+
+  <div class="mt-20">
+
+    <div class="question-card">
+      Assign topics to all questions that don’t have topics.
+    </div>
+
+    <!-- 🔥 REUSE SAME INPUT -->
+    <input
+      type="text"
+      id="bankTopicInput"
+      placeholder="Add topic and press Enter..."
+      class="mt-20"
+    />
+
+    <!-- 🔥 SAME WARNING SYSTEM -->
+    <div id="topicWarnings" class="topic-warnings"></div>
+
+    <!-- 🔥 SAME TAG CONTAINER -->
+    <div id="bankTopicTags" class="topic-tags mt-10"></div>
+
+    <div class="input-hint">
+      These topics will be applied to all untagged questions
+    </div>
+
+    <button id="confirmSaveAll" class="primary-btn w-full mt-20">
+      Save All to Bank
+    </button>
+
+  </div>
+
+</aside>
+
 
 <!-- ======================
 DRAFT ACTIONS
