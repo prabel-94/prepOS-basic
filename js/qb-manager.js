@@ -229,7 +229,7 @@ function renderQuestions() {
       <div class="option-row">
         <div class="opt-label">${opt.key}</div>
         <div class="opt">${opt.text}</div>
-        ${q.correct_option === opt.key ? "✔" : ""}
+        ${q.correct_option === opt.key ? `<div class="correct-mark">✔</div>` : ""}
       </div>
     `).join("");
 
