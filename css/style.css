@@ -356,8 +356,9 @@ QUESTION CARD (BUILDER)
 
 /* QUESTION */
 
-.qtext{
-  min-height:110px;
+.qtext {
+  margin-top: 10px;
+  line-height: 1.5;
 }
 
 /* OPTIONS */
