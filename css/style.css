@@ -410,6 +410,11 @@ QUESTION CARD (BUILDER)
   margin-left: auto;
 }
 
+.option-row.correct{
+  background: var(--success-bg);
+  border-color: var(--success);
+}
+
 /* EXPLANATION */
 
 .explanation{
