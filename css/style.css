@@ -411,6 +411,12 @@ QUESTION CARD (BUILDER)
   font-size:14px;
 }
 
+.correct-mark{
+  color: var(--success);
+  font-weight: 700;
+  margin-left: auto;
+}
+
 /* EXPLANATION */
 
 .explanation{
