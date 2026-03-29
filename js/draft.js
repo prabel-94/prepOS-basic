@@ -456,6 +456,10 @@ async function attachTopics(questionId, topics = []) {
 // QUESTION BANK SAVE
 // --------------------------------
 async function saveQuestionToBank(q) {
+
+if (!q.topics || q.topics.length === 0) {
+  throw new Error("Question must have at least one topic");
+}
   const hash = generateHash(q);
 
   const { data: existing } = await sb
