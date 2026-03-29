@@ -1330,10 +1330,29 @@ document.getElementById("closeSaveAll")
 document.getElementById("saveAllToBankBtn")
   ?.addEventListener("click", () => {
 
+    const qs = currentDraft.schema_json.sections[0].questions;
+
+    // --------------------------------
+    // 🔥 DETECT MISSING TOPICS
+    // --------------------------------
+    const missing = qs.filter(q => !q.topics?.length).length;
+
+    // --------------------------------
+    // OPTIONAL UX MESSAGE (RECOMMENDED)
+    // --------------------------------
+    if (missing > 0) {
+      setStatus(`⚠ ${missing} questions missing topics`);
+    }
+
+    // --------------------------------
+    // OPEN PANEL
+    // --------------------------------
     document.getElementById("saveAllPanel")?.classList.remove("hidden");
     document.body.style.overflow = "hidden";
 
-    // 🔥 RESET TOPIC SYSTEM (CRITICAL)
+    // --------------------------------
+    // RESET TOPIC SYSTEM
+    // --------------------------------
     document.getElementById("bankTopicInput").value = "";
     document.getElementById("bankTopicTags").innerHTML = "";
 
