@@ -1318,6 +1318,25 @@ topicInput.addEventListener("input", (e) => {
 
   });
 
+document.getElementById("confirmSaveAll")
+  ?.addEventListener("click", async () => {
+
+    const topics = Array.from(
+      document.querySelectorAll("#bulkTopicTags .topic-tag")
+    ).map(el => el.dataset.value);
+
+    if (!topics.length) {
+      alert("Add at least one topic");
+      return;
+    }
+
+    await saveAllQuestionsToBank(topics);
+
+    document.getElementById("saveAllPanel").classList.add("hidden");
+    document.body.style.overflow = "";
+
+  });
+
   document.getElementById("openQuestionBankBtn")
     ?.addEventListener("click", () => {
       document.getElementById("questionBankPanel").classList.remove("hidden");
