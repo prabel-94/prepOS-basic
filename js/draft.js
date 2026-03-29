@@ -354,37 +354,6 @@ function createTopicTag(container, name) {
   updateConfirmState();
 }
 
-
-function addTopicTag(name) {
-  const container = document.getElementById("bankTopicTags");
-
-  const normalized = name.trim().replace(/\s+/g, " ").toLowerCase();
-
-  // prevent duplicates
-  const existing = Array.from(container.children).some(
-    el => el.dataset.value === normalized
-  );
-
-  if (existing) return;
-
-  const div = document.createElement("div");
-  div.className = "topic-tag";
-  div.dataset.value = normalized;
-
-  div.innerHTML = `
-    ${name}
-    <button type="button">×</button>
-  `;
-
-  // remove tag
-  div.querySelector("button").addEventListener("click", () => {
-    div.remove();
-    updateConfirmState(); // 🔥 ADD THIS
-  });
-
-  container.appendChild(div);
-  updateConfirmState(); // 🔥 ADD THIS
-}
 async function searchTopics(query) {
   if (!query) return [];
 
