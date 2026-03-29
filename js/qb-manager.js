@@ -179,14 +179,12 @@ function renderQuestions() {
 
   let filtered = [...questions];
 
-  // Search
   if (searchQuery) {
     filtered = filtered.filter(q =>
       q.question_text.toLowerCase().includes(searchQuery.toLowerCase())
     );
   }
 
-  // Topic filter
   if (activeTopicFilter) {
     filtered = filtered.filter(q =>
       q.question_topics.some(qt => qt.topic_id === activeTopicFilter)
@@ -204,31 +202,51 @@ function renderQuestions() {
       .map(qt => `<div class="topic-tag">${qt.topics.name}</div>`)
       .join("");
 
+    const optionsHTML = [
+      { key: "A", text: q.option_a },
+      { key: "B", text: q.option_b },
+      { key: "C", text: q.option_c },
+      { key: "D", text: q.option_d }
+    ].map(opt => `
+      <div class="option-row">
+        <div class="opt-label">${opt.key}</div>
+        <div class="opt">${opt.text}</div>
+        ${q.correct_option === opt.key ? "✔" : ""}
+      </div>
+    `).join("");
+
     return `
       <div class="question-card">
 
-        <div class="question-text">${q.question_text}</div>
+        <!-- HEADER -->
+        <div class="q-header">
+          <div class="q-title">Question</div>
 
-        <div class="topic-tags flex gap-5 mt-10">
-          ${topicsHTML}
+          <div class="question-actions">
+            <button class="icon-btn edit-btn" data-id="${q.id}">✏️</button>
+            <button class="icon-btn delete-btn" data-id="${q.id}">🗑</button>
+          </div>
         </div>
 
-        <div class="flex justify-between mt-10">
+        <!-- QUESTION TEXT -->
+        <div class="qtext">
+          ${q.question_text}
+        </div>
 
-          <div>✔ ${q.correct_option}</div>
+        <!-- OPTIONS -->
+        <div class="options mt-10">
+          ${optionsHTML}
+        </div>
 
-          <div class="flex gap-10">
-            <button class="edit-btn" data-id="${q.id}">Edit</button>
-            <button class="delete-btn" data-id="${q.id}">Delete</button>
-          </div>
-
+        <!-- TOPICS -->
+        <div class="topic-tags mt-10">
+          ${topicsHTML}
         </div>
 
       </div>
     `;
   }).join("");
 }
-
 // --------------------------------
 // TOPICS VIEW
 // --------------------------------
