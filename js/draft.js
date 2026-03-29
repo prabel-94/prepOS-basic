@@ -1319,8 +1319,8 @@ topicInput.addEventListener("input", (e) => {
 
 });
 
-  // --------------------------------
-// CONFIRM ADD TO BANK (NEW)
+// --------------------------------
+// CONFIRM ADD TO BANK (FIXED)
 // --------------------------------
 document.getElementById("confirmAddToBank")
   ?.addEventListener("click", async () => {
@@ -1336,39 +1336,34 @@ document.getElementById("confirmAddToBank")
     document.querySelectorAll("#bankTopicTags .topic-tag")
   ).map(el => el.dataset.value);
 
-  // assign topics
   q.topics = topics;
 
   try {
     const res = await saveQuestionToBank(q);
 
+    // --------------------------------
+    // DUPLICATE FLOW
+    // --------------------------------
     if (res.isDuplicate) {
 
-  // show duplicate UI
-  document.getElementById("duplicateBox").classList.remove("hidden");
+      document.getElementById("duplicateBox").classList.remove("hidden");
+      window.duplicateQuestionId = res.questionId;
 
-  // store duplicate question id globally
-  window.duplicateQuestionId = res.questionId;
+      setStatus("Duplicate detected. Choose an action.");
 
-  // OPTIONAL: show better status message
-  setStatus("Duplicate detected. Choose an action.");
+      return; // panel stays open → scroll should remain locked
+    }
 
-  return; // ⛔ STOP normal flow here
-}
-// --------------------------------
-// NON-DUPLICATE FLOW (unchanged)
-// --------------------------------
-q.bank_status = "saved";
-
-renderDraft(currentDraft);
-
-document.getElementById("addToBankPanel").classList.add("hidden");
-
-setStatus("Question saved to bank ✅");
+    // --------------------------------
+    // SUCCESS FLOW
+    // --------------------------------
+    q.bank_status = "saved";
 
     renderDraft(currentDraft);
 
+    // ✅ CLOSE PANEL + UNLOCK SCROLL
     document.getElementById("addToBankPanel").classList.add("hidden");
+    document.body.style.overflow = ""; // 🔥 CRITICAL FIX
 
     setStatus("Question saved to bank ✅");
 
