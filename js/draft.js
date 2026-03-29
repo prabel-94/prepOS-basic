@@ -325,8 +325,9 @@ async function addAllResultsToDraft() {
 function createTopicTag(container, name) {
   if (!container || !name) return;
 
-  const formatted = formatTopicName(name);
-  const normalized = formatted.toLowerCase();
+  const clean = name.trim().replace(/\s+/g, " ");
+const normalized = clean.toLowerCase();
+const formatted = formatTopicName(clean);
 
   // جلوگیری duplicates
   const exists = Array.from(container.children).some(
