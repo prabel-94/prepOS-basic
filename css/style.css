@@ -240,12 +240,7 @@ QB MANAGER LAYOUT
 
 .list-area{
   width:100%;
-}
-
-.form-area{
-  flex:1;
-  min-width:280px;
-}
+} 
 
 /* MOBILE */
 @media (max-width:768px){
