@@ -1321,41 +1321,6 @@ document.getElementById("topicDropdown")
   });
 }
 
-if (topicInput) {
-
-  // 🔁 Single source of truth
-  function processTopicInput() {
-    const value = topicInput.value.trim();
-    if (!value) return;
-
-    const formatted = formatTopicName(value);
-    addTopicTag(formatted);
-    topicInput.value = "";
-     // 🔥 clear warnings
-  renderTopicWarnings([]);
-  }
-
-  // ✅ ENTER KEY
-  topicInput.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      processTopicInput();
-    }
-  });
-
-  // ✅ BLUR AUTO-ADD (🔥 core fix)
-  topicInput.addEventListener("blur", () => {
-    processTopicInput();
-  });
-  // 🔥 LIVE WARNINGS
-topicInput.addEventListener("input", (e) => {
-  const value = e.target.value;
-  const warnings = getTopicWarnings(value);
-  renderTopicWarnings(warnings);
- });
-
-}
-
   document.getElementById("closeAddToBank")
   ?.addEventListener("click", () => {
     document.getElementById("addToBankPanel").classList.add("hidden");
