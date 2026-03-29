@@ -1493,7 +1493,7 @@ document.getElementById("confirmSaveAll")
 
     const topics = Array.from(
       document.querySelectorAll("#bulkTopicTags .topic-tag")
-    .map(el => el.dataset.value);
+    ).map(el => el.dataset.value);
 
     if (!topics.length) {
       alert("Add at least one topic");
