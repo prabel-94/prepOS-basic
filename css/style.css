@@ -239,8 +239,7 @@ QB MANAGER LAYOUT
 }
 
 .list-area{
-  flex:2;
-  min-width:0;
+  width:100%;
 }
 
 .form-area{
