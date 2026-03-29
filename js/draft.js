@@ -111,9 +111,9 @@ function getTopicWarnings(input) {
   return warnings;
 }
 
-function renderTopicWarnings(warnings) {
-  const container = document.getElementById("topicWarnings");
+function renderTopicWarnings(warnings, containerId = "topicWarnings") {
 
+  const container = document.getElementById(containerId);
   if (!container) return;
 
   if (!warnings.length) {
