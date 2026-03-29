@@ -1494,14 +1494,18 @@ document.getElementById("confirmSaveAll")
 document.addEventListener("click", (e) => {
   if (!e.target.classList.contains("fix-btn")) return;
 
-  // find closest warning container
   const warningBox = e.target.closest("[id$='Warnings']");
   if (!warningBox) return;
 
-  // map to correct input
-  const inputId = warningBox.id.replace("Warnings", "Input");
-  const input = document.getElementById(inputId);
+  let inputId = "";
 
+  if (warningBox.id === "topicWarnings") {
+    inputId = "bankTopicInput";
+  } else if (warningBox.id === "bulkTopicWarnings") {
+    inputId = "bulkTopicInput";
+  }
+
+  const input = document.getElementById(inputId);
   if (!input) return;
 
   input.value = e.target.dataset.fix;
