@@ -1339,25 +1339,6 @@ document.getElementById("saveAllToBankBtn")
 
   });
 
-document.getElementById("confirmSaveAll")
-  ?.addEventListener("click", async () => {
-
-    const topics = Array.from(
-      document.querySelectorAll("#bulkTopicTags .topic-tag")
-    ).map(el => el.dataset.value);
-
-    if (!topics.length) {
-      alert("Add at least one topic");
-      return;
-    }
-
-    await saveAllQuestionsToBank(topics);
-
-    document.getElementById("saveAllPanel").classList.add("hidden");
-    document.body.style.overflow = "";
-
-  });
-
   document.getElementById("openQuestionBankBtn")
     ?.addEventListener("click", () => {
       document.getElementById("questionBankPanel").classList.remove("hidden");
@@ -1404,6 +1385,25 @@ document.getElementById("confirmAddToBank")
   if (selectedQuestionIndex === null) return;
 
   const q = currentDraft.schema_json.sections[0].questions[selectedQuestionIndex];
+
+document.getElementById("confirmSaveAll")
+  ?.addEventListener("click", async () => {
+
+    const topics = Array.from(
+      document.querySelectorAll("#bulkTopicTags .topic-tag")
+    ).map(el => el.dataset.value);
+
+    if (!topics.length) {
+      alert("Add at least one topic");
+      return;
+    }
+
+    await saveAllQuestionsToBank(topics);
+
+    document.getElementById("saveAllPanel").classList.add("hidden");
+    document.body.style.overflow = "";
+
+  });
 
   // --------------------------------
   // EXTRACT TOPICS FROM TAGS
