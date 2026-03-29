@@ -28,19 +28,22 @@ const mode = params.get("mode");
 // --------------------------------
 
 function updateConfirmState() {
-  const confirmBtn = document.getElementById("confirmAddToBank");
+  const addBtn = document.getElementById("confirmAddToBank");
+  const saveAllBtn = document.getElementById("confirmSaveAll");
   const topicTagsContainer = document.getElementById("bankTopicTags");
 
-  if (!confirmBtn || !topicTagsContainer) return;
+  if (!topicTagsContainer) return;
 
   const hasTopics = topicTagsContainer.children.length > 0;
 
-  confirmBtn.disabled = !hasTopics;
+  if (addBtn) {
+    addBtn.disabled = !hasTopics;
+    addBtn.classList.toggle("disabled", !hasTopics);
+  }
 
-  if (hasTopics) {
-    confirmBtn.classList.remove("disabled");
-  } else {
-    confirmBtn.classList.add("disabled");
+  if (saveAllBtn) {
+    saveAllBtn.disabled = !hasTopics;
+    saveAllBtn.classList.toggle("disabled", !hasTopics);
   }
 }
 
