@@ -104,6 +104,7 @@ console.log("Fetching questions...");
     return;
   }
 
+console.log("Questions response:", data, error);
   questions = data || [];
   render();
   updateOverview();
