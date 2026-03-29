@@ -235,8 +235,7 @@ QB MANAGER LAYOUT
 
 /* WORKSPACE SPLIT */
 .manager-workspace{
-  display:flex;
-  gap:20px;
+  display:block;
 }
 
 .list-area{
