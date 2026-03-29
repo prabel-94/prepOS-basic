@@ -1486,8 +1486,9 @@ document.getElementById("confirmSaveAll")
 
   if (draftId) loadDraft();
   else createEmptyDraft();
+}
 
-  // --------------------------------
+// --------------------------------
 // GLOBAL FIX BUTTON HANDLER (MULTI-CONTAINER SAFE)
 // --------------------------------
 document.addEventListener("click", (e) => {
@@ -1506,8 +1507,6 @@ document.addEventListener("click", (e) => {
   input.value = e.target.dataset.fix;
   input.dispatchEvent(new Event("input"));
 });
-}
-
 init();
 
 // --------------------------------
