@@ -128,6 +128,17 @@ function renderOverview() {
 // QUESTIONS VIEW
 // --------------------------------
 function renderQuestions() {
+
+  // 🔥 BLOCK rendering unless filter/search applied
+  if (!state.search && !state.topicFilter) {
+    el.questionsView.innerHTML = `
+      <div class="empty-state">
+        Search or select a topic to view questions
+      </div>
+    `;
+    return;
+  }
+
   let list = [...state.questions];
 
   if (state.search) {
