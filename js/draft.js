@@ -30,20 +30,21 @@ const mode = params.get("mode");
 function updateConfirmState() {
   const addBtn = document.getElementById("confirmAddToBank");
   const saveAllBtn = document.getElementById("confirmSaveAll");
-  const topicTagsContainer = document.getElementById("bankTopicTags");
 
-  if (!topicTagsContainer) return;
+  const bankTags = document.getElementById("bankTopicTags");
+  const bulkTags = document.getElementById("bulkTopicTags");
 
-  const hasTopics = topicTagsContainer.children.length > 0;
+  const hasBankTopics = bankTags?.children.length > 0;
+  const hasBulkTopics = bulkTags?.children.length > 0;
 
   if (addBtn) {
-    addBtn.disabled = !hasTopics;
-    addBtn.classList.toggle("disabled", !hasTopics);
+    addBtn.disabled = !hasBankTopics;
+    addBtn.classList.toggle("disabled", !hasBankTopics);
   }
 
   if (saveAllBtn) {
-    saveAllBtn.disabled = !hasTopics;
-    saveAllBtn.classList.toggle("disabled", !hasTopics);
+    saveAllBtn.disabled = !hasBulkTopics;
+    saveAllBtn.classList.toggle("disabled", !hasBulkTopics);
   }
 }
 
