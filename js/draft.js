@@ -513,9 +513,6 @@ async function saveQuestionToBank(q) {
     questionId = data.id;
   }
 
-  // ✅ Attach topics (still important)
-  await attachTopics(questionId, q.topics);
-
   return { questionId, isDuplicate };
 }
 
