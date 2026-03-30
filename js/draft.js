@@ -463,11 +463,17 @@ async function attachTopics(questionId, topics = []) {
 // --------------------------------
 async function saveQuestionToBank(q) {
 
-if (!q.topics || q.topics.length === 0) {
-  throw new Error("Question must have at least one topic");
-}
-  const hash = generateHash(q);
+  if (!q.topics || q.topics.length === 0) {
+    throw new Error("Question must have at least one topic");
+  }
 
+  // ✅ Stable hash input
+  const hashInput = q.text.trim().toLowerCase();
+
+  // ✅ MUST await
+  const hash = await generateHash(hashInput);
+
+  // ✅ Check duplicate
   const { data: existing } = await sb
     .from("questions")
     .select("id")
@@ -481,16 +487,22 @@ if (!q.topics || q.topics.length === 0) {
     questionId = existing.id;
     isDuplicate = true;
   } else {
+
+    // ✅ Normalize options safely
+    const opts = (q.options || []).map(o =>
+      typeof o === "string" ? o : o.text
+    );
+
     const { data, error } = await sb
       .from("questions")
       .insert({
         question_text: q.text,
-        option_a: q.options[0]?.text || "",
-        option_b: q.options[1]?.text || "",
-        option_c: q.options[2]?.text || "",
-        option_d: q.options[3]?.text || "",
+        option_a: opts[0] || "",
+        option_b: opts[1] || "",
+        option_c: opts[2] || "",
+        option_d: opts[3] || "",
         correct_option: q.correct,
-        explanation: q.explanation,
+        explanation: q.explanation || "",
         question_hash: hash
       })
       .select()
@@ -501,6 +513,7 @@ if (!q.topics || q.topics.length === 0) {
     questionId = data.id;
   }
 
+  // ✅ Attach topics (still important)
   await attachTopics(questionId, q.topics);
 
   return { questionId, isDuplicate };
