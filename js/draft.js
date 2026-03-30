@@ -517,6 +517,15 @@ async function saveQuestionToBank(q) {
 }
 
 async function saveAllQuestionsToBank(globalTopics = []) {
+
+const total = qs.length;
+let processed = 0;
+
+const progressBox = document.getElementById("saveAllProgress");
+const progressFill = document.getElementById("saveAllProgressFill");
+const progressText = document.getElementById("saveAllProgressText");
+
+if (progressBox) progressBox.classList.remove("hidden");
   const qs = currentDraft.schema_json.sections[0].questions;
 
   let saved = 0;
