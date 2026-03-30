@@ -1524,7 +1524,6 @@ document.getElementById("confirmSaveAll")
 
     await saveAllQuestionsToBank(topics);
 
-    document.getElementById("saveAllPanel").classList.add("hidden");
     document.body.style.overflow = "";
 
   });
