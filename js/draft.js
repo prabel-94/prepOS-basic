@@ -561,7 +561,7 @@ saved++;
 
   renderDraft(currentDraft);
 
-  setStatus(`Saved: ${saved} | Skipped: ${skipped} | Errors: ${errors}`);
+  setStatus(`Saved: ${saved} | Duplicates: ${skipped} | Errors: ${errors}`);
 }
 
 // --------------------------------
