@@ -576,6 +576,7 @@ saved++;
   progressText.innerText = `Saving... ${processed} / ${total}`;
 
   }
+progressText.innerText = "Completed ✅";
 
   renderDraft(currentDraft);
 
