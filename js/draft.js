@@ -1215,7 +1215,8 @@ document.getElementById("topicDropdown")
         option_d: q.options[3]?.text || "",
         correct_option: q.correct,
         explanation: q.explanation,
-        question_hash: generateHash(q) + Date.now() // force uniqueness
+        const hash = await generateHash(q.text);
+        question_hash: hash
       })
       .select()
       .single();
