@@ -519,16 +519,20 @@ async function saveQuestionToBank(q) {
 async function saveAllQuestionsToBank(globalTopics = []) {
 
   // --------------------------------
-  // DATA FIRST (FIXED)
+  // DATA (MUST BE FIRST)
   // --------------------------------
   const qs = currentDraft.schema_json.sections[0].questions;
 
   const total = qs.length;
   let processed = 0;
 
+  // --------------------------------
+  // UI ELEMENTS (SAFE)
+  // --------------------------------
   const progressBox = document.getElementById("saveAllProgress");
   const progressFill = document.getElementById("saveAllProgressFill");
   const progressText = document.getElementById("saveAllProgressText");
+  const resultBox = document.getElementById("saveAllResult");
 
   if (progressBox) progressBox.classList.remove("hidden");
 
@@ -536,21 +540,37 @@ async function saveAllQuestionsToBank(globalTopics = []) {
   let skipped = 0;
   let errors = 0;
 
+  // --------------------------------
+  // MAIN LOOP
+  // --------------------------------
   for (const q of qs) {
 
+    // --------------------------------
+    // SKIP ALREADY SAVED
+    // --------------------------------
     if (q.bank_status === "saved") {
       skipped++;
+      processed++;
       continue;
     }
 
-    // APPLY GLOBAL TOPICS
-    if ((!q.topics || q.topics.length === 0) && globalTopics.length) {
+    // --------------------------------
+    // APPLY GLOBAL TOPICS (FIXED LOGIC)
+    // --------------------------------
+    if (
+      (!q.topics || q.topics.length === 0 || q.topics.every(t => !t.trim())) &&
+      globalTopics.length
+    ) {
       q.topics = [...globalTopics];
     }
 
+    // --------------------------------
     // VALIDATION
+    // --------------------------------
     if (!q.topics || q.topics.length === 0) {
+      console.warn("No topics for question:", q.text);
       errors++;
+      processed++;
       continue;
     }
 
@@ -566,7 +586,7 @@ async function saveAllQuestionsToBank(globalTopics = []) {
       }
 
     } catch (err) {
-      console.error(err);
+      console.error("Save error:", err);
       errors++;
     }
 
@@ -585,12 +605,12 @@ async function saveAllQuestionsToBank(globalTopics = []) {
       progressText.innerText = `Saving... ${processed} / ${total}`;
     }
 
-    // 🔥 allow UI repaint
+    // 🔥 Allow UI repaint (CRITICAL UX FIX)
     await new Promise(r => setTimeout(r, 0));
   }
 
   // --------------------------------
-  // FINAL STATE
+  // FINAL UI STATE
   // --------------------------------
   if (progressText) {
     progressText.innerText = "Completed ✅";
@@ -601,8 +621,6 @@ async function saveAllQuestionsToBank(globalTopics = []) {
   // --------------------------------
   // RESULT SUMMARY
   // --------------------------------
-  const resultBox = document.getElementById("saveAllResult");
-
   if (resultBox) {
     resultBox.classList.remove("hidden");
 
@@ -618,6 +636,7 @@ async function saveAllQuestionsToBank(globalTopics = []) {
 
     resultBox.innerText = message;
 
+    // Status styling
     if (errors > 0) {
       resultBox.className = "status error mt-10";
     } else if (skipped > 0) {
@@ -626,6 +645,11 @@ async function saveAllQuestionsToBank(globalTopics = []) {
       resultBox.className = "status success mt-10";
     }
   }
+
+  // --------------------------------
+  // GLOBAL STATUS (TOP BAR)
+  // --------------------------------
+  setStatus(`Saved: ${saved} | Duplicates: ${skipped} | Errors: ${errors}`);
 }
 
 // --------------------------------
