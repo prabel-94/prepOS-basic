@@ -561,7 +561,32 @@ saved++;
 
   renderDraft(currentDraft);
 
-  setStatus(`Saved: ${saved} | Duplicates: ${skipped} | Errors: ${errors}`);
+  const resultBox = document.getElementById("saveAllResult");
+
+if (resultBox) {
+  resultBox.classList.remove("hidden");
+
+  let message = `Saved: ${saved}`;
+
+  if (skipped > 0) {
+    message += ` | Duplicates: ${skipped}`;
+  }
+
+  if (errors > 0) {
+    message += ` | Errors: ${errors}`;
+  }
+
+  resultBox.innerText = message;
+
+  // Optional styling
+  if (errors > 0) {
+    resultBox.className = "status error mt-10";
+  } else if (skipped > 0) {
+    resultBox.className = "status warning mt-10";
+  } else {
+    resultBox.className = "status success mt-10";
+  }
+}
 }
 
 // --------------------------------
