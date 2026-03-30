@@ -1240,33 +1240,36 @@ document.getElementById("topicDropdown")
   document.getElementById("topicDropdown").classList.add("hidden");
 });
 
-  document.getElementById("createNewBtn")
+document.getElementById("createNewBtn")
   ?.addEventListener("click", async () => {
 
   const q = currentDraft.schema_json.sections[0].questions[selectedQuestionIndex];
 
   try {
-    // force insert (ignore duplicate)
+    // ✅ Generate hash FIRST
+    const hash = await generateHash(
+      q.text.trim().toLowerCase()
+    );
+
+    // ✅ Insert cleanly
     const { data, error } = await sb
       .from("questions")
-      const hash = await generateHash(q.text.trim().toLowerCase());
-      const { data, error } = await sb
-  .from("questions")
-  .insert({
-    question_text: q.text,
-    option_a: q.options[0]?.text || "",
-    option_b: q.options[1]?.text || "",
-    option_c: q.options[2]?.text || "",
-    option_d: q.options[3]?.text || "",
-    correct_option: q.correct,
-    explanation: q.explanation,
-    question_hash: hash
-  })
+      .insert({
+        question_text: q.text,
+        option_a: q.options[0]?.text || "",
+        option_b: q.options[1]?.text || "",
+        option_c: q.options[2]?.text || "",
+        option_d: q.options[3]?.text || "",
+        correct_option: q.correct,
+        explanation: q.explanation,
+        question_hash: hash
+      })
       .select()
       .single();
 
     if (error) throw error;
 
+    // ✅ Attach topics AFTER insert
     await attachTopics(data.id, q.topics);
 
     q.bank_status = "saved";
@@ -1280,7 +1283,7 @@ document.getElementById("topicDropdown")
 
   } catch (err) {
     console.error(err);
-    alert("Failed to create new question");
+    alert(err.message);
   }
 
 });
