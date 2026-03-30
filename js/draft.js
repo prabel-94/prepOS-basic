@@ -544,8 +544,15 @@ async function saveAllQuestionsToBank(globalTopics = []) {
 
     try {
       const res = await saveQuestionToBank(q);
-      q.bank_status = res.isDuplicate ? "duplicate" : "saved";
-      saved++;
+
+if (res.isDuplicate) {
+  q.bank_status = "duplicate";
+  skipped++;
+  continue;
+}
+
+q.bank_status = "saved";
+saved++;
     } catch (err) {
       console.error(err);
       errors++;
