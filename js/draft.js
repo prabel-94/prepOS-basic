@@ -573,6 +573,8 @@ async function saveAllQuestionsToBank(globalTopics = []) {
       processed++;
       continue;
     }
+// ✅ ADD HERE (CRITICAL DEBUG POINT)
+  console.log("Saving with topics:", q.topics);
 
     try {
       const res = await saveQuestionToBank(q);
