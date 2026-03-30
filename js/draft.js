@@ -1220,17 +1220,19 @@ document.getElementById("topicDropdown")
     // force insert (ignore duplicate)
     const { data, error } = await sb
       .from("questions")
-      .insert({
-        question_text: q.text,
-        option_a: q.options[0]?.text || "",
-        option_b: q.options[1]?.text || "",
-        option_c: q.options[2]?.text || "",
-        option_d: q.options[3]?.text || "",
-        correct_option: q.correct,
-        explanation: q.explanation,
-        const hash = await generateHash(q.text);
-        question_hash: hash
-      })
+      const hash = await generateHash(q.text.trim().toLowerCase());
+      const { data, error } = await sb
+  .from("questions")
+  .insert({
+    question_text: q.text,
+    option_a: q.options[0]?.text || "",
+    option_b: q.options[1]?.text || "",
+    option_c: q.options[2]?.text || "",
+    option_d: q.options[3]?.text || "",
+    correct_option: q.correct,
+    explanation: q.explanation,
+    question_hash: hash
+  })
       .select()
       .single();
 
