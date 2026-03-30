@@ -566,6 +566,15 @@ saved++;
       console.error(err);
       errors++;
     }
+
+// ✅ PROGRESS UPDATE
+  processed++;
+
+  const percent = Math.round((processed / total) * 100);
+
+  progressFill.style.width = percent + "%";
+  progressText.innerText = `Saving... ${processed} / ${total}`;
+
   }
 
   renderDraft(currentDraft);
