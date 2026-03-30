@@ -448,13 +448,27 @@ async function getOrCreateTopic(name) {
 }
 
 async function attachTopics(questionId, topics = []) {
+
+  console.log("ATTACHING TOPICS →", topics, "for Q:", questionId);
+
   for (const t of topics) {
+
     const topicId = await getOrCreateTopic(t);
 
-    await sb.from("question_topics").upsert({
-      question_id: questionId,
-      topic_id: topicId
-    });
+    console.log("Resolved Topic:", t, "→ ID:", topicId);
+
+    const { data, error } = await sb
+      .from("question_topics")
+      .upsert({
+        question_id: questionId,
+        topic_id: topicId
+      });
+
+    if (error) {
+      console.error("❌ Attach failed:", error);
+    } else {
+      console.log("✅ Attached:", topicId);
+    }
   }
 }
 
