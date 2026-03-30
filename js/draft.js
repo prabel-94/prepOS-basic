@@ -136,14 +136,14 @@ function renderTopicWarnings(warnings, containerId = "topicWarnings") {
 // --------------------------------
 // HASH (Duplicate detection)
 // --------------------------------
-function generateHash(q) {
-  const base = (
-    q.text +
-    (q.options || []).map(o => o.text).join("") +
-    q.correct
-  ).toLowerCase().replace(/\s+/g, "");
+async function generateHash(text) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(text);
 
-  return btoa(base);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+
+  return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
 }
 
 // --------------------------------
