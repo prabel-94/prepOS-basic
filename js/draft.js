@@ -518,15 +518,19 @@ async function saveQuestionToBank(q) {
 
 async function saveAllQuestionsToBank(globalTopics = []) {
 
-const total = qs.length;
-let processed = 0;
-
-const progressBox = document.getElementById("saveAllProgress");
-const progressFill = document.getElementById("saveAllProgressFill");
-const progressText = document.getElementById("saveAllProgressText");
-
-if (progressBox) progressBox.classList.remove("hidden");
+  // --------------------------------
+  // DATA FIRST (FIXED)
+  // --------------------------------
   const qs = currentDraft.schema_json.sections[0].questions;
+
+  const total = qs.length;
+  let processed = 0;
+
+  const progressBox = document.getElementById("saveAllProgress");
+  const progressFill = document.getElementById("saveAllProgressFill");
+  const progressText = document.getElementById("saveAllProgressText");
+
+  if (progressBox) progressBox.classList.remove("hidden");
 
   let saved = 0;
   let skipped = 0;
@@ -534,18 +538,17 @@ if (progressBox) progressBox.classList.remove("hidden");
 
   for (const q of qs) {
 
-    if (q.bank_status === "saved") continue;
+    if (q.bank_status === "saved") {
+      skipped++;
+      continue;
+    }
 
-    // --------------------------------
-    // APPLY GLOBAL TOPICS (ONLY IF EMPTY)
-    // --------------------------------
+    // APPLY GLOBAL TOPICS
     if ((!q.topics || q.topics.length === 0) && globalTopics.length) {
       q.topics = [...globalTopics];
     }
 
-    // --------------------------------
     // VALIDATION
-    // --------------------------------
     if (!q.topics || q.topics.length === 0) {
       errors++;
       continue;
@@ -554,58 +557,75 @@ if (progressBox) progressBox.classList.remove("hidden");
     try {
       const res = await saveQuestionToBank(q);
 
-if (res.isDuplicate) {
-  q.bank_status = "duplicate";
-  skipped++;
-  continue;
-}
+      if (res.isDuplicate) {
+        q.bank_status = "duplicate";
+        skipped++;
+      } else {
+        q.bank_status = "saved";
+        saved++;
+      }
 
-q.bank_status = "saved";
-saved++;
     } catch (err) {
       console.error(err);
       errors++;
     }
 
-// ✅ PROGRESS UPDATE
-  processed++;
+    // --------------------------------
+    // PROGRESS UPDATE
+    // --------------------------------
+    processed++;
 
-  const percent = Math.round((processed / total) * 100);
+    const percent = Math.round((processed / total) * 100);
 
-  progressFill.style.width = percent + "%";
-  progressText.innerText = `Saving... ${processed} / ${total}`;
+    if (progressFill) {
+      progressFill.style.width = percent + "%";
+    }
 
+    if (progressText) {
+      progressText.innerText = `Saving... ${processed} / ${total}`;
+    }
+
+    // 🔥 allow UI repaint
+    await new Promise(r => setTimeout(r, 0));
   }
-progressText.innerText = "Completed ✅";
+
+  // --------------------------------
+  // FINAL STATE
+  // --------------------------------
+  if (progressText) {
+    progressText.innerText = "Completed ✅";
+  }
 
   renderDraft(currentDraft);
 
+  // --------------------------------
+  // RESULT SUMMARY
+  // --------------------------------
   const resultBox = document.getElementById("saveAllResult");
 
-if (resultBox) {
-  resultBox.classList.remove("hidden");
+  if (resultBox) {
+    resultBox.classList.remove("hidden");
 
-  let message = `Saved: ${saved}`;
+    let message = `Saved: ${saved}`;
 
-  if (skipped > 0) {
-    message += ` | Duplicates: ${skipped}`;
+    if (skipped > 0) {
+      message += ` | Duplicates: ${skipped}`;
+    }
+
+    if (errors > 0) {
+      message += ` | Errors: ${errors}`;
+    }
+
+    resultBox.innerText = message;
+
+    if (errors > 0) {
+      resultBox.className = "status error mt-10";
+    } else if (skipped > 0) {
+      resultBox.className = "status warning mt-10";
+    } else {
+      resultBox.className = "status success mt-10";
+    }
   }
-
-  if (errors > 0) {
-    message += ` | Errors: ${errors}`;
-  }
-
-  resultBox.innerText = message;
-
-  // Optional styling
-  if (errors > 0) {
-    resultBox.className = "status error mt-10";
-  } else if (skipped > 0) {
-    resultBox.className = "status warning mt-10";
-  } else {
-    resultBox.className = "status success mt-10";
-  }
-}
 }
 
 // --------------------------------
