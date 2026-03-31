@@ -372,6 +372,14 @@ QUESTION CARD (BUILDER)
 }
 
 .option-row{
+  cursor:pointer;
+}
+
+.option-row:active{
+  transform:scale(0.98);
+}
+
+.option-row{
   display:flex;
   align-items:center;
   gap:10px;
