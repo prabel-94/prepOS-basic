@@ -310,9 +310,23 @@ function createQuestionCard(q, index){
   return `
     <div class="question">
 
-      <p class="question-text">
-        Q${index + 1}. ${escapeHTML(stripLeadingNumber(q.text))}
-      </p>
+      return `
+  <div class="question-card">
+
+    <div class="q-number">
+      Q${index + 1}
+    </div>
+
+    <div class="question-text">
+      ${escapeHTML(stripLeadingNumber(q.text))}
+    </div>
+
+    <div class="question-options">
+      ${optionsHTML}
+    </div>
+
+  </div>
+`;
 
       <div class="question-options">
         ${optionsHTML}
