@@ -563,6 +563,91 @@ QUESTION BANK PANEL
   background: #3498db;
   transition: width 0.2s ease;
 }
+
+/* ======================================================
+RESULTS PAGE (ATTEMPT SYSTEM)
+====================================================== */
+
+/* Page Title */
+.page-title{
+  font-size:22px;
+  font-weight:600;
+  margin-bottom:20px;
+}
+
+/* Attempt Card */
+.attempt-card{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:16px;
+  margin-bottom:16px;
+  box-shadow:var(--shadow);
+  transition:all 0.2s ease;
+}
+
+.attempt-card:hover{
+  transform:translateY(-2px);
+  box-shadow:0 4px 12px rgba(0,0,0,0.08);
+}
+
+/* Header Row */
+.attempt-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+/* Student Name */
+.student-name{
+  font-size:16px;
+  font-weight:600;
+}
+
+/* Score Badge */
+.score-badge{
+  font-size:14px;
+  padding:4px 10px;
+  border-radius:20px;
+  font-weight:600;
+  background:#eef2ff;
+  color:#3730a3;
+}
+
+/* Meta Info */
+.attempt-meta{
+  font-size:13px;
+  color:var(--muted);
+  margin-top:6px;
+}
+
+/* Actions */
+.attempt-actions{
+  display:flex;
+  gap:10px;
+  margin-top:10px;
+}
+
+/* Answer Box */
+.answer-box{
+  margin-top:12px;
+  padding:12px;
+  background:#f9fafb;
+  border-radius:8px;
+  display:none;
+  font-size:14px;
+  line-height:1.5;
+}
+
+/* Individual Answer Row */
+.answer-row{
+  padding:6px 0;
+  border-bottom:1px dashed var(--border);
+}
+
+.answer-row:last-child{
+  border-bottom:none;
+}
 /* ======================================================
 UTILITIES
 ====================================================== */
