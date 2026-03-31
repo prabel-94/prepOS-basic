@@ -543,9 +543,17 @@ function createReviewCard(q, index){
 
   const explanationHTML = q.explanation && q.explanation.trim()
     ? `
-      <button class="explain-btn">Show Explanation</button>
-      <div class="explanation" style="display:none">
-        <b>Explanation:</b> ${escapeHTML(q.explanation)}
+      <div class="review-explanation-block">
+        <button class="explain-btn secondary-btn">
+          Show Explanation
+        </button>
+
+        <div class="explanation hidden">
+          <div class="explanation-title">Explanation</div>
+          <div class="explanation-text">
+            ${escapeHTML(q.explanation)}
+          </div>
+        </div>
       </div>
     `
     : "";
@@ -553,21 +561,27 @@ function createReviewCard(q, index){
   return `
     <div class="review-card">
 
+      <div class="review-header">
+
+        <div class="review-q-number">
+          Q${index + 1}
+        </div>
+
+        <div class="review-status ${
+          q.isCorrect ? "status-correct" : "status-wrong"
+        }">
+          ${q.isCorrect ? "✔ Correct" : "✘ Wrong"}
+        </div>
+
+      </div>
+
       <div class="review-question">
-        ${index + 1}. ${escapeHTML(q.question)}
+        ${escapeHTML(stripLeadingNumber(q.question))}
       </div>
 
       <div class="review-options">
-  ${optionsHTML}
-</div>
-
-<div class="review-meta">
-  ${
-    q.isCorrect
-      ? `<span class="badge correct">✔ Correct</span>`
-      : `<span class="badge wrong">✘ Wrong</span>`
-  }
-</div>
+        ${optionsHTML}
+      </div>
 
       ${explanationHTML}
 
