@@ -516,19 +516,26 @@ function createReviewOption(opt, idx, correct, student){
 
   const letter = String.fromCharCode(65 + idx);
 
-  let className = "option";
+  let className = "review-option";
 
   if(letter === correct){
-    className += " correct";
+    className += " option-correct";
   }
 
   if(letter === student && letter !== correct){
-    className += " wrong";
+    className += " option-wrong";
+  }
+
+  if(letter === student){
+    className += " option-selected";
   }
 
   return `
     <div class="${className}">
-      ${letter}. ${escapeHTML(opt.text)}
+      <span class="option-letter">${letter}</span>
+      <span class="option-text">
+        ${escapeHTML(opt.text)}
+      </span>
     </div>
   `;
 }
