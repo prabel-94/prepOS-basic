@@ -5,22 +5,24 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>PrepOS Results</title>
 
-<style>
-body{font-family:Arial;padding:20px;max-width:900px;margin:auto}
-.card{border:1px solid #ddd;padding:12px;margin-bottom:12px;border-radius:6px}
-.small{color:#666;font-size:14px}
-button{margin-top:6px}
-</style>
+<link rel="stylesheet" href="css/style.css">
+
 </head>
 
 <body>
 
-<h2>Exam Results</h2>
-<div id="results">Loading…</div>
+<div class="container">
+
+  <div class="page-title">Exam Results</div>
+
+  <div id="results">Loading…</div>
+
+</div>
 
 <script>
+
 const SUPABASE_URL="https://bcqjfosxneuyoyuzhdiq.supabase.co"
-const ANON="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJjcWpmb3N4bmV1eW95dXpoZGlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE5NDI2OTIsImV4cCI6MjA4NzUxODY5Mn0.mPvlN_JEov6cxCXjMlARrzd5zyFHPH131whlB1cQClA"
+const ANON="YOUR_KEY"
 
 /* helpers */
 function escapeHTML(str){
@@ -53,6 +55,7 @@ console.error("Failed to load results",res.status)
 document.getElementById("results").innerText="Failed to load results"
 return
 }
+
 const data=await res.json()
 
 const container=document.getElementById("results")
@@ -65,47 +68,70 @@ return
 
 data.forEach(r=>{
 
-const div=document.createElement("div")
-div.className="card"
-
 const submitted = r.submitted_at
   ? new Date(r.submitted_at).toLocaleString()
   : "-";
 
-div.innerHTML =
-`<b>${escapeHTML(r.student_name || "Unknown")}</b>
-<div class="small">Score: ${r.score ?? "-"}</div>
-<div class="small">${submitted}</div>
-<button>View Answers</button>
-<button class="downloadPdfBtn" style="display:none">
-Download Review PDF
-</button>
-<div style="display:none;margin-top:8px;"></div>`;
+const card=document.createElement("div")
+card.className="attempt-card"
 
-const btn=div.querySelector("button")
-const answerBox=div.querySelector("div:last-child")
+card.innerHTML=`
 
-btn.onclick=()=>{
-if(answerBox.style.display==="none"){
+  <div class="attempt-header">
+    <div class="student-name">
+      ${escapeHTML(r.student_name || "Unknown")}
+    </div>
 
-answerBox.innerHTML=r.answers.map(a=>
-`Q${a.q+1}: chosen ${a.chosen} | correct ${a.correct}`
-).join("<br>")
+    <div class="score-badge">
+      ${r.score ?? "-"}
+    </div>
+  </div>
 
-answerBox.style.display="block"
-btn.innerText="Hide Answers"
+  <div class="attempt-meta">
+    ${submitted}
+  </div>
+
+  <div class="attempt-actions">
+    <button class="primary-btn view-btn">View Answers</button>
+    <button class="secondary-btn download-btn hidden">
+      Download PDF
+    </button>
+  </div>
+
+  <div class="answer-box"></div>
+`
+
+const viewBtn = card.querySelector(".view-btn")
+const answerBox = card.querySelector(".answer-box")
+
+viewBtn.onclick=()=>{
+
+if(answerBox.classList.contains("hidden") || answerBox.style.display==="none"){
+
+  answerBox.innerHTML = r.answers.map(a=>
+    `<div class="answer-row">Q${a.q+1}: <b>${a.chosen}</b></div>`
+  ).join("")
+
+  answerBox.style.display="block"
+  viewBtn.innerText="Hide Answers"
 
 }else{
-answerBox.style.display="none"
-btn.innerText="View Answers"
-}
+
+  answerBox.style.display="none"
+  viewBtn.innerText="View Answers"
+
 }
 
-container.appendChild(div)
+}
+
+container.appendChild(card)
+
 })
+
 }
 
 loadResults()
+
 </script>
 
 </body>
