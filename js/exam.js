@@ -303,30 +303,20 @@ function createOptionRow(qIndex, optionText, optionIndex){
 /* ---------- COMPONENT: QUESTION CARD ---------- */
 function createQuestionCard(q, index){
 
-  const optionsHTML = q.options
-  .map((opt, i) => createOptionRow(index, opt.text, i))
+  const optionsHTML = (q.options || [])
+    .map((opt, i) => createOptionRow(index, opt?.text || "", i))
     .join("");
 
   return `
-    <div class="question">
+    <div class="question-card">
 
-      return `
-  <div class="question-card">
+      <div class="q-number">
+        Q${index + 1}
+      </div>
 
-    <div class="q-number">
-      Q${index + 1}
-    </div>
-
-    <div class="question-text">
-      ${escapeHTML(stripLeadingNumber(q.text))}
-    </div>
-
-    <div class="question-options">
-      ${optionsHTML}
-    </div>
-
-  </div>
-`;
+      <div class="question-text">
+        ${escapeHTML(stripLeadingNumber(q.text || ""))}
+      </div>
 
       <div class="question-options">
         ${optionsHTML}
