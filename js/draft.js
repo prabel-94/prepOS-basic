@@ -529,8 +529,11 @@ async function saveQuestionToBank(q) {
     questionId = data.id;
   }
 await attachTopics(questionId, q.topics);
-  return { questionId, isDuplicate };
-q.question_id = questionId; // 🔥 LINK BACK
+
+// 🔥 LINK BACK TO DRAFT
+q.question_id = questionId;
+
+return { questionId, isDuplicate };
 }
 
 async function saveAllQuestionsToBank(globalTopics = []) {
