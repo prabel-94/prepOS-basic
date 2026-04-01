@@ -199,8 +199,9 @@ async function addQuestionFromBank(qId, btn) {
   }
 
   const newQuestion = {
-    id: crypto.randomUUID(),
-    text: data.question_text,
+  id: crypto.randomUUID(),
+  question_id: data.id, // 🔥 CRITICAL
+  text: data.question_text,
     options: [
   { id:"A", text: data.option_a || "" },
   { id:"B", text: data.option_b || "" },
@@ -296,8 +297,9 @@ async function addAllResultsToDraft() {
     }
 
     const newQuestion = {
-      id: crypto.randomUUID(),
-      text: data.question_text,
+  id: crypto.randomUUID(),
+  question_id: data.id, // 🔥 CRITICAL
+  text: data.question_text,
       options: [
   { id:"A", text: data.option_a || "" },
   { id:"B", text: data.option_b || "" },
