@@ -614,15 +614,19 @@ function renderReview(){
   /* ---------- EXPLANATION TOGGLE ---------- */
 
   container.querySelectorAll(".explain-btn").forEach(btn=>{
-    btn.addEventListener("click", function(){
+  btn.addEventListener("click", function(){
 
-      const explanation = this.nextElementSibling;
+    const explanation = this.nextElementSibling;
 
-      explanation.style.display =
-        explanation.style.display === "none" ? "block" : "none";
+    explanation.classList.toggle("hidden");
 
-    });
+    this.textContent =
+      explanation.classList.contains("hidden")
+        ? "Show Explanation"
+        : "Hide Explanation";
+
   });
+});
 
   /* ---------- PDF BUTTON ---------- */
 
