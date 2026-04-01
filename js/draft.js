@@ -146,6 +146,26 @@ async function generateHash(text) {
   return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
 }
 
+function computeDifficulty({ cognitive, complexity, depth }) {
+  if (!cognitive || !complexity || !depth) {
+    return { score: null, label: null };
+  }
+
+  const score =
+    (cognitive * 0.5) +
+    (complexity * 0.3) +
+    (depth * 0.2);
+
+  let label = "easy";
+
+  if (score > 2.6) label = "hard";
+  else if (score > 1.8) label = "medium";
+
+  return {
+    score: Number(score.toFixed(2)),
+    label
+  };
+}
 // --------------------------------
 // SEARCH QUESTION BANK
 // --------------------------------
