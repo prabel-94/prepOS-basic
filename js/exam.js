@@ -439,8 +439,7 @@ const selected =
     if(chosen === q.correct) score++;
   });
 
-/*--filter bank questions--*/
-const bankAnswers = answers.filter(a => a.question_id);
+const bankAnswers = answers.filter(a => a.question_id); // 🔥filter bank Qs
 
   try{
 
