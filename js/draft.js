@@ -1033,21 +1033,30 @@ if (preview) {
 // CREATE QUESTION
 // --------------------------------
 function createNewQuestion() {
-  const q = {
+const q = {
   id: crypto.randomUUID(),
-  question_id: null, // 🔥 ADD THIS
+  question_id: null,
   text: "",
-    options: [
-  { id:"A", text:"" },
-  { id:"B", text:"" },
-  { id:"C", text:"" },
-  { id:"D", text:"" }
-],
-    correct: "A",
-    explanation: "",
-    topics: [],
-    bank_status: "draft"
-  };
+  options: [
+    { id:"A", text:"" },
+    { id:"B", text:"" },
+    { id:"C", text:"" },
+    { id:"D", text:"" }
+  ],
+  correct: "A",
+  explanation: "",
+  topics: [],
+  bank_status: "draft",
+
+  // 🔥 ADD THIS BLOCK
+  difficulty: {
+    cognitive_level: null,
+    complexity_level: null,
+    depth_level: null,
+    score: null,
+    label: null
+  }
+};
 
   currentDraft.schema_json.sections[0].questions.push(q);
   renderDraft(currentDraft);
