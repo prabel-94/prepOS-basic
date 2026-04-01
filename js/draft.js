@@ -530,6 +530,7 @@ async function saveQuestionToBank(q) {
   }
 await attachTopics(questionId, q.topics);
   return { questionId, isDuplicate };
+q.question_id = questionId; // 🔥 LINK BACK
 }
 
 async function saveAllQuestionsToBank(globalTopics = []) {
