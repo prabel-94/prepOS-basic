@@ -429,7 +429,12 @@ const selected =
 
     const chosen = selected ? selected.value : "-";
 
-    answers.push({q:i,chosen});
+    answers.push({
+  question_id: q.question_id || null, // 🔥 KEY FIELD
+  chosen,
+  correct: q.correct,
+  is_correct: chosen === q.correct
+});
 
     if(chosen === q.correct) score++;
   });
