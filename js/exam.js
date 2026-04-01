@@ -110,7 +110,16 @@ function normalizeQuestion(q){
   correct = String(correct || "").toUpperCase();
 
   return {
+  question_id: q.question_id || null, // 🔥 ADD THIS
   text: q.text || q.question || q.question_text || "",
+  options: (q.options || []).map(o =>
+    typeof o === "string"
+      ? { id: "", text: o }
+      : o
+  ),
+  correct,
+  explanation: q.explanation || q.explanation_text || ""
+};
   options: (q.options || []).map(o =>
     typeof o === "string"
       ? { id: "", text: o } // fallback for old data
