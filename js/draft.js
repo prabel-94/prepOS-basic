@@ -211,7 +211,16 @@ async function addQuestionFromBank(qId, btn) {
     correct: data.correct_option || "A",
     explanation: data.explanation || "",
     topics: [],
-    bank_status: "saved"
+    bank_status: "saved",
+
+// 🔥 ADD THIS BLOCK
+  difficulty: {
+    cognitive_level: null,
+    complexity_level: null,
+    depth_level: null,
+    score: null,
+    label: null
+  }
   };
 
   currentDraft.schema_json.sections[0].questions.push(newQuestion);
@@ -309,7 +318,16 @@ async function addAllResultsToDraft() {
       correct: data.correct_option || "A",
       explanation: data.explanation || "",
       topics: [],
-      bank_status: "saved"
+      bank_status: "saved",
+
+// 🔥 ADD THIS BLOCK
+  difficulty: {
+    cognitive_level: null,
+    complexity_level: null,
+    depth_level: null,
+    score: null,
+    label: null
+  }
     };
 
     currentDraft.schema_json.sections[0].questions.push(newQuestion);
