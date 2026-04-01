@@ -648,6 +648,125 @@ RESULTS PAGE (ATTEMPT SYSTEM)
 .answer-row:last-child{
   border-bottom:none;
 }
+
+/* =========================
+REVIEW MODE
+========================= */
+
+.review-card{
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+  transition: 0.2s ease;
+}
+
+.review-card:hover{
+  transform: translateY(-2px);
+}
+
+/* Header */
+
+.review-header{
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.review-q-number{
+  font-weight: 600;
+  color: var(--muted);
+}
+
+/* Status */
+
+.review-status{
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+.status-correct{
+  background: rgba(22,163,74,0.1);
+  color: var(--success);
+}
+
+.status-wrong{
+  background: rgba(220,38,38,0.1);
+  color: #dc2626;
+}
+
+/* Question */
+
+.review-question{
+  font-weight: 500;
+  margin-bottom: 12px;
+}
+
+/* Options */
+
+.review-options{
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.review-option{
+  border: 1px solid var(--border);
+  padding: 10px;
+  border-radius: 8px;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+/* States */
+
+.option-selected{
+  border-color: var(--primary);
+}
+
+.option-correct{
+  background: rgba(22,163,74,0.08);
+  border-color: var(--success);
+}
+
+.option-wrong{
+  background: rgba(220,38,38,0.08);
+  border-color: #dc2626;
+}
+
+/* Option text */
+
+.option-letter{
+  font-weight: 600;
+}
+
+/* Explanation */
+
+.review-explanation-block{
+  margin-top: 12px;
+}
+
+.explanation{
+  margin-top: 8px;
+  padding: 10px;
+  border-left: 3px solid var(--primary);
+  background: #f9fafb;
+  border-radius: 6px;
+}
+
+.explanation-title{
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.hidden{
+  display: none;
+}
 /* ======================================================
 UTILITIES
 ====================================================== */
