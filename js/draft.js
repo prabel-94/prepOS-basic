@@ -1497,6 +1497,25 @@ document.getElementById("createNewBtn")
 
     // ✅ Attach topics AFTER insert
     await attachTopics(data.id, q.topics);
+// 🔥 SAVE DIFFICULTY METADATA
+if (q.difficulty && q.difficulty.label) {
+
+  const metadata = [
+    { key: "cognitive_level", value: q.difficulty.cognitive_level },
+    { key: "complexity_level", value: q.difficulty.complexity_level },
+    { key: "depth_level", value: q.difficulty.depth_level },
+    { key: "difficulty_score", value: q.difficulty.score },
+    { key: "difficulty_label", value: q.difficulty.label }
+  ];
+
+  const rows = metadata.map(m => ({
+    question_id: questionId,
+    key: m.key,
+    value: m.value
+  }));
+
+  await sb.from("question_metadata").insert(rows);
+}
 
 // 🔥 ADD THIS (MISSING LINK)
 q.question_id = data.id;
