@@ -2,209 +2,252 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PrepOS Results</title>
+
 <link rel="stylesheet" href="css/style.css">
+
 </head>
 
 <body>
 
-<div class="header">
-<button onclick="location.href='index.html'">← Home</button>
-<h2 style="margin:0;">Results Viewer</h2>
-</div>
+<div class="container">
 
-<div class="card">
-<label for="examSelect">Select exam</label>
-<select id="examSelect" title="Select an exam to view results"></select>
-<button onclick="exportCSV()">Export CSV</button>
-</div>
+  <div class="flex gap-10 mt-10">
+    <button onclick="location.href='index.html'" class="secondary-btn">
+      ← Home
+    </button>
+    <h2>Results Viewer</h2>
+  </div>
 
-<div class="card">
-<div id="results">Loading…</div>
-</div>
+  <div class="card mt-20">
+    <label>Select exam</label>
 
-<div id="historyModal" class="modal">
-<div id="historyContent"></div>
-<button onclick="closeHistory()">Close</button>
+    <div class="flex gap-10 mt-10">
+      <select id="examSelect"></select>
+      <button onclick="exportCSV()" class="secondary-btn">
+        Export CSV
+      </button>
+    </div>
+  </div>
+
+  <div id="results" class="mt-20">
+    Loading…
+  </div>
+
 </div>
 
 <script src="js/config.js"></script>
 
 <script>
-let currentResponses=[]
 
+let currentResponses = [];
+
+/* ================= LOAD EXAMS ================= */
 async function loadExams(){
 
-const res=await fetch(
-`${SUPABASE_URL}/rest/v1/exam_sessions?select=id,title&order=created_at.desc`,
-{
-headers:{
-apikey:SUPABASE_ANON_KEY,
-Authorization:`Bearer ${SUPABASE_ANON_KEY}`
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/exam_sessions?select=id,title&order=created_at.desc`,
+    {
+      headers:{
+        apikey:SUPABASE_ANON_KEY,
+        Authorization:`Bearer ${SUPABASE_ANON_KEY}`
+      }
+    }
+  );
+
+  if(!res.ok){
+    document.getElementById("results").innerText="Failed to load exams";
+    return;
+  }
+
+  const data = await res.json();
+  const select = document.getElementById("examSelect");
+  select.innerHTML="";
+
+  data.forEach(e=>{
+    const opt=document.createElement("option");
+    opt.value=e.id;
+    opt.textContent=e.title;
+    select.appendChild(opt);
+  });
+
+  const saved = localStorage.getItem("results_exam");
+
+  if(saved){
+    select.value = saved;
+    loadResponses(saved);
+    localStorage.removeItem("results_exam");
+  }else if(data.length){
+    loadResponses(data[0].id);
+  }
+
+  select.addEventListener("change", e=>{
+    loadResponses(e.target.value);
+  });
+
 }
-})
 
-if(!res.ok){
-console.error("Failed to load exams",res.status)
-document.getElementById("results").innerText="Failed to load exams"
-return
-}
-
-const data=await res.json()
-const select=document.getElementById("examSelect")
-select.innerHTML=""
-
-data.forEach(e=>{
-const opt=document.createElement("option")
-opt.value=e.id
-opt.textContent=e.title
-select.appendChild(opt)
-})
-
-const saved=localStorage.getItem("results_exam")
-if(saved){
-select.value=saved
-loadResponses(saved)
-localStorage.removeItem("results_exam")
-}else if(data.length){
-loadResponses(data[0].id)
-}
-
-select.addEventListener("change",e=>{
-loadResponses(e.target.value)
-})
-}
-
+/* ================= LOAD RESPONSES ================= */
 async function loadResponses(examId){
 
-const res = await fetch(
-`${SUPABASE_URL}/rest/v1/exam_attempts?exam_id=eq.${examId}&select=*&order=submitted_at.desc`,
-{
-headers:{
-apikey:SUPABASE_ANON_KEY,
-Authorization:`Bearer ${SUPABASE_ANON_KEY}`
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/exam_attempts?exam_id=eq.${examId}&select=*&order=submitted_at.desc`,
+    {
+      headers:{
+        apikey:SUPABASE_ANON_KEY,
+        Authorization:`Bearer ${SUPABASE_ANON_KEY}`
+      }
+    }
+  );
+
+  if(!res.ok){
+    console.error("Failed to load responses", res.status);
+    return;
+  }
+
+  const data = await res.json();
+  currentResponses = Array.isArray(data) ? data : [];
+
+  render(currentResponses);
 }
-})
 
-/* ⭐ place check HERE */
-if(!res.ok){
-console.error("Failed to load responses", res.status)
-return
-}
-
-const data = await res.json()
-
-currentResponses = Array.isArray(data) ? data : []
-
-render(currentResponses)
-}
-
+/* ================= RENDER ================= */
 function render(list){
 
-const container = document.getElementById("results")
-container.innerHTML = ""
+  const container = document.getElementById("results");
+  container.innerHTML = "";
 
-/* guard */
-if(!Array.isArray(list) || list.length === 0){
-container.innerHTML = "No submissions yet"
-return
+  if(!list.length){
+    container.innerHTML = "<div class='empty-state'>No submissions yet</div>";
+    return;
+  }
+
+  const countMap = {};
+  list.forEach(r=>{
+    const name = r.student_name || "Unknown";
+    countMap[name] = (countMap[name] || 0) + 1;
+  });
+
+  const now = Date.now();
+
+  list.forEach(r=>{
+
+    const name = r.student_name || "Unknown";
+    const attempts = countMap[name] || 1;
+    const isDuplicate = attempts > 1;
+
+    const submitted = r.submitted_at
+      ? new Date(r.submitted_at).toLocaleString()
+      : "-";
+
+    const answers = Array.isArray(r.answers) ? r.answers : [];
+
+    const card = document.createElement("div");
+    card.className = "attempt-card";
+
+    card.innerHTML = `
+      <div class="attempt-header">
+        <div class="student-name">
+          ${name} ${isDuplicate ? "⚠️" : ""}
+        </div>
+        <div class="score-badge">
+          ${r.score ?? "-"}
+        </div>
+      </div>
+
+      <div class="attempt-meta">${submitted}</div>
+      <div class="attempt-meta">Attempts: ${attempts}</div>
+
+      <div class="attempt-actions">
+        <button class="primary-btn view-btn">View Answers</button>
+        <button class="secondary-btn history-btn">History</button>
+      </div>
+
+      <div class="answer-box hidden"></div>
+    `;
+
+    const viewBtn = card.querySelector(".view-btn");
+    const answerBox = card.querySelector(".answer-box");
+
+    viewBtn.onclick = ()=>{
+
+      answerBox.classList.toggle("hidden");
+
+      if(!answerBox.classList.contains("hidden")){
+        answerBox.innerHTML = answers.length
+          ? answers.map(a=>`
+              <div class="answer-row">
+                Q${a.q+1}: <b>${a.chosen}</b>
+              </div>
+            `).join("")
+          : "<div class='small'>No answers available</div>";
+      }
+
+      viewBtn.innerText =
+        answerBox.classList.contains("hidden")
+          ? "View Answers"
+          : "Hide Answers";
+
+    };
+
+    const historyBtn = card.querySelector(".history-btn");
+
+    historyBtn.onclick = ()=>{
+      showHistory(name);
+    };
+
+    container.appendChild(card);
+
+  });
+
 }
 
-/* build attempt count map */
-const countMap = {}
-
-list.forEach(r=>{
-const name = r.student_name || "Unknown"
-countMap[name] = (countMap[name] || 0) + 1
-})
-
-/* safe sort by submitted_at */
-list.sort((a,b)=>{
-const ta = a.submitted_at ? new Date(a.submitted_at).getTime() : 0
-const tb = b.submitted_at ? new Date(b.submitted_at).getTime() : 0
-return tb - ta
-})
-
-const now = Date.now()
-
-/* render rows */
-list.forEach(r=>{
-
-const name = r.student_name || "Unknown"
-const attempts = countMap[name] || 1
-const isDuplicate = attempts > 1
-
-const isRecent = r.submitted_at
-? now - new Date(r.submitted_at).getTime() < 60000
-: false
-
-const div = document.createElement("div")
-div.className = "result-item" + (isRecent ? " recent" : "")
-
-div.innerHTML = `
-<b>${name} ${isDuplicate ? "⚠️" : ""}</b><br>
-Score: ${r.score ?? "-"}<br>
-Attempt: ${r.version ?? "-"}<br>
-Attempts total: ${attempts}<br>
-<button onclick="showHistory('${name}')">History</button><br>
-${r.submitted_at ? new Date(r.submitted_at).toLocaleString() : ""}
-`
-
-container.appendChild(div)
-
-})
-
-}
-
+/* ================= HISTORY ================= */
 function showHistory(name){
 
-const list=currentResponses
-.filter(r=>r.student_name===name)
-.sort((a,b)=>a.version-b.version)
+  const list = currentResponses
+    .filter(r => r.student_name === name)
+    .sort((a,b)=>(a.version||0)-(b.version||0));
 
-const content=document.getElementById("historyContent")
-content.innerHTML=`<h3>${name}</h3>`
+  let text = `${name}\n\n`;
 
-list.forEach(r=>{
-content.innerHTML+=`
-Attempt ${r.version} — Score ${r.score} — ${new Date(r.submitted_at).toLocaleString()}<br>
-`
-})
+  list.forEach(r=>{
+    text += `Attempt ${r.version ?? "-"} — Score ${r.score ?? "-"} — ${r.submitted_at}\n`;
+  });
 
-document.getElementById("historyModal").style.display="block"
+  alert(text);
 }
 
-function closeHistory(){
-document.getElementById("historyModal").style.display="none"
-}
-
+/* ================= CSV ================= */
 function exportCSV(){
 
-if(!currentResponses.length) return
+  if(!currentResponses.length) return;
 
-const rows=[["name","score","version","submitted"]]
+  const rows=[["name","score","version","submitted"]];
 
-currentResponses.forEach(r=>{
-rows.push([r.student_name,r.score,r.version,r.submitted_at])
-})
+  currentResponses.forEach(r=>{
+    rows.push([
+      r.student_name,
+      r.score,
+      r.version,
+      r.submitted_at
+    ]);
+  });
 
-const csv=rows.map(r=>r.join(",")).join("\n")
-const blob=new Blob([csv],{type:"text/csv"})
-const url=URL.createObjectURL(blob)
+  const csv=rows.map(r=>r.join(",")).join("\n");
+  const blob=new Blob([csv],{type:"text/csv"});
+  const url=URL.createObjectURL(blob);
 
-const a=document.createElement("a")
-a.href=url
-a.download="results.csv"
-a.click()
+  const a=document.createElement("a");
+  a.href=url;
+  a.download="results.csv";
+  a.click();
 }
 
-setInterval(()=>{
-const examId=document.getElementById("examSelect").value
-if(examId) loadResponses(examId)
-},10000)
+/* ================= INIT ================= */
+loadExams();
 
-loadExams()
 </script>
 
 </body>
