@@ -1031,8 +1031,9 @@ if (preview) {
 // --------------------------------
 function createNewQuestion() {
   const q = {
-    id: crypto.randomUUID(),
-    text: "",
+  id: crypto.randomUUID(),
+  question_id: null, // 🔥 ADD THIS
+  text: "",
     options: [
   { id:"A", text:"" },
   { id:"B", text:"" },
