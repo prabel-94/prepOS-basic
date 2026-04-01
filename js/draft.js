@@ -1358,7 +1358,10 @@ document.getElementById("createNewBtn")
     // ✅ Attach topics AFTER insert
     await attachTopics(data.id, q.topics);
 
-    q.bank_status = "saved";
+// 🔥 ADD THIS (MISSING LINK)
+q.question_id = data.id;
+
+q.bank_status = "saved";
 
     renderDraft(currentDraft);
 
