@@ -439,6 +439,9 @@ const selected =
     if(chosen === q.correct) score++;
   });
 
+/*--filter bank questions--*/
+const bankAnswers = answers.filter(a => a.question_id);
+
   try{
 
     const res = await fetch(`${SUPABASE_URL}/rest/v1/exam_attempts`, {
