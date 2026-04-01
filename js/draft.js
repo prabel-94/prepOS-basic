@@ -953,6 +953,48 @@ function renderDraft(draft) {
         placeholder="Explanation (optional)"
       >${q.explanation || ""}</textarea>
 
+<!-- DIFFICULTY PANEL -->
+<div class="difficulty-panel mt-10">
+
+  <div class="small">Cognitive</div>
+  <div class="flex gap-10">
+    ${[1,2,3,4].map(v => `
+      <label>
+        <input type="radio" name="cognitive-${i}" data-i="${i}" value="${v}"
+          ${q.difficulty?.cognitive_level === v ? "checked" : ""}
+        /> ${["Recall","Concept","Application","Analysis"][v-1]}
+      </label>
+    `).join("")}
+  </div>
+
+  <div class="small mt-10">Complexity</div>
+  <div class="flex gap-10">
+    ${[1,2,3].map(v => `
+      <label>
+        <input type="radio" name="complexity-${i}" data-i="${i}" value="${v}"
+          ${q.difficulty?.complexity_level === v ? "checked" : ""}
+        /> ${["Simple","Moderate","Complex"][v-1]}
+      </label>
+    `).join("")}
+  </div>
+
+  <div class="small mt-10">Depth</div>
+  <div class="flex gap-10">
+    ${[1,2,3].map(v => `
+      <label>
+        <input type="radio" name="depth-${i}" data-i="${i}" value="${v}"
+          ${q.difficulty?.depth_level === v ? "checked" : ""}
+        /> ${["Basic","Standard","Advanced"][v-1]}
+      </label>
+    `).join("")}
+  </div>
+
+  <div class="small mt-10">
+    Difficulty: ${q.difficulty?.label || "-"}
+  </div>
+
+</div>
+
       <!-- TOPICS -->
       <div class="topic-box">
 
