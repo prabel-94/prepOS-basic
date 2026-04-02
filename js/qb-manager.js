@@ -39,13 +39,17 @@ const el = {
 async function fetchQuestions() {
   const { data, error } = await sb
     .from("questions")
-    .select(`
-      *,
-      question_topics (
-        topic_id,
-        topics ( id, name )
-      )
-    `)
+.select(`
+  *,
+  question_topics (
+    topic_id,
+    topics ( id, name )
+  ),
+  question_metadata (
+    key,
+    value
+  )
+`)
     .order("created_at", { ascending: false });
 
   if (error) {
