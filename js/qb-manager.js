@@ -170,7 +170,7 @@ const meta = {};
   meta[m.key] = m.value;
 });
 
-const difficulty = meta.difficulty_label || null;
+const difficulty = meta.difficulty_label || "not-set";
   el.questionsView.innerHTML = list.map(q => {
 
     const topicsHTML = (q.question_topics || [])
