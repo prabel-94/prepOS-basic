@@ -194,22 +194,23 @@ const difficulty = meta.difficulty_label || "not-set";
       <div class="question-card">
 
         <div class="q-header">
-          <div class="q-title">Question</div>
-          <div class="flex gap-10">
 
-    ${
-      difficulty
-        ? `<div class="difficulty-badge ${difficulty}">
-  ${difficulty === "not-set" ? "NOT SET" : difficulty.toUpperCase()}
-</div>`
-        : ""
-    }
+  <!-- LEFT -->
+  <div class="flex gap-10">
 
-          <div class="question-actions">
-            <button class="icon-btn edit-btn" data-id="${q.id}">✏️</button>
-            <button class="icon-btn delete-btn" data-id="${q.id}">🗑</button>
-          </div>
-        </div>
+    <div class="difficulty-badge ${difficulty}">
+      ${difficulty === "not-set" ? "NOT SET" : difficulty.toUpperCase()}
+    </div>
+
+  </div>
+
+  <!-- RIGHT -->
+  <div class="question-actions">
+    <button class="icon-btn edit-btn" data-id="${q.id}">✏️</button>
+    <button class="icon-btn delete-btn" data-id="${q.id}">🗑</button>
+  </div>
+
+</div>
 
         <div class="qtext">${q.question_text}</div>
 
