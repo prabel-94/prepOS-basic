@@ -555,7 +555,9 @@ async function saveQuestionToBank(q) {
         option_b: opts[1] || "",
         option_c: opts[2] || "",
         option_d: opts[3] || "",
-        correct_option: q.correct,
+        correct_option: ["A","B","C","D"].includes(q.correct)
+  ? q.correct
+  : "A",
         explanation: q.explanation || "",
         question_hash: hash
       })
