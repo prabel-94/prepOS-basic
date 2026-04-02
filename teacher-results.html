@@ -191,10 +191,14 @@ function render(list){
       if(!answerBox.classList.contains("hidden")){
         answerBox.innerHTML = answers.length
           ? answers.map(a=>`
-              <div class="answer-row">
-                Q${a.index + 1}: <b>${a.chosen}</b>
-              </div>
-            `).join("")
+  <div class="answer-row">
+    Q${a.index + 1}: 
+    <b>${a.chosen}</b>
+    ${a.correct ? `(Correct: ${a.correct})` : ""}
+    ${a.is_correct === false ? " ❌" : ""}
+    ${a.is_correct === true ? " ✔" : ""}
+  </div>
+`).join("")
           : "<div class='small'>No answers available</div>";
       }
 
