@@ -13,6 +13,7 @@
 
 <div class="container">
 
+  <!-- HEADER -->
   <div class="flex gap-10 mt-10">
     <button onclick="location.href='index.html'" class="secondary-btn">
       ← Home
@@ -20,17 +21,26 @@
     <h2>Results Viewer</h2>
   </div>
 
+  <!-- EXAM SELECT -->
   <div class="card mt-20">
     <label>Select exam</label>
 
     <div class="flex gap-10 mt-10">
       <select id="examSelect"></select>
+
+      <select id="sortSelect">
+        <option value="latest">Latest</option>
+        <option value="high">Highest Score</option>
+        <option value="low">Lowest Score</option>
+      </select>
+
       <button onclick="exportCSV()" class="secondary-btn">
         Export CSV
       </button>
     </div>
   </div>
 
+  <!-- RESULTS -->
   <div id="results" class="mt-20">
     Loading…
   </div>
@@ -41,21 +51,37 @@
 
 <script>
 
-function normalizeAnswer(a, index){
+/* =========================
+NORMALIZATION
+========================= */
 
+function normalizeAnswer(a, index){
   return {
-    index: a.q ?? index, // fallback if old format exists
+    index: a.q ?? a.index ?? index,
     chosen: a.chosen ?? "-",
     correct: a.correct ?? null,
     is_correct: a.is_correct ?? null,
     question_id: a.question_id ?? null
   };
+}
 
+function normalizeResponse(r){
+  return {
+    ...r,
+    student_name: r.student_name || "Unknown",
+    answers: Array.isArray(r.answers)
+      ? r.answers.map(normalizeAnswer)
+      : []
+  };
 }
 
 let currentResponses = [];
+let currentSort = "latest";
 
-/* ================= LOAD EXAMS ================= */
+/* =========================
+LOAD EXAMS
+========================= */
+
 async function loadExams(){
 
   const res = await fetch(
@@ -75,6 +101,7 @@ async function loadExams(){
 
   const data = await res.json();
   const select = document.getElementById("examSelect");
+
   select.innerHTML="";
 
   data.forEach(e=>{
@@ -84,13 +111,7 @@ async function loadExams(){
     select.appendChild(opt);
   });
 
-  const saved = localStorage.getItem("results_exam");
-
-  if(saved){
-    select.value = saved;
-    loadResponses(saved);
-    localStorage.removeItem("results_exam");
-  }else if(data.length){
+  if(data.length){
     loadResponses(data[0].id);
   }
 
@@ -98,9 +119,17 @@ async function loadExams(){
     loadResponses(e.target.value);
   });
 
+  document.getElementById("sortSelect").addEventListener("change", e=>{
+    currentSort = e.target.value;
+    render(currentResponses);
+  });
+
 }
 
-/* ================= LOAD RESPONSES ================= */
+/* =========================
+LOAD RESPONSES
+========================= */
+
 async function loadResponses(examId){
 
   const res = await fetch(
@@ -119,12 +148,41 @@ async function loadResponses(examId){
   }
 
   const data = await res.json();
-  currentResponses = Array.isArray(data) ? data : [];
+
+  currentResponses = Array.isArray(data)
+    ? data.map(normalizeResponse)
+    : [];
 
   render(currentResponses);
 }
 
-/* ================= RENDER ================= */
+/* =========================
+SORTING
+========================= */
+
+function sortResponses(list){
+
+  const sorted = [...list];
+
+  if(currentSort === "high"){
+    sorted.sort((a,b)=>(b.score||0)-(a.score||0));
+  }
+  else if(currentSort === "low"){
+    sorted.sort((a,b)=>(a.score||0)-(b.score||0));
+  }
+  else{
+    sorted.sort((a,b)=>
+      new Date(b.submitted_at) - new Date(a.submitted_at)
+    );
+  }
+
+  return sorted;
+}
+
+/* =========================
+RENDER
+========================= */
+
 function render(list){
 
   const container = document.getElementById("results");
@@ -135,27 +193,28 @@ function render(list){
     return;
   }
 
+  const sorted = sortResponses(list);
+
+  /* ---------- attempt count ---------- */
   const countMap = {};
-  list.forEach(r=>{
-    const name = r.student_name || "Unknown";
-    countMap[name] = (countMap[name] || 0) + 1;
+  sorted.forEach(r=>{
+    countMap[r.student_name] = (countMap[r.student_name] || 0) + 1;
   });
 
-  const now = Date.now();
+  /* ---------- top score ---------- */
+  const maxScore = Math.max(...sorted.map(r=>r.score||0));
 
-  list.forEach(r=>{
+  sorted.forEach(r=>{
 
-    const name = r.student_name || "Unknown";
+    const name = r.student_name;
     const attempts = countMap[name] || 1;
-    const isDuplicate = attempts > 1;
-
     const submitted = r.submitted_at
       ? new Date(r.submitted_at).toLocaleString()
       : "-";
 
-    const answers = Array.isArray(r.answers)
-  ? r.answers.map(normalizeAnswer)
-  : [];
+    const answers = r.answers;
+
+    const isTop = (r.score || 0) === maxScore && maxScore > 0;
 
     const card = document.createElement("div");
     card.className = "attempt-card";
@@ -163,7 +222,8 @@ function render(list){
     card.innerHTML = `
       <div class="attempt-header">
         <div class="student-name">
-          ${name} ${isDuplicate ? "⚠️" : ""}
+          ${name} ${attempts > 1 ? `(${attempts} attempts)` : ""}
+          ${isTop ? " 🏆" : ""}
         </div>
         <div class="score-badge">
           ${r.score ?? "-"}
@@ -171,7 +231,6 @@ function render(list){
       </div>
 
       <div class="attempt-meta">${submitted}</div>
-      <div class="attempt-meta">Attempts: ${attempts}</div>
 
       <div class="attempt-actions">
         <button class="primary-btn view-btn">View Answers</button>
@@ -191,15 +250,15 @@ function render(list){
       if(!answerBox.classList.contains("hidden")){
         answerBox.innerHTML = answers.length
           ? answers.map(a=>`
-  <div class="answer-row">
-    Q${a.index + 1}: 
-    <b>${a.chosen}</b>
-    ${a.correct ? `(Correct: ${a.correct})` : ""}
-    ${a.is_correct === false ? " ❌" : ""}
-    ${a.is_correct === true ? " ✔" : ""}
-  </div>
-`).join("")
-          : "<div class='small'>No answers available</div>";
+              <div class="answer-row">
+                Q${a.index + 1}: 
+                <b>${a.chosen}</b>
+                ${a.correct ? `(Correct: ${a.correct})` : ""}
+                ${a.is_correct === false ? " ❌" : ""}
+                ${a.is_correct === true ? " ✔" : ""}
+              </div>
+            `).join("")
+          : "<div class='small'>No answers recorded</div>";
       }
 
       viewBtn.innerText =
@@ -221,7 +280,10 @@ function render(list){
 
 }
 
-/* ================= HISTORY ================= */
+/* =========================
+HISTORY
+========================= */
+
 function showHistory(name){
 
   const list = currentResponses
@@ -237,7 +299,10 @@ function showHistory(name){
   alert(text);
 }
 
-/* ================= CSV ================= */
+/* =========================
+CSV EXPORT
+========================= */
+
 function exportCSV(){
 
   if(!currentResponses.length) return;
@@ -263,7 +328,10 @@ function exportCSV(){
   a.click();
 }
 
-/* ================= INIT ================= */
+/* =========================
+INIT
+========================= */
+
 loadExams();
 
 </script>
