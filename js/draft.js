@@ -1138,33 +1138,6 @@ document.getElementById("questions")?.addEventListener("input", (e) => {
   if (e.target.classList.contains("explanation")) {
     currentDraft.schema_json.sections[0].questions[+e.target.dataset.i].explanation = e.target.value;
   }
-// DIFFICULTY INPUT
-if (e.target.type === "radio") {
-
-  const i = +e.target.dataset.i;
-  const q = currentDraft.schema_json.sections[0].questions[i];
-
-  if (!q.difficulty) {
-    q.difficulty = {};
-  }
-
-  if (e.target.name.startsWith("cognitive")) {
-    q.difficulty.cognitive_level = +e.target.value;
-  }
-
-  if (e.target.name.startsWith("complexity")) {
-    q.difficulty.complexity_level = +e.target.value;
-  }
-
-  if (e.target.name.startsWith("depth")) {
-    q.difficulty.depth_level = +e.target.value;
-  }
-
-  const result = computeDifficulty({
-    cognitive: q.difficulty.cognitive_level,
-    complexity: q.difficulty.complexity_level,
-    depth: q.difficulty.depth_level
-  });
 
   q.difficulty.score = result.score;
   q.difficulty.label = result.label;
