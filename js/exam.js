@@ -106,36 +106,20 @@ function normalizeQuestion(q){
     correct = String.fromCharCode(65 + correct);
   }
 
-  // Normalize to uppercase string
   correct = String(correct || "").toUpperCase();
 
   return {
-  question_id: q.question_id || null,
-  text: q.text || q.question || q.question_text || "",
-  options: (q.options || []).map(o =>
-    typeof o === "string"
-      ? { id: "", text: o }
-      : o
-  ),
-  correct,
-  explanation: q.explanation || q.explanation_text || ""
-};
-options: (q.options || []).map(o =>   // ❌ ❌ ❌
-  typeof o === "string"
-    ? { id: "", text: o }
-    : o
-),
-correct,
-explanation: q.explanation || q.explanation_text || ""
-};
-  options: (q.options || []).map(o =>
-    typeof o === "string"
-      ? { id: "", text: o } // fallback for old data
-      : o
-  ),
-  correct,
-  explanation: q.explanation || q.explanation_text || ""
-};
+    question_id: q.question_id || null,
+    text: q.text || q.question || q.question_text || "",
+    options: (q.options || []).map(o =>
+      typeof o === "string"
+        ? { id: "", text: o }
+        : o
+    ),
+    correct,
+    explanation: q.explanation || q.explanation_text || ""
+  };
+
 }
 /* ---------- scroll to result ---------- */
 function scrollToResult(){
