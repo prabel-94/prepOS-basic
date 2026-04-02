@@ -1139,9 +1139,6 @@ document.getElementById("questions")?.addEventListener("input", (e) => {
     currentDraft.schema_json.sections[0].questions[+e.target.dataset.i].explanation = e.target.value;
   }
 
-  q.difficulty.score = result.score;
-  q.difficulty.label = result.label;
-
   renderDraft(currentDraft);
 }
   scheduleAutosave();
