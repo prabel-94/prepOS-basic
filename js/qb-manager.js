@@ -200,8 +200,8 @@ const difficulty = meta.difficulty_label || "not-set";
     ${
       difficulty
         ? `<div class="difficulty-badge ${difficulty}">
-            ${difficulty.toUpperCase()}
-           </div>`
+  ${difficulty === "not-set" ? "NOT SET" : difficulty.toUpperCase()}
+</div>`
         : ""
     }
 
