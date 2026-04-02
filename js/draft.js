@@ -1000,15 +1000,10 @@ function renderDraft(draft) {
         data-i="${i}" 
         placeholder="Explanation (optional)"
       >${q.explanation || ""}</textarea>
-
-      <!-- TOPICS -->
-      <div class="topic-box">
-
-        <input 
-          class="topic-input" 
-          data-i="${i}" 
-          placeholder="Add topic..."
-        />
+       
+      <div class="mt-10 small">
+  Difficulty: ${q.difficulty?.label || "Not set"}
+</div>
 
         <div class="topic-tags">
           ${topicsHTML}
