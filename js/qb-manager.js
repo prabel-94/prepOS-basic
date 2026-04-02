@@ -33,6 +33,36 @@ const el = {
   weakTopics: document.getElementById("weak-topics")
 };
 
+
+function computeDifficulty(cognitive, complexity, depth) {
+
+  const map = {
+    recall: 1,
+    concept: 2,
+    application: 3,
+    analysis: 4,
+
+    simple: 1,
+    moderate: 2,
+    complex: 3,
+
+    basic: 1,
+    standard: 2,
+    advanced: 3
+  };
+
+  const score =
+    map[cognitive] +
+    map[complexity] +
+    map[depth];
+
+  let label = "easy";
+
+  if (score >= 7) label = "hard";
+  else if (score >= 5) label = "medium";
+
+  return { score, label };
+}
 // --------------------------------
 // FETCH
 // --------------------------------
