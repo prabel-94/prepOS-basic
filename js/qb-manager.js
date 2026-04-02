@@ -293,6 +293,25 @@ function handleEdit(id) {
 // EVENTS
 // --------------------------------
 function bindEvents() {
+// CLICK DIFFICULTY BADGE
+el.questionsView.addEventListener("click", (e) => {
+
+  const badge = e.target.closest(".difficulty-badge");
+  if (!badge) return;
+
+  const id = badge.dataset.id;
+  selectedQuestionId = id;
+
+  const q = state.questions.find(q => q.id === id);
+
+  // SHOW PANEL
+  document.getElementById("metadataPanel").classList.remove("hidden");
+  document.body.style.overflow = "hidden";
+
+  // PREVIEW
+  document.getElementById("metaQuestionPreview").innerText = q.question_text;
+
+});
 
   el.searchInput.addEventListener("input", e => {
     state.search = e.target.value;
