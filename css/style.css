@@ -355,6 +355,57 @@ QUESTION CARD (BUILDER)
   color:#856404;
 }
 
+/* ======================================================
+DIFFICULTY SYSTEM
+====================================================== */
+
+/* Base Badge */
+.difficulty-badge{
+  font-size:11px;
+  padding:3px 8px;
+  border-radius:6px;
+  font-weight:600;
+  display:inline-block;
+  text-transform:uppercase;
+}
+
+/* Easy */
+.difficulty-badge.easy{
+  background: var(--success-bg);
+  color: var(--success);
+  border: 1px solid rgba(22,163,74,0.2);
+}
+
+/* Medium */
+.difficulty-badge.medium{
+  background: #fff8e1;
+  color: #f39c12;
+  border: 1px solid rgba(243,156,18,0.25);
+}
+
+/* Hard */
+.difficulty-badge.hard{
+  background: var(--danger-bg);
+  color: var(--danger);
+  border: 1px solid rgba(220,38,38,0.2);
+}
+
+/* Not Set (Important UX State) */
+.difficulty-badge.not-set{
+  background:#f2f2f2;
+  color:var(--muted);
+  border:1px dashed var(--border);
+}
+
+/* Optional: clickable state (future) */
+.difficulty-badge.clickable{
+  cursor:pointer;
+  transition: all 0.15s ease;
+}
+
+.difficulty-badge.clickable:hover{
+  opacity:0.85;
+}
 /* QUESTION */
 
 .qtext {
