@@ -1383,7 +1383,16 @@ async function uploadLogo(file) {
 // INIT
 // --------------------------------
 function init() {
-  
+ 
+   // --------------------------------
+// CLOSE META PANEL
+// --------------------------------
+document.getElementById("closeMetadata")
+  ?.addEventListener("click", () => {
+    document.getElementById("metadataPanel").classList.add("hidden");
+    document.body.style.overflow = "";
+});
+
   // --------------------------------
 // ADD FROM QUESTION BANK (FIXED)
 // --------------------------------
