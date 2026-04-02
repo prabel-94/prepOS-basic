@@ -198,7 +198,9 @@ const difficulty = meta.difficulty_label || "not-set";
   <!-- LEFT -->
   <div class="flex gap-10">
 
-    <div class="difficulty-badge ${difficulty}">
+    <div 
+  class="difficulty-badge clickable ${difficulty}" 
+  data-id="${q.id}">
       ${difficulty === "not-set" ? "NOT SET" : difficulty.toUpperCase()}
     </div>
 
