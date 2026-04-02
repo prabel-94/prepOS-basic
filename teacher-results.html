@@ -192,7 +192,7 @@ function render(list){
         answerBox.innerHTML = answers.length
           ? answers.map(a=>`
               <div class="answer-row">
-                Q${a.q+1}: <b>${a.chosen}</b>
+                Q${a.index + 1}: <b>${a.chosen}</b>
               </div>
             `).join("")
           : "<div class='small'>No answers available</div>";
