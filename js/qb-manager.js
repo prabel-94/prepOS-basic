@@ -164,7 +164,13 @@ function renderQuestions() {
       `<div class="empty-state">No questions found</div>`;
     return;
   }
+// 🔥 EXTRACT METADATA
+const meta = {};
+(q.question_metadata || []).forEach(m => {
+  meta[m.key] = m.value;
+});
 
+const difficulty = meta.difficulty_label || null;
   el.questionsView.innerHTML = list.map(q => {
 
     const topicsHTML = (q.question_topics || [])
