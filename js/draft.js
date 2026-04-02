@@ -1102,6 +1102,9 @@ if (e.target.type === "radio") {
 // --------------------------------
 
 document.getElementById("questions")?.addEventListener("click", (e) => {
+// --------------------------------
+  // META DATA→ OPEN PANEL
+  // --------------------------------
 
 if (e.target.classList.contains("edit-metadata-btn")) {
 
