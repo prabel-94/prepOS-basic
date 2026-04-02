@@ -926,6 +926,7 @@ function renderDraft(draft) {
         </div>
 
         <div class="question-actions">
+          <button class="icon-btn edit-metadata-btn" data-i="${i}">⚙</button>
           <button onclick="deleteQuestion(${i})" class="icon-btn">🗑</button>
           <button onclick="duplicateQuestion(${i})" class="icon-btn">⧉</button>
           <button onclick="moveQuestionUp(${i})" class="icon-btn">↑</button>
