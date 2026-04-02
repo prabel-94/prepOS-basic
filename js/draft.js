@@ -1036,6 +1036,68 @@ function renderDraft(draft) {
   });
 }
 
+function renderMetadataPanel(i) {
+
+  const q = currentDraft.schema_json.sections[0].questions[i];
+
+  if (!q.difficulty) {
+    q.difficulty = {};
+  }
+
+  const container = document.getElementById("metadataContent");
+
+  container.innerHTML = `
+    <div class="question-card">
+
+      <div><b>Difficulty</b></div>
+
+      <div class="mt-10 small">Cognitive</div>
+      <div class="flex gap-10">
+        ${[1,2,3,4].map(v => `
+          <label>
+            <input type="radio" name="meta-cognitive" value="${v}"
+              ${q.difficulty.cognitive_level === v ? "checked" : ""}
+            />
+            ${["Recall","Concept","Application","Analysis"][v-1]}
+          </label>
+        `).join("")}
+      </div>
+
+      <div class="mt-10 small">Complexity</div>
+      <div class="flex gap-10">
+        ${[1,2,3].map(v => `
+          <label>
+            <input type="radio" name="meta-complexity" value="${v}"
+              ${q.difficulty.complexity_level === v ? "checked" : ""}
+            />
+            ${["Simple","Moderate","Complex"][v-1]}
+          </label>
+        `).join("")}
+      </div>
+
+      <div class="mt-10 small">Depth</div>
+      <div class="flex gap-10">
+        ${[1,2,3].map(v => `
+          <label>
+            <input type="radio" name="meta-depth" value="${v}"
+              ${q.difficulty.depth_level === v ? "checked" : ""}
+            />
+            ${["Basic","Standard","Advanced"][v-1]}
+          </label>
+        `).join("")}
+      </div>
+
+      <div class="mt-10 small">
+        Difficulty: ${q.difficulty.label || "-"}
+      </div>
+
+      <button id="saveMetadataBtn" class="primary-btn w-full mt-20">
+        Save Metadata
+      </button>
+
+    </div>
+  `;
+}
 // --------------------------------
 // INPUT EVENTS
 // --------------------------------
