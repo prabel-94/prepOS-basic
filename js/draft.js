@@ -1103,6 +1103,17 @@ if (e.target.type === "radio") {
 
 document.getElementById("questions")?.addEventListener("click", (e) => {
 
+if (e.target.classList.contains("edit-metadata-btn")) {
+
+  const i = +e.target.dataset.i;
+  selectedQuestionIndex = i;
+
+  renderMetadataPanel(i);
+
+  document.getElementById("metadataPanel").classList.remove("hidden");
+  document.body.style.overflow = "hidden";
+}
+
   // --------------------------------
   // ADD TO BANK → OPEN PANEL
   // --------------------------------
