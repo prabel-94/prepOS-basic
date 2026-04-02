@@ -593,6 +593,32 @@ q.question_id = questionId;
 return { questionId, isDuplicate };
 }
 
+// --------------------------------
+// METADATA SYSTEM (REPLACE MODE)
+// --------------------------------
+async function replaceQuestionMetadata(questionId, difficulty) {
+
+  // DELETE OLD
+  await sb
+    .from("question_metadata")
+    .delete()
+    .eq("question_id", questionId);
+
+  // INSERT NEW
+  const rows = [
+    { key: "cognitive_level", value: difficulty.cognitive_level },
+    { key: "complexity_level", value: difficulty.complexity_level },
+    { key: "depth_level", value: difficulty.depth_level },
+    { key: "difficulty_score", value: difficulty.score },
+    { key: "difficulty_label", value: difficulty.label }
+  ].map(m => ({
+    question_id: questionId,
+    key: m.key,
+    value: m.value
+  }));
+
+  await sb.from("question_metadata").insert(rows);
+}
 async function saveAllQuestionsToBank(globalTopics = []) {
 
   // --------------------------------
@@ -1101,6 +1127,40 @@ function renderMetadataPanel(i) {
 // --------------------------------
 // INPUT EVENTS
 // --------------------------------
+
+document.getElementById("metadataContent")
+  ?.addEventListener("change", (e) => {
+
+  if (selectedQuestionIndex === null) return;
+
+  const q = currentDraft.schema_json.sections[0].questions[selectedQuestionIndex];
+
+  if (!q.difficulty) q.difficulty = {};
+
+  if (e.target.name === "meta-cognitive") {
+    q.difficulty.cognitive_level = +e.target.value;
+  }
+
+  if (e.target.name === "meta-complexity") {
+    q.difficulty.complexity_level = +e.target.value;
+  }
+
+  if (e.target.name === "meta-depth") {
+    q.difficulty.depth_level = +e.target.value;
+  }
+
+  const result = computeDifficulty({
+    cognitive: q.difficulty.cognitive_level,
+    complexity: q.difficulty.complexity_level,
+    depth: q.difficulty.depth_level
+  });
+
+  q.difficulty.score = result.score;
+  q.difficulty.label = result.label;
+
+  renderMetadataPanel(selectedQuestionIndex);
+});
+
 document.getElementById("questions")?.addEventListener("input", (e) => {
 
   if (e.target.classList.contains("qtext")) {
