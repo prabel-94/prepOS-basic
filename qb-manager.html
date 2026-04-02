@@ -110,6 +110,59 @@
 </div>
 
 <!-- =========================
+METADATA PANEL
+========================= -->
+<aside class="question-bank-panel hidden" id="metadataPanel">
+
+  <div class="qb-header">
+    <button id="closeMetadata">← Back</button>
+    <h3>Edit Difficulty</h3>
+  </div>
+
+  <div class="mt-20">
+
+    <div id="metaQuestionPreview" class="question-card small"></div>
+
+    <!-- Cognitive -->
+    <div class="mt-20">
+      <b>Cognitive</b>
+      <div class="flex gap-10 mt-10">
+        <label><input type="radio" name="cognitive" value="recall"> Recall</label>
+        <label><input type="radio" name="cognitive" value="concept"> Concept</label>
+        <label><input type="radio" name="cognitive" value="application"> Application</label>
+        <label><input type="radio" name="cognitive" value="analysis"> Analysis</label>
+      </div>
+    </div>
+
+    <!-- Complexity -->
+    <div class="mt-20">
+      <b>Complexity</b>
+      <div class="flex gap-10 mt-10">
+        <label><input type="radio" name="complexity" value="simple"> Simple</label>
+        <label><input type="radio" name="complexity" value="moderate"> Moderate</label>
+        <label><input type="radio" name="complexity" value="complex"> Complex</label>
+      </div>
+    </div>
+
+    <!-- Depth -->
+    <div class="mt-20">
+      <b>Depth</b>
+      <div class="flex gap-10 mt-10">
+        <label><input type="radio" name="depth" value="basic"> Basic</label>
+        <label><input type="radio" name="depth" value="standard"> Standard</label>
+        <label><input type="radio" name="depth" value="advanced"> Advanced</label>
+      </div>
+    </div>
+
+    <button id="saveMetadataBtn" class="primary-btn w-full mt-20">
+      Save Difficulty
+    </button>
+
+  </div>
+
+</aside>
+
+<!-- =========================
      SCRIPTS
 ========================== -->
 
