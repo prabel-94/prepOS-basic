@@ -195,6 +195,15 @@ const difficulty = meta.difficulty_label || null;
 
         <div class="q-header">
           <div class="q-title">Question</div>
+          <div class="flex gap-10">
+
+    ${
+      difficulty
+        ? `<div class="difficulty-badge ${difficulty}">
+            ${difficulty.toUpperCase()}
+           </div>`
+        : ""
+    }
 
           <div class="question-actions">
             <button class="icon-btn edit-btn" data-id="${q.id}">✏️</button>
