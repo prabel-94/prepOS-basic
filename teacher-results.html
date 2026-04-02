@@ -41,6 +41,18 @@
 
 <script>
 
+function normalizeAnswer(a, index){
+
+  return {
+    index: a.q ?? index, // fallback if old format exists
+    chosen: a.chosen ?? "-",
+    correct: a.correct ?? null,
+    is_correct: a.is_correct ?? null,
+    question_id: a.question_id ?? null
+  };
+
+}
+
 let currentResponses = [];
 
 /* ================= LOAD EXAMS ================= */
