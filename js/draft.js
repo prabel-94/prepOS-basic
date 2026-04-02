@@ -1505,6 +1505,32 @@ async function uploadLogo(file) {
 // INIT
 // --------------------------------
 function init() {
+
+document.getElementById("metadataContent")
+  ?.addEventListener("click", async (e) => {
+
+  if (e.target.id !== "saveMetadataBtn") return;
+
+  const q = currentDraft.schema_json.sections[0].questions[selectedQuestionIndex];
+
+  if (!q.question_id) {
+    alert("Save question to bank first");
+    return;
+  }
+
+  try {
+    await replaceQuestionMetadata(q.question_id, q.difficulty);
+
+    document.getElementById("metadataPanel").classList.add("hidden");
+    document.body.style.overflow = "";
+
+    setStatus("Metadata updated ✅");
+
+  } catch (err) {
+    console.error(err);
+    alert("Failed to update metadata");
+  }
+});
  
    // --------------------------------
 // CLOSE META PANEL
