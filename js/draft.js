@@ -619,13 +619,15 @@ syncDifficultyToMeta(q);
 // 🔥 SAVE DIFFICULTY METADATA
 if (q.difficulty && q.difficulty.label) {
 
-  const metadata = [
-    { key: "cognitive_level", value: q.difficulty.cognitive_level },
-    { key: "complexity_level", value: q.difficulty.complexity_level },
-    { key: "depth_level", value: q.difficulty.depth_level },
-    { key: "difficulty_score", value: q.difficulty.score },
-    { key: "difficulty_label", value: q.difficulty.label }
-  ];
+  const meta = q.meta_structured || {};
+
+const metadata = [
+  { key: "cognitive_level", value: meta.cognitive_level },
+  { key: "complexity_level", value: meta.complexity },
+  { key: "depth_level", value: meta.depth },
+  { key: "difficulty_score", value: meta.difficulty_score },
+  { key: "difficulty_label", value: meta.difficulty_label }
+];
 
   const rows = metadata.map(m => ({
   question_id: data.id, // ✅ FIXED
