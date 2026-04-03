@@ -419,6 +419,10 @@ el.questionsView.addEventListener("click", (e) => {
 document.getElementById("saveMetadataBtn")
   ?.addEventListener("click", async () => {
 
+if (!selectedQuestionId) {
+  alert("No question selected");
+  return;
+}
   const cognitive = document.querySelector('input[name="cognitive"]:checked')?.value;
   const complexity = document.querySelector('input[name="complexity"]:checked')?.value;
   const depth = document.querySelector('input[name="depth"]:checked')?.value;
