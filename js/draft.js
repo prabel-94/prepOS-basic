@@ -838,6 +838,11 @@ function duplicateQuestion(index) {
   const clone = JSON.parse(JSON.stringify(q));
   clone.id = crypto.randomUUID();
 
+  // ✅ Ensure difficulty object exists and is clean
+  if (clone.difficulty) {
+    clone.difficulty = { ...clone.difficulty };
+  }
+
   currentDraft.schema_json.sections[0].questions.splice(index + 1, 0, clone);
 
   renderDraft(currentDraft);
