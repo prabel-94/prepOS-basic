@@ -392,6 +392,36 @@ el.questionsView.addEventListener("click", (e) => {
       document.getElementById("metadataPanel").classList.add("hidden");
       document.body.style.overflow = "";
     });
+document.getElementById("saveMetadataBtn")
+  ?.addEventListener("click", async () => {
+
+  const cognitive = document.querySelector('input[name="cognitive"]:checked')?.value;
+  const complexity = document.querySelector('input[name="complexity"]:checked')?.value;
+  const depth = document.querySelector('input[name="depth"]:checked')?.value;
+
+  if (!cognitive || !complexity || !depth) {
+    alert("Select all fields");
+    return;
+  }
+
+  const { score, label } = computeDifficulty(cognitive, complexity, depth);
+
+  await replaceQuestionMetadata(selectedQuestionId, {
+    cognitive_level: cognitive,
+    complexity_level: complexity,
+    depth_level: depth,
+    score,
+    label
+  });
+
+  // CLOSE PANEL
+  document.getElementById("metadataPanel").classList.add("hidden");
+  document.body.style.overflow = "";
+
+  // REFRESH
+  await fetchQuestions();
+
+});
 }
 
 // --------------------------------
