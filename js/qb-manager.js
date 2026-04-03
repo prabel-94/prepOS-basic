@@ -64,6 +64,28 @@ function computeDifficulty(cognitive, complexity, depth) {
 
   return { score, label };
 }
+
+async function replaceQuestionMetadata(questionId, difficulty) {
+
+  await sb
+    .from("question_metadata")
+    .delete()
+    .eq("question_id", questionId);
+
+  const rows = [
+    { key: "cognitive_level", value: difficulty.cognitive_level },
+    { key: "complexity_level", value: difficulty.complexity_level },
+    { key: "depth_level", value: difficulty.depth_level },
+    { key: "difficulty_score", value: difficulty.score },
+    { key: "difficulty_label", value: difficulty.label }
+  ].map(m => ({
+    question_id: questionId,
+    key: m.key,
+    value: m.value
+  }));
+
+  await sb.from("question_metadata").insert(rows);
+}
 // --------------------------------
 // FETCH
 // --------------------------------
