@@ -1685,7 +1685,7 @@ const metadata = [
 ];
 
   const rows = metadata.map(m => ({
-    question_id: questionId,
+    question_id: data.id,
     key: m.key,
     value: m.value
   }));
