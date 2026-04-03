@@ -1674,8 +1674,8 @@ document.getElementById("createNewBtn")
 // 🔥 SAVE DIFFICULTY METADATA
 if (q.difficulty && q.difficulty.label) {
 
+syncDifficultyToMeta(q);
   const meta = q.meta_structured || {};
-
 const metadata = [
   { key: "cognitive_level", value: meta.cognitive_level },
   { key: "complexity_level", value: meta.complexity },
