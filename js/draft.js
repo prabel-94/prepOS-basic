@@ -1180,7 +1180,10 @@ document.getElementById("metadataContent")
   });
 
   q.difficulty.score = result.score;
-  q.difficulty.label = result.label;
+q.difficulty.label = result.label;
+
+// ✅ NEW
+syncDifficultyToMeta(q);
 
   renderMetadataPanel(selectedQuestionIndex);
 });
