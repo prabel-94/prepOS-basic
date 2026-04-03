@@ -614,6 +614,8 @@ async function saveQuestionToBank(q) {
     questionId = data.id;
   }
 await attachTopics(questionId, q.topics);
+// ✅ SYNC difficulty → structured metadata
+syncDifficultyToMeta(q);
 // 🔥 SAVE DIFFICULTY METADATA
 if (q.difficulty && q.difficulty.label) {
 
