@@ -8,6 +8,15 @@
 
 <link rel="stylesheet" href="css/style.css">
 
+<style>
+textarea {
+  width: 100%;
+  min-height: 80px;
+  resize: none;
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+</style>
 
 </head>
 
@@ -16,8 +25,8 @@
 <h2>Review & Edit Questions</h2>
 
 <div class="flex gap-10 mb-16">
-<button onclick="selectAll()">Select All</button>
-<button onclick="deselectAll()">Deselect All</button>
+  <button onclick="selectAll()">Select All</button>
+  <button onclick="deselectAll()">Deselect All</button>
 </div>
 
 <div id="questionList"></div>
@@ -37,6 +46,17 @@
 const data = JSON.parse(sessionStorage.getItem("parsedData") || "{}");
 let questions = data.questions || [];
 
+// -----------------------
+// AUTO RESIZE
+// -----------------------
+function autoResize(el){
+  el.style.height = "auto";
+  el.style.height = el.scrollHeight + "px";
+}
+
+// -----------------------
+// RENDER
+// -----------------------
 function render(){
 
   const container = document.getElementById("questionList");
@@ -60,11 +80,12 @@ function render(){
 </label>
 
 <label>Question</label>
-<textarea data-i="${i}" class="qtext">${q.question || ""}</textarea>
+<textarea data-i="${i}" class="qtext"></textarea>
 
 <label>Options</label>
 
 ${q.options.map((opt,oi)=>{
+
   const label = ["A","B","C","D"][oi];
 
   return `
@@ -78,14 +99,25 @@ ${q.options.map((opt,oi)=>{
       value="${opt}">
   </div>
   `;
+
 }).join("")}
 
 <label>Explanation</label>
-<textarea class="exp" data-i="${i}">${q.explanation || ""}</textarea>
+<textarea class="exp" data-i="${i}"></textarea>
 
     `;
 
     container.appendChild(div);
+
+    // ✅ SAFE VALUE ASSIGNMENT (CRITICAL FIX)
+    const qText = div.querySelector(".qtext");
+    qText.value = q.question || "";
+    autoResize(qText);
+
+    const expText = div.querySelector(".exp");
+    expText.value = q.explanation || "";
+    autoResize(expText);
+
   });
 
 }
@@ -97,7 +129,9 @@ ${q.options.map((opt,oi)=>{
 document.addEventListener("input", e=>{
 
   if(e.target.classList.contains("qtext")){
-    questions[e.target.dataset.i].question = e.target.value;
+    const i = e.target.dataset.i;
+    questions[i].question = e.target.value;
+    autoResize(e.target);
   }
 
   if(e.target.classList.contains("opt")){
@@ -107,7 +141,9 @@ document.addEventListener("input", e=>{
   }
 
   if(e.target.classList.contains("exp")){
-    questions[e.target.dataset.i].explanation = e.target.value;
+    const i = e.target.dataset.i;
+    questions[i].explanation = e.target.value;
+    autoResize(e.target);
   }
 
 });
@@ -156,9 +192,23 @@ async function createFromSelection(){
     return;
   }
 
+  const mapped = selected.map((q, i) => ({
+    id: `q${Date.now()}_${i}`,
+    text: q.question || "",
+    options: (q.options || []).map((opt, i) => ({
+  id: ["A","B","C","D"][i],
+  text: opt
+})),
+    correct: typeof q.correct === "number"
+      ? ["A","B","C","D"][q.correct]
+      : q.correct || "A",
+    explanation: q.explanation || "",
+    topics: []
+  }));
+
   const draftLink = await createDraft(
     data.title,
-    selected,
+    mapped,
     data.duration
   );
 
@@ -167,6 +217,8 @@ async function createFromSelection(){
   }
 
 }
+
+// -----------------------
 
 render();
 

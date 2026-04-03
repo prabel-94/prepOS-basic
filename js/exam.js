@@ -95,6 +95,32 @@ function stripLeadingNumber(text){
     .replace(/^(Q?\d+[\).\s]+)/i, "")
     .trim();
 }
+
+/* ---------- question normalizer ---------- */
+function normalizeQuestion(q){
+
+  let correct = q.correct;
+
+  // Convert numeric index → letter
+  if(typeof correct === "number"){
+    correct = String.fromCharCode(65 + correct);
+  }
+
+  correct = String(correct || "").toUpperCase();
+
+  return {
+    question_id: q.question_id || null,
+    text: q.text || q.question || q.question_text || "",
+    options: (q.options || []).map(o =>
+      typeof o === "string"
+        ? { id: "", text: o }
+        : o
+    ),
+    correct,
+    explanation: q.explanation || q.explanation_text || ""
+  };
+
+}
 /* ---------- scroll to result ---------- */
 function scrollToResult(){
   const resultEl = document.getElementById("result")
@@ -158,30 +184,30 @@ if(!attemptState || attemptState.attemptId !== attemptId){
   localStorage.setItem(ATTEMPT_KEY, JSON.stringify(attemptState));
 }
 /* ======================================================
-   FETCH EXAM
+   FETCH EXAM (Clean + Scalable)
 ====================================================== */
 
 async function loadExam(){
 
   console.log("Exam loading started");
-
   showLoading();
 
   try{
 
+    /* ---------- FETCH FROM SUPABASE ---------- */
+
     const res = await fetch(
-      SUPABASE_URL + "/rest/v1/exam_sessions?id=eq." + examId,
+      `${SUPABASE_URL}/rest/v1/exam_sessions?id=eq.${examId}`,
       {
         headers:{
           apikey: SUPABASE_ANON_KEY,
-          Authorization: "Bearer " + SUPABASE_ANON_KEY
+          Authorization: `Bearer ${SUPABASE_ANON_KEY}`
         }
       }
     );
 
-    /* HTTP failure */
     if(!res.ok){
-      throw new Error("Server error (" + res.status + ")");
+      throw new Error(`Server error (${res.status})`);
     }
 
     const data = await res.json();
@@ -192,78 +218,116 @@ async function loadExam(){
     }
 
     const exam = data[0];
-window.examTitle = exam.title || "Exam";
-window.examLogo = exam.logo_url || "";
+
+    /* ---------- BASIC EXAM INFO ---------- */
+
+    window.examTitle = exam.title || "Exam";
+    window.examLogo = exam.logo_url || "";
 
     const logoEl = document.getElementById("examLogo");
+    if(window.examLogo && logoEl){
+      logoEl.src = window.examLogo;
+      logoEl.style.display = "block";
+    }
 
-if(window.examLogo && logoEl){
-  logoEl.src = window.examLogo;
-  logoEl.style.display = "block";
-}
+    const titleEl = document.getElementById("examTitle");
+    if(titleEl){
+      titleEl.textContent = window.examTitle;
+    }
 
-const titleEl = document.getElementById("examTitle");
-if(titleEl){
-  titleEl.textContent = window.examTitle;
-}
+    /* ---------- EXTRACT QUESTIONS ---------- */
 
     let questions = [];
 
-    /* ---------- NEW SCHEMA (sections) ---------- */
-
-    if(exam.schema_json && exam.schema_json.sections){
-
-      questions = exam.schema_json.sections.flatMap(function(section){
-        return section.questions;
-      });
-
+    if(exam.schema_json?.sections){
+      // New schema
+      questions = exam.schema_json.sections.flatMap(section => section.questions || []);
     }
-
-    /* ---------- OLD SCHEMA (direct questions) ---------- */
-
-    else if(exam.schema_json && exam.schema_json.questions){
-
+    else if(exam.schema_json?.questions){
+      // Old schema
       questions = exam.schema_json.questions;
-
     }
 
-    if(!questions || !questions.length){
+    if(!questions.length){
       throw new Error("No questions found in exam");
     }
 
-    /* RAW QUESTIONS */
+    /* ---------- NORMALIZE (CORE STEP) ---------- */
 
-    window.examQuestionsRaw = questions;
+    window.examQuestionsRaw = questions.map(normalizeQuestion);
 
-    /* STUDENT ATTEMPT STRUCTURE */
+    /* ---------- UI STRUCTURE ---------- */
 
-    window.examQuestionsAttempt = questions.map(function(q){
-
-      return {
-        question: q.question,
-        options: q.options
-      };
-
-    });
-
+    /* ---------- STORE ORIGINAL ---------- */
     window.examQuestions = questions;
 
-    /* RENDER QUIZ */
+    console.log("Normalized Questions:", window.examQuestionsRaw);
 
-    renderQuiz(window.examQuestionsAttempt);
+    /* ---------- RENDER ---------- */
 
+    renderQuiz(window.examQuestionsRaw);
     showExam();
 
   }
   catch(err){
 
     console.error("Exam loading failed:", err);
-
     showError(err.message || "Failed to load exam");
 
   }
 
 }
+
+/* ---------- COMPONENT: OPTION ROW ---------- */
+function createOptionRow(qIndex, optionText, optionIndex){
+
+  const letter = String.fromCharCode(65 + optionIndex);
+
+  return `
+    <label class="option-row">
+
+      <input
+        type="radio"
+        name="q_${qIndex}"
+        value="${letter}"
+      >
+
+      <span class="option-text">
+        ${letter}. ${escapeHTML(optionText)}
+      </span>
+
+    </label>
+  `;
+}
+
+
+/* ---------- COMPONENT: QUESTION CARD ---------- */
+function createQuestionCard(q, index){
+
+  const optionsHTML = (q.options || [])
+    .map((opt, i) => createOptionRow(index, opt?.text || "", i))
+    .join("");
+
+  return `
+    <div class="question-card">
+
+      <div class="q-number">
+        Q${index + 1}
+      </div>
+
+      <div class="question-text">
+        ${escapeHTML(stripLeadingNumber(q.text || ""))}
+      </div>
+
+      <div class="question-options">
+        ${optionsHTML}
+      </div>
+
+    </div>
+  `;
+}
+
+
 /* ======================================================
    RENDER QUIZ
 ====================================================== */
@@ -273,52 +337,17 @@ function renderQuiz(questions){
   const container = document.getElementById("examContent");
   container.innerHTML = "";
 
-  questions.forEach((q,i)=>{
+  /* ---------- RENDER QUESTIONS ---------- */
 
-    const div = document.createElement("div");
-    div.className = "question";
+  const html = questions
+    .map((q, i) => createQuestionCard(q, i))
+    .join("");
 
-    const optionsHTML = q.options.map((o,idx)=>{
+  container.innerHTML = html;
 
-      const letter = String.fromCharCode(65+idx);
+  /* ---------- AUTOSAVE ---------- */
 
-      return `
-        <label class="option-row">
-
-          <input
-            type="radio"
-            name="q_${i}"
-            value="${letter}"
-          >
-
-          <span class="option-text">
-            ${letter}. ${escapeHTML(o)}
-          </span>
-
-        </label>
-      `;
-
-    }).join("");
-
-    div.innerHTML = `
-      <p class="question-text">
-        ${escapeHTML(q.question)}
-      </p>
-
-      <div class="question-options">
-        ${optionsHTML}
-      </div>
-    `;
-
-    container.appendChild(div);
-  });
-
-
-  /* ==============================
-     AUTOSAVE
-  ============================== */
-
-  document.querySelectorAll('input[type="radio"]').forEach(r=>{
+  container.querySelectorAll('input[type="radio"]').forEach(r=>{
     r.addEventListener("change", e=>{
 
       const name = e.target.name;
@@ -332,10 +361,7 @@ function renderQuiz(questions){
     });
   });
 
-
-  /* ==============================
-     RESTORE PREVIOUS ANSWERS
-  ============================== */
+  /* ---------- RESTORE ANSWERS ---------- */
 
   if(attemptState.answers){
 
@@ -351,10 +377,7 @@ function renderQuiz(questions){
 
   }
 
-
-  /* ==============================
-     SUBMIT BUTTON
-  ============================== */
+  /* ---------- SUBMIT BUTTON ---------- */
 
   const btn = document.createElement("button");
   btn.innerText = "Submit";
@@ -393,18 +416,22 @@ localStorage.setItem("studentName", studentName);
 
   window.examQuestionsRaw.forEach((q,i)=>{
 
-    const selected =
-      document.querySelector(`input[name=q${i}]:checked`);
+const selected =
+  document.querySelector(`input[name="q_${i}"]:checked`);
 
     const chosen = selected ? selected.value : "-";
 
-    const correctLetter =
-      String.fromCharCode(65 + q.correct);
+    answers.push({
+  question_id: q.question_id || null, // 🔥 KEY FIELD
+  chosen,
+  correct: q.correct,
+  is_correct: chosen === q.correct
+});
 
-    answers.push({q:i,chosen});
-
-    if(chosen===correctLetter) score++;
+    if(chosen === q.correct) score++;
   });
+
+const bankAnswers = answers.filter(a => a.question_id); // 🔥filter bank Qs
 
   try{
 
@@ -443,19 +470,22 @@ localStorage.setItem("studentName", studentName);
     studentInput.disabled = true; // ⭐ polish
 
     /* ---------- build review ---------- */
-    window.reviewData =
+   window.reviewData =
   window.examQuestionsRaw.map((q,i)=>{
 
     const student = answers[i]?.chosen || "-";
-    const correct = String.fromCharCode(65 + q.correct);
 
-    return{
-      question:q.question,
-      options:q.options,
-      correct,
+    return {
+      question: q.text,
+      options: (q.options || []).map(o =>
+        typeof o === "string"
+          ? { id: "", text: o }
+          : o
+      ),
+      correct: q.correct,   // ✅ already normalized
       student,
-      explanation:q.explanation || q.explanation_text || "",
-      isCorrect:student===correct
+      explanation: q.explanation,
+      isCorrect: student === q.correct
     };
   });
 
@@ -489,80 +519,124 @@ scrollToResult()
    REVIEW MODE
 ====================================================== */
 
+/* ---------- COMPONENT: REVIEW OPTION ---------- */
+function createReviewOption(opt, idx, correct, student){
+
+  const letter = String.fromCharCode(65 + idx);
+
+  let className = "review-option";
+
+  if(letter === correct){
+    className += " option-correct";
+  }
+
+  if(letter === student && letter !== correct){
+    className += " option-wrong";
+  }
+
+  if(letter === student){
+    className += " option-selected";
+  }
+
+  return `
+    <div class="${className}">
+      <span class="option-letter">${letter}</span>
+      <span class="option-text">
+        ${escapeHTML(opt.text)}
+      </span>
+    </div>
+  `;
+}
+/* ---------- COMPONENT: REVIEW CARD ---------- */
+function createReviewCard(q, index){
+
+  const optionsHTML = q.options
+    .map((opt, i) =>
+      createReviewOption(opt, i, q.correct, q.student)
+    )
+    .join("");
+
+  const explanationHTML = q.explanation && q.explanation.trim()
+    ? `
+      <div class="review-explanation-block">
+        <button class="explain-btn secondary-btn">
+          Show Explanation
+        </button>
+
+        <div class="explanation hidden">
+          <div class="explanation-title">Explanation</div>
+          <div class="explanation-text">
+            ${escapeHTML(q.explanation)}
+          </div>
+        </div>
+      </div>
+    `
+    : "";
+
+  return `
+    <div class="review-card">
+
+      <div class="review-header">
+
+        <div class="review-q-number">
+          Q${index + 1}
+        </div>
+
+        <div class="review-status ${
+          q.isCorrect ? "status-correct" : "status-wrong"
+        }">
+          ${q.isCorrect ? "✔ Correct" : "✘ Wrong"}
+        </div>
+
+      </div>
+
+      <div class="review-question">
+        ${escapeHTML(stripLeadingNumber(q.question))}
+      </div>
+
+      <div class="review-options">
+        ${optionsHTML}
+      </div>
+
+      ${explanationHTML}
+
+    </div>
+  `;
+}
+
 function renderReview(){
 
-// ⭐ reset scroll position
-  window.scrollTo({
-    top: 0,
-    behavior: "smooth"
-  });
+  window.scrollTo({ top: 0, behavior: "smooth" });
 
   const container = document.getElementById("quiz");
   container.innerHTML = "";
 
-  window.reviewData.forEach(function(q,i){
+  /* ---------- RENDER ALL CARDS ---------- */
 
-    const card = document.createElement("div");
-    card.className = "review-card";
+  const html = window.reviewData
+    .map((q, i) => createReviewCard(q, i))
+    .join("");
 
-    const question = document.createElement("div");
-    question.className = "review-question";
-    question.textContent = (i+1) + ". " + q.question;
+  container.innerHTML = html;
 
-    card.appendChild(question);
+  /* ---------- EXPLANATION TOGGLE ---------- */
 
-    const optionsWrap = document.createElement("div");
+  container.querySelectorAll(".explain-btn").forEach(btn=>{
+  btn.addEventListener("click", function(){
 
-    q.options.forEach(function(opt,idx){
+    const explanation = this.nextElementSibling;
 
-      const letter = String.fromCharCode(65+idx);
+    explanation.classList.toggle("hidden");
 
-      const option = document.createElement("div");
-      option.className = "option";
-
-      if(letter === q.correct){
-        option.classList.add("correct");
-      }
-
-      if(letter === q.student && letter !== q.correct){
-        option.classList.add("wrong");
-      }
-
-      option.textContent = letter + ". " + opt;
-
-      optionsWrap.appendChild(option);
-
-    });
-
-    card.appendChild(optionsWrap);
-
-    /* ---------- explanation ---------- */
-
-    if(q.explanation && q.explanation.trim()){
-
-      const explainBtn = document.createElement("button");
-      explainBtn.className = "explain-btn";
-      explainBtn.textContent = "Show Explanation";
-
-      const explanation = document.createElement("div");
-      explanation.className = "explanation";
-      explanation.style.display = "none";
-      explanation.innerHTML = "<b>Explanation:</b> " + escapeHTML(q.explanation);
-
-      explainBtn.onclick = function(){
-        explanation.style.display =
-          explanation.style.display === "none" ? "block" : "none";
-      };
-
-      card.appendChild(explainBtn);
-      card.appendChild(explanation);
-    }
-
-    container.appendChild(card);
+    this.textContent =
+      explanation.classList.contains("hidden")
+        ? "Show Explanation"
+        : "Hide Explanation";
 
   });
+});
 
-  /* ---------- CREATE PDF BUTTON ---------- */
+  /* ---------- PDF BUTTON ---------- */
 
   let pdfBtn = document.getElementById("downloadPdfBtn");
 
@@ -575,137 +649,69 @@ function renderReview(){
 
   pdfBtn.style.display = "block";
   pdfBtn.style.margin = "20px auto";
-/* ---------- PDF EXPORT ---------- */
 
-pdfBtn.onclick = async function(){
+  /* ---------- PDF LOGIC (UNCHANGED) ---------- */
+  pdfBtn.onclick = async function(){
 
-  const reviewContainer = document.getElementById("quiz");
-  const viewBtn = document.getElementById("reviewBtn");
+    const reviewContainer = document.getElementById("quiz");
+    const viewBtn = document.getElementById("reviewBtn");
 
-  const originalMaxHeight = reviewContainer.style.maxHeight;
-  const originalOverflow = reviewContainer.style.overflow;
+    const originalMaxHeight = reviewContainer.style.maxHeight;
+    const originalOverflow = reviewContainer.style.overflow;
 
-  try{
+    try{
 
-    reviewContainer.style.maxHeight = "none";
-    reviewContainer.style.overflow = "visible";
+      reviewContainer.style.maxHeight = "none";
+      reviewContainer.style.overflow = "visible";
 
-    if(viewBtn) viewBtn.style.display = "none";
+      if(viewBtn) viewBtn.style.display = "none";
 
-    /* add header */
-    await addPDFHeader();
+      await addPDFHeader();
 
-    /* expand explanations */
-    document.querySelectorAll(".explanation").forEach(el=>{
-      el.style.display = "block";
-    });
+      document.querySelectorAll(".explanation").forEach(el=>{
+        el.style.display = "block";
+      });
 
-    document.querySelectorAll(".explain-btn").forEach(btn=>{
-      btn.style.display = "none";
-    });
+      document.querySelectorAll(".explain-btn").forEach(btn=>{
+        btn.style.display = "none";
+      });
 
-    const safeTitle = (window.examTitle || "exam")
-      .replace(/[^a-z0-9]/gi,"_")
-      .toLowerCase();
+      const safeTitle = (window.examTitle || "exam")
+        .replace(/[^a-z0-9]/gi,"_")
+        .toLowerCase();
 
-    const worker = html2pdf()
-      .set({
-        margin:10,
-        filename: safeTitle + "_review.pdf",
-        image:{
-          type:"jpeg",
-          quality:0.75
-        },
-        html2canvas:{
-          scale:1,
-          scrollY:0,
-          useCORS:true,
-          logging:false
-        },
-        jsPDF:{
-          unit:"mm",
-          format:"a4",
-          orientation:"portrait"
-        }
-      })
-      .from(reviewContainer)
-      .toPdf();
+      const worker = html2pdf()
+        .set({
+          margin:10,
+          filename: safeTitle + "_review.pdf",
+          image:{ type:"jpeg", quality:0.75 },
+          html2canvas:{ scale:1, scrollY:0, useCORS:true, logging:false },
+          jsPDF:{ unit:"mm", format:"a4", orientation:"portrait" }
+        })
+        .from(reviewContainer)
+        .toPdf();
 
-    const pdf = await worker.get("pdf");
+      const pdf = await worker.get("pdf");
 
-    /* inject watermark */
-    drawPrepOSWatermark(pdf);
+      drawPrepOSWatermark(pdf);
 
-    /* ---------- END OF REVIEW SECTION ---------- */
+      pdf.save(safeTitle + "_review.pdf");
 
-    const pageCount = pdf.internal.getNumberOfPages();
-    pdf.setPage(pageCount);
+    } catch(err){
+      console.error(err);
+      alert("PDF generation failed");
+    }
+    finally{
+      reviewContainer.style.maxHeight = originalMaxHeight;
+      reviewContainer.style.overflow = originalOverflow;
 
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
+      if(viewBtn) viewBtn.style.display = "inline-block";
 
-    let yPos = pageHeight - 80;
-    const reviewHeight = 40;
-
-    if (yPos + reviewHeight > pageHeight) {
-      pdf.addPage();
-      yPos = 40;
+      removePDFHeader();
+      collapseAllExplanations();
     }
 
-    pdf.setDrawColor(220);
-    pdf.line(20, yPos, pageWidth - 20, yPos);
-
-    yPos += 15;
-
-    pdf.setFont("helvetica","bold");
-    pdf.setFontSize(22);
-    pdf.setTextColor(100);
-
-    pdf.text("End of Review", pageWidth / 2, yPos, { align: "center" });
-
-    yPos += 10;
-
-    pdf.setFont("helvetica","normal");
-    pdf.setFontSize(12);
-    pdf.setTextColor(140);
-
-    pdf.text("Generated by PrepOS", pageWidth / 2, yPos, { align: "center" });
-
-    yPos += 7;
-
-    pdf.setFontSize(10);
-
-    pdf.text(
-      "Smart Exam Creation & Analysis Platform",
-      pageWidth / 2,
-      yPos,
-      { align: "center" }
-    );
-
-    pdf.save(safeTitle + "_review.pdf");
-
-  }
-  catch(err){
-
-    console.error("PDF generation failed:", err);
-    alert("PDF generation failed. Please try again.");
-
-  }
-  finally{
-
-    /* ---------- RESTORE UI ---------- */
-
-    reviewContainer.style.maxHeight = originalMaxHeight;
-    reviewContainer.style.overflow = originalOverflow;
-
-    if(viewBtn) viewBtn.style.display = "inline-block";
-
-    removePDFHeader();
-    collapseAllExplanations();
-
-  }
-
-};
+  };
 
 }
 
@@ -757,11 +763,17 @@ async function addPDFHeader(){
   header.innerHTML = `
     <div class="pdf-header">
 
-      ${logo ? `<img src="${logo}" class="pdf-logo">` : ""}
+      ${logo ? `
+  <img 
+    src="${logo}" 
+    class="pdf-logo"
+    style="max-height:60px;max-width:120px;display:block;margin:0 auto 10px;"
+  >
+` : ""}
 
       <h2>${examTitle}</h2>
 
-      <p><b>Student:</b> ${studentName}</p>
+      <p><b>Student:</b> ${escapeHTML(studentName)}</p>
       <p><b>Date:</b> ${date}</p>
       <p><b>${scoreText}</b></p>
 

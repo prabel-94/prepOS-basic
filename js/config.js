@@ -20,12 +20,15 @@ client creation when pages reload scripts.
 
 if(!window.supabaseClient){
 
-window.supabaseClient = window.supabase.createClient(
-SUPABASE_URL,
-SUPABASE_ANON_KEY
-)
+window.supabaseClient = (window.supabase || supabase).createClient(
+  SUPABASE_URL,
+  SUPABASE_ANON_KEY
+);
 
 }
+
+/* global shortcut */
+window.sb = window.supabaseClient;
 
 /* ========================================
 Expose credentials if needed

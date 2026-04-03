@@ -4,6 +4,7 @@
 <head>
 
 <link rel="icon" type="image/png" href="assets/prepos-icon.png">
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
@@ -13,224 +14,299 @@
 
 </head>
 
-
 <body class="draft-page">
 
-<main class="draft-wrapper">
+<main class="container draft-wrapper">
 
+<!-- ======================
+HEADER
+====================== -->
 <header class="draft-title">
-
-<h2>Draft Editor</h2>
-
-<div id="status" class="save-status"></div>
-
+  <h2>Draft Editor</h2>
+  <div id="status" class="save-status"></div>
 </header>
 
 
 <!-- ======================
-Draft Metadata
+DRAFT META
 ====================== -->
+<section class="draft-meta mt-20">
 
-<section class="draft-meta">
+  <div class="form-group">
+    <label for="title">Title</label>
+    <input id="title" name="title" type="text" placeholder="Enter title" />
+  </div>
 
-<label for="title">Title</label>
-
-<input
-id="title"
-type="text"
-placeholder="Enter title"
-/>
-
-<label for="duration">Duration (minutes)</label>
-
-<input
-id="duration"
-type="number"
-placeholder="Enter duration in minutes"
-/>
+  <div class="form-group">
+    <label for="duration">Duration (minutes)</label>
+    <input id="duration" name="duration" type="number" placeholder="Enter duration in minutes" />
+  </div>
 
 </section>
 
 
-
 <!-- ======================
-Logo Upload
+LOGO
 ====================== -->
+<section class="logo-section mt-20">
 
-<section class="logo-section">
+  <label for="logoUpload">Exam Logo (optional)</label>
 
-<label for="logoUpload">Exam Logo (optional)</label>
+  <input
+    type="file"
+    id="logoUpload"
+    name="logo"
+    accept="image/png,image/jpeg,image/jpg,image/svg+xml"
+  />
 
-<input
-type="file"
-id="logoUpload"
-accept="image/png,image/jpeg,image/jpg,image/svg+xml"
-/>
-
-<img
-id="logoPreview"
-alt="Logo preview"
-style="display:none"
->
+  <img id="logoPreview" alt="Logo preview" class="logo-preview hidden">
 
 </section>
 
 
+<!-- ======================
+WORKSPACE
+====================== -->
+<section class="workspace mt-20">
+
+  <!-- ======================
+  DRAFT AREA
+  ====================== -->
+  <div class="draft-area">
+
+    <div class="draft-header">
+      <h3>Questions</h3>
+
+      <div class="draft-toolbar">
+        <button type="button" id="newQuestionBtn" class="primary-btn">
+          + New Question
+        </button>
+
+        <button type="button" id="openQuestionBankBtn" class="secondary-btn">
+          + Add from Bank
+        </button>
+
+        <button type="button" id="saveAllToBankBtn" class="secondary-btn">
+          Save All to Bank
+        </button>
+      </div>
+    </div>
+
+    <div id="questions" class="question-list">
+      <div class="loading">Loading draft...</div>
+    </div>
+
+  </div>
+
+
+  <!-- ======================
+  QUESTION BANK PANEL
+  ====================== -->
+  <aside class="question-bank-panel hidden" id="questionBankPanel">
+
+    <div class="qb-header">
+      <button type="button" id="closeQB">← Back</button>
+      <h3>Question Bank</h3>
+    </div>
+
+    <input
+      type="text"
+      id="qbSearch"
+      name="qb_search"
+      placeholder="Search questions..."
+      class="mt-20"
+    />
+
+    <div class="mt-20">
+      <input type="text" id="topicSearch" placeholder="Search by topic..." />
+      <div id="topicDropdown" class="topic-tags mt-10 hidden"></div>
+    </div>
+
+    <div class="mt-10 flex gap-10">
+      <button id="addAllResultsBtn" class="secondary-btn">
+        + Add All Results
+      </button>
+    </div>
+
+    <div id="questionBankResults" class="mt-20">
+      <div class="qb-loading">Search questions to begin</div>
+    </div>
+
+  </aside>
+
+</section>
+
 
 <!-- ======================
-Workspace
+ADD TO BANK PANEL
 ====================== -->
+<aside class="question-bank-panel hidden" id="addToBankPanel">
 
-<section class="workspace">
+  <div class="qb-header">
+    <button type="button" id="closeAddToBank">← Back</button>
+    <h3>Add to Question Bank</h3>
+  </div>
 
+  <div class="mt-20">
 
-<!-- ======================
-Draft Area
-====================== -->
+    <div id="bankQuestionPreview" class="question-card"></div>
 
-<div class="draft-area">
+    <input
+      type="text"
+      id="bankTopicInput"
+      placeholder="Add topic and press Enter..."
+      class="mt-20"
+    />
 
-<div class="draft-header">
+    <div id="topicWarnings" class="topic-warnings"></div>
+    <div id="bankTopicTags" class="topic-tags mt-10"></div>
 
-<h3>Questions</h3>
+    <div id="topicHint" class="input-hint">
+      Add at least one topic to save this question
+    </div>
 
-<div class="draft-toolbar">
+    <button id="confirmAddToBank" class="primary-btn w-full mt-20">
+      Save to Bank
+    </button>
 
-<button
-type="button"
-id="newQuestionBtn"
-disabled
->
-+ New Question
-</button>
+  </div>
 
-<button
-type="button"
-id="openQuestionBankBtn"
->
-+ Add from Question Bank
-</button>
+  <div id="duplicateBox" class="hidden mt-20">
 
-</div>
+    <div class="status duplicate">
+      Duplicate question found ⚠️
+    </div>
 
-</div>
+    <div class="mt-10 small">
+      This question already exists in the question bank.
+    </div>
 
+    <div class="flex gap-10 mt-20">
+      <button id="useExistingBtn" class="secondary-btn w-full">
+        Use Existing
+      </button>
 
-<div id="questions">
+      <button id="createNewBtn" class="primary-btn w-full">
+        Create New
+      </button>
+    </div>
 
-<div class="loading">
-Loading draft...
-</div>
-
-</div>
-
-</div>
-
-
-
-<!-- ======================
-Question Bank Panel
-====================== -->
-
-<aside
-class="question-bank-panel"
-id="questionBankPanel"
->
-
-<div class="qb-header">
-
-<button
-type="button"
-id="closeQB"
-aria-label="Close question bank"
->
-← Back
-</button>
-
-<h3>Question Bank</h3>
-
-</div>
-
-
-<input
-type="text"
-id="qbSearch"
-placeholder="Search questions..."
->
-
-
-<div id="questionBankResults">
-
-<div class="qb-loading">
-Search questions to begin
-</div>
-
-</div>
+  </div>
 
 </aside>
 
 
-</section>
+<!-- ======================
+SAVE ALL PANEL (FIXED)
+====================== -->
+<aside class="question-bank-panel hidden" id="saveAllPanel">
 
+  <div class="qb-header">
+    <button type="button" id="closeSaveAll">← Back</button>
+    <h3>Save All Questions</h3>
+  </div>
 
+  <div class="mt-20">
+
+    <div class="question-card">
+      Assign topics to all questions that don’t have topics.
+    </div>
+
+    <div id="missingTopicWarning" class="status warning mt-10"></div>
+
+    <!-- ✅ FIXED UNIQUE IDS -->
+    <input
+      type="text"
+      id="bulkTopicInput"
+      placeholder="Add topic and press Enter..."
+      class="mt-20"
+    />
+
+    <div id="bulkTopicWarnings" class="topic-warnings"></div>
+    <div id="bulkTopicTags" class="topic-tags mt-10"></div>
+
+    <div class="input-hint">
+      These topics will be applied to all untagged questions
+    </div>
+
+    <button id="confirmSaveAll" class="primary-btn w-full mt-20">
+      Save All to Bank
+    </button>
+    <!-- ✅ RESULT FEEDBACK -->
+    <div id="saveAllResult" class="status mt-10 hidden"></div>
+
+  </div>
+
+<div id="saveAllProgress" class="progress-box hidden mt-20">
+
+  <div class="progress-bar">
+    <div id="saveAllProgressFill" class="progress-fill"></div>
+  </div>
+
+  <div id="saveAllProgressText" class="small mt-10">
+    Starting...
+  </div>
+
+</div>
+
+<div id="saveAllResult" class="hidden mt-10"></div>
+
+</aside>
 
 <!-- ======================
-Draft Actions
+METADATA PANEL
 ====================== -->
+<aside class="question-bank-panel hidden" id="metadataPanel">
 
-<section class="draft-actions">
-  <!-- ======================
-Publish Result
+  <div class="qb-header">
+    <button type="button" id="closeMetadata">← Back</button>
+    <h3>Metadata</h3>
+  </div>
+
+  <div id="metadataContent" class="mt-20"></div>
+
+</aside>
+
+<!-- ======================
+DRAFT ACTIONS
 ====================== -->
+<section class="draft-actions mt-20">
 
-<section class="publish-result mt-20">
+  <div class="publish-result mt-20">
+    <div id="examLink" class="question-card hidden"></div>
+  </div>
 
-  <div id="examLink" class="question-card" style="display:none"></div>
+  <div class="actions-row">
+    <button type="button" id="saveDraftBtn" class="secondary-btn">
+      Save Draft
+    </button>
 
-</section>
-
-<button
-type="button"
-onclick="saveDraft()"
->
-Save Draft
-</button>
-
-<button
-type="button"
-onclick="cloneDraft()"
->
-Clone
-</button>
-
-<button
-type="button"
-onclick="publishDraft()"
->
-Publish Exam
-</button>
+    <button type="button" id="publishDraftBtn" class="primary-btn">
+      Publish Exam
+    </button>
+  </div>
 
 </section>
 
 </main>
 
 
-
 <!-- ======================
-Scripts
+SCRIPTS
 ====================== -->
-
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
 <script src="js/config.js"></script>
 <script src="js/draft.js"></script>
 
+<script>
+document.getElementById("saveDraftBtn")?.addEventListener("click", saveDraft);
+document.getElementById("publishDraftBtn")?.addEventListener("click", publishDraft);
+</script>
 
 
 <!-- ======================
-Debug Console (Dev Only)
+DEV DEBUG
 ====================== -->
-
 <script>
 (function(){
   var script=document.createElement('script');

@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>PrepOS Question Bank Manager</title>
+
+<link rel="stylesheet" href="css/style.css">
+
+</head>
+
+<body>
+
+<div class="container">
+
+  <!-- =========================
+       HEADER
+  ========================== -->
+  <div class="exam-header">
+
+    <div class="exam-header-right">
+      <h2>Question Bank Manager</h2>
+      <div class="exam-subtitle">
+        Manage your knowledge system
+      </div>
+    </div>
+
+    <!-- PRIMARY ACTION -->
+    <div>
+      <button 
+        class="primary-btn"
+        onclick="location.href='draft.html'"
+      >
+        + Create from Draft
+      </button>
+    </div>
+
+  </div>
+
+  <!-- =========================
+       OVERVIEW
+  ========================== -->
+  <div class="overview-grid mt-20">
+
+    <div class="stat-card">
+      <div id="total-questions" class="stat-value">0</div>
+      <div class="stat-label">Questions</div>
+    </div>
+
+    <div class="stat-card">
+      <div id="total-topics" class="stat-value">0</div>
+      <div class="stat-label">Topics</div>
+    </div>
+
+    <div class="stat-card">
+      <div id="avg-per-topic" class="stat-value">0</div>
+      <div class="stat-label">Avg / Topic</div>
+    </div>
+
+    <div class="stat-card">
+      <div id="weak-topics" class="stat-value">0</div>
+      <div class="stat-label">Weak Topics</div>
+    </div>
+
+  </div>
+
+  <!-- =========================
+       CONTROL BAR
+  ========================== -->
+  <div class="control-bar">
+
+    <!-- SEARCH + FILTER -->
+    <div class="flex gap-10 w-full">
+      <input 
+        id="search-input" 
+        placeholder="Search questions..." 
+        class="w-full" 
+      />
+
+      <select id="topic-filter"></select>
+    </div>
+
+    <!-- VIEW TOGGLE -->
+    <div class="flex gap-10">
+      <button id="view-questions" class="primary-btn">Questions</button>
+      <button id="view-topics" class="secondary-btn">Topics</button>
+    </div>
+
+  </div>
+
+  <!-- =========================
+       MAIN WORKSPACE
+  ========================== -->
+  <div class="manager-workspace">
+
+    <div class="list-area">
+
+      <!-- QUESTIONS -->
+      <div id="questions-view"></div>
+
+      <!-- TOPICS -->
+      <div id="topics-view" class="hidden"></div>
+
+    </div>
+
+  </div>
+
+</div>
+
+<!-- =========================
+METADATA PANEL
+========================= -->
+<aside class="question-bank-panel hidden" id="metadataPanel">
+
+  <div class="qb-header">
+    <button id="closeMetadata">← Back</button>
+    <h3>Edit Difficulty</h3>
+  </div>
+
+  <div class="mt-20">
+
+    <div id="metaQuestionPreview" class="question-card small"></div>
+
+    <!-- Cognitive -->
+    <div class="mt-20">
+      <b>Cognitive</b>
+      <div class="flex gap-10 mt-10">
+        <label><input type="radio" name="cognitive" value="recall"> Recall</label>
+        <label><input type="radio" name="cognitive" value="concept"> Concept</label>
+        <label><input type="radio" name="cognitive" value="application"> Application</label>
+        <label><input type="radio" name="cognitive" value="analysis"> Analysis</label>
+      </div>
+    </div>
+
+    <!-- Complexity -->
+    <div class="mt-20">
+      <b>Complexity</b>
+      <div class="flex gap-10 mt-10">
+        <label><input type="radio" name="complexity" value="simple"> Simple</label>
+        <label><input type="radio" name="complexity" value="moderate"> Moderate</label>
+        <label><input type="radio" name="complexity" value="complex"> Complex</label>
+      </div>
+    </div>
+
+    <!-- Depth -->
+    <div class="mt-20">
+      <b>Depth</b>
+      <div class="flex gap-10 mt-10">
+        <label><input type="radio" name="depth" value="basic"> Basic</label>
+        <label><input type="radio" name="depth" value="standard"> Standard</label>
+        <label><input type="radio" name="depth" value="advanced"> Advanced</label>
+      </div>
+    </div>
+
+    <button id="saveMetadataBtn" class="primary-btn w-full mt-20">
+      Save Difficulty
+    </button>
+
+  </div>
+
+</aside>
+
+<!-- =========================
+     SCRIPTS
+========================== -->
+
+<!-- Supabase -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<!-- Config -->
+<script src="js/config.js"></script>
+
+<!-- QB Manager -->
+<script src="js/qb-manager.js"></script>
+
+<!-- Debug Console -->
+<script src="https://cdn.jsdelivr.net/npm/eruda"></script>
+<script>
+  eruda.init();
+</script>
+
+</body>
+</html>

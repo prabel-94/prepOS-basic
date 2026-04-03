@@ -1,12 +1,41 @@
 /* ======================================================
+DESIGN SYSTEM
+====================================================== */
+
+:root{
+  --primary:#2563eb;
+  --primary-dark:#1d4ed8;
+
+  --bg:#f4f6f8;
+  --card:#ffffff;
+
+  --text:#222;
+  --muted:#666;
+
+  --border:#e0e0e0;
+
+  --success:#16a34a;
+  --success-bg:#f0fdf4;
+
+  --danger:#dc2626;
+  --danger-bg:#fef2f2;
+
+  --radius:10px;
+  --shadow:0 2px 6px rgba(0,0,0,0.05);
+}
+
+/* ======================================================
 BASE
 ====================================================== */
 
 body{
-  font-family: Arial, Helvetica, sans-serif;
-  background:#f7f7f7;
+  font-family: system-ui, -apple-system, sans-serif;
+  background:var(--bg);
   margin:0;
   padding:30px 20px;
+  color:var(--text);
+
+  overflow-x: hidden; /* 🔥 ADD THIS */
 }
 
 h1,h2,h3{
@@ -14,29 +43,68 @@ h1,h2,h3{
 }
 
 .small{
-  color:#666;
+  color:var(--muted);
   font-size:14px;
 }
 
-
 /* ======================================================
-GLOBAL LAYOUT
+LAYOUT
 ====================================================== */
 
-.container{
-  max-width:900px;
-  margin:auto;
-  padding:20px;
-}
-
+.container,
 .exam-wrapper,
 .draft-wrapper{
+  width:100%;              /* 🔥 ADD */
   max-width:900px;
   margin:auto;
-  padding:20px;
+  padding:16px;            /* slightly tighter for mobile */
+  box-sizing:border-box;   /* 🔥 ADD */
+}
+/* EXAM HEADER */
+
+.exam-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:15px;
 }
 
+.exam-header-left{
+  flex-shrink:0;
+}
 
+.exam-logo{
+  max-height:60px;
+  max-width:120px;
+  object-fit:contain;
+}
+
+.exam-header-right h2{
+  margin:0;
+  font-size:20px;
+}
+
+.exam-subtitle{
+  font-size:13px;
+  color:var(--muted);
+  margin-top:4px;
+}
+
+/*  PDF HEADER  */
+
+.pdf-header {
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.pdf-logo {
+  max-height: 60px;
+  max-width: 120px;
+  height: auto;
+  object-fit: contain;
+  display: block;
+  margin: 0 auto 10px auto;
+}
 /* ======================================================
 BUTTON SYSTEM
 ====================================================== */
@@ -44,10 +112,11 @@ BUTTON SYSTEM
 button{
   padding:10px 14px;
   border:none;
-  border-radius:6px;
+  border-radius:8px;
   background:#eee;
   cursor:pointer;
-  transition:background 0.2s ease;
+  transition:all 0.2s ease;
+  font-size:14px;
 }
 
 button:hover{
@@ -59,229 +128,45 @@ button:disabled{
   cursor:not-allowed;
 }
 
-/* variants */
-
 .primary-btn{
-  background:#2563eb;
+  background:var(--primary);
   color:#fff;
-}
-
-.primary-btn:hover{
-  background:#1d4ed8;
-}
-
-.secondary-btn{
-  background:#eee;
-  color:#333;
-}
-
-
-/* ======================================================
-FORM ELEMENTS (EDITOR SCOPED)
-====================================================== */
-
-.draft-page input[type="text"],
-.draft-page textarea{
-  width:100%;
-  padding:8px;
-  font-size:14px;
-  margin-bottom:16px;
-  border:1px solid #ccc;
-  border-radius:4px;
-}
-
-textarea,
-input[type="text"]{
-  width:100%;
-}
-
-.qtext{
-  min-height:120px;
-}
-
-.exp{
-  min-height:80px;
-}
-
-
-/* ======================================================
-LOGO
-====================================================== */
-
-.logo-section{
-  margin-bottom:16px;
-}
-
-#logoPreview{
-  max-height:80px;
-  margin-top:8px;
-  display:none;
-  border:1px solid #ddd;
-  padding:4px;
-  background:#fff;
-  border-radius:4px;
-}
-
-
-/* ======================================================
-CARD SYSTEM
-====================================================== */
-
-.question-card{
-  border:1px solid #ddd;
-  border-radius:8px;
-  padding:16px;
-  margin-bottom:16px;
-  background:#fff;
-  box-shadow:0 1px 3px rgba(0,0,0,0.05);
-}
-
-
-/* ======================================================
-EXAM PAGE
-====================================================== */
-
-.exam-header{
-  display:flex;
-  align-items:center;
-  gap:15px;
-  margin-bottom:20px;
-}
-
-.exam-logo{
-  max-height:50px;
-}
-
-.student-info{
-  margin-bottom:20px;
-}
-
-.question{
-  background:#fff;
-  border:1px solid #ddd;
-  border-radius:8px;
-  padding:20px;
-  margin-bottom:25px;
-}
-
-.question-text{
-  margin-bottom:12px;
-  white-space:pre-line;
-}
-
-
-/* =========================
-Exam Options
-========================= */
-
-.exam-page .option-row{
-  display:flex;
-  align-items:flex-start;
-  gap:10px;
-  margin:8px 0;
-  padding:6px;
-  border-radius:6px;
-}
-
-.exam-page .option-row:hover{
-  background:#f3f3f3;
-}
-
-.exam-page .option-row input[type="radio"]{
-  margin-top:3px;
-}
-
-.exam-page .option-text{
-  flex:1;
-  line-height:1.4;
-}
-
-
-/* ======================================================
-RESULTS
-====================================================== */
-
-.result-container{
-  margin-top:30px;
-}
-
-.result-highlight{
-  animation:resultPulse 0.8s ease-in-out;
-}
-
-@keyframes resultPulse{
-  0%{background-color:#fff3cd;}
-  100%{background-color:transparent;}
-}
-
-
-/* ======================================================
-REVIEW MODE (Exam Attempt Review)
-====================================================== */
-
-.review-card{
-  border:1px solid #ddd;
-  border-radius:10px;
-  padding:15px;
-  margin-bottom:20px;
-  background:#fff;
-}
-
-.option{
-  padding:8px;
-  border-radius:6px;
-  margin:5px 0;
-  background:#f6f6f6;
-}
-
-.option.correct{
-  background:#e7f7ec;
-  border:1px solid #2ecc71;
-}
-
-.option.wrong{
-  background:#fdeaea;
-  border:1px solid #e74c3c;
-}
-
-.option.chosen{
   font-weight:600;
 }
 
-.explain-btn{
-  margin-top:10px;
-  padding:6px 10px;
-  border:none;
-  border-radius:6px;
-  background:#eee;
+.primary-btn:hover{
+  background:var(--primary-dark);
 }
 
-.explanation{
-  margin-top:10px;
-  padding:10px;
-  background:#f9f9f9;
-  border-radius:6px;
-  font-size:14px;
+.secondary-btn{
+  background:#f3f4f6;
+  color:#333;
 }
-
 
 /* ======================================================
-PARSER REVIEW (NEW)
+FORM ELEMENTS
 ====================================================== */
 
-.review-header{
-  margin-bottom:16px;
+input[type="text"],
+textarea{
+  width:100%;
+  padding:10px;
+  font-size:14px;
+  margin-bottom:12px;
+  border:1px solid var(--border);
+  border-radius:6px;
 }
 
-.review-actions{
-  display:flex;
-  gap:10px;
-  margin-bottom:16px;
+.logo-preview {
+  max-height: 80px;
+  max-width: 200px;
+  height: auto;
+  object-fit: contain;
+  display: block;
+  margin-top: 10px;
 }
-
-
 /* ======================================================
-DRAFT WORKSPACE
+WORKSPACE
 ====================================================== */
 
 .workspace{
@@ -289,261 +174,693 @@ DRAFT WORKSPACE
   gap:30px;
   margin-top:20px;
   align-items:flex-start;
+
+  width:100%;        /* 🔥 ADD */
+  overflow:hidden;   /* 🔥 ADD */
 }
 
 .draft-area{
   flex:1;
   min-width:0;
+  width:100%; /* 🔥 ADD */
 }
 
-
 /* ======================================================
-QUESTION CARDS (EDITOR)
+QB MANAGER LAYOUT
 ====================================================== */
 
-.question-header{
+.overview-grid{
+  display:grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap:12px;
+  margin-bottom:20px;
+}
+
+.stat-card{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:14px;
+  text-align:center;
+  box-shadow:var(--shadow);
+}
+
+.stat-value{
+  font-size:22px;
+  font-weight:700;
+}
+
+.stat-label{
+  font-size:12px;
+  color:var(--muted);
+}
+
+/* CONTROL BAR */
+.control-bar{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  align-items:center;
+  margin-bottom:20px;
+}
+
+.control-bar input{
+  flex:1;
+  min-width:150px;
+}
+
+.control-bar select{
+  min-width:140px;
+}
+
+/* WORKSPACE SPLIT */
+.manager-workspace{
+  display:block;
+}
+
+.list-area{
+  width:100%;
+} 
+
+/* MOBILE */
+@media (max-width:768px){
+
+  .overview-grid{
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .manager-workspace{
+    flex-direction:column;
+  }
+
+  .control-bar{
+    flex-direction:column;
+    align-items:stretch;
+  }
+
+}
+
+/* ======================================================
+DRAFT TOOLBAR
+====================================================== */
+
+.draft-header{
   display:flex;
   justify-content:space-between;
   align-items:center;
+}
+
+.draft-toolbar{
+  display:flex;
+  gap:10px;
+}
+
+/* ======================================================
+QUESTION CARD (BUILDER)
+====================================================== */
+
+.question-card{
+  background:var(--card);
+  border-radius:var(--radius);
+  padding:16px;
+  margin-bottom:18px;
+  box-shadow:var(--shadow);
+  border:1px solid var(--border);
+  transition:all 0.2s ease;
+
+  max-width:100%;              /* 🔥 ADD */
+  word-wrap:break-word;        /* 🔥 ADD */
+  overflow-wrap:break-word;    /* 🔥 ADD */
+}
+
+.question-card:hover{
+  box-shadow:0 4px 12px rgba(0,0,0,0.08);
+  transform: translateY(-2px);
+}
+
+/* HEADER */
+
+.q-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:8px;
+}
+
+.q-title{
+  font-weight:600;
+  font-size:15px;
+}
+
+.question-actions{
+  display:flex;
+  gap:8px;
+}
+
+.icon-btn{
+  border:none;
+  background:#f3f4f6;
+  padding:6px 8px;
+  border-radius:6px;
+  cursor:pointer;
+  font-size:14px;
+}
+
+.icon-btn:hover{
+  background:#e5e7eb;
+}
+
+/* STATUS */
+
+.status{
+  font-size:11px;
+  padding:3px 8px;
+  border-radius:6px;
+  display:inline-block;
+  margin-bottom:8px;
+  font-weight:500;
+}
+
+.status.draft{
+  background:#eee;
+}
+
+.status.saved{
+  background:#d4edda;
+  color:#155724;
+}
+
+.status.duplicate{
+  background:#fff3cd;
+  color:#856404;
+}
+
+/* ======================================================
+DIFFICULTY SYSTEM
+====================================================== */
+
+/* Base Badge */
+.difficulty-badge{
+  font-size:11px;
+  padding:3px 8px;
+  border-radius:6px;
+  font-weight:600;
+  display:inline-block;
+  text-transform:uppercase;
+}
+
+/* Easy */
+.difficulty-badge.easy{
+  background: var(--success-bg);
+  color: var(--success);
+  border: 1px solid rgba(22,163,74,0.2);
+}
+
+/* Medium */
+.difficulty-badge.medium{
+  background: #fff8e1;
+  color: #f39c12;
+  border: 1px solid rgba(243,156,18,0.25);
+}
+
+/* Hard */
+.difficulty-badge.hard{
+  background: var(--danger-bg);
+  color: var(--danger);
+  border: 1px solid rgba(220,38,38,0.2);
+}
+
+/* Not Set (Important UX State) */
+.difficulty-badge.not-set{
+  background:#f2f2f2;
+  color:var(--muted);
+  border:1px dashed var(--border);
+}
+
+/* Optional: clickable state (future) */
+.difficulty-badge.clickable{
+  cursor:pointer;
+  transition: all 0.15s ease;
+}
+
+.difficulty-badge.clickable:hover{
+  opacity:0.85;
+}
+/* QUESTION */
+
+.qtext {
+  margin-top: 10px;
+  line-height: 1.5;
+}
+
+/* OPTIONS */
+
+.options{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
   margin-bottom:10px;
 }
 
-.q-actions button{
-  font-size:12px;
-  padding:6px 8px;
-  margin-left:6px;
-  border-radius:4px;
+.option-row{
+  cursor:pointer;
 }
 
+.option-row:active{
+  transform:scale(0.98);
+}
 
-/* ======================================================
-DRAFT OPTIONS
-====================================================== */
-
-.draft-page .option-row{
+.option-row{
   display:flex;
   align-items:center;
   gap:10px;
-  margin:8px 0;
+
+  padding:8px;
+  border-radius:6px;
+  border:1px solid var(--border);
+  background:#fff;
 }
 
-.draft-page .option-row input[type="radio"]{
-  margin:0;
+.option-row:hover{
+  border-color:var(--primary);
+  background:#f8fbff;
 }
 
-.draft-page .option-label{
-  width:22px;
+.option-row input[type="radio"]{
+  transform:scale(1.1);
+}
+
+.opt-label{
+  width:18px;
   font-weight:600;
+  color:var(--muted);
 }
 
-.draft-page .option-row input[type="text"]{
+.opt {
   flex:1;
+  border:none;
+  outline:none;
+  background:transparent;
+  padding:4px 0;
+  font-size:14px;
+}
+
+.correct-mark{
+  color: var(--success);
+  font-weight: 700;
+  margin-left: auto;
+}
+
+.option-row.correct{
+  background: var(--success-bg);
+  border-color: var(--success);
 }
 
 
 /* ======================================================
-QUESTION BANK PANEL (FIXED VERSION)
+EMPTY STATE
+====================================================== */
+
+.empty-state{
+  padding:30px;
+  text-align:center;
+  color:var(--muted);
+  background:#fafafa;
+  border:1px dashed var(--border);
+  border-radius:8px;
+}
+
+/* ======================================================
+QUESTION BANK PANEL
 ====================================================== */
 
 .question-bank-panel{
-  width:300px;
-  background:#fff;
-  border-left:1px solid #ddd;
-  padding-left:20px;
-
-  position:fixed;
+  position: fixed;
   top:0;
-  right:-320px;
+  right:0;
   height:100%;
 
+  width:320px; /* desktop */
+
+  background:#fff;
+  border-left:1px solid var(--border);
+
+  padding:20px;
   overflow:auto;
-  transition:right 0.25s ease;
 
-  pointer-events:none;
+  transform:translateX(100%);
+  transition:transform 0.25s ease;
+
+  z-index:1000;
+
+  box-shadow: -2px 0 10px rgba(0,0,0,0.1); /* 🔥 ADD */
 }
-
-.question-bank-panel.active{
-  right:0;
-  pointer-events:auto;
-}
-
 .qb-header{
   display:flex;
   align-items:center;
   gap:10px;
-  margin-bottom:15px;
+  margin-bottom:10px;
 }
 
-.qb-question{
-  border-bottom:1px solid #eee;
-  padding:10px 0;
+.question-bank-panel:not(.hidden){
+  transform:translateX(0);
+}
+
+#duplicateBox {
+  border: 1px solid #facc15;
+  padding: 12px;
+  border-radius: 8px;
+  background: #fffbe6;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background: #eee;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  width: 0%;
+  height: 100%;
+  background: #3498db;
+  transition: width 0.2s ease;
+}
+
+/* ======================================================
+RESULTS PAGE (ATTEMPT SYSTEM)
+====================================================== */
+
+/* Page Title */
+.page-title{
+  font-size:22px;
+  font-weight:600;
+  margin-bottom:20px;
+}
+
+/* Attempt Card */
+.attempt-card{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:16px;
+  margin-bottom:16px;
+  box-shadow:var(--shadow);
+  transition:all 0.2s ease;
+}
+
+.attempt-card:hover{
+  transform:translateY(-2px);
+  box-shadow:0 4px 12px rgba(0,0,0,0.08);
+}
+
+/* Header Row */
+.attempt-header{
   display:flex;
   justify-content:space-between;
   align-items:center;
-  gap:10px;
 }
 
-.qb-question span{
-  flex:1;
+/* Student Name */
+.student-name{
+  font-size:16px;
+  font-weight:600;
+}
+
+/* Score Badge */
+.score-badge{
   font-size:14px;
+  padding:4px 10px;
+  border-radius:20px;
+  font-weight:600;
+  background:#eef2ff;
+  color:#3730a3;
 }
 
-.qb-loading{
-  color:#888;
-  font-size:14px;
-  padding:20px 0;
+/* Meta Info */
+.attempt-meta{
+  font-size:13px;
+  color:var(--muted);
+  margin-top:6px;
 }
 
-
-/* ======================================================
-STATE MESSAGES
-====================================================== */
-
-.empty-state{
-  padding:20px;
-  text-align:center;
-  color:#777;
-}
-
-.loading{
-  padding:20px;
-  text-align:center;
-  color:#888;
-}
-
-.error-state{
-  padding:20px;
-  text-align:center;
-  color:#c0392b;
-}
-
-
-/* ======================================================
-DRAFT ACTIONS
-====================================================== */
-
-.draft-actions{
+/* Actions */
+.attempt-actions{
   display:flex;
   gap:10px;
-  margin-top:20px;
-}
-
-#status{
   margin-top:10px;
-  font-size:13px;
-  color:#555;
 }
 
+/* Answer Box */
+.answer-box{
+  margin-top:12px;
+  padding:12px;
+  background:#f9fafb;
+  border-radius:8px;
+  display:none;
+  font-size:14px;
+  line-height:1.5;
+}
 
+/* Individual Answer Row */
+.answer-row{
+  padding:6px 0;
+  border-bottom:1px dashed var(--border);
+}
+
+.answer-row:last-child{
+  border-bottom:none;
+}
+
+/* =========================
+REVIEW MODE
+========================= */
+
+.review-card{
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+  transition: 0.2s ease;
+}
+
+.review-card:hover{
+  transform: translateY(-2px);
+}
+
+/* Header */
+
+.review-header{
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.review-q-number{
+  font-weight: 600;
+  color: var(--muted);
+}
+
+/* Status */
+
+.review-status{
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+.status-correct{
+  background: rgba(22,163,74,0.1);
+  color: var(--success);
+}
+
+.status-wrong{
+  background: rgba(220,38,38,0.1);
+  color: #dc2626;
+}
+
+/* Question */
+
+.review-question{
+  font-weight: 500;
+  margin-bottom: 12px;
+}
+
+/* Options */
+
+.review-options{
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.review-option{
+  border: 1px solid var(--border);
+  padding: 10px;
+  border-radius: 8px;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+/* States */
+
+.option-selected{
+  border-color: var(--primary);
+}
+
+.option-correct{
+  background: rgba(22,163,74,0.08);
+  border-color: var(--success);
+}
+
+.option-wrong{
+  background: rgba(220,38,38,0.08);
+  border-color: #dc2626;
+}
+
+/* Option text */
+
+.option-letter{
+  font-weight: 600;
+}
+
+/* Explanation */
+
+.review-explanation-block{
+  margin-top: 12px;
+}
+
+.explanation{
+  margin-top: 8px;
+  padding: 10px;
+  border-left: 3px solid var(--primary);
+  background: #f9fafb;
+  border-radius: 6px;
+}
+
+.explanation-title{
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.hidden{
+  display: none;
+}
+/* ======================================================
+UTILITIES
+====================================================== */
+
+.mt-10{ margin-top:10px; }
+.mt-20{ margin-top:20px; }
+
+.flex{ display:flex; }
+.gap-10{ gap:10px; }
+
+.w-full{ width:100%; }
+
+.hidden{ display:none; }
+
+/* ======================================================
+EXAM UI ENHANCEMENT
+====================================================== */
+
+/* QUESTION TEXT (CRITICAL FIX) */
+.question-text{
+  font-size:16px;
+  line-height:1.6;
+  white-space:pre-line; /* ⭐ FIXES FORMATTING */
+  margin-bottom:10px;
+}
+
+/* QUESTION NUMBER (NEW) */
+.q-number{
+  font-size:13px;
+  font-weight:600;
+  color:var(--muted);
+  margin-bottom:6px;
+}
+
+/* EXAM CARD TUNING */
+.exam-content .question-card{
+  padding:18px;
+}
+
+/* OPTIONS (EXAM MODE IMPROVEMENT) */
+.exam-content .option-row{
+  background:#fafafa;
+  border:1px solid var(--border);
+  padding:12px;
+  border-radius:8px;
+  transition:all 0.2s ease;
+}
+
+/* HOVER FEEDBACK */
+.exam-content .option-row:hover{
+  border-color:var(--primary);
+  background:#f1f5ff;
+}
+
+/* SELECTED OPTION (FULL ROW HIGHLIGHT) */
+.exam-content .option-row input:checked{
+  accent-color:var(--primary);
+}
+
+.exam-content .option-row input:checked + .option-text{
+  font-weight:600;
+}
+
+/* STRONG VISUAL SELECTION */
+.exam-content .option-row:has(input:checked){
+  border-color:var(--primary);
+  background:#eef3ff;
+}
+
+/* OPTION TEXT */
+.option-text{
+  flex:1;
+  font-size:15px;
+}
+
+/* BETTER SPACING BETWEEN QUESTIONS */
+.exam-content .question-card{
+  margin-bottom:20px;
+}
+
+/* RESULT AREA */
+.result-container{
+  margin-top:30px;
+}
 /* ======================================================
 MOBILE
 ====================================================== */
 
 @media (max-width:768px){
 
-.workspace{
-  flex-direction:column;
-}
+  body{
+    padding:20px 12px;
+  }
 
-.question-bank-panel{
-  position:fixed;
-  top:0;
-  right:-100%;
+  .workspace{
+    flex-direction:column;
+  }
+
+  .question-bank-panel{
   width:100%;
-  height:100%;
-  background:#fff;
-  transition:right 0.3s ease;
-  z-index:1000;
-  padding:20px;
-  overflow:auto;
-  border-left:none;
-  box-shadow:-3px 0 8px rgba(0,0,0,0.1);
-}
-
-.question-bank-panel.active{
+  left:0;
   right:0;
+
+  border-left:none;   /* 🔥 REMOVE desktop feel */
+  border-radius:0;    /* 🔥 full screen feel */
+
+  transform:translateX(100%);
+}
+.question-bank-panel:not(.hidden){
+  transform:translateX(0);
 }
 
-.exam-wrapper,
-.draft-wrapper{
-  padding:10px;
-}
-
-}
-
-/* ======================================================
-UTILITY CLASSES (PrepOS v1)
-====================================================== */
-
-/* Spacing */
-
-.mt-10{ margin-top:10px; }
-.mt-12{ margin-top:12px; }
-.mt-16{ margin-top:16px; }
-.mt-20{ margin-top:20px; }
-
-.mb-10{ margin-bottom:10px; }
-.mb-16{ margin-bottom:16px; }
-
-.p-10{ padding:10px; }
-.p-16{ padding:16px; }
-.p-8{ padding:8px; }
-
-
-/* Layout */
-
-.flex{
-  display:flex;
-}
-
-.flex-col{
-  display:flex;
-  flex-direction:column;
-}
-
-.items-center{
-  align-items:center;
-}
-
-.justify-between{
-  justify-content:space-between;
-}
-
-.gap-10{
-  gap:10px;
-}
-
-.gap-16{
-  gap:16px;
-}
-
-
-/* Width */
-
-.w-full{
-  width:100%;
-}
-
-.max-w-600{
-  max-width:600px;
-  margin:auto;
-}
-
-
-/* Text */
-
-.text-center{
-  text-align:center;
-}
-
-.text-muted{
-  color:#666;
-  font-size:14px;
-}
-
-
-/* Visibility */
-
-.hidden{
-  display:none;
 }

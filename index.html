@@ -28,12 +28,36 @@ Create Exam (PRIMARY ENTRY)
 
 <p>Start a new exam using parser or manual entry.</p>
 
-<button onclick="goToCreatorMode()">
+<button onclick="goToCreatorMode()" class="primary-btn">
 Create Exam
 </button>
 
 </div>
 
+
+<!-- =========================
+Knowledge & Management (NEW)
+========================= -->
+
+<div class="card">
+
+<h3>Knowledge & Management</h3>
+
+<p>Manage your question bank and drafts.</p>
+
+<div class="flex gap-10 mt-10">
+
+<button onclick="location.href='qb-manager.html'">
+📚 Question Bank
+</button>
+
+<button onclick="location.href='draft.html'">
+📄 Drafts
+</button>
+
+</div>
+
+</div>
 
 
 <!-- =========================
@@ -51,7 +75,6 @@ Loading recent exams...
 </div>
 
 
-
 <!-- =========================
 Results Viewer
 ========================= -->
@@ -67,7 +90,6 @@ Open Viewer
 </button>
 
 </div>
-
 
 
 <!-- =========================
@@ -93,10 +115,10 @@ Open Exam
 </div>
 
 
-
 <!-- =========================
 Scripts
 ========================= -->
+<script src="js/auth.js"></script>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/config.js"></script>
@@ -111,7 +133,6 @@ Navigation: Creator Mode
 function goToCreatorMode(){
   location.href = "creator-mode.html"
 }
-
 
 
 /* =========================
@@ -130,7 +151,6 @@ return
 location.href = `exam.html?id=${id}`
 
 }
-
 
 
 /* =========================
@@ -207,7 +227,6 @@ container.innerHTML="Unable to load exams"
 }
 
 
-
 /* =========================
 View Results
 ========================= */
@@ -219,7 +238,6 @@ localStorage.setItem("results_exam",examId)
 location.href="teacher-results.html"
 
 }
-
 
 
 /* =========================
@@ -235,7 +253,6 @@ loadRecentExams()
 }
 
 
-
 /* =========================
 Init
 ========================= */
@@ -243,7 +260,6 @@ Init
 initDashboard()
 
 </script>
-
 
 
 <!-- =========================
