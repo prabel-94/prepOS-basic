@@ -1842,8 +1842,8 @@ document.getElementById("confirmAddToBank")
   // EXTRACT TOPICS FROM TAGS
   // --------------------------------
   const topics = Array.from(
-    document.querySelectorAll("#bankTopicTags .topic-tag")
-  ).map(el => el.dataset.value);
+  document.querySelectorAll("#bankTopicTags .topic-tag")
+).map(el => formatTopicName(el.dataset.value));
 
   q.topics = topics;
 
