@@ -390,7 +390,7 @@ async function addAllResultsToDraft() {
     depth_level: null,
     score: null,
     label: null
-  }
+  },
 ensureMetadata(newQuestion);
     };
 
@@ -1324,7 +1324,7 @@ const q = {
     depth_level: null,
     score: null,
     label: null
-  }
+  },
 ensureMetadata(q);
 };
 
