@@ -47,16 +47,27 @@ function ensureMetadata(q) {
   }
 }
 
-function syncDifficultyToMeta(q) {
-  ensureMetadata(q);
+syncDifficultyToMeta({ difficulty });
 
-  q.meta_structured.cognitive_level = q.difficulty.cognitive_level;
-  q.meta_structured.complexity = q.difficulty.complexity_level;
-  q.meta_structured.depth = q.difficulty.depth_level;
+const meta = {
+  cognitive_level: difficulty.cognitive_level,
+  complexity: difficulty.complexity_level,
+  depth: difficulty.depth_level,
+  difficulty_score: difficulty.score,
+  difficulty_label: difficulty.label
+};
 
-  q.meta_structured.difficulty_score = q.difficulty.score;
-  q.meta_structured.difficulty_label = q.difficulty.label;
-}
+const rows = [
+  { key: "cognitive_level", value: meta.cognitive_level },
+  { key: "complexity_level", value: meta.complexity },
+  { key: "depth_level", value: meta.depth },
+  { key: "difficulty_score", value: meta.difficulty_score },
+  { key: "difficulty_label", value: meta.difficulty_label }
+].map(m => ({
+  question_id: questionId,
+  key: m.key,
+  value: m.value
+}));
 
 function syncMetaToDifficulty(q) {
   ensureMetadata(q);
