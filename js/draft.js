@@ -391,6 +391,7 @@ async function addAllResultsToDraft() {
     score: null,
     label: null
   }
+ensureMetadata(newQuestion);
     };
 
     currentDraft.schema_json.sections[0].questions.push(newQuestion);
