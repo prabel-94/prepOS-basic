@@ -581,10 +581,10 @@ if (q.difficulty && q.difficulty.label) {
   ];
 
   const rows = metadata.map(m => ({
-    question_id: questionId,
-    key: m.key,
-    value: m.value
-  }));
+  question_id: data.id, // ✅ FIXED
+  key: m.key,
+  value: m.value
+}));
 
   await sb.from("question_metadata").insert(rows);
 }
