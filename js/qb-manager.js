@@ -349,20 +349,33 @@ function bindEvents() {
 // CLICK DIFFICULTY BADGE
 el.questionsView.addEventListener("click", (e) => {
 
+  // 🔥 DIFFICULTY CLICK
   const badge = e.target.closest(".difficulty-badge");
-  if (!badge) return;
+  if (badge) {
+    const id = badge.dataset.id;
+    selectedQuestionId = id;
 
-  const id = badge.dataset.id;
-  selectedQuestionId = id;
+    const q = state.questions.find(q => q.id === id);
 
-  const q = state.questions.find(q => q.id === id);
+    document.getElementById("metadataPanel").classList.remove("hidden");
+    document.body.style.overflow = "hidden";
 
-  // SHOW PANEL
-  document.getElementById("metadataPanel").classList.remove("hidden");
-  document.body.style.overflow = "hidden";
+    document.getElementById("metaQuestionPreview").innerText = q.question_text;
 
-  // PREVIEW
-  document.getElementById("metaQuestionPreview").innerText = q.question_text;
+    return; // 🔥 IMPORTANT (stop further handling)
+  }
+
+  // 🔥 DELETE
+  if (e.target.classList.contains("delete-btn")) {
+    deleteQuestion(e.target.dataset.id);
+    return;
+  }
+
+  // 🔥 EDIT
+  if (e.target.classList.contains("edit-btn")) {
+    handleEdit(e.target.dataset.id);
+    return;
+  }
 
 });
 
@@ -387,17 +400,6 @@ el.questionsView.addEventListener("click", (e) => {
       state.view = "topics";
       render();
     });
-
-  el.questionsView.addEventListener("click", e => {
-
-    if (e.target.classList.contains("delete-btn")) {
-      deleteQuestion(e.target.dataset.id);
-    }
-
-    if (e.target.classList.contains("edit-btn")) {
-      handleEdit(e.target.dataset.id);
-    }
-  });
 
   el.topicsView.addEventListener("click", e => {
 
