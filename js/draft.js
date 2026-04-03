@@ -1319,6 +1319,7 @@ const q = {
     score: null,
     label: null
   }
+ensureMetadata(q);
 };
 
   currentDraft.schema_json.sections[0].questions.push(q);
