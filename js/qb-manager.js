@@ -385,6 +385,13 @@ el.questionsView.addEventListener("click", (e) => {
       render();
     }
   });
+
+// 🔥CLOSE METADATA PANEL (EXACT PLACEMENT)
+  document.getElementById("closeMetadata")
+    ?.addEventListener("click", () => {
+      document.getElementById("metadataPanel").classList.add("hidden");
+      document.body.style.overflow = "";
+    });
 }
 
 // --------------------------------
