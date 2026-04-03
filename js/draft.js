@@ -829,6 +829,13 @@ function deleteQuestion(index) {
 
   currentDraft.schema_json.sections[0].questions.splice(index, 1);
 
+  // ✅ FIX index drift
+  if (selectedQuestionIndex === index) {
+    selectedQuestionIndex = null;
+  } else if (selectedQuestionIndex > index) {
+    selectedQuestionIndex--;
+  }
+
   renderDraft(currentDraft);
 }
 
@@ -855,6 +862,13 @@ function moveQuestionUp(index) {
 
   [qs[index - 1], qs[index]] = [qs[index], qs[index - 1]];
 
+  // ✅ FIX index drift
+  if (selectedQuestionIndex === index) {
+    selectedQuestionIndex--;
+  } else if (selectedQuestionIndex === index - 1) {
+    selectedQuestionIndex++;
+  }
+
   renderDraft(currentDraft);
 }
 
@@ -864,6 +878,13 @@ function moveQuestionDown(index) {
   if (index === qs.length - 1) return;
 
   [qs[index + 1], qs[index]] = [qs[index], qs[index + 1]];
+
+  // ✅ FIX index drift
+  if (selectedQuestionIndex === index) {
+    selectedQuestionIndex++;
+  } else if (selectedQuestionIndex === index + 1) {
+    selectedQuestionIndex--;
+  }
 
   renderDraft(currentDraft);
 }
