@@ -434,7 +434,8 @@ function addTopicToQuestion(qIndex, topicName) {
 
   if (q.topics.some(t => t.toLowerCase() === normalized)) return;
 
-  q.topics.push(topicName.trim());
+  const formatted = formatTopicName(topicName);
+q.topics.push(formatted);
 
   renderDraft(currentDraft);
 }
