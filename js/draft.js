@@ -282,7 +282,7 @@ async function addQuestionFromBank(qId, btn) {
     depth_level: null,
     score: null,
     label: null
-  }
+  },
 ensureMetadata(newQuestion);
   };
 
