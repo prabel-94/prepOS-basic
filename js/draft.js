@@ -868,8 +868,11 @@ async function loadDraft() {
     setStatus("Load failed", true);
     return;
   }
-
   currentDraft = data;
+currentDraft.schema_json.sections[0].questions.forEach(q => {
+  ensureMetadata(q);
+});
+
   logoURL = data.logo_url || null;
 
   renderDraft(currentDraft);
