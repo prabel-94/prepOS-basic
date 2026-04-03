@@ -6,6 +6,7 @@
 // INIT
 // --------------------------------
 const sb = window.supabaseClient;
+let selectedQuestionId = null;
 
 // --------------------------------
 // STATE
