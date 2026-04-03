@@ -27,6 +27,48 @@ const mode = params.get("mode");
 // HELPERS
 // --------------------------------
 
+// --------------------------------
+// METADATA SYSTEM (v2 - COMPAT)
+// --------------------------------
+function ensureMetadata(q) {
+  if (!q.meta_structured) {
+    q.meta_structured = {
+      cognitive_level: null,
+      complexity: null,
+      depth: null,
+      difficulty_score: null,
+      difficulty_label: null,
+      question_type: "mcq_single"
+    };
+  }
+
+  if (!q.difficulty) {
+    q.difficulty = {};
+  }
+}
+
+function syncDifficultyToMeta(q) {
+  ensureMetadata(q);
+
+  q.meta_structured.cognitive_level = q.difficulty.cognitive_level;
+  q.meta_structured.complexity = q.difficulty.complexity_level;
+  q.meta_structured.depth = q.difficulty.depth_level;
+
+  q.meta_structured.difficulty_score = q.difficulty.score;
+  q.meta_structured.difficulty_label = q.difficulty.label;
+}
+
+function syncMetaToDifficulty(q) {
+  ensureMetadata(q);
+
+  q.difficulty.cognitive_level = q.meta_structured.cognitive_level;
+  q.difficulty.complexity_level = q.meta_structured.complexity;
+  q.difficulty.depth_level = q.meta_structured.depth;
+
+  q.difficulty.score = q.meta_structured.difficulty_score;
+  q.difficulty.label = q.meta_structured.difficulty_label;
+}
+
 function updateConfirmState() {
   const addBtn = document.getElementById("confirmAddToBank");
   const saveAllBtn = document.getElementById("confirmSaveAll");
