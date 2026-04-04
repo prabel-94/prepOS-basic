@@ -862,6 +862,7 @@ async function loadDraft() {
   currentDraft = data;
 currentDraft.schema_json.sections[0].questions.forEach(q => {
   ensureMetadata(q);
+  syncMetaToDifficulty(q);
 });
 
   logoURL = data.logo_url || null;
