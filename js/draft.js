@@ -635,7 +635,9 @@ const metadata = [
   value: m.value
 }));
 
-  await sb.from("question_metadata").insert(rows);
+ await sb
+  .from("question_metadata")
+  .upsert(rows, { onConflict: "question_id,key" });
 }
 
 // 🔥 LINK BACK TO DRAFT
