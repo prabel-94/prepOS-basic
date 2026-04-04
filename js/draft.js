@@ -58,6 +58,17 @@ function syncMetaToDifficulty(q) {
   q.difficulty.label = q.meta_structured.difficulty_label;
 }
 
+function syncDifficultyToMeta(q) {
+  ensureMetadata(q);
+
+  q.meta_structured.cognitive_level = q.difficulty.cognitive_level;
+  q.meta_structured.complexity = q.difficulty.complexity_level;
+  q.meta_structured.depth = q.difficulty.depth_level;
+
+  q.meta_structured.difficulty_score = q.difficulty.score;
+  q.meta_structured.difficulty_label = q.difficulty.label;
+}
+
 function updateConfirmState() {
   const addBtn = document.getElementById("confirmAddToBank");
   const saveAllBtn = document.getElementById("confirmSaveAll");
