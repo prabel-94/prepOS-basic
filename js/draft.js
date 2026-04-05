@@ -1331,9 +1331,8 @@ const q = {
     score: null,
     label: null
   },
-ensureMetadata(q);
 };
-
+ensureMetadata(q);
   currentDraft.schema_json.sections[0].questions.push(q);
   renderDraft(currentDraft);
 }
