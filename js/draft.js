@@ -626,7 +626,8 @@ const metadata = [
   { key: "complexity_level", value: meta.complexity },
   { key: "depth_level", value: meta.depth },
   { key: "difficulty_score", value: meta.difficulty_score },
-  { key: "difficulty_label", value: meta.difficulty_label }
+  { key: "difficulty_label", value: meta.difficulty_label },
+  { key: "question_type", value: meta.question_type || "mcq_single" }
 ];
 
   const rows = metadata.map(m => ({
@@ -1686,7 +1687,8 @@ const metadata = [
   { key: "complexity_level", value: meta.complexity },
   { key: "depth_level", value: meta.depth },
   { key: "difficulty_score", value: meta.difficulty_score },
-  { key: "difficulty_label", value: meta.difficulty_label }
+  { key: "difficulty_label", value: meta.difficulty_label },
+  { key: "question_type", value: meta.question_type || "mcq_single" }
 ];
 
   const rows = metadata.map(m => ({
