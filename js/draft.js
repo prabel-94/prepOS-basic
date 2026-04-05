@@ -953,7 +953,7 @@ function renderDraft(draft) {
   const container = document.getElementById("questions");
   container.innerHTML = "";
 
-  const questions = draft.schema_json.sections[0].questions;
+  const questions = draft?.schema_json?.sections?.[0]?.questions || [];
 
   // ✅ EMPTY STATE
   if (!questions.length) {
