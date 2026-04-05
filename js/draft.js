@@ -67,6 +67,7 @@ function syncDifficultyToMeta(q) {
 
   q.meta_structured.difficulty_score = q.difficulty.score;
   q.meta_structured.difficulty_label = q.difficulty.label;
+  q.meta_structured.question_type = q.meta_structured.question_type || "mcq_single";// optional (if UI controls type later)
 }
 
 function updateConfirmState() {
@@ -650,28 +651,32 @@ return { questionId, isDuplicate };
 // --------------------------------
 // METADATA SYSTEM (REPLACE MODE)
 // --------------------------------
-async function replaceQuestionMetadata(questionId, difficulty) {
+async function replaceQuestionMetadata(questionId, q) {
 
-  // DELETE OLD
-  await sb
-    .from("question_metadata")
-    .delete()
-    .eq("question_id", questionId);
+  // ✅ ALWAYS sync first
+  syncDifficultyToMeta(q);
 
-  // INSERT NEW
-  const rows = [
-    { key: "cognitive_level", value: difficulty.cognitive_level },
-    { key: "complexity_level", value: difficulty.complexity_level },
-    { key: "depth_level", value: difficulty.depth_level },
-    { key: "difficulty_score", value: difficulty.score },
-    { key: "difficulty_label", value: difficulty.label }
-  ].map(m => ({
+  const meta = q.meta_structured || {};
+
+  const metadata = [
+    { key: "cognitive_level", value: meta.cognitive_level },
+    { key: "complexity_level", value: meta.complexity },
+    { key: "depth_level", value: meta.depth },
+    { key: "difficulty_score", value: meta.difficulty_score },
+    { key: "difficulty_label", value: meta.difficulty_label },
+    { key: "question_type", value: meta.question_type || "mcq_single" }
+  ];
+
+  const rows = metadata.map(m => ({
     question_id: questionId,
     key: m.key,
     value: m.value
   }));
 
-  await sb.from("question_metadata").insert(rows);
+  // ✅ UPSERT instead of delete+insert
+  await sb
+    .from("question_metadata")
+    .upsert(rows, { onConflict: "question_id,key" });
 }
 async function saveAllQuestionsToBank(globalTopics = []) {
 
@@ -1527,7 +1532,7 @@ document.getElementById("metadataContent")
   }
 
   try {
-    await replaceQuestionMetadata(q.question_id, q.difficulty);
+    await replaceQuestionMetadata(q.question_id, q);
 
     document.getElementById("metadataPanel").classList.add("hidden");
     document.body.style.overflow = "";
@@ -1697,7 +1702,9 @@ const metadata = [
     value: m.value
   }));
 
-  await sb.from("question_metadata").insert(rows);
+  await sb
+  .from("question_metadata")
+  .upsert(rows, { onConflict: "question_id,key" });
 }
 
 // 🔥 ADD THIS (MISSING LINK)
