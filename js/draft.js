@@ -568,7 +568,10 @@ async function saveQuestionToBank(q) {
   }
 
   // ✅ Stable hash input
-  const hashInput = q.text.trim().toLowerCase();
+  const hashInput = (
+  q.text +
+  (q.options || []).map(o => o.text).join("")
+).trim().toLowerCase();
 
   // ✅ MUST await
   const hash = await generateHash(hashInput);
@@ -593,22 +596,24 @@ async function saveQuestionToBank(q) {
       typeof o === "string" ? o : o.text
     );
 
-    const { data, error } = await sb
-      .from("questions")
-      .insert({
-        question_text: q.text,
-        option_a: opts[0] || "",
-        option_b: opts[1] || "",
-        option_c: opts[2] || "",
-        option_d: opts[3] || "",
-        correct_option: ["A","B","C","D"].includes(q.correct)
+      const { data, error } = await sb
+        .from("questions")
+        .insert({
+          question_text: q.text,
+          option_a: opts[0] || "",
+          option_b: opts[1] || "",
+          option_c: opts[2] || "",
+          option_d: opts[3] || "",
+          correct_option: ["A","B","C","D"].includes(q.correct)
   ? q.correct
   : "A",
-        explanation: q.explanation || "",
-        question_hash: hash
-      })
-      .select()
-      .single();
+          explanation: q.explanation || "",
+          question_hash: hash,
+          difficulty_score_cached: q.meta_structured?.difficulty_score,
+          difficulty_label_cached: q.meta_structured?.difficulty_label
+        })
+        .select()
+        .single();
 
     if (error) throw error;
 
@@ -618,7 +623,7 @@ await attachTopics(questionId, q.topics);
 // ✅ SYNC difficulty → structured metadata
 syncDifficultyToMeta(q);
 // 🔥 SAVE DIFFICULTY METADATA
-if (q.difficulty && q.difficulty.label) {
+if (q.meta_structured?.difficulty_score !== null) {
 
   const meta = q.meta_structured || {};
 
@@ -673,10 +678,19 @@ async function replaceQuestionMetadata(questionId, q) {
     value: m.value
   }));
 
-  // ✅ UPSERT instead of delete+insert
+  // ✅ UPSERT metadata
   await sb
     .from("question_metadata")
     .upsert(rows, { onConflict: "question_id,key" });
+
+  // 🔥 ADD THIS BLOCK (EXACT PLACEMENT — AFTER UPSERT)
+  await sb
+    .from("questions")
+    .update({
+      difficulty_score_cached: meta.difficulty_score,
+      difficulty_label_cached: meta.difficulty_label
+    })
+    .eq("id", questionId);
 }
 async function saveAllQuestionsToBank(globalTopics = []) {
 
@@ -1673,7 +1687,9 @@ document.getElementById("createNewBtn")
         option_d: q.options[3]?.text || "",
         correct_option: q.correct,
         explanation: q.explanation,
-        question_hash: hash
+        question_hash: hash,
+        difficulty_score_cached: q.meta_structured?.difficulty_score,
+        difficulty_label_cached: q.meta_structured?.difficulty_label
       })
       .select()
       .single();
@@ -1683,7 +1699,7 @@ document.getElementById("createNewBtn")
     // ✅ Attach topics AFTER insert
     await attachTopics(data.id, q.topics);
 // 🔥 SAVE DIFFICULTY METADATA
-if (q.difficulty && q.difficulty.label) {
+if (q.meta_structured?.difficulty_score !== null) {
 
 syncDifficultyToMeta(q);
   const meta = q.meta_structured || {};
