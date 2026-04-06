@@ -87,6 +87,9 @@
       <button id="view-questions" class="primary-btn">Questions</button>
       <button id="view-topics" class="secondary-btn">Topics</button>
     </div>
+    <button id="openPatternManager" class="secondary-btn">
+  Patterns
+</button>
 
   </div>
 
@@ -189,6 +192,39 @@ METADATA PANEL
   </div>
 
 </aside>
+
+<div id="patternManagerPanel" class="side-panel hidden">
+
+  <div class="panel-header">
+    <b>Pattern Manager</b>
+    <button id="closePatternManager">✕</button>
+  </div>
+
+  <div class="panel-body">
+
+    <div class="flex gap-10">
+      <input 
+        id="newPatternKey"
+        placeholder="Pattern key"
+      />
+
+      <input 
+        id="newPatternDesc"
+        placeholder="Description"
+      />
+
+      <button 
+        id="addPatternBtn"
+        class="primary-btn">
+        Add
+      </button>
+    </div>
+
+    <div id="patternList" class="mt-20"></div>
+
+  </div>
+
+</div>
 <!-- =========================
      SCRIPTS
 ========================== -->

@@ -30,6 +30,47 @@ const mode = params.get("mode");
 // --------------------------------
 // METADATA SYSTEM (v2 - COMPAT)
 // --------------------------------
+
+let patternDefinitions = [];
+
+function renderPatternDropdown(container, query) {
+
+  const q = query.toLowerCase();
+
+  const filtered = patternDefinitions
+    .filter(p => p.key.toLowerCase().includes(q))
+    .sort((a, b) => a.key.localeCompare(b.key));
+  if (!filtered.length) {
+    container.innerHTML = `<div class="pattern-empty">No match</div>`;
+    return;
+  }
+
+  container.innerHTML = filtered.map(p => `
+    <div 
+      class="pattern-option"
+      data-key="${p.key}"
+      title="${p.description || ""}"
+    >
+      ${p.key}
+    </div>
+  `).join("");
+}
+
+async function loadPatternDefinitions() {
+
+  const { data, error } = await sb
+    .from("metadata_definitions")
+    .select("key, description")
+    .order("key", { ascending: true });
+
+  if (error) {
+    console.error("Pattern load error", error);
+    return;
+  }
+
+  patternDefinitions = data || [];
+}
+
 function ensureMetadata(q) {
   if (!q.meta_structured) {
     q.meta_structured = {
@@ -409,69 +450,6 @@ ensureMetadata(newQuestion);
 // PATTERN SYSTEM
 // --------------------------------
 
-function formatPatternName(name) {
-  return name
-    .trim()
-    .replace(/\s+/g, " ")
-    .replace(/\w\S*/g, w =>
-      w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()
-    );
-}
-
-async function getOrCreatePattern(name) {
-
-  const clean = name.trim().replace(/\s+/g, " ");
-  const formatted = formatPatternName(clean);
-  const normalized = clean.toLowerCase();
-
-  const { data: existing } = await sb
-    .from("patterns")
-    .select("id")
-    .eq("normalized_name", normalized)
-    .maybeSingle();
-
-  if (existing) return existing.id;
-
-  const { data, error } = await sb
-    .from("patterns")
-    .insert({
-      name: formatted,
-      normalized_name: normalized
-    })
-    .select()
-    .single();
-
-  if (error && error.code === "23505") {
-    const { data: retry } = await sb
-      .from("patterns")
-      .select("id")
-      .eq("normalized_name", normalized)
-      .single();
-
-    return retry.id;
-  }
-
-  return data.id;
-}
-
-async function attachPattern(questionId, patternName) {
-
-  if (!patternName) return;
-
-  const patternId = await getOrCreatePattern(patternName);
-
-  // mapping table
-  await sb.from("question_patterns").upsert({
-    question_id: questionId,
-    pattern_id: patternId
-  });
-
-  // 🔥 CACHE (CRITICAL)
-  await sb
-    .from("questions")
-    .update({ primary_pattern_id: patternId })
-    .eq("id", questionId);
-}
 // --------------------------------
 // TOPIC SYSTEM
 // --------------------------------
@@ -689,7 +667,10 @@ async function saveQuestionToBank(q) {
     questionId = data.id;
   }
 await attachTopics(questionId, q.topics);
-await attachPattern(questionId, q.primary_pattern);
+await replacePatternMetadata(
+  questionId,
+  q.primary_pattern || null
+);
 syncDifficultyToMeta(q);// ✅ SYNC difficulty → structured metadata
 // 🔥 SAVE DIFFICULTY METADATA
 if (q.meta_structured?.difficulty_score !== null) {
@@ -725,6 +706,31 @@ return { questionId, isDuplicate };
 // --------------------------------
 // METADATA SYSTEM (REPLACE MODE)
 // --------------------------------
+async function replacePatternMetadata(questionId, patternKey) {
+
+  await sb
+    .from("question_metadata")
+    .delete()
+    .eq("question_id", questionId)
+    .eq("key", "pattern");
+
+  if (patternKey) {
+    await sb
+      .from("question_metadata")
+      .insert({
+        question_id: questionId,
+        key: "pattern",
+        value: patternKey
+      });
+  }
+
+  await sb
+    .from("questions")
+    .update({
+      primary_pattern_key: patternKey || null
+    })
+    .eq("id", questionId);
+}
 async function replaceQuestionMetadata(questionId, q) {
 
   // ✅ ALWAYS sync first
@@ -1145,9 +1151,9 @@ function renderDraft(draft) {
     data-q="${i}"
     ${status !== "draft" ? "disabled" : ""}
   >
-    ${status === "saved" ? "✓ Saved" : 
-      status === "duplicate" ? "Duplicate" : 
-      "+ Add to Bank"}
+    ${status === "saved" ? "✓ Saved" :
+        status === "duplicate" ? "Duplicate" :
+          "+ Add to Bank"}
   </button>
 
 </div>
@@ -1174,28 +1180,23 @@ function renderDraft(draft) {
       <div class="mt-10 small">
   Difficulty: ${q.difficulty?.label || "Not set"}
 </div>
-<div class="mt-10 small">
-  Difficulty: ${q.difficulty?.label || "Not set"}
-</div>
 
-<div class="mt-10">
+<div class="mt-10 pattern-box">
   <input 
     class="pattern-input"
     data-i="${i}"
     placeholder="Pattern (optional)"
     value="${q.primary_pattern || ""}"
+    autocomplete="off"
   />
+  <div class="pattern-dropdown hidden"></div>
 </div>
 
 <div class="topic-tags">
   ${topicsHTML}
 </div>
 
-        <div class="topic-tags">
-          ${topicsHTML}
-        </div>
-
-      </div>
+</div>
 
     `;
 
@@ -1328,25 +1329,62 @@ document.getElementById("questions")?.addEventListener("input", (e) => {
     currentDraft.schema_json.sections[0].questions[+e.target.dataset.i].explanation = e.target.value;
   }
 
+ if (e.target.classList.contains("pattern-input")) {
+
+  const i = +e.target.dataset.i;
+
+  currentDraft.schema_json.sections[0].questions[i].primary_pattern =
+    e.target.value;
+
+  const box = e.target.closest(".pattern-box");
+  const dropdown = box.querySelector(".pattern-dropdown");
+
+  renderPatternDropdown(dropdown, e.target.value);
+}
+
   scheduleAutosave();
 });
 
 // --------------------------------
 // CLICK EVENTS (delegated)
 // --------------------------------
+document.getElementById("questions")
+?.addEventListener("focusin", (e) => {
+
+  if (!e.target.classList.contains("pattern-input")) return;
+
+  const box = e.target.closest(".pattern-box");
+  const dropdown = box.querySelector(".pattern-dropdown");
+
+  renderPatternDropdown(dropdown, "");
+  dropdown.classList.remove("hidden");
+
+});
 
 document.getElementById("questions")?.addEventListener("click", (e) => {
 
-  if (e.target.classList.contains("pattern-input")) {
-  const i = +e.target.dataset.i;
+
+if (e.target.classList.contains("pattern-option")) {
+
+  const key = e.target.dataset.key;
+
+  const box = e.target.closest(".pattern-box");
+  const input = box.querySelector(".pattern-input");
+
+  input.value = key;
+
+  const i = +input.dataset.i;
 
   currentDraft
     .schema_json
     .sections[0]
     .questions[i]
-    .primary_pattern = e.target.value;
+    .primary_pattern = key;
+
+  box.querySelector(".pattern-dropdown").classList.add("hidden");
+
 }
-// --------------------------------
+  // --------------------------------
   // META DATA→ OPEN PANEL
   // --------------------------------
 
@@ -1627,7 +1665,9 @@ async function uploadLogo(file) {
 // --------------------------------
 // INIT
 // --------------------------------
-function init() {
+async function init() {
+
+  await loadPatternDefinitions();
 
 document.getElementById("metadataContent")
   ?.addEventListener("click", async (e) => {
@@ -1794,6 +1834,10 @@ document.getElementById("createNewBtn")
 
     // ✅ Attach topics AFTER insert
     await attachTopics(data.id, q.topics);
+    await replacePatternMetadata(
+  data.id,
+  q.primary_pattern || null
+);
 // 🔥 SAVE DIFFICULTY METADATA
 if (q.meta_structured?.difficulty_score !== null) {
 
@@ -1843,11 +1887,15 @@ q.bank_status = "saved";
 
   const q = currentDraft.schema_json.sections[0].questions[selectedQuestionIndex];
 
-  try {
-    // attach topics only (no new question)
-    await attachTopics(window.duplicateQuestionId, q.topics);
+    try {
+      // attach topics only (no new question)
+      await attachTopics(window.duplicateQuestionId, q.topics);
 
-    q.bank_status = "duplicate";
+      await replacePatternMetadata(
+        window.duplicateQuestionId,
+        q.primary_pattern || null
+      );
+      q.bank_status = "duplicate";
 
     renderDraft(currentDraft);
 
@@ -2108,6 +2156,20 @@ document.addEventListener("click", (e) => {
   input.value = e.target.dataset.fix;
   input.dispatchEvent(new Event("input"));
 });
+
+document.addEventListener("click", (e) => {
+
+  document.querySelectorAll(".pattern-dropdown")
+    .forEach(d => {
+
+      if (!d.closest(".pattern-box").contains(e.target)) {
+        d.classList.add("hidden");
+      }
+
+    });
+
+});
+
 init();
 
 // --------------------------------
