@@ -275,6 +275,7 @@ async function addQuestionFromBank(qId, btn) {
     explanation: data.explanation || "",
     topics: [],
     bank_status: "saved",
+    primary_pattern: null, 
 
 // 🔥 ADD THIS BLOCK
   difficulty: {
@@ -402,6 +403,74 @@ ensureMetadata(newQuestion);
   renderDraft(currentDraft);
 
   setStatus(`Added ${added}, skipped ${skipped}`);
+}
+
+// --------------------------------
+// PATTERN SYSTEM
+// --------------------------------
+
+function formatPatternName(name) {
+  return name
+    .trim()
+    .replace(/\s+/g, " ")
+    .replace(/\w\S*/g, w =>
+      w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()
+    );
+}
+
+async function getOrCreatePattern(name) {
+
+  const clean = name.trim().replace(/\s+/g, " ");
+  const formatted = formatPatternName(clean);
+  const normalized = clean.toLowerCase();
+
+  const { data: existing } = await sb
+    .from("patterns")
+    .select("id")
+    .eq("normalized_name", normalized)
+    .maybeSingle();
+
+  if (existing) return existing.id;
+
+  const { data, error } = await sb
+    .from("patterns")
+    .insert({
+      name: formatted,
+      normalized_name: normalized
+    })
+    .select()
+    .single();
+
+  if (error && error.code === "23505") {
+    const { data: retry } = await sb
+      .from("patterns")
+      .select("id")
+      .eq("normalized_name", normalized)
+      .single();
+
+    return retry.id;
+  }
+
+  return data.id;
+}
+
+async function attachPattern(questionId, patternName) {
+
+  if (!patternName) return;
+
+  const patternId = await getOrCreatePattern(patternName);
+
+  // mapping table
+  await sb.from("question_patterns").upsert({
+    question_id: questionId,
+    pattern_id: patternId
+  });
+
+  // 🔥 CACHE (CRITICAL)
+  await sb
+    .from("questions")
+    .update({ primary_pattern_id: patternId })
+    .eq("id", questionId);
 }
 // --------------------------------
 // TOPIC SYSTEM
@@ -620,8 +689,8 @@ async function saveQuestionToBank(q) {
     questionId = data.id;
   }
 await attachTopics(questionId, q.topics);
-// ✅ SYNC difficulty → structured metadata
-syncDifficultyToMeta(q);
+await attachPattern(questionId, q.primary_pattern);
+syncDifficultyToMeta(q);// ✅ SYNC difficulty → structured metadata
 // 🔥 SAVE DIFFICULTY METADATA
 if (q.meta_structured?.difficulty_score !== null) {
 
@@ -1105,6 +1174,22 @@ function renderDraft(draft) {
       <div class="mt-10 small">
   Difficulty: ${q.difficulty?.label || "Not set"}
 </div>
+<div class="mt-10 small">
+  Difficulty: ${q.difficulty?.label || "Not set"}
+</div>
+
+<div class="mt-10">
+  <input 
+    class="pattern-input"
+    data-i="${i}"
+    placeholder="Pattern (optional)"
+    value="${q.primary_pattern || ""}"
+  />
+</div>
+
+<div class="topic-tags">
+  ${topicsHTML}
+</div>
 
         <div class="topic-tags">
           ${topicsHTML}
@@ -1251,6 +1336,16 @@ document.getElementById("questions")?.addEventListener("input", (e) => {
 // --------------------------------
 
 document.getElementById("questions")?.addEventListener("click", (e) => {
+
+  if (e.target.classList.contains("pattern-input")) {
+  const i = +e.target.dataset.i;
+
+  currentDraft
+    .schema_json
+    .sections[0]
+    .questions[i]
+    .primary_pattern = e.target.value;
+}
 // --------------------------------
   // META DATA→ OPEN PANEL
   // --------------------------------
@@ -1342,6 +1437,7 @@ const q = {
   explanation: "",
   topics: [],
   bank_status: "draft",
+  primary_pattern: null, 
 
   // 🔥 ADD THIS BLOCK
   difficulty: {

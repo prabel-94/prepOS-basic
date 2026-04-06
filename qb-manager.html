@@ -157,11 +157,41 @@ METADATA PANEL
     <button id="saveMetadataBtn" class="primary-btn w-full mt-20">
       Save Difficulty
     </button>
-
+    
   </div>
 
 </aside>
 
+<div id="patternPanel" class="panel hidden">
+
+  <div class="panel-header">
+    <div class="panel-title">Pattern</div>
+    <button id="closePattern" class="icon-btn">✕</button>
+  </div>
+
+  <div class="panel-body">
+
+    <div class="small mb-10">Question</div>
+    <div id="patternQuestionPreview" class="question-preview"></div>
+
+    <div class="mt-20 small">Pattern</div>
+
+    <input
+      id="patternInput"
+      class="w-full"
+      placeholder="Enter pattern (optional)"
+    />
+
+    <button
+      id="savePatternBtn"
+      class="primary-btn w-full mt-20"
+    >
+      Save Pattern
+    </button>
+
+  </div>
+
+</div>
 <!-- =========================
      SCRIPTS
 ========================== -->
