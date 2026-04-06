@@ -162,36 +162,33 @@ METADATA PANEL
 
 </aside>
 
-<div id="patternPanel" class="panel hidden">
+<aside class="question-bank-panel hidden" id="patternPanel">
 
-  <div class="panel-header">
-    <div class="panel-title">Pattern</div>
-    <button id="closePattern" class="icon-btn">✕</button>
+  <div class="qb-header">
+    <button id="closePattern">← Back</button>
+    <h3>Edit Pattern</h3>
   </div>
 
-  <div class="panel-body">
+  <div class="mt-20">
 
-    <div class="small mb-10">Question</div>
-    <div id="patternQuestionPreview" class="question-preview"></div>
+    <div id="patternQuestionPreview" class="question-card small"></div>
 
-    <div class="mt-20 small">Pattern</div>
+    <div class="mt-20">
+      <b>Pattern</b>
+      <input
+        id="patternInput"
+        class="w-full mt-10"
+        placeholder="Enter pattern (optional)"
+      />
+    </div>
 
-    <input
-      id="patternInput"
-      class="w-full"
-      placeholder="Enter pattern (optional)"
-    />
-
-    <button
-      id="savePatternBtn"
-      class="primary-btn w-full mt-20"
-    >
+    <button id="savePatternBtn" class="primary-btn w-full mt-20">
       Save Pattern
     </button>
 
   </div>
 
-</div>
+</aside>
 <!-- =========================
      SCRIPTS
 ========================== -->
