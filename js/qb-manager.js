@@ -98,6 +98,10 @@ async function fetchQuestions() {
     topic_id,
     topics ( id, name )
   ),
+  question_patterns (
+      pattern_id,
+      patterns ( id, name )
+    ),
   question_metadata (
     key,
     value
@@ -145,6 +149,46 @@ async function fetchTopics() {
 
   renderTopicFilter();
   renderOverview();
+}
+
+async function attachPattern(questionId, patternName) {
+
+  if (!patternName) return;
+
+  const clean = patternName.trim().replace(/\s+/g, " ");
+  const normalized = clean.toLowerCase();
+
+  // get or create
+  let { data } = await sb
+    .from("patterns")
+    .select("id")
+    .eq("normalized_name", normalized)
+    .maybeSingle();
+
+  if (!data) {
+    const res = await sb
+      .from("patterns")
+      .insert({
+        name: clean,
+        normalized_name: normalized
+      })
+      .select()
+      .single();
+
+    data = res.data;
+  }
+
+  // attach mapping
+  await sb.from("question_patterns").upsert({
+    question_id: questionId,
+    pattern_id: data.id
+  });
+
+  // cache
+  await sb
+    .from("questions")
+    .update({ primary_pattern_id: data.id })
+    .eq("id", questionId);
 }
 
 // --------------------------------
@@ -226,6 +270,9 @@ const meta = {};
   meta[m.key] = m.value;
 });
 const difficulty = meta.difficulty_label || "not-set";
+
+const pattern =
+  (q.question_patterns || [])[0]?.patterns?.name || null; // 🔥 EXTRACT PATTERN 
     const topicsHTML = (q.question_topics || [])
       .map(qt => `<div class="topic-tag">${qt.topics.name}</div>`)
       .join("");
@@ -251,13 +298,19 @@ const difficulty = meta.difficulty_label || "not-set";
   <!-- LEFT -->
   <div class="flex gap-10">
 
-    <div 
-  class="difficulty-badge clickable ${difficulty}" 
-  data-id="${q.id}">
-      ${difficulty === "not-set" ? "NOT SET" : difficulty.toUpperCase()}
-    </div>
-
+  <div 
+    class="difficulty-badge clickable ${difficulty}" 
+    data-id="${q.id}">
+    ${difficulty === "not-set" ? "NOT SET" : difficulty.toUpperCase()}
   </div>
+
+  <div 
+    class="pattern-badge clickable"
+    data-id="${q.id}">
+    ${pattern || "PATTERN"}
+  </div>
+
+</div>
 
   <!-- RIGHT -->
   <div class="question-actions">
@@ -365,6 +418,29 @@ el.questionsView.addEventListener("click", (e) => {
     return; // 🔥 IMPORTANT (stop further handling)
   }
 
+  // 🔥 PATTERN CLICK (ADD THIS)
+  const patternBadge = e.target.closest(".pattern-badge");
+  if (patternBadge) {
+
+    const id = patternBadge.dataset.id;
+    selectedQuestionId = id;
+
+    const q = state.questions.find(q => q.id === id);
+
+    document.getElementById("patternPanel").classList.remove("hidden");
+    document.body.style.overflow = "hidden";
+
+    document.getElementById("patternQuestionPreview").innerText =
+      q.question_text;
+
+    document.getElementById("patternInput").value =
+      (q.question_patterns || [])[0]?.patterns?.name || "";
+
+    return;
+  }
+
+  
+
   // 🔥 DELETE
   if (e.target.classList.contains("delete-btn")) {
     deleteQuestion(e.target.dataset.id);
@@ -410,11 +486,20 @@ el.questionsView.addEventListener("click", (e) => {
     }
   });
 
-// 🔥CLOSE METADATA PANEL (EXACT PLACEMENT)
+  // 🔥CLOSE METADATA PANEL (EXACT PLACEMENT)
   document.getElementById("closeMetadata")
     ?.addEventListener("click", () => {
       document.getElementById("metadataPanel").classList.add("hidden");
       document.body.style.overflow = "";
+    });
+  document.getElementById("closePattern")
+    ?.addEventListener("click", () => {
+
+      document.getElementById("patternPanel")
+        .classList.add("hidden");
+
+      document.body.style.overflow = "";
+
     });
 document.getElementById("saveMetadataBtn")
   ?.addEventListener("click", async () => {
@@ -450,7 +535,28 @@ if (!selectedQuestionId) {
   await fetchQuestions();
 
 });
+document.getElementById("savePatternBtn")
+  ?.addEventListener("click", async () => {
+
+  if (!selectedQuestionId) {
+    alert("No question selected");
+    return;
+  }
+
+  const selectedPattern =
+    document.getElementById("patternInput")?.value?.trim();
+
+  await attachPattern(selectedQuestionId, selectedPattern);
+
+  document.getElementById("patternPanel").classList.add("hidden");
+  document.body.style.overflow = "";
+
+  await fetchQuestions();
+});
+
 }
+
+
 
 // --------------------------------
 // INIT
