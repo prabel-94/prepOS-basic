@@ -475,8 +475,24 @@ DIFFICULTY SYSTEM
   background: var(--success-bg);
   border-color: var(--success);
 }
+/* ======================================================
+PATTERN SYSTEM
+====================================================== */
+.pattern-badge {
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: #eef4ff;
+  color: #3b5bdb;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid #dbe4ff;
+  transition: all 0.15s ease;
+}
 
-
+.pattern-badge:hover {
+  background: #e0e7ff;
+}
 /* ======================================================
 EMPTY STATE
 ====================================================== */
