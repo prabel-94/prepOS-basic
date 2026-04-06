@@ -34,6 +34,106 @@ const el = {
   weakTopics: document.getElementById("weak-topics")
 };
 
+let patternDefinitions = [];
+
+async function loadPatternDefinitions() {
+  const { data, error } = await sb
+    .from("metadata_definitions")
+    .select("key, description")
+    .order("key", { ascending: true });
+
+  if (error) {
+    console.error("Pattern load error", error);
+    return;
+  }
+
+  patternDefinitions = data || [];
+}
+async function fetchPatterns() {
+  await loadPatternDefinitions();
+  renderPatternManager();
+}
+
+function renderPatternManager() {
+
+  const container = document.getElementById("patternList");
+
+  container.innerHTML = patternDefinitions.map(p => `
+    <div class="pattern-row">
+
+      <div class="pattern-key">${p.key}</div>
+
+      <input 
+        class="pattern-desc-input"
+        data-key="${p.key}"
+        value="${p.description || ""}"
+      />
+
+      <button 
+        class="delete-pattern-btn"
+        data-key="${p.key}">
+        🗑
+      </button>
+
+    </div>
+  `).join("");
+}
+async function createPattern() {
+
+  const key = document
+    .getElementById("newPatternKey")
+    .value
+    .trim();
+
+  const description = document
+    .getElementById("newPatternDesc")
+    .value
+    .trim();
+
+  if (!key) {
+    alert("Pattern key required");
+    return;
+  }
+
+  await sb
+    .from("metadata_definitions")
+    .insert({
+      key,
+      description,
+      slot: "pattern"
+    });
+
+  document.getElementById("newPatternKey").value = "";
+  document.getElementById("newPatternDesc").value = "";
+
+  await fetchPatterns();
+}
+
+function renderPatternDropdown(query = "") {
+
+  const q = query.toLowerCase();
+
+  const filtered = patternDefinitions
+    .filter(p => p.key.toLowerCase().includes(q))
+    .sort((a,b) => a.key.localeCompare(b.key));
+
+  const dropdown = document.getElementById("patternDropdown");
+
+  if (!filtered.length) {
+    dropdown.innerHTML = `<div class="pattern-empty">No match</div>`;
+    return;
+  }
+
+  dropdown.innerHTML = filtered.map(p => `
+    <div 
+      class="pattern-option"
+      data-key="${p.key}"
+      title="${p.description || ""}"
+    >
+      ${p.key}
+    </div>
+  `).join("");
+}
 
 function computeDifficulty(cognitive, complexity, depth) {
 
@@ -65,6 +165,33 @@ function computeDifficulty(cognitive, complexity, depth) {
   return { score, label };
 }
 
+async function replacePatternMetadata(questionId, patternKey) {
+
+  // remove existing pattern
+  await sb
+    .from("question_metadata")
+    .delete()
+    .eq("question_id", questionId)
+    .eq("key", "pattern");
+
+  if (patternKey) {
+    await sb
+      .from("question_metadata")
+      .insert({
+        question_id: questionId,
+        key: "pattern",
+        value: patternKey
+      });
+  }
+
+  // update cache
+  await sb
+    .from("questions")
+    .update({
+      primary_pattern_key: patternKey || null
+    })
+    .eq("id", questionId);
+}
 async function replaceQuestionMetadata(questionId, difficulty) {
 
   await sb
@@ -98,10 +225,6 @@ async function fetchQuestions() {
     topic_id,
     topics ( id, name )
   ),
-  question_patterns (
-      pattern_id,
-      patterns ( id, name )
-    ),
   question_metadata (
     key,
     value
@@ -150,47 +273,6 @@ async function fetchTopics() {
   renderTopicFilter();
   renderOverview();
 }
-
-async function attachPattern(questionId, patternName) {
-
-  if (!patternName) return;
-
-  const clean = patternName.trim().replace(/\s+/g, " ");
-  const normalized = clean.toLowerCase();
-
-  // get or create
-  let { data } = await sb
-    .from("patterns")
-    .select("id")
-    .eq("normalized_name", normalized)
-    .maybeSingle();
-
-  if (!data) {
-    const res = await sb
-      .from("patterns")
-      .insert({
-        name: clean,
-        normalized_name: normalized
-      })
-      .select()
-      .single();
-
-    data = res.data;
-  }
-
-  // attach mapping
-  await sb.from("question_patterns").upsert({
-    question_id: questionId,
-    pattern_id: data.id
-  });
-
-  // cache
-  await sb
-    .from("questions")
-    .update({ primary_pattern_id: data.id })
-    .eq("id", questionId);
-}
-
 // --------------------------------
 // ROOT RENDER
 // --------------------------------
@@ -271,8 +353,7 @@ const meta = {};
 });
 const difficulty = meta.difficulty_label || "not-set";
 
-const pattern =
-  (q.question_patterns || [])[0]?.patterns?.name || null; // 🔥 EXTRACT PATTERN 
+const pattern = meta.pattern || q.primary_pattern_key || null;// 🔥 EXTRACT PATTERN 
     const topicsHTML = (q.question_topics || [])
       .map(qt => `<div class="topic-tag">${qt.topics.name}</div>`)
       .join("");
@@ -399,6 +480,109 @@ function handleEdit(id) {
 // EVENTS
 // --------------------------------
 function bindEvents() {
+
+document.getElementById("patternList")
+?.addEventListener("input", async (e) => {
+
+  if (!e.target.classList.contains("pattern-desc-input")) return;
+
+  const key = e.target.dataset.key;
+  const description = e.target.value;
+
+  await sb
+    .from("metadata_definitions")
+    .update({ description })
+    .eq("key", key)
+    .eq("slot", "pattern");
+  await loadPatternDefinitions();
+
+});
+
+document.getElementById("patternList")
+?.addEventListener("click", async (e) => {
+
+  if (!e.target.classList.contains("delete-pattern-btn")) return;
+
+  const key = e.target.dataset.key;
+
+  if (!confirm("Delete pattern?")) return;
+
+  await sb
+    .from("metadata_definitions")
+    .delete()
+    .eq("key", key)
+    .eq("slot", "pattern");
+
+  await fetchPatterns();
+});
+
+document.getElementById("openPatternManager")
+?.addEventListener("click", async () => {
+
+  document
+    .getElementById("patternManagerPanel")
+    .classList.remove("hidden");
+
+  document.body.style.overflow = "hidden";
+
+  await fetchPatterns();
+
+});
+
+document.getElementById("closePatternManager")
+?.addEventListener("click", () => {
+
+  document
+    .getElementById("patternManagerPanel")
+    .classList.add("hidden");
+
+  document.body.style.overflow = "";
+
+});
+
+document.getElementById("addPatternBtn")
+?.addEventListener("click", createPattern);
+
+  document.getElementById("patternDropdown")
+?.addEventListener("click", (e) => {
+
+  if (!e.target.classList.contains("pattern-option")) return;
+
+  const key = e.target.dataset.key;
+
+  document.getElementById("patternInput").value = key;
+
+  document
+    .getElementById("patternDropdown")
+    .classList.add("hidden");
+
+});
+
+ document.getElementById("patternInput")
+?.addEventListener("input", (e) => {
+  const value = e.target.value;
+
+  if (!value) {
+    document
+      .getElementById("patternDropdown")
+      .classList.add("hidden");
+    return;
+  }
+
+  renderPatternDropdown(e.target.value);
+
+}); 
+
+  document.getElementById("patternInput")
+?.addEventListener("focus", () => {
+
+  renderPatternDropdown("");
+
+  document
+    .getElementById("patternDropdown")
+    .classList.remove("hidden");
+
+});
 // CLICK DIFFICULTY BADGE
 el.questionsView.addEventListener("click", (e) => {
 
@@ -433,8 +617,13 @@ el.questionsView.addEventListener("click", (e) => {
     document.getElementById("patternQuestionPreview").innerText =
       q.question_text;
 
-    document.getElementById("patternInput").value =
-      (q.question_patterns || [])[0]?.patterns?.name || "";
+    const meta = {};
+(q.question_metadata || []).forEach(m => {
+  meta[m.key] = m.value;
+});
+
+document.getElementById("patternInput").value =
+  meta.pattern || q.primary_pattern_key || "";
 
     return;
   }
@@ -546,7 +735,7 @@ document.getElementById("savePatternBtn")
   const selectedPattern =
     document.getElementById("patternInput")?.value?.trim();
 
-  await attachPattern(selectedQuestionId, selectedPattern);
+  await replacePatternMetadata(selectedQuestionId, selectedPattern);
 
   document.getElementById("patternPanel").classList.add("hidden");
   document.body.style.overflow = "";
@@ -556,12 +745,25 @@ document.getElementById("savePatternBtn")
 
 }
 
+document.addEventListener("click", (e) => {
+
+  const box = document.querySelector(".pattern-box");
+  if (!box) return;
+
+  if (!box.contains(e.target)) {
+    document
+      .getElementById("patternDropdown")
+      ?.classList.add("hidden");
+  }
+
+});
 
 
 // --------------------------------
 // INIT
 // --------------------------------
 async function init() {
+  await loadPatternDefinitions();
   bindEvents();
   await fetchTopics();
   await fetchQuestions();
