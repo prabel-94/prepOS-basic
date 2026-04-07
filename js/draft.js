@@ -706,6 +706,27 @@ return { questionId, isDuplicate };
 // --------------------------------
 // METADATA SYSTEM (REPLACE MODE)
 // --------------------------------
+async function updateTopicPatterns(questionId, patternKey) {
+
+  if (!patternKey) return;
+
+  const { data } = await sb
+    .from("question_topics")
+    .select("topic_id")
+    .eq("question_id", questionId);
+
+  const rows = (data || []).map(t => ({
+    topic_id: t.topic_id,
+    pattern_key: patternKey
+  }));
+
+  if (!rows.length) return;
+
+  await sb
+    .from("topic_patterns")
+    .upsert(rows, { onConflict: "topic_id,pattern_key" });
+}
+
 async function replacePatternMetadata(questionId, patternKey) {
 
   await sb
@@ -766,6 +787,7 @@ async function replaceQuestionMetadata(questionId, q) {
       difficulty_label_cached: meta.difficulty_label
     })
     .eq("id", questionId);
+     await updateTopicPatterns(questionId, patternKey);
 }
 async function saveAllQuestionsToBank(globalTopics = []) {
 

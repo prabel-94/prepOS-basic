@@ -177,13 +177,20 @@ METADATA PANEL
     <div id="patternQuestionPreview" class="question-card small"></div>
 
     <div class="mt-20">
-      <b>Pattern</b>
-      <input
-        id="patternInput"
-        class="w-full mt-10"
-        placeholder="Enter pattern (optional)"
-      />
-    </div>
+  <b>Pattern</b>
+
+  <div class="pattern-box">
+    <input
+      id="patternInput"
+      class="w-full mt-10"
+      placeholder="Enter pattern (optional)"
+      autocomplete="off"
+    />
+
+    <div id="patternDropdown" class="pattern-dropdown hidden"></div>
+  </div>
+
+</div>
 
     <button id="savePatternBtn" class="primary-btn w-full mt-20">
       Save Pattern
