@@ -581,29 +581,32 @@ document.getElementById("addPatternBtn")
 
 });
 
- document.getElementById("patternInput")
-?.addEventListener("input", (e) => {
+ document.addEventListener("input", (e) => {
+
+  if (e.target.id !== "patternInput") return;
+
   const value = e.target.value;
 
   if (!value) {
     document
       .getElementById("patternDropdown")
-      .classList.add("hidden");
+      ?.classList.add("hidden");
     return;
   }
 
-  renderPatternDropdown(e.target.value);
+  renderPatternDropdown(value);
 
-}); 
+});
 
-  document.getElementById("patternInput")
-?.addEventListener("focus", () => {
+  document.addEventListener("focusin", (e) => {
+
+  if (e.target.id !== "patternInput") return;
 
   renderPatternDropdown("");
 
   document
     .getElementById("patternDropdown")
-    .classList.remove("hidden");
+    ?.classList.remove("hidden");
 
 });
 // CLICK DIFFICULTY BADGE
