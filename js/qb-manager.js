@@ -165,6 +165,27 @@ function computeDifficulty(cognitive, complexity, depth) {
   return { score, label };
 }
 
+async function updateTopicPatterns(questionId, patternKey) {
+
+  if (!patternKey) return;
+
+  const { data } = await sb
+    .from("question_topics")
+    .select("topic_id")
+    .eq("question_id", questionId);
+
+  const rows = (data || []).map(t => ({
+    topic_id: t.topic_id,
+    pattern_key: patternKey
+  }));
+
+  if (!rows.length) return;
+
+  await sb
+    .from("topic_patterns")
+    .upsert(rows, { onConflict: "topic_id,pattern_key" });
+}
+
 async function replacePatternMetadata(questionId, patternKey) {
 
   // remove existing pattern
@@ -191,6 +212,8 @@ async function replacePatternMetadata(questionId, patternKey) {
       primary_pattern_key: patternKey || null
     })
     .eq("id", questionId);
+
+     await updateTopicPatterns(questionId, patternKey);
 }
 async function replaceQuestionMetadata(questionId, difficulty) {
 
