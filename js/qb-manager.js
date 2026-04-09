@@ -857,6 +857,20 @@ document.getElementById("patternInput").value =
 
 el.topicsView.addEventListener("click", async (e) => {
 
+  // ---------------------------
+  // VIEW QUESTIONS
+  // ---------------------------
+  const viewBtn = e.target.closest(".view-topic-btn");
+  if (viewBtn) {
+    state.topicFilter = viewBtn.dataset.id;
+    state.view = "questions";
+    render();
+    return;
+  }
+
+  // ---------------------------
+  // RENAME
+  // ---------------------------
   const renameBtn = e.target.closest(".rename-topic");
   if (renameBtn) {
     renameTopic(
@@ -866,15 +880,21 @@ el.topicsView.addEventListener("click", async (e) => {
     return;
   }
 
-  const deleteBtn = e.target.closest(".delete-topic");
-  if (deleteBtn) {
-    deleteTopic(deleteBtn.dataset.id);
-    return;
-  }
-
+  // ---------------------------
+  // MERGE
+  // ---------------------------
   const mergeBtn = e.target.closest(".merge-topic");
   if (mergeBtn) {
     mergeTopic(mergeBtn.dataset.id);
+    return;
+  }
+
+  // ---------------------------
+  // DELETE
+  // ---------------------------
+  const deleteBtn = e.target.closest(".delete-topic");
+  if (deleteBtn) {
+    deleteTopic(deleteBtn.dataset.id);
     return;
   }
 
