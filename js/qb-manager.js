@@ -705,9 +705,36 @@ function renderTopicFilter() {
 // DELETE
 // --------------------------------
 async function deleteQuestion(id) {
-  if (!confirm("Delete this question?")) return;
 
-  await sb.from("questions").delete().eq("id", id);
+  const ok = confirm(
+    "Delete this question?\n\nThis cannot be undone."
+  );
+
+  if (!ok) return;
+
+  // ---------------------------
+  // DELETE METADATA
+  // ---------------------------
+  await sb
+    .from("question_metadata")
+    .delete()
+    .eq("question_id", id);
+
+  // ---------------------------
+  // DELETE TOPIC LINKS
+  // ---------------------------
+  await sb
+    .from("question_topics")
+    .delete()
+    .eq("question_id", id);
+
+  // ---------------------------
+  // DELETE QUESTION
+  // ---------------------------
+  await sb
+    .from("questions")
+    .delete()
+    .eq("id", id);
 
   await fetchQuestions();
   await fetchTopics();
