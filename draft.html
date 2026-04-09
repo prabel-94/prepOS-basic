@@ -180,10 +180,20 @@ ADD TO BANK PANEL
 
 <div id="caFields" class="hidden mt-10">
 
+  <div class="pattern-box">
+
   <input 
     id="caEventInput"
-    placeholder="Event (appointed, launched...)"
+    class="w-full"
+    placeholder="Select event..."
+    autocomplete="off"
   />
+
+  <div id="caEventDropdown"
+       class="pattern-dropdown hidden">
+  </div>
+
+</div>
 
   <input 
     id="caDateInput"
