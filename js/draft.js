@@ -671,6 +671,26 @@ await replacePatternMetadata(
   questionId,
   q.primary_pattern || null
 );
+// ===============================
+// SAVE CURRENT AFFAIRS 
+// ===============================
+if (q.ca_event) {
+
+  await sb.from("question_metadata")
+  .upsert([
+    {
+      question_id: questionId,
+      key: "ca_event",
+      value: q.ca_event.type
+    },
+    {
+      question_id: questionId,
+      key: "ca_date",
+      value: q.ca_event.date
+    }
+  ], { onConflict: "question_id,key" });
+
+}
 syncDifficultyToMeta(q);// ✅ SYNC difficulty → structured metadata
 // 🔥 SAVE DIFFICULTY METADATA
 if (q.meta_structured?.difficulty_score !== null) {
@@ -1467,7 +1487,11 @@ if (preview) {
     updateConfirmState();
     renderTopicWarnings([]);
   }
-
+// RESET CA
+document.getElementById("caToggle").checked = false;
+document.getElementById("caFields").classList.add("hidden");
+document.getElementById("caEventInput").value = "";
+document.getElementById("caDateInput").value = "";
   // --------------------------------
   // REMOVE TOPIC
   // --------------------------------
@@ -2048,6 +2072,17 @@ function setupTopicInput(inputId, tagsId, warningsId) {
 // --------------------------------
 setupTopicInput("bankTopicInput", "bankTopicTags", "topicWarnings");
 setupTopicInput("bulkTopicInput", "bulkTopicTags", "bulkTopicWarnings");
+// ===============================
+// CA TOGGLE 
+// ===============================
+document.getElementById("caToggle")
+?.addEventListener("change", (e)=>{
+
+  document
+    .getElementById("caFields")
+    ?.classList.toggle("hidden", !e.target.checked);
+
+});
 
   document.getElementById("closeAddToBank")
   ?.addEventListener("click", () => {
@@ -2168,10 +2203,26 @@ document.getElementById("confirmAddToBank")
   // EXTRACT TOPICS FROM TAGS
   // --------------------------------
   const topics = Array.from(
-  document.querySelectorAll("#bankTopicTags .topic-tag")
-).map(el => formatTopicName(el.dataset.value));
+    document.querySelectorAll("#bankTopicTags .topic-tag")
+  ).map(el => formatTopicName(el.dataset.value));
 
   q.topics = topics;
+
+
+  // =====================================
+  // CAPTURE CURRENT AFFAIRS (ADD HERE)
+  // =====================================
+  const isCA = document.getElementById("caToggle")?.checked;
+
+  if (isCA) {
+    q.ca_event = {
+      type: document.getElementById("caEventInput")?.value?.trim() || null,
+      date: document.getElementById("caDateInput")?.value?.trim() || null
+    };
+  } else {
+    q.ca_event = null;
+  }
+
 
   try {
     const res = await saveQuestionToBank(q);
@@ -2186,7 +2237,7 @@ document.getElementById("confirmAddToBank")
 
       setStatus("Duplicate detected. Choose an action.");
 
-      return; // panel stays open → scroll should remain locked
+      return;
     }
 
     // --------------------------------
@@ -2196,9 +2247,8 @@ document.getElementById("confirmAddToBank")
 
     renderDraft(currentDraft);
 
-    // ✅ CLOSE PANEL + UNLOCK SCROLL
     document.getElementById("addToBankPanel").classList.add("hidden");
-    document.body.style.overflow = ""; // 🔥 CRITICAL FIX
+    document.body.style.overflow = "";
 
     setStatus("Question saved to bank ✅");
 

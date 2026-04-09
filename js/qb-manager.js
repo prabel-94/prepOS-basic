@@ -14,10 +14,11 @@ let selectedQuestionId = null;
 const state = {
   questions: [],
   topics: [],
-  view: "topics",  
+  view: "topics",
   search: "",
   topicFilter: null,
-  topicSearch: ""
+  topicSearch: "",
+  caFilter: "all"
 };
 
 // --------------------------------
@@ -384,6 +385,23 @@ function renderQuestions() {
 
   let list = [...state.questions];
 
+  if (state.caFilter !== "all") {
+  list = list.filter(q => {
+
+    const meta = {};
+    (q.question_metadata || []).forEach(m => {
+      meta[m.key] = m.value;
+    });
+
+    const isCA = !!meta.ca_event;
+
+    if (state.caFilter === "ca") return isCA;
+    if (state.caFilter === "static") return !isCA;
+
+    return true;
+  });
+}
+
   if (state.search) {
     list = list.filter(q =>
       q.question_text.toLowerCase().includes(state.search.toLowerCase())
@@ -414,6 +432,11 @@ const meta = {};
 const difficulty = meta.difficulty_label || "not-set";
 
 const pattern = meta.pattern || q.primary_pattern_key || null;// 🔥 EXTRACT PATTERN 
+const caEvent = meta.ca_event || null;
+const caDate = meta.ca_date || null;
+const caBadge = caEvent
+  ? `<div class="ca-badge">CA${caDate ? " • " + caDate : ""}</div>`
+  : "";
     const topicsHTML = (q.question_topics || [])
       .map(qt => `<div class="topic-tag">${qt.topics.name}</div>`)
       .join("");
@@ -450,6 +473,7 @@ const pattern = meta.pattern || q.primary_pattern_key || null;// 🔥 EXTRACT PA
     data-id="${q.id}">
     ${pattern || "PATTERN"}
   </div>
+  ${caBadge}
 
 </div>
 
@@ -947,6 +971,14 @@ if (patternBadge) {
     state.topicFilter = e.target.value || null;
     renderQuestions();
   });
+  
+  document.getElementById("ca-filter")
+?.addEventListener("change", e => {
+
+  state.caFilter = e.target.value;
+  renderQuestions();
+
+});
 
   document.getElementById("view-questions")
     .addEventListener("click", () => {
