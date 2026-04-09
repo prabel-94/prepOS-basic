@@ -37,6 +37,7 @@ const el = {
 };
 
 let patternDefinitions = [];
+let caDefinitions = [];
 
 async function loadPatternDefinitions() {
   const { data, error } = await sb
@@ -54,6 +55,22 @@ async function loadPatternDefinitions() {
 async function fetchPatterns() {
   await loadPatternDefinitions();
   renderPatternManager();
+}
+
+async function loadCADefinitions() {
+
+  const { data, error } = await sb
+    .from("metadata_definitions")
+    .select("key, description")
+    .eq("slot", "ca_event")
+    .order("key", { ascending: true });
+
+  if (error) {
+    console.error("CA load error", error);
+    return;
+  }
+
+  caDefinitions = data || [];
 }
 
 function renderPatternManager() {
@@ -80,6 +97,65 @@ function renderPatternManager() {
     </div>
   `).join("");
 }
+
+function renderCAManager() {
+
+  const container = document.getElementById("caList");
+
+  container.innerHTML = caDefinitions.map(p => `
+    <div class="pattern-row">
+
+      <div class="pattern-key">${p.key}</div>
+
+      <input 
+        class="ca-desc-input"
+        data-key="${p.key}"
+        value="${p.description || ""}"
+      />
+
+      <button 
+        class="delete-ca-btn"
+        data-key="${p.key}">
+        🗑
+      </button>
+
+    </div>
+  `).join("");
+
+}
+
+async function createCA() {
+
+  const key = document
+    .getElementById("newCAKey")
+    .value
+    .trim();
+
+  const description = document
+    .getElementById("newCADesc")
+    .value
+    .trim();
+
+  if (!key) {
+    alert("Event key required");
+    return;
+  }
+
+  await sb
+    .from("metadata_definitions")
+    .insert({
+      key,
+      description,
+      slot: "ca_event"
+    });
+
+  document.getElementById("newCAKey").value = "";
+  document.getElementById("newCADesc").value = "";
+
+  await loadCADefinitions();
+  renderCAManager();
+}
+
 async function createPattern() {
 
   const key = document
@@ -848,6 +924,54 @@ document.getElementById("closePatternManager")
 document.getElementById("addPatternBtn")
 ?.addEventListener("click", createPattern);
 
+document.getElementById("openCAManager")
+?.addEventListener("click", async () => {
+
+  document
+    .getElementById("caManagerPanel")
+    .classList.remove("hidden");
+
+  document.body.style.overflow = "hidden";
+
+  await loadCADefinitions();
+  renderCAManager();
+
+});
+
+document.getElementById("closeCAManager")
+?.addEventListener("click", () => {
+
+  document
+    .getElementById("caManagerPanel")
+    .classList.add("hidden");
+
+  document.body.style.overflow = "";
+
+});
+
+document.getElementById("addCABtn")
+?.addEventListener("click", createCA);
+
+document.getElementById("caList")
+?.addEventListener("click", async (e) => {
+
+  if (!e.target.classList.contains("delete-ca-btn")) return;
+
+  const key = e.target.dataset.key;
+
+  if (!confirm("Delete CA event?")) return;
+
+  await sb
+    .from("metadata_definitions")
+    .delete()
+    .eq("key", key)
+    .eq("slot", "ca_event");
+
+  await loadCADefinitions();
+  renderCAManager();
+
+});
+
   document.getElementById("patternDropdown")
 ?.addEventListener("click", (e) => {
 
@@ -971,7 +1095,7 @@ if (patternBadge) {
     state.topicFilter = e.target.value || null;
     renderQuestions();
   });
-  
+
   document.getElementById("ca-filter")
 ?.addEventListener("change", e => {
 

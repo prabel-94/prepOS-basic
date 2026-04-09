@@ -106,6 +106,10 @@
   Patterns
 </button>
 
+<button id="openCAManager" class="secondary-btn">
+  CA Events
+</button>
+
   </div>
 
   <!-- =========================
@@ -245,6 +249,37 @@ METADATA PANEL
 
   </div>
 
+</div>
+
+<div id="caManagerPanel" class="question-bank-panel hidden">
+  <div class="panel-header">
+    <b>CA Event Manager</b>
+    <button id="closeCAManager">✕</button>
+  </div>
+
+  <div class="panel-body">
+
+    <div class="flex gap-10">
+      <input 
+        id="newCAKey"
+        placeholder="Event key"
+      />
+
+      <input 
+        id="newCADesc"
+        placeholder="Description"
+      />
+
+      <button 
+        id="addCABtn"
+        class="primary-btn">
+        Add
+      </button>
+    </div>
+
+    <div id="caList" class="mt-20"></div>
+
+  </div>
 </div>
 <!-- =========================
      SCRIPTS
