@@ -16,7 +16,8 @@ const state = {
   topics: [],
   view: "topics",  
   search: "",
-  topicFilter: null
+  topicFilter: null,
+  topicSearch: ""
 };
 
 // --------------------------------
@@ -444,15 +445,36 @@ const pattern = meta.pattern || q.primary_pattern_key || null;// 🔥 EXTRACT PA
 // --------------------------------
 function renderTopics() {
 
-  if (!state.topics.length) {
+  // -----------------------------
+  // FILTER LIST
+  // -----------------------------
+  let list = [...state.topics];
+
+  if (state.topicSearch) {
+    list = list.filter(t =>
+      t.name
+        .toLowerCase()
+        .includes(state.topicSearch.toLowerCase())
+    );
+  }
+  
+ list.sort((a, b) => b.count - a.count);
+  // -----------------------------
+  // EMPTY STATE
+  // -----------------------------
+  if (!list.length) {
     el.topicsView.innerHTML =
-      `<div class="empty-state">No topics</div>`;
+      `<div class="empty-state">No topics found</div>`;
     return;
   }
 
-  el.topicsView.innerHTML = state.topics.map(t => {
+  // -----------------------------
+  // RENDER
+  // -----------------------------
+  el.topicsView.innerHTML = list.map(t => {
 
     const weak = t.count < 5 ? "warning" : "";
+    const disableDelete = t.count > 0 ? "disabled" : "";
 
     return `
       <div class="question-card ${weak}">
@@ -479,7 +501,8 @@ function renderTopics() {
 
             <button 
               class="icon-btn delete-topic"
-              data-id="${t.id}">
+              data-id="${t.id}"
+              ${disableDelete}>
               🗑
             </button>
 
@@ -666,6 +689,15 @@ function handleEdit(id) {
 // EVENTS
 // --------------------------------
 function bindEvents() {
+
+  document
+    .getElementById("topic-search")
+    ?.addEventListener("input", e => {
+
+      state.topicSearch = e.target.value;
+      renderTopics();
+
+    });
 
 document.getElementById("patternList")
 ?.addEventListener("input", async (e) => {
