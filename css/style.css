@@ -880,3 +880,41 @@ MOBILE
 }
 
 }
+
+/* ======================================================
+TOPIC AUTOCOMPLETE DROPDOWN
+====================================================== */
+
+.topic-dropdown{
+  position:absolute;
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:8px;
+  box-shadow:var(--shadow);
+
+  width:100%;
+  max-height:200px;
+  overflow-y:auto;
+
+  z-index:2000;
+}
+
+.topic-option{
+  padding:8px 10px;
+  cursor:pointer;
+  font-size:14px;
+  border-bottom:1px solid var(--border);
+}
+
+.topic-option:last-child{
+  border-bottom:none;
+}
+
+.topic-option:hover{
+  background:#f8fbff;
+}
+
+.topic-option.create-new{
+  font-weight:600;
+  color:var(--primary);
+}
