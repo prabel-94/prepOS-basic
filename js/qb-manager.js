@@ -110,28 +110,35 @@ async function createPattern() {
   await fetchPatterns();
 }
 
-function renderPatternDropdown(query = "") {
+async function renderPatternDropdown(query = "", topicIds = []) {
 
-  const q = query.toLowerCase();
+  let patterns = [];
 
-  const filtered = patternDefinitions
-    .filter(p => p.key.toLowerCase().includes(q))
-    .sort((a,b) => a.key.localeCompare(b.key));
+  if (topicIds.length) {
+    // 🔥 topic-filtered patterns
+    patterns = await getPatternsByTopics(topicIds, query);
+  } else {
+    // fallback to global
+    patterns = patternDefinitions
+      .map(p => p.key)
+      .filter(k =>
+        k.toLowerCase().includes(query.toLowerCase())
+      );
+  }
 
   const dropdown = document.getElementById("patternDropdown");
 
-  if (!filtered.length) {
+  if (!patterns.length) {
     dropdown.innerHTML = `<div class="pattern-empty">No match</div>`;
     return;
   }
 
-  dropdown.innerHTML = filtered.map(p => `
+  dropdown.innerHTML = patterns.map(p => `
     <div 
       class="pattern-option"
-      data-key="${p.key}"
-      title="${p.description || ""}"
+      data-key="${p}"
     >
-      ${p.key}
+      ${p}
     </div>
   `).join("");
 }
@@ -237,6 +244,35 @@ async function replaceQuestionMetadata(questionId, difficulty) {
 
   await sb.from("question_metadata").insert(rows);
 }
+
+async function getPatternsByTopics(topicIds, query = "") {
+
+  if (!topicIds.length) return [];
+
+  const { data, error } = await sb
+    .from("topic_patterns")
+    .select(`
+      pattern_key,
+      topic_id
+    `)
+    .in("topic_id", topicIds);
+
+  if (error) {
+    console.error("Pattern fetch error", error);
+    return [];
+  }
+
+  // unique keys
+  const unique = [...new Set(data.map(d => d.pattern_key))];
+
+  // filter by query
+  return unique
+    .filter(p =>
+      p.toLowerCase().includes(query.toLowerCase())
+    )
+    .sort();
+}
+
 // --------------------------------
 // FETCH
 // --------------------------------
@@ -457,7 +493,7 @@ function renderTopics() {
         .includes(state.topicSearch.toLowerCase())
     );
   }
-  
+
  list.sort((a, b) => b.count - a.count);
   // -----------------------------
   // EMPTY STATE
@@ -789,7 +825,10 @@ document.getElementById("addPatternBtn")
     return;
   }
 
-  renderPatternDropdown(value);
+  renderPatternDropdown(
+  value,
+  window.currentPatternTopicIds || []
+);
 
 });
 
@@ -813,8 +852,8 @@ el.questionsView.addEventListener("click", (e) => {
     const id = badge.dataset.id;
     selectedQuestionId = id;
 
-    const q = state.questions.find(q => q.id === id);
-
+    const topicIds = (q.question_topics || [])
+  .map(t => t.topic_id);
     document.getElementById("metadataPanel").classList.remove("hidden");
     document.body.style.overflow = "hidden";
 
@@ -825,31 +864,38 @@ el.questionsView.addEventListener("click", (e) => {
 
   // 🔥 PATTERN CLICK (ADD THIS)
   const patternBadge = e.target.closest(".pattern-badge");
-  if (patternBadge) {
+if (patternBadge) {
 
-    const id = patternBadge.dataset.id;
-    selectedQuestionId = id;
+  const id = patternBadge.dataset.id;
+  selectedQuestionId = id;
 
-    const q = state.questions.find(q => q.id === id);
+  const q = state.questions.find(q => q.id === id);
 
-    document.getElementById("patternPanel").classList.remove("hidden");
-    document.body.style.overflow = "hidden";
+  const topicIds = (q.question_topics || [])
+    .map(t => t.topic_id);
 
-    document.getElementById("patternQuestionPreview").innerText =
-      q.question_text;
+  document.getElementById("patternPanel").classList.remove("hidden");
+  document.body.style.overflow = "hidden";
 
-    const meta = {};
-(q.question_metadata || []).forEach(m => {
-  meta[m.key] = m.value;
-});
+  document.getElementById("patternQuestionPreview").innerText =
+    q.question_text;
 
-document.getElementById("patternInput").value =
-  meta.pattern || q.primary_pattern_key || "";
+  const meta = {};
+  (q.question_metadata || []).forEach(m => {
+    meta[m.key] = m.value;
+  });
 
-    return;
-  }
+  document.getElementById("patternInput").value =
+    meta.pattern || q.primary_pattern_key || "";
 
-  
+  // 🔥 IMPORTANT
+  renderPatternDropdown("", topicIds);
+
+  // store for later use
+  window.currentPatternTopicIds = topicIds;
+
+  return;
+}
 
   // 🔥 DELETE
   if (e.target.classList.contains("delete-btn")) {
