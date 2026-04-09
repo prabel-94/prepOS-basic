@@ -32,6 +32,7 @@ const mode = params.get("mode");
 // --------------------------------
 
 let patternDefinitions = [];
+let caEventDefinitions = [];
 
 function renderPatternDropdown(container, query) {
 
@@ -56,6 +57,28 @@ function renderPatternDropdown(container, query) {
   `).join("");
 }
 
+function renderCAEventDropdown(container, query) {
+
+  const q = query.toLowerCase();
+
+  const filtered = caEventDefinitions
+    .filter(p => p.key.toLowerCase().includes(q))
+    .sort((a,b)=>a.key.localeCompare(b.key));
+
+  if (!filtered.length) {
+    container.innerHTML =
+      `<div class="pattern-empty">No match</div>`;
+    return;
+  }
+
+  container.innerHTML = filtered.map(p => `
+    <div class="pattern-option"
+         data-key="${p.key}">
+      ${p.key}
+    </div>
+  `).join("");
+}
+
 async function loadPatternDefinitions() {
 
   const { data, error } = await sb
@@ -70,7 +93,21 @@ async function loadPatternDefinitions() {
 
   patternDefinitions = data || [];
 }
+async function loadCAEventDefinitions() {
 
+  const { data, error } = await sb
+    .from("metadata_definitions")
+    .select("key, description")
+    .eq("slot", "ca_event")
+    .order("key", { ascending: true });
+
+  if (error) {
+    console.error("CA event load error", error);
+    return;
+  }
+
+  caEventDefinitions = data || [];
+}
 function ensureMetadata(q) {
   if (!q.meta_structured) {
     q.meta_structured = {
@@ -1714,6 +1751,7 @@ async function uploadLogo(file) {
 async function init() {
 
   await loadPatternDefinitions();
+await loadCAEventDefinitions();
 
 document.getElementById("metadataContent")
   ?.addEventListener("click", async (e) => {
@@ -2081,6 +2119,44 @@ document.getElementById("caToggle")
   document
     .getElementById("caFields")
     ?.classList.toggle("hidden", !e.target.checked);
+
+});
+
+document.getElementById("caEventInput")
+?.addEventListener("input", (e)=>{
+
+  const dropdown =
+    document.getElementById("caEventDropdown");
+
+  renderCAEventDropdown(dropdown, e.target.value);
+
+  dropdown.classList.remove("hidden");
+
+});
+document.getElementById("caEventDropdown")
+?.addEventListener("click", (e)=>{
+
+  if (!e.target.classList.contains("pattern-option"))
+    return;
+
+  document.getElementById("caEventInput").value =
+    e.target.dataset.key;
+
+  document
+    .getElementById("caEventDropdown")
+    .classList.add("hidden");
+
+});
+
+document.getElementById("caEventInput")
+?.addEventListener("focus", ()=>{
+
+  const dropdown =
+    document.getElementById("caEventDropdown");
+
+  renderCAEventDropdown(dropdown, "");
+
+  dropdown.classList.remove("hidden");
 
 });
 
