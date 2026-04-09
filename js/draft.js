@@ -1933,38 +1933,114 @@ q.bank_status = "saved";
 
 });
 
- function setupTopicInput(inputId, tagsId, warningsId) {
+function setupTopicInput(inputId, tagsId, warningsId) {
+
   const input = document.getElementById(inputId);
   const container = document.getElementById(tagsId);
 
   if (!input || !container) return;
 
-  function process() {
-  const value = input.value.trim();
-  if (!value) return;
+  // create dropdown
+  const dropdown = document.createElement("div");
+  dropdown.className = "topic-dropdown hidden";
+  input.parentNode.appendChild(dropdown);
 
-  createTopicTag(container, value);
+  // ------------------------
+  // INPUT SEARCH
+  // ------------------------
+  input.addEventListener("input", async (e) => {
 
-  input.value = "";
-  renderTopicWarnings([], warningsId);
-  updateConfirmState(); // 🔥 ADD THIS
-}
+    const query = e.target.value.trim();
 
-  // ENTER
-  input.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      process();
+    renderTopicWarnings(
+      getTopicWarnings(query),
+      warningsId
+    );
+
+    if (!query) {
+      dropdown.classList.add("hidden");
+      return;
     }
+
+    const topics = await searchTopicsForDropdown(query);
+
+    const normalizedQuery = query.toLowerCase();
+
+    const exactMatch = topics.some(
+      t => t.name.toLowerCase() === normalizedQuery
+    );
+
+    let html = "";
+
+    // existing topics
+    html += topics.map(t => `
+      <div class="topic-option" data-value="${t.name}">
+        ${t.name}
+      </div>
+    `).join("");
+
+    // create new
+    if (!exactMatch) {
+      html += `
+        <div class="topic-option create-new" data-value="${query}">
+          + Create "${formatTopicName(query)}"
+        </div>
+      `;
+    }
+
+    dropdown.innerHTML = html;
+    dropdown.classList.remove("hidden");
+
   });
 
-  // BLUR
-  input.addEventListener("blur", process);
+  // ------------------------
+  // SELECT
+  // ------------------------
+  dropdown.addEventListener("click", (e) => {
 
-  // WARNINGS
-  input.addEventListener("input", (e) => {
-    renderTopicWarnings(getTopicWarnings(e.target.value), warningsId);
+    const option = e.target.closest(".topic-option");
+    if (!option) return;
+
+    const value = option.dataset.value;
+
+    createTopicTag(container, value);
+
+    input.value = "";
+    dropdown.classList.add("hidden");
+
+    updateConfirmState();
   });
+
+  // ------------------------
+  // ENTER fallback
+  // ------------------------
+  input.addEventListener("keydown", (e) => {
+
+    if (e.key !== "Enter") return;
+
+    e.preventDefault();
+
+    const value = input.value.trim();
+    if (!value) return;
+
+    createTopicTag(container, value);
+
+    input.value = "";
+    dropdown.classList.add("hidden");
+
+  });
+
+  // ------------------------
+  // CLOSE ON OUTSIDE
+  // ------------------------
+  document.addEventListener("click", (e) => {
+
+    if (!dropdown.contains(e.target) && e.target !== input) {
+      dropdown.classList.add("hidden");
+    }
+
+  });
+
 }
 
 // --------------------------------
