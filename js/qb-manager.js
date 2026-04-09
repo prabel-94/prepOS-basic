@@ -443,6 +443,7 @@ const pattern = meta.pattern || q.primary_pattern_key || null;// 🔥 EXTRACT PA
 // TOPICS VIEW
 // --------------------------------
 function renderTopics() {
+
   if (!state.topics.length) {
     el.topicsView.innerHTML =
       `<div class="empty-state">No topics</div>`;
@@ -450,21 +451,154 @@ function renderTopics() {
   }
 
   el.topicsView.innerHTML = state.topics.map(t => {
+
     const weak = t.count < 5 ? "warning" : "";
 
     return `
       <div class="question-card ${weak}">
-        <div class="q-title">
-  ${t.name} (${t.count})
-</div>
-       <button class="secondary-btn mt-10 view-topic-btn" data-id="${t.id}">
+
+        <div class="q-header">
+          <div class="q-title">
+            ${t.name} (${t.count})
+          </div>
+
+          <div class="question-actions">
+
+            <button 
+              class="icon-btn rename-topic"
+              data-id="${t.id}"
+              data-name="${t.name}">
+              ✏️
+            </button>
+
+            <button 
+              class="icon-btn merge-topic"
+              data-id="${t.id}">
+              🔀
+            </button>
+
+            <button 
+              class="icon-btn delete-topic"
+              data-id="${t.id}">
+              🗑
+            </button>
+
+          </div>
+        </div>
+
+        <button 
+          class="secondary-btn mt-10 view-topic-btn" 
+          data-id="${t.id}">
           View Questions
         </button>
+
       </div>
     `;
   }).join("");
 }
 
+async function renameTopic(id, oldName) {
+
+  const newName = prompt("Rename topic:", oldName);
+
+  if (!newName || newName === oldName) return;
+
+  const normalized = newName.trim().toLowerCase();
+
+  await sb
+    .from("topics")
+    .update({
+      name: newName,
+      normalized_name: normalized
+    })
+    .eq("id", id);
+
+  await fetchTopics();
+  await fetchQuestions();
+}
+
+async function mergeTopic(sourceId) {
+
+  const targetName = prompt("Merge into topic:");
+
+  if (!targetName) return;
+
+  const normalized = targetName.trim().toLowerCase();
+
+  // get or create target
+  let { data: target } = await sb
+    .from("topics")
+    .select("id")
+    .eq("normalized_name", normalized)
+    .maybeSingle();
+
+  if (!target) {
+    const { data } = await sb
+      .from("topics")
+      .insert({
+        name: targetName,
+        normalized_name: normalized
+      })
+      .select()
+      .single();
+
+    target = data;
+  }
+
+  const targetId = target.id;
+
+  // ----------------------------
+  // MOVE QUESTION LINKS
+  // ----------------------------
+  await sb
+    .from("question_topics")
+    .update({ topic_id: targetId })
+    .eq("topic_id", sourceId);
+
+  // ----------------------------
+  // MOVE PATTERN LINKS
+  // ----------------------------
+  await sb
+    .from("topic_patterns")
+    .update({ topic_id: targetId })
+    .eq("topic_id", sourceId);
+
+  // ----------------------------
+  // DELETE SOURCE
+  // ----------------------------
+  await sb
+    .from("topics")
+    .delete()
+    .eq("id", sourceId);
+
+  await fetchTopics();
+  await fetchQuestions();
+}
+async function deleteTopic(id) {
+
+  if (!confirm("Delete topic? Questions will remain.")) return;
+
+  // remove question mapping
+  await sb
+    .from("question_topics")
+    .delete()
+    .eq("topic_id", id);
+
+  // remove pattern mapping
+  await sb
+    .from("topic_patterns")
+    .delete()
+    .eq("topic_id", id);
+
+  // delete topic
+  await sb
+    .from("topics")
+    .delete()
+    .eq("id", id);
+
+  await fetchTopics();
+  await fetchQuestions();
+}
 // --------------------------------
 // FILTER DROPDOWN
 // --------------------------------
