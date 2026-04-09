@@ -918,3 +918,14 @@ TOPIC AUTOCOMPLETE DROPDOWN
   font-weight:600;
   color:var(--primary);
 }
+/* ======================================================
+CA BADGE 
+====================================================== */
+.ca-badge {
+  background: #fff3cd;
+  color: #856404;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
