@@ -519,13 +519,20 @@ async function renameTopic(id, oldName) {
 
 async function mergeTopic(sourceId) {
 
-  const targetName = prompt("Merge into topic:");
+  const targetName = prompt(
+    "Merge this topic into:\n(Type existing topic name)"
+  );
 
   if (!targetName) return;
 
+  const confirmMerge = confirm(
+    `Merge into "${targetName}"?\n\nAll questions will be moved.`
+  );
+
+  if (!confirmMerge) return;
+
   const normalized = targetName.trim().toLowerCase();
 
-  // get or create target
   let { data: target } = await sb
     .from("topics")
     .select("id")
@@ -533,6 +540,7 @@ async function mergeTopic(sourceId) {
     .maybeSingle();
 
   if (!target) {
+
     const { data } = await sb
       .from("topics")
       .insert({
@@ -547,25 +555,16 @@ async function mergeTopic(sourceId) {
 
   const targetId = target.id;
 
-  // ----------------------------
-  // MOVE QUESTION LINKS
-  // ----------------------------
   await sb
     .from("question_topics")
     .update({ topic_id: targetId })
     .eq("topic_id", sourceId);
 
-  // ----------------------------
-  // MOVE PATTERN LINKS
-  // ----------------------------
   await sb
     .from("topic_patterns")
     .update({ topic_id: targetId })
     .eq("topic_id", sourceId);
 
-  // ----------------------------
-  // DELETE SOURCE
-  // ----------------------------
   await sb
     .from("topics")
     .delete()
@@ -574,30 +573,60 @@ async function mergeTopic(sourceId) {
   await fetchTopics();
   await fetchQuestions();
 }
+
 async function deleteTopic(id) {
 
-  if (!confirm("Delete topic? Questions will remain.")) return;
-
-  // remove question mapping
-  await sb
+  // --------------------------------
+  // CHECK IF QUESTIONS EXIST
+  // --------------------------------
+  const { count, error } = await sb
     .from("question_topics")
-    .delete()
+    .select("*", { count: "exact", head: true })
     .eq("topic_id", id);
 
-  // remove pattern mapping
+  if (error) {
+    alert("Failed to check topic usage");
+    return;
+  }
+
+  // --------------------------------
+  // BLOCK DELETE
+  // --------------------------------
+  if (count > 0) {
+    alert(
+      "Cannot delete topic.\n\n" +
+      "This topic has " + count + " questions.\n" +
+      "Merge or reassign questions first."
+    );
+    return;
+  }
+
+  // --------------------------------
+  // CONFIRM DELETE
+  // --------------------------------
+  const ok = confirm(
+    "Delete empty topic?\n\nThis cannot be undone."
+  );
+
+  if (!ok) return;
+
+  // --------------------------------
+  // DELETE PATTERN LINKS
+  // --------------------------------
   await sb
     .from("topic_patterns")
     .delete()
     .eq("topic_id", id);
 
-  // delete topic
+  // --------------------------------
+  // DELETE TOPIC
+  // --------------------------------
   await sb
     .from("topics")
     .delete()
     .eq("id", id);
 
   await fetchTopics();
-  await fetchQuestions();
 }
 // --------------------------------
 // FILTER DROPDOWN
@@ -826,14 +855,30 @@ document.getElementById("patternInput").value =
       render();
     });
 
-  el.topicsView.addEventListener("click", e => {
+el.topicsView.addEventListener("click", async (e) => {
 
-    if (e.target.classList.contains("view-topic-btn")) {
-      state.topicFilter = e.target.dataset.id;
-      state.view = "questions";
-      render();
-    }
-  });
+  const renameBtn = e.target.closest(".rename-topic");
+  if (renameBtn) {
+    renameTopic(
+      renameBtn.dataset.id,
+      renameBtn.dataset.name
+    );
+    return;
+  }
+
+  const deleteBtn = e.target.closest(".delete-topic");
+  if (deleteBtn) {
+    deleteTopic(deleteBtn.dataset.id);
+    return;
+  }
+
+  const mergeBtn = e.target.closest(".merge-topic");
+  if (mergeBtn) {
+    mergeTopic(mergeBtn.dataset.id);
+    return;
+  }
+
+});
 
   // 🔥CLOSE METADATA PANEL (EXACT PLACEMENT)
   document.getElementById("closeMetadata")
