@@ -43,6 +43,7 @@ async function loadPatternDefinitions() {
   const { data, error } = await sb
     .from("metadata_definitions")
     .select("key, description")
+    .eq("slot", "pattern")   // 🔥 FIX
     .order("key", { ascending: true });
 
   if (error) {
