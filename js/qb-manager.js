@@ -1079,22 +1079,25 @@ if (caBadge) {
 
   return;
 }
-
   // 🔥 DIFFICULTY CLICK
-  const badge = e.target.closest(".difficulty-badge");
-  if (badge) {
-    const id = badge.dataset.id;
-    selectedQuestionId = id;
+const badge = e.target.closest(".difficulty-badge");
+if (badge) {
 
-    const topicIds = (q.question_topics || [])
-  .map(t => t.topic_id);
-    document.getElementById("metadataPanel").classList.remove("hidden");
-    document.body.style.overflow = "hidden";
+  const id = badge.dataset.id;
+  selectedQuestionId = id;
 
-    document.getElementById("metaQuestionPreview").innerText = q.question_text;
+  const q = state.questions.find(q => q.id === id);
 
-    return; // 🔥 IMPORTANT (stop further handling)
-  }
+  document.getElementById("metadataPanel")
+    .classList.remove("hidden");
+
+  document.body.style.overflow = "hidden";
+
+  document.getElementById("metaQuestionPreview").innerText =
+    q.question_text;
+
+  return;
+}
 
   // 🔥 PATTERN CLICK (ADD THIS)
   const patternBadge = e.target.closest(".pattern-badge");
