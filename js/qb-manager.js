@@ -511,7 +511,11 @@ const pattern = meta.pattern || q.primary_pattern_key || null;// 🔥 EXTRACT PA
 const caEvent = meta.ca_event || null;
 const caDate = meta.ca_date || null;
 const caBadge = caEvent
-  ? `<div class="ca-badge">CA${caDate ? " • " + caDate : ""}</div>`
+  ? `<div 
+       class="ca-badge clickable"
+       data-id="${q.id}">
+       CA${caDate ? " • " + caDate : ""}
+     </div>`
   : "";
     const topicsHTML = (q.question_topics || [])
       .map(qt => `<div class="topic-tag">${qt.topics.name}</div>`)
@@ -848,6 +852,30 @@ function handleEdit(id) {
   console.log("Edit question:", id);
 }
 
+async function replaceCAMetadata(questionId, event, date) {
+
+  await sb
+    .from("question_metadata")
+    .delete()
+    .eq("question_id", questionId)
+    .in("key", ["ca_event","ca_date"]);
+
+  if (!event) return;
+
+  await sb.from("question_metadata").insert([
+    {
+      question_id: questionId,
+      key: "ca_event",
+      value: event
+    },
+    {
+      question_id: questionId,
+      key: "ca_date",
+      value: date
+    }
+  ]);
+}
+
 // --------------------------------
 // EVENTS
 // --------------------------------
@@ -1020,6 +1048,37 @@ document.getElementById("caList")
 });
 // CLICK DIFFICULTY BADGE
 el.questionsView.addEventListener("click", (e) => {
+
+  // 🔥 CA CLICK
+const caBadge = e.target.closest(".ca-badge");
+if (caBadge) {
+
+  const id = caBadge.dataset.id;
+  selectedQuestionId = id;
+
+  const q = state.questions.find(q => q.id === id);
+
+  const meta = {};
+  (q.question_metadata || []).forEach(m => {
+    meta[m.key] = m.value;
+  });
+
+  document.getElementById("caPanel")
+    .classList.remove("hidden");
+
+  document.body.style.overflow = "hidden";
+
+  document.getElementById("caQuestionPreview").innerText =
+    q.question_text;
+
+  document.getElementById("caEventEdit").value =
+    meta.ca_event || "";
+
+  document.getElementById("caDateEdit").value =
+    meta.ca_date || "";
+
+  return;
+}
 
   // 🔥 DIFFICULTY CLICK
   const badge = e.target.closest(".difficulty-badge");
@@ -1210,6 +1269,43 @@ if (!selectedQuestionId) {
   await fetchQuestions();
 
 });
+
+document.getElementById("saveCABtn")
+?.addEventListener("click", async () => {
+
+  if (!selectedQuestionId) return;
+
+  const event =
+    document.getElementById("caEventEdit").value.trim();
+
+  const date =
+    document.getElementById("caDateEdit").value.trim();
+
+  await replaceCAMetadata(
+    selectedQuestionId,
+    event,
+    date
+  );
+
+  document.getElementById("caPanel")
+    .classList.add("hidden");
+
+  document.body.style.overflow = "";
+
+  await fetchQuestions();
+
+});
+
+document.getElementById("closeCA")
+?.addEventListener("click", () => {
+
+  document.getElementById("caPanel")
+    .classList.add("hidden");
+
+  document.body.style.overflow = "";
+
+});
+
 document.getElementById("savePatternBtn")
   ?.addEventListener("click", async () => {
 
