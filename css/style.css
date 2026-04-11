@@ -929,3 +929,32 @@ CA BADGE
   font-size: 12px;
   font-weight: 600;
 }
+
+/* ======================================================
+Explanation Toggle & Block 
+====================================================== */
+.explanation-toggle{
+  margin-top:10px;
+  font-size:13px;
+  color:#2563eb;
+  cursor:pointer;
+  font-weight:600;
+}
+
+.explanation-toggle:hover{
+  text-decoration:underline;
+}
+
+.explanation-block{
+  margin-top:10px;
+  padding:10px;
+  border-left:3px solid #2563eb;
+  background:#f9fafb;
+  border-radius:6px;
+}
+
+.explanation-input{
+  width:100%;
+  min-height:80px;
+  resize:vertical;
+}

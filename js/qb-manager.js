@@ -579,9 +579,32 @@ const caBadge = caEvent
           ${optionsHTML}
         </div>
 
-        <div class="topic-tags mt-10">
-          ${topicsHTML}
-        </div>
+<div class="topic-tags mt-10">
+  ${topicsHTML}
+</div>
+
+${q.explanation ? `
+  <div class="explanation-toggle clickable" data-id="${q.id}">
+    Show Explanation
+  </div>
+` : `
+  <div class="explanation-toggle clickable" data-id="${q.id}">
+    Add Explanation
+  </div>
+`}
+
+<div class="explanation-block hidden" id="exp-${q.id}">
+  <textarea 
+    class="explanation-input"
+    data-id="${q.id}"
+  >${q.explanation || ""}</textarea>
+
+  <button 
+    class="primary-btn save-explanation"
+    data-id="${q.id}">
+    Save Explanation
+  </button>
+</div>
 
       </div>
     `;
@@ -1138,6 +1161,46 @@ if (patternBadge) {
 
   // store for later use
   window.currentPatternTopicIds = topicIds;
+
+  return;
+}
+// TOGGLE EXPLANATION
+const toggle = e.target.closest(".explanation-toggle");
+if (toggle) {
+
+  const id = toggle.dataset.id;
+  const block = document.getElementById(`exp-${id}`);
+
+  block.classList.toggle("hidden");
+
+  toggle.innerText =
+    block.classList.contains("hidden")
+      ? "Show Explanation"
+      : "Hide Explanation";
+
+  return;
+}
+
+// SAVE EXPLANATION
+const saveExp = e.target.closest(".save-explanation");
+if (saveExp) {
+
+  const id = saveExp.dataset.id;
+
+  const textarea = document.querySelector(
+    `.explanation-input[data-id="${id}"]`
+  );
+
+  const value = textarea.value.trim();
+
+  await sb
+    .from("questions")
+    .update({
+      explanation: value || null
+    })
+    .eq("id", id);
+
+  await fetchQuestions();
 
   return;
 }
