@@ -475,8 +475,24 @@ DIFFICULTY SYSTEM
   background: var(--success-bg);
   border-color: var(--success);
 }
+/* ======================================================
+PATTERN SYSTEM
+====================================================== */
+.pattern-badge {
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: #eef4ff;
+  color: #3b5bdb;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid #dbe4ff;
+  transition: all 0.15s ease;
+}
 
-
+.pattern-badge:hover {
+  background: #e0e7ff;
+}
 /* ======================================================
 EMPTY STATE
 ====================================================== */
@@ -863,4 +879,53 @@ MOBILE
   transform:translateX(0);
 }
 
+}
+
+/* ======================================================
+TOPIC AUTOCOMPLETE DROPDOWN
+====================================================== */
+
+.topic-dropdown{
+  position:absolute;
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:8px;
+  box-shadow:var(--shadow);
+
+  width:100%;
+  max-height:200px;
+  overflow-y:auto;
+
+  z-index:2000;
+}
+
+.topic-option{
+  padding:8px 10px;
+  cursor:pointer;
+  font-size:14px;
+  border-bottom:1px solid var(--border);
+}
+
+.topic-option:last-child{
+  border-bottom:none;
+}
+
+.topic-option:hover{
+  background:#f8fbff;
+}
+
+.topic-option.create-new{
+  font-weight:600;
+  color:var(--primary);
+}
+/* ======================================================
+CA BADGE 
+====================================================== */
+.ca-badge {
+  background: #fff3cd;
+  color: #856404;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
 }

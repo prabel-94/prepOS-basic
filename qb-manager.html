@@ -78,15 +78,37 @@
         placeholder="Search questions..." 
         class="w-full" 
       />
+      <input 
+  id="topic-search" 
+  placeholder="Search topics..." 
+  class="w-full"
+/>
 
+
+      <label for="topic-filter">Filter by Topic:</label>
       <select id="topic-filter"></select>
+      <label for="ca-filter">Type:</label>
+<select id="ca-filter">
+  <option value="all">All</option>
+  <option value="ca">Current Affairs</option>
+  <option value="static">Static</option>
+</select>
     </div>
+
+    
 
     <!-- VIEW TOGGLE -->
     <div class="flex gap-10">
       <button id="view-questions" class="primary-btn">Questions</button>
       <button id="view-topics" class="secondary-btn">Topics</button>
     </div>
+    <button id="openPatternManager" class="secondary-btn">
+  Patterns
+</button>
+
+<button id="openCAManager" class="secondary-btn">
+  CA Events
+</button>
 
   </div>
 
@@ -157,11 +179,137 @@ METADATA PANEL
     <button id="saveMetadataBtn" class="primary-btn w-full mt-20">
       Save Difficulty
     </button>
+    
+  </div>
+
+</aside>
+
+<aside class="question-bank-panel hidden" id="patternPanel">
+
+  <div class="qb-header">
+    <button id="closePattern">← Back</button>
+    <h3>Edit Pattern</h3>
+  </div>
+
+  <div class="mt-20">
+
+    <div id="patternQuestionPreview" class="question-card small"></div>
+
+    <div class="mt-20">
+  <b>Pattern</b>
+
+  <div class="pattern-box">
+    <input
+      id="patternInput"
+      class="w-full mt-10"
+      placeholder="Enter pattern (optional)"
+      autocomplete="off"
+    />
+
+    <div id="patternDropdown" class="pattern-dropdown hidden"></div>
+  </div>
+
+</div>
+
+    <button id="savePatternBtn" class="primary-btn w-full mt-20">
+      Save Pattern
+    </button>
 
   </div>
 
 </aside>
 
+<aside class="question-bank-panel hidden" id="caPanel">
+
+  <div class="qb-header">
+    <button id="closeCA">← Back</button>
+    <h3>Edit Current Affair</h3>
+  </div>
+
+  <div class="mt-20">
+
+    <div id="caQuestionPreview" class="question-card small"></div>
+
+    <div class="mt-20">
+      <b>Event</b>
+      <input id="caEventEdit" class="w-full mt-10" />
+    </div>
+
+    <div class="mt-20">
+      <b>Date</b>
+      <input id="caDateEdit" class="w-full mt-10" />
+    </div>
+
+    <button id="saveCABtn" class="primary-btn w-full mt-20">
+      Save CA
+    </button>
+
+  </div>
+
+</aside>
+
+<div id="patternManagerPanel" class="question-bank-panel hidden">
+  <div class="panel-header">
+    <b>Pattern Manager</b>
+    <button id="closePatternManager">✕</button>
+  </div>
+
+  <div class="panel-body">
+
+    <div class="flex gap-10">
+      <input 
+        id="newPatternKey"
+        placeholder="Pattern key"
+      />
+
+      <input 
+        id="newPatternDesc"
+        placeholder="Description"
+      />
+
+      <button 
+        id="addPatternBtn"
+        class="primary-btn">
+        Add
+      </button>
+    </div>
+
+    <div id="patternList" class="mt-20"></div>
+
+  </div>
+
+</div>
+
+<div id="caManagerPanel" class="question-bank-panel hidden">
+  <div class="panel-header">
+    <b>CA Event Manager</b>
+    <button id="closeCAManager">✕</button>
+  </div>
+
+  <div class="panel-body">
+
+    <div class="flex gap-10">
+      <input 
+        id="newCAKey"
+        placeholder="Event key"
+      />
+
+      <input 
+        id="newCADesc"
+        placeholder="Description"
+      />
+
+      <button 
+        id="addCABtn"
+        class="primary-btn">
+        Add
+      </button>
+    </div>
+
+    <div id="caList" class="mt-20"></div>
+
+  </div>
+</div>
 <!-- =========================
      SCRIPTS
 ========================== -->

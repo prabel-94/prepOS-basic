@@ -27,6 +27,127 @@ const mode = params.get("mode");
 // HELPERS
 // --------------------------------
 
+// --------------------------------
+// METADATA SYSTEM (v2 - COMPAT)
+// --------------------------------
+
+let patternDefinitions = [];
+let caEventDefinitions = [];
+
+function renderPatternDropdown(container, query) {
+
+  const q = query.toLowerCase();
+
+  const filtered = patternDefinitions
+    .filter(p => p.key.toLowerCase().includes(q))
+    .sort((a, b) => a.key.localeCompare(b.key));
+  if (!filtered.length) {
+    container.innerHTML = `<div class="pattern-empty">No match</div>`;
+    return;
+  }
+
+  container.innerHTML = filtered.map(p => `
+    <div 
+      class="pattern-option"
+      data-key="${p.key}"
+      title="${p.description || ""}"
+    >
+      ${p.key}
+    </div>
+  `).join("");
+}
+
+function renderCAEventDropdown(container, query) {
+
+  const q = query.toLowerCase();
+
+  const filtered = caEventDefinitions
+    .filter(p => p.key.toLowerCase().includes(q))
+    .sort((a,b)=>a.key.localeCompare(b.key));
+
+  if (!filtered.length) {
+    container.innerHTML =
+      `<div class="pattern-empty">No match</div>`;
+    return;
+  }
+
+  container.innerHTML = filtered.map(p => `
+    <div class="pattern-option"
+         data-key="${p.key}">
+      ${p.key}
+    </div>
+  `).join("");
+}
+
+async function loadPatternDefinitions() {
+
+  const { data, error } = await sb
+    .from("metadata_definitions")
+    .select("key, description")
+    .order("key", { ascending: true });
+
+  if (error) {
+    console.error("Pattern load error", error);
+    return;
+  }
+
+  patternDefinitions = data || [];
+}
+async function loadCAEventDefinitions() {
+
+  const { data, error } = await sb
+    .from("metadata_definitions")
+    .select("key, description")
+    .eq("slot", "ca_event")
+    .order("key", { ascending: true });
+
+  if (error) {
+    console.error("CA event load error", error);
+    return;
+  }
+
+  caEventDefinitions = data || [];
+}
+function ensureMetadata(q) {
+  if (!q.meta_structured) {
+    q.meta_structured = {
+      cognitive_level: null,
+      complexity: null,
+      depth: null,
+      difficulty_score: null,
+      difficulty_label: null,
+      question_type: "mcq_single"
+    };
+  }
+
+  if (!q.difficulty) {
+    q.difficulty = {};
+  }
+}
+
+function syncMetaToDifficulty(q) {
+  ensureMetadata(q);
+
+  q.difficulty.cognitive_level = q.meta_structured.cognitive_level;
+  q.difficulty.complexity_level = q.meta_structured.complexity;
+  q.difficulty.depth_level = q.meta_structured.depth;
+
+  q.difficulty.score = q.meta_structured.difficulty_score;
+  q.difficulty.label = q.meta_structured.difficulty_label;
+}
+
+function syncDifficultyToMeta(q) {
+  ensureMetadata(q);
+
+  q.meta_structured.cognitive_level = q.difficulty.cognitive_level;
+  q.meta_structured.complexity = q.difficulty.complexity_level;
+  q.meta_structured.depth = q.difficulty.depth_level;
+
+  q.meta_structured.difficulty_score = q.difficulty.score;
+  q.meta_structured.difficulty_label = q.difficulty.label;
+  q.meta_structured.question_type = q.meta_structured.question_type || "mcq_single";// optional (if UI controls type later)
+}
+
 function updateConfirmState() {
   const addBtn = document.getElementById("confirmAddToBank");
   const saveAllBtn = document.getElementById("confirmSaveAll");
@@ -232,6 +353,7 @@ async function addQuestionFromBank(qId, btn) {
     explanation: data.explanation || "",
     topics: [],
     bank_status: "saved",
+    primary_pattern: null, 
 
 // 🔥 ADD THIS BLOCK
   difficulty: {
@@ -240,8 +362,9 @@ async function addQuestionFromBank(qId, btn) {
     depth_level: null,
     score: null,
     label: null
-  }
+  },
   };
+ensureMetadata(newQuestion);
 
   currentDraft.schema_json.sections[0].questions.push(newQuestion);
 
@@ -347,8 +470,9 @@ async function addAllResultsToDraft() {
     depth_level: null,
     score: null,
     label: null
-  }
-    };
+  },
+  };
+ensureMetadata(newQuestion);
 
     currentDraft.schema_json.sections[0].questions.push(newQuestion);
     added++;
@@ -358,6 +482,11 @@ async function addAllResultsToDraft() {
 
   setStatus(`Added ${added}, skipped ${skipped}`);
 }
+
+// --------------------------------
+// PATTERN SYSTEM
+// --------------------------------
+
 // --------------------------------
 // TOPIC SYSTEM
 // --------------------------------
@@ -434,7 +563,8 @@ function addTopicToQuestion(qIndex, topicName) {
 
   if (q.topics.some(t => t.toLowerCase() === normalized)) return;
 
-  q.topics.push(topicName.trim());
+  const formatted = formatTopicName(topicName);
+q.topics.push(formatted);
 
   renderDraft(currentDraft);
 }
@@ -522,7 +652,10 @@ async function saveQuestionToBank(q) {
   }
 
   // ✅ Stable hash input
-  const hashInput = q.text.trim().toLowerCase();
+  const hashInput = (
+  q.text +
+  (q.options || []).map(o => o.text).join("")
+).trim().toLowerCase();
 
   // ✅ MUST await
   const hash = await generateHash(hashInput);
@@ -547,46 +680,78 @@ async function saveQuestionToBank(q) {
       typeof o === "string" ? o : o.text
     );
 
-    const { data, error } = await sb
-      .from("questions")
-      .insert({
-        question_text: q.text,
-        option_a: opts[0] || "",
-        option_b: opts[1] || "",
-        option_c: opts[2] || "",
-        option_d: opts[3] || "",
-        correct_option: ["A","B","C","D"].includes(q.correct)
+      const { data, error } = await sb
+        .from("questions")
+        .insert({
+          question_text: q.text,
+          option_a: opts[0] || "",
+          option_b: opts[1] || "",
+          option_c: opts[2] || "",
+          option_d: opts[3] || "",
+          correct_option: ["A","B","C","D"].includes(q.correct)
   ? q.correct
   : "A",
-        explanation: q.explanation || "",
-        question_hash: hash
-      })
-      .select()
-      .single();
+          explanation: q.explanation || "",
+          question_hash: hash,
+          difficulty_score_cached: q.meta_structured?.difficulty_score,
+          difficulty_label_cached: q.meta_structured?.difficulty_label
+        })
+        .select()
+        .single();
 
     if (error) throw error;
 
     questionId = data.id;
   }
 await attachTopics(questionId, q.topics);
-// 🔥 SAVE DIFFICULTY METADATA
-if (q.difficulty && q.difficulty.label) {
+await replacePatternMetadata(
+  questionId,
+  q.primary_pattern || null
+);
+// ===============================
+// SAVE CURRENT AFFAIRS 
+// ===============================
+if (q.ca_event) {
 
-  const metadata = [
-    { key: "cognitive_level", value: q.difficulty.cognitive_level },
-    { key: "complexity_level", value: q.difficulty.complexity_level },
-    { key: "depth_level", value: q.difficulty.depth_level },
-    { key: "difficulty_score", value: q.difficulty.score },
-    { key: "difficulty_label", value: q.difficulty.label }
-  ];
+  await sb.from("question_metadata")
+  .upsert([
+    {
+      question_id: questionId,
+      key: "ca_event",
+      value: q.ca_event.type
+    },
+    {
+      question_id: questionId,
+      key: "ca_date",
+      value: q.ca_event.date
+    }
+  ], { onConflict: "question_id,key" });
+
+}
+syncDifficultyToMeta(q);// ✅ SYNC difficulty → structured metadata
+// 🔥 SAVE DIFFICULTY METADATA
+if (q.meta_structured?.difficulty_score !== null) {
+
+  const meta = q.meta_structured || {};
+
+const metadata = [
+  { key: "cognitive_level", value: meta.cognitive_level },
+  { key: "complexity_level", value: meta.complexity },
+  { key: "depth_level", value: meta.depth },
+  { key: "difficulty_score", value: meta.difficulty_score },
+  { key: "difficulty_label", value: meta.difficulty_label },
+  { key: "question_type", value: meta.question_type || "mcq_single" }
+];
 
   const rows = metadata.map(m => ({
-    question_id: questionId,
-    key: m.key,
-    value: m.value
-  }));
+  question_id: questionId,
+  key: m.key,
+  value: m.value
+}));
 
-  await sb.from("question_metadata").insert(rows);
+ await sb
+  .from("question_metadata")
+  .upsert(rows, { onConflict: "question_id,key" });
 }
 
 // 🔥 LINK BACK TO DRAFT
@@ -598,28 +763,88 @@ return { questionId, isDuplicate };
 // --------------------------------
 // METADATA SYSTEM (REPLACE MODE)
 // --------------------------------
-async function replaceQuestionMetadata(questionId, difficulty) {
+async function updateTopicPatterns(questionId, patternKey) {
 
-  // DELETE OLD
+  if (!patternKey) return;
+
+  const { data } = await sb
+    .from("question_topics")
+    .select("topic_id")
+    .eq("question_id", questionId);
+
+  const rows = (data || []).map(t => ({
+    topic_id: t.topic_id,
+    pattern_key: patternKey
+  }));
+
+  if (!rows.length) return;
+
+  await sb
+    .from("topic_patterns")
+    .upsert(rows, { onConflict: "topic_id,pattern_key" });
+}
+
+async function replacePatternMetadata(questionId, patternKey) {
+
   await sb
     .from("question_metadata")
     .delete()
-    .eq("question_id", questionId);
+    .eq("question_id", questionId)
+    .eq("key", "pattern");
 
-  // INSERT NEW
-  const rows = [
-    { key: "cognitive_level", value: difficulty.cognitive_level },
-    { key: "complexity_level", value: difficulty.complexity_level },
-    { key: "depth_level", value: difficulty.depth_level },
-    { key: "difficulty_score", value: difficulty.score },
-    { key: "difficulty_label", value: difficulty.label }
-  ].map(m => ({
+  if (patternKey) {
+    await sb
+      .from("question_metadata")
+      .insert({
+        question_id: questionId,
+        key: "pattern",
+        value: patternKey
+      });
+  }
+
+  await sb
+    .from("questions")
+    .update({
+      primary_pattern_key: patternKey || null
+    })
+    .eq("id", questionId);
+}
+async function replaceQuestionMetadata(questionId, q) {
+
+  // ✅ ALWAYS sync first
+  syncDifficultyToMeta(q);
+
+  const meta = q.meta_structured || {};
+
+  const metadata = [
+    { key: "cognitive_level", value: meta.cognitive_level },
+    { key: "complexity_level", value: meta.complexity },
+    { key: "depth_level", value: meta.depth },
+    { key: "difficulty_score", value: meta.difficulty_score },
+    { key: "difficulty_label", value: meta.difficulty_label },
+    { key: "question_type", value: meta.question_type || "mcq_single" }
+  ];
+
+  const rows = metadata.map(m => ({
     question_id: questionId,
     key: m.key,
     value: m.value
   }));
 
-  await sb.from("question_metadata").insert(rows);
+  // ✅ UPSERT metadata
+  await sb
+    .from("question_metadata")
+    .upsert(rows, { onConflict: "question_id,key" });
+
+  // 🔥 ADD THIS BLOCK (EXACT PLACEMENT — AFTER UPSERT)
+  await sb
+    .from("questions")
+    .update({
+      difficulty_score_cached: meta.difficulty_score,
+      difficulty_label_cached: meta.difficulty_label
+    })
+    .eq("id", questionId);
+     await updateTopicPatterns(questionId, patternKey);
 }
 async function saveAllQuestionsToBank(globalTopics = []) {
 
@@ -808,8 +1033,12 @@ async function loadDraft() {
     setStatus("Load failed", true);
     return;
   }
-
   currentDraft = data;
+currentDraft.schema_json.sections[0].questions.forEach(q => {
+  ensureMetadata(q);
+  syncMetaToDifficulty(q);
+});
+
   logoURL = data.logo_url || null;
 
   renderDraft(currentDraft);
@@ -829,6 +1058,13 @@ function deleteQuestion(index) {
 
   currentDraft.schema_json.sections[0].questions.splice(index, 1);
 
+  // ✅ FIX index drift
+  if (selectedQuestionIndex === index) {
+    selectedQuestionIndex = null;
+  } else if (selectedQuestionIndex > index) {
+    selectedQuestionIndex--;
+  }
+
   renderDraft(currentDraft);
 }
 
@@ -837,6 +1073,11 @@ function duplicateQuestion(index) {
 
   const clone = JSON.parse(JSON.stringify(q));
   clone.id = crypto.randomUUID();
+
+  // ✅ Ensure difficulty object exists and is clean
+  if (clone.difficulty) {
+    clone.difficulty = { ...clone.difficulty };
+  }
 
   currentDraft.schema_json.sections[0].questions.splice(index + 1, 0, clone);
 
@@ -850,6 +1091,13 @@ function moveQuestionUp(index) {
 
   [qs[index - 1], qs[index]] = [qs[index], qs[index - 1]];
 
+  // ✅ FIX index drift
+  if (selectedQuestionIndex === index) {
+    selectedQuestionIndex--;
+  } else if (selectedQuestionIndex === index - 1) {
+    selectedQuestionIndex++;
+  }
+
   renderDraft(currentDraft);
 }
 
@@ -859,6 +1107,13 @@ function moveQuestionDown(index) {
   if (index === qs.length - 1) return;
 
   [qs[index + 1], qs[index]] = [qs[index], qs[index + 1]];
+
+  // ✅ FIX index drift
+  if (selectedQuestionIndex === index) {
+    selectedQuestionIndex++;
+  } else if (selectedQuestionIndex === index + 1) {
+    selectedQuestionIndex--;
+  }
 
   renderDraft(currentDraft);
 }
@@ -872,7 +1127,7 @@ function renderDraft(draft) {
   const container = document.getElementById("questions");
   container.innerHTML = "";
 
-  const questions = draft.schema_json.sections[0].questions;
+  const questions = draft?.schema_json?.sections?.[0]?.questions || [];
 
   // ✅ EMPTY STATE
   if (!questions.length) {
@@ -975,9 +1230,9 @@ function renderDraft(draft) {
     data-q="${i}"
     ${status !== "draft" ? "disabled" : ""}
   >
-    ${status === "saved" ? "✓ Saved" : 
-      status === "duplicate" ? "Duplicate" : 
-      "+ Add to Bank"}
+    ${status === "saved" ? "✓ Saved" :
+        status === "duplicate" ? "Duplicate" :
+          "+ Add to Bank"}
   </button>
 
 </div>
@@ -1005,11 +1260,22 @@ function renderDraft(draft) {
   Difficulty: ${q.difficulty?.label || "Not set"}
 </div>
 
-        <div class="topic-tags">
-          ${topicsHTML}
-        </div>
+<div class="mt-10 pattern-box">
+  <input 
+    class="pattern-input"
+    data-i="${i}"
+    placeholder="Pattern (optional)"
+    value="${q.primary_pattern || ""}"
+    autocomplete="off"
+  />
+  <div class="pattern-dropdown hidden"></div>
+</div>
 
-      </div>
+<div class="topic-tags">
+  ${topicsHTML}
+</div>
+
+</div>
 
     `;
 
@@ -1111,7 +1377,10 @@ document.getElementById("metadataContent")
   });
 
   q.difficulty.score = result.score;
-  q.difficulty.label = result.label;
+q.difficulty.label = result.label;
+
+// ✅ NEW
+syncDifficultyToMeta(q);
 
   renderMetadataPanel(selectedQuestionIndex);
 });
@@ -1139,15 +1408,62 @@ document.getElementById("questions")?.addEventListener("input", (e) => {
     currentDraft.schema_json.sections[0].questions[+e.target.dataset.i].explanation = e.target.value;
   }
 
+ if (e.target.classList.contains("pattern-input")) {
+
+  const i = +e.target.dataset.i;
+
+  currentDraft.schema_json.sections[0].questions[i].primary_pattern =
+    e.target.value;
+
+  const box = e.target.closest(".pattern-box");
+  const dropdown = box.querySelector(".pattern-dropdown");
+
+  renderPatternDropdown(dropdown, e.target.value);
+}
+
   scheduleAutosave();
 });
 
 // --------------------------------
 // CLICK EVENTS (delegated)
 // --------------------------------
+document.getElementById("questions")
+?.addEventListener("focusin", (e) => {
+
+  if (!e.target.classList.contains("pattern-input")) return;
+
+  const box = e.target.closest(".pattern-box");
+  const dropdown = box.querySelector(".pattern-dropdown");
+
+  renderPatternDropdown(dropdown, "");
+  dropdown.classList.remove("hidden");
+
+});
 
 document.getElementById("questions")?.addEventListener("click", (e) => {
-// --------------------------------
+
+
+if (e.target.classList.contains("pattern-option")) {
+
+  const key = e.target.dataset.key;
+
+  const box = e.target.closest(".pattern-box");
+  const input = box.querySelector(".pattern-input");
+
+  input.value = key;
+
+  const i = +input.dataset.i;
+
+  currentDraft
+    .schema_json
+    .sections[0]
+    .questions[i]
+    .primary_pattern = key;
+
+  box.querySelector(".pattern-dropdown").classList.add("hidden");
+
+}
+  // --------------------------------
   // META DATA→ OPEN PANEL
   // --------------------------------
 
@@ -1208,7 +1524,11 @@ if (preview) {
     updateConfirmState();
     renderTopicWarnings([]);
   }
-
+// RESET CA
+document.getElementById("caToggle").checked = false;
+document.getElementById("caFields").classList.add("hidden");
+document.getElementById("caEventInput").value = "";
+document.getElementById("caDateInput").value = "";
   // --------------------------------
   // REMOVE TOPIC
   // --------------------------------
@@ -1238,6 +1558,7 @@ const q = {
   explanation: "",
   topics: [],
   bank_status: "draft",
+  primary_pattern: null, 
 
   // 🔥 ADD THIS BLOCK
   difficulty: {
@@ -1246,9 +1567,9 @@ const q = {
     depth_level: null,
     score: null,
     label: null
-  }
+  },
 };
-
+ensureMetadata(q);
   currentDraft.schema_json.sections[0].questions.push(q);
   renderDraft(currentDraft);
 }
@@ -1427,7 +1748,10 @@ async function uploadLogo(file) {
 // --------------------------------
 // INIT
 // --------------------------------
-function init() {
+async function init() {
+
+  await loadPatternDefinitions();
+await loadCAEventDefinitions();
 
 document.getElementById("metadataContent")
   ?.addEventListener("click", async (e) => {
@@ -1442,7 +1766,7 @@ document.getElementById("metadataContent")
   }
 
   try {
-    await replaceQuestionMetadata(q.question_id, q.difficulty);
+    await replaceQuestionMetadata(q.question_id, q);
 
     document.getElementById("metadataPanel").classList.add("hidden");
     document.body.style.overflow = "";
@@ -1583,7 +1907,9 @@ document.getElementById("createNewBtn")
         option_d: q.options[3]?.text || "",
         correct_option: q.correct,
         explanation: q.explanation,
-        question_hash: hash
+        question_hash: hash,
+        difficulty_score_cached: q.meta_structured?.difficulty_score,
+        difficulty_label_cached: q.meta_structured?.difficulty_label
       })
       .select()
       .single();
@@ -1592,24 +1918,33 @@ document.getElementById("createNewBtn")
 
     // ✅ Attach topics AFTER insert
     await attachTopics(data.id, q.topics);
+    await replacePatternMetadata(
+  data.id,
+  q.primary_pattern || null
+);
 // 🔥 SAVE DIFFICULTY METADATA
-if (q.difficulty && q.difficulty.label) {
+if (q.meta_structured?.difficulty_score !== null) {
 
-  const metadata = [
-    { key: "cognitive_level", value: q.difficulty.cognitive_level },
-    { key: "complexity_level", value: q.difficulty.complexity_level },
-    { key: "depth_level", value: q.difficulty.depth_level },
-    { key: "difficulty_score", value: q.difficulty.score },
-    { key: "difficulty_label", value: q.difficulty.label }
-  ];
+syncDifficultyToMeta(q);
+  const meta = q.meta_structured || {};
+const metadata = [
+  { key: "cognitive_level", value: meta.cognitive_level },
+  { key: "complexity_level", value: meta.complexity },
+  { key: "depth_level", value: meta.depth },
+  { key: "difficulty_score", value: meta.difficulty_score },
+  { key: "difficulty_label", value: meta.difficulty_label },
+  { key: "question_type", value: meta.question_type || "mcq_single" }
+];
 
   const rows = metadata.map(m => ({
-    question_id: questionId,
+    question_id: data.id,
     key: m.key,
     value: m.value
   }));
 
-  await sb.from("question_metadata").insert(rows);
+  await sb
+  .from("question_metadata")
+  .upsert(rows, { onConflict: "question_id,key" });
 }
 
 // 🔥 ADD THIS (MISSING LINK)
@@ -1636,11 +1971,15 @@ q.bank_status = "saved";
 
   const q = currentDraft.schema_json.sections[0].questions[selectedQuestionIndex];
 
-  try {
-    // attach topics only (no new question)
-    await attachTopics(window.duplicateQuestionId, q.topics);
+    try {
+      // attach topics only (no new question)
+      await attachTopics(window.duplicateQuestionId, q.topics);
 
-    q.bank_status = "duplicate";
+      await replacePatternMetadata(
+        window.duplicateQuestionId,
+        q.primary_pattern || null
+      );
+      q.bank_status = "duplicate";
 
     renderDraft(currentDraft);
 
@@ -1656,38 +1995,114 @@ q.bank_status = "saved";
 
 });
 
- function setupTopicInput(inputId, tagsId, warningsId) {
+function setupTopicInput(inputId, tagsId, warningsId) {
+
   const input = document.getElementById(inputId);
   const container = document.getElementById(tagsId);
 
   if (!input || !container) return;
 
-  function process() {
-  const value = input.value.trim();
-  if (!value) return;
+  // create dropdown
+  const dropdown = document.createElement("div");
+  dropdown.className = "topic-dropdown hidden";
+  input.parentNode.appendChild(dropdown);
 
-  createTopicTag(container, value);
+  // ------------------------
+  // INPUT SEARCH
+  // ------------------------
+  input.addEventListener("input", async (e) => {
 
-  input.value = "";
-  renderTopicWarnings([], warningsId);
-  updateConfirmState(); // 🔥 ADD THIS
-}
+    const query = e.target.value.trim();
 
-  // ENTER
-  input.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      process();
+    renderTopicWarnings(
+      getTopicWarnings(query),
+      warningsId
+    );
+
+    if (!query) {
+      dropdown.classList.add("hidden");
+      return;
     }
+
+    const topics = await searchTopicsForDropdown(query);
+
+    const normalizedQuery = query.toLowerCase();
+
+    const exactMatch = topics.some(
+      t => t.name.toLowerCase() === normalizedQuery
+    );
+
+    let html = "";
+
+    // existing topics
+    html += topics.map(t => `
+      <div class="topic-option" data-value="${t.name}">
+        ${t.name}
+      </div>
+    `).join("");
+
+    // create new
+    if (!exactMatch) {
+      html += `
+        <div class="topic-option create-new" data-value="${query}">
+          + Create "${formatTopicName(query)}"
+        </div>
+      `;
+    }
+
+    dropdown.innerHTML = html;
+    dropdown.classList.remove("hidden");
+
   });
 
-  // BLUR
-  input.addEventListener("blur", process);
+  // ------------------------
+  // SELECT
+  // ------------------------
+  dropdown.addEventListener("click", (e) => {
 
-  // WARNINGS
-  input.addEventListener("input", (e) => {
-    renderTopicWarnings(getTopicWarnings(e.target.value), warningsId);
+    const option = e.target.closest(".topic-option");
+    if (!option) return;
+
+    const value = option.dataset.value;
+
+    createTopicTag(container, value);
+
+    input.value = "";
+    dropdown.classList.add("hidden");
+
+    updateConfirmState();
   });
+
+  // ------------------------
+  // ENTER fallback
+  // ------------------------
+  input.addEventListener("keydown", (e) => {
+
+    if (e.key !== "Enter") return;
+
+    e.preventDefault();
+
+    const value = input.value.trim();
+    if (!value) return;
+
+    createTopicTag(container, value);
+
+    input.value = "";
+    dropdown.classList.add("hidden");
+
+  });
+
+  // ------------------------
+  // CLOSE ON OUTSIDE
+  // ------------------------
+  document.addEventListener("click", (e) => {
+
+    if (!dropdown.contains(e.target) && e.target !== input) {
+      dropdown.classList.add("hidden");
+    }
+
+  });
+
 }
 
 // --------------------------------
@@ -1695,6 +2110,55 @@ q.bank_status = "saved";
 // --------------------------------
 setupTopicInput("bankTopicInput", "bankTopicTags", "topicWarnings");
 setupTopicInput("bulkTopicInput", "bulkTopicTags", "bulkTopicWarnings");
+// ===============================
+// CA TOGGLE 
+// ===============================
+document.getElementById("caToggle")
+?.addEventListener("change", (e)=>{
+
+  document
+    .getElementById("caFields")
+    ?.classList.toggle("hidden", !e.target.checked);
+
+});
+
+document.getElementById("caEventInput")
+?.addEventListener("input", (e)=>{
+
+  const dropdown =
+    document.getElementById("caEventDropdown");
+
+  renderCAEventDropdown(dropdown, e.target.value);
+
+  dropdown.classList.remove("hidden");
+
+});
+document.getElementById("caEventDropdown")
+?.addEventListener("click", (e)=>{
+
+  if (!e.target.classList.contains("pattern-option"))
+    return;
+
+  document.getElementById("caEventInput").value =
+    e.target.dataset.key;
+
+  document
+    .getElementById("caEventDropdown")
+    .classList.add("hidden");
+
+});
+
+document.getElementById("caEventInput")
+?.addEventListener("focus", ()=>{
+
+  const dropdown =
+    document.getElementById("caEventDropdown");
+
+  renderCAEventDropdown(dropdown, "");
+
+  dropdown.classList.remove("hidden");
+
+});
 
   document.getElementById("closeAddToBank")
   ?.addEventListener("click", () => {
@@ -1816,9 +2280,25 @@ document.getElementById("confirmAddToBank")
   // --------------------------------
   const topics = Array.from(
     document.querySelectorAll("#bankTopicTags .topic-tag")
-  ).map(el => el.dataset.value);
+  ).map(el => formatTopicName(el.dataset.value));
 
   q.topics = topics;
+
+
+  // =====================================
+  // CAPTURE CURRENT AFFAIRS (ADD HERE)
+  // =====================================
+  const isCA = document.getElementById("caToggle")?.checked;
+
+  if (isCA) {
+    q.ca_event = {
+      type: document.getElementById("caEventInput")?.value?.trim() || null,
+      date: document.getElementById("caDateInput")?.value?.trim() || null
+    };
+  } else {
+    q.ca_event = null;
+  }
+
 
   try {
     const res = await saveQuestionToBank(q);
@@ -1833,7 +2313,7 @@ document.getElementById("confirmAddToBank")
 
       setStatus("Duplicate detected. Choose an action.");
 
-      return; // panel stays open → scroll should remain locked
+      return;
     }
 
     // --------------------------------
@@ -1843,9 +2323,8 @@ document.getElementById("confirmAddToBank")
 
     renderDraft(currentDraft);
 
-    // ✅ CLOSE PANEL + UNLOCK SCROLL
     document.getElementById("addToBankPanel").classList.add("hidden");
-    document.body.style.overflow = ""; // 🔥 CRITICAL FIX
+    document.body.style.overflow = "";
 
     setStatus("Question saved to bank ✅");
 
@@ -1901,6 +2380,20 @@ document.addEventListener("click", (e) => {
   input.value = e.target.dataset.fix;
   input.dispatchEvent(new Event("input"));
 });
+
+document.addEventListener("click", (e) => {
+
+  document.querySelectorAll(".pattern-dropdown")
+    .forEach(d => {
+
+      if (!d.closest(".pattern-box").contains(e.target)) {
+        d.classList.add("hidden");
+      }
+
+    });
+
+});
+
 init();
 
 // --------------------------------
