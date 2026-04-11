@@ -2352,6 +2352,25 @@ document.getElementById("confirmSaveAll")
     document.body.style.overflow = "";
 
   });
+// ===============================
+// QUESTION SET BUTTONS
+// ===============================
+
+document.getElementById("saveQuestionSetBtn")
+?.addEventListener("click", saveAsQuestionSet);
+
+document.getElementById("loadQuestionSetBtn")
+?.addEventListener("click", loadQuestionSets);
+
+document.getElementById("clearMemoryBtn")
+?.addEventListener("click", clearDraftMemory);
+
+document.getElementById("closeQuestionSet")
+?.addEventListener("click", () => {
+  document
+    .getElementById("questionSetPanel")
+    ?.classList.add("hidden");
+});
 
   if (draftId) loadDraft();
   else createEmptyDraft();
@@ -2391,6 +2410,117 @@ document.addEventListener("click", (e) => {
       }
 
     });
+
+});
+
+// ===============================
+// SAVE AS QUESTION SET
+// ===============================
+async function saveAsQuestionSet() {
+
+  if (!draftId) {
+    await saveDraft(true);
+  }
+
+  const name = prompt("Question Set Name:");
+  if (!name) return;
+
+  await sb
+    .from("draft_exams")
+    .update({
+      title: name,
+      status: "question_set"
+    })
+    .eq("id", draftId);
+
+  setStatus("Saved as Question Set ✅");
+}
+
+// ===============================
+// LOAD QUESTION SETS
+// ===============================
+async function loadQuestionSets() {
+
+  const panel = document.getElementById("questionSetPanel");
+  const list = document.getElementById("questionSetList");
+
+  panel.classList.remove("hidden");
+
+  const { data } = await sb
+    .from("draft_exams")
+    .select("id,title")
+    .eq("status","question_set")
+    .order("created_at",{ascending:false});
+
+  if (!data.length) {
+    list.innerHTML = "No saved question sets";
+    return;
+  }
+
+  list.innerHTML = data.map(d=>`
+    <div class="question-card">
+
+      <b>${d.title}</b>
+
+      <div class="mt-10 flex gap-10">
+
+        <button class="secondary-btn load-set"
+                data-id="${d.id}">
+          Load
+        </button>
+
+        <button class="secondary-btn delete-set"
+                data-id="${d.id}">
+          Delete
+        </button>
+
+      </div>
+
+    </div>
+  `).join("");
+}
+
+// ===============================
+// CLEAR MEMORY
+// ===============================
+async function clearDraftMemory() {
+
+  if (!confirm("Clear all non-question-set drafts?"))
+    return;
+
+  await sb
+    .from("draft_exams")
+    .delete()
+    .neq("status","question_set");
+
+  setStatus("Memory cleared ✅");
+}
+
+document.addEventListener("click", async (e)=>{
+
+  // LOAD QUESTION SET
+  if (e.target.classList.contains("load-set")) {
+
+    const id = e.target.dataset.id;
+
+    window.location.href = `draft.html?id=${id}`;
+  }
+
+  // DELETE QUESTION SET
+  if (e.target.classList.contains("delete-set")) {
+
+    const id = e.target.dataset.id;
+
+    if (!confirm("Delete this question set?"))
+      return;
+
+    await sb
+      .from("draft_exams")
+      .delete()
+      .eq("id", id);
+
+    loadQuestionSets();
+  }
 
 });
 
