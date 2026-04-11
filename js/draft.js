@@ -1034,6 +1034,8 @@ async function loadDraft() {
     return;
   }
   currentDraft = data;
+currentDraft.status = data.status || "draft";
+
 currentDraft.schema_json.sections[0].questions.forEach(q => {
   ensureMetadata(q);
   syncMetaToDifficulty(q);
@@ -2425,6 +2427,8 @@ async function saveAsQuestionSet() {
   const name = prompt("Question Set Name:");
   if (!name) return;
 
+  currentDraft.status = "question_set"; // move BEFORE DB update
+
   await sb
     .from("draft_exams")
     .update({
@@ -2432,8 +2436,6 @@ async function saveAsQuestionSet() {
       status: "question_set"
     })
     .eq("id", draftId);
-
-  currentDraft.status = "question_set";
 
   setStatus("Saved as Question Set ✅");
 }
