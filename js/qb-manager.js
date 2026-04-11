@@ -1078,7 +1078,7 @@ document.getElementById("caList")
 
 });
 // CLICK DIFFICULTY BADGE
-el.questionsView.addEventListener("click", (e) => {
+el.questionsView.addEventListener("click", async (e) => {
 
   // 🔥 CA CLICK
 const caBadge = e.target.closest(".ca-badge");
