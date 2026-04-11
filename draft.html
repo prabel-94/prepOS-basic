@@ -310,18 +310,43 @@ DRAFT ACTIONS
     <div id="examLink" class="question-card hidden"></div>
   </div>
 
-  <div class="actions-row">
-    <button type="button" id="saveDraftBtn" class="secondary-btn">
-      Save Draft
-    </button>
+<div class="actions-row">
 
-    <button type="button" id="publishDraftBtn" class="primary-btn">
-      Publish Exam
-    </button>
-  </div>
+  <button type="button" id="saveDraftBtn" class="secondary-btn">
+    Save Draft
+  </button>
+
+  <button type="button" id="saveQuestionSetBtn" class="secondary-btn">
+    Save as Question Set
+  </button>
+
+  <button type="button" id="loadQuestionSetBtn" class="secondary-btn">
+    Load Question Set
+  </button>
+
+  <button type="button" id="clearMemoryBtn" class="secondary-btn">
+    Clear Memory
+  </button>
+
+  <button type="button" id="publishDraftBtn" class="primary-btn">
+    Publish Exam
+  </button>
+
+</div>
 
 </section>
+<aside class="question-bank-panel hidden" id="questionSetPanel">
 
+  <div class="qb-header">
+    <button type="button" id="closeQuestionSet">← Back</button>
+    <h3>Question Sets</h3>
+  </div>
+
+  <div id="questionSetList" class="mt-20">
+    Loading...
+  </div>
+
+</aside>
 </main>
 
 

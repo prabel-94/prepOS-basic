@@ -304,9 +304,16 @@ async function replacePatternMetadata(questionId, patternKey) {
 async function replaceQuestionMetadata(questionId, difficulty) {
 
   await sb
-    .from("question_metadata")
-    .delete()
-    .eq("question_id", questionId);
+  .from("question_metadata")
+  .delete()
+  .eq("question_id", questionId)
+  .in("key", [
+    "cognitive_level",
+    "complexity_level",
+    "depth_level",
+    "difficulty_score",
+    "difficulty_label"
+  ]);
 
   const rows = [
     { key: "cognitive_level", value: difficulty.cognitive_level },
