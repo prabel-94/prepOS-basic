@@ -1629,7 +1629,7 @@ document.querySelectorAll('input[type="radio"]:checked').forEach(el => {
       duration: parseInt(document.getElementById("duration").value) || 60,
       schema_json: currentDraft.schema_json,
       logo_url: logoURL,
-      status: "draft"
+      status: currentDraft.status || "draft"
     };
 
     if (!draftId) {
@@ -2432,6 +2432,8 @@ async function saveAsQuestionSet() {
       status: "question_set"
     })
     .eq("id", draftId);
+
+  currentDraft.status = "question_set";
 
   setStatus("Saved as Question Set ✅");
 }
