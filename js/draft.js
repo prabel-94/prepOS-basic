@@ -1661,6 +1661,7 @@ document.querySelectorAll('input[type="radio"]:checked').forEach(el => {
   } catch (e) {
     console.error(e);
     setStatus("Save failed", true);
+    throw e;
   } finally {
     isSaving = false;
   }
@@ -1696,13 +1697,15 @@ async function publishDraft() {
     if (error) throw error;
 
     // ✅ Update draft
-    await sb
+    const { error: draftUpdateError } = await sb
       .from("draft_exams")
       .update({
         status: "published",
         published_exam_id: session.id
       })
       .eq("id", draftId);
+
+    if (draftUpdateError) throw draftUpdateError;
 
     setStatus("Published ✅");
 
@@ -1893,10 +1896,14 @@ document.getElementById("createNewBtn")
   const q = currentDraft.schema_json.sections[0].questions[selectedQuestionIndex];
 
   try {
-    // ✅ Generate hash FIRST
-    const hash = await generateHash(
-      q.text.trim().toLowerCase()
-    );
+    // ✅ Match the same duplicate logic used by the standard bank save flow
+    const hashInput = (
+      q.text +
+      (q.options || []).map(o =>
+        typeof o === "string" ? o : o.text
+      ).join("")
+    ).trim().toLowerCase();
+    const hash = await generateHash(hashInput);
 
     // ✅ Insert cleanly
     const { data, error } = await sb
@@ -1981,6 +1988,7 @@ q.bank_status = "saved";
         window.duplicateQuestionId,
         q.primary_pattern || null
       );
+      q.question_id = window.duplicateQuestionId;
       q.bank_status = "duplicate";
 
     renderDraft(currentDraft);
