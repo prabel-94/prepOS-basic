@@ -2354,25 +2354,7 @@ document.getElementById("confirmSaveAll")
     document.body.style.overflow = "";
 
   });
-// ===============================
-// QUESTION SET BUTTONS
-// ===============================
 
-document.getElementById("saveQuestionSetBtn")
-?.addEventListener("click", saveAsQuestionSet);
-
-document.getElementById("loadQuestionSetBtn")
-?.addEventListener("click", loadQuestionSets);
-
-document.getElementById("clearMemoryBtn")
-?.addEventListener("click", clearDraftMemory);
-
-document.getElementById("closeQuestionSet")
-?.addEventListener("click", () => {
-  document
-    .getElementById("questionSetPanel")
-    ?.classList.add("hidden");
-});
 
   if (draftId) loadDraft();
   else createEmptyDraft();
@@ -2526,6 +2508,26 @@ document.addEventListener("click", async (e)=>{
     loadQuestionSets();
   }
 
+});
+
+// ===============================
+// QUESTION SET BUTTONS
+// ===============================
+
+document.getElementById("saveQuestionSetBtn")
+?.addEventListener("click", saveAsQuestionSet);
+
+document.getElementById("loadQuestionSetBtn")
+?.addEventListener("click", loadQuestionSets);
+
+document.getElementById("clearMemoryBtn")
+?.addEventListener("click", clearDraftMemory);
+
+document.getElementById("closeQuestionSet")
+?.addEventListener("click", () => {
+  document
+    .getElementById("questionSetPanel")
+    ?.classList.add("hidden");
 });
 
 init();
