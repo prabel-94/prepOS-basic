@@ -55,7 +55,8 @@ async function resolveTopicLinks(html) {
 
         const link = `
   <span 
-    class="topic-link"
+  class="topic-link"
+  contenteditable="false"
     data-id="${data.id}">
     ${escapeHTML(data.name)}
   </span>
@@ -147,18 +148,20 @@ async function saveNote() {
 
   if (!topicId) return;
 
-  const html = serializeTopicLinks(editor.innerHTML);
-
-  await ensureTopicsExist(html);
+  const rawHtml = serializeTopicLinks(editor.innerHTML);
 
   await sb
     .from("topics")
     .update({
       note_title: titleInput.value,
-      note_html: html,
+      note_html: rawHtml,
       note_updated_at: new Date()
     })
     .eq("id", topicId);
+
+  // 🔥 RE-RESOLVE LINKS AFTER SAVE
+  const resolved = await resolveTopicLinks(rawHtml);
+  editor.innerHTML = resolved;
 
   saveStatus.innerText = "Saved ✓";
 }
@@ -334,6 +337,27 @@ editor.addEventListener("click", (e) => {
 
   window.location.href =
     `topic-note.html?id=${id}`;
+
+});
+
+editor.addEventListener("keydown", (e) => {
+
+  if (e.key !== "Backspace" && e.key !== "Delete") return;
+
+  const sel = window.getSelection();
+  if (!sel.rangeCount) return;
+
+  const node = sel.anchorNode;
+
+  const link = node?.parentElement?.closest(".topic-link");
+
+  if (!link) return;
+
+  e.preventDefault();
+
+  link.remove();
+
+  scheduleSave();
 
 });
 

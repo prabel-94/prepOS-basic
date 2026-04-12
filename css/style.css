@@ -858,6 +858,15 @@ TOPIC NOTE EDITOR
   background:#eef2ff;
 }
 
+.topic-link{
+  padding:2px 4px;
+  border-radius:4px;
+}
+
+.topic-link:hover{
+  background:#eef2ff;
+}
+
 /* ======================================================
 UTILITIES
 ====================================================== */
