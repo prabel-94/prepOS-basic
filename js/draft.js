@@ -1053,6 +1053,26 @@ currentDraft.schema_json.sections[0].questions.forEach(q => {
 
 }
 
+// ===============================
+// CLEAR ALL QUESTIONS
+// ===============================
+function clearDraftQuestions() {
+
+  if (!currentDraft) return;
+
+  const confirmClear = confirm(
+    "Delete ALL questions in this draft?"
+  );
+
+  if (!confirmClear) return;
+
+  currentDraft.schema_json.sections[0].questions = [];
+
+  renderDraft(currentDraft);
+
+  setStatus("Draft cleared");
+}
+
 function deleteQuestion(index) {
   if (!currentDraft) return;
 
@@ -2631,20 +2651,23 @@ async function saveAsQuestionSetSafe() {
 document.addEventListener("DOMContentLoaded", () => {
 
   document.getElementById("saveQuestionSetBtn")
-  ?.addEventListener("click", saveAsQuestionSetSafe);
+    ?.addEventListener("click", saveAsQuestionSetSafe);
 
   document.getElementById("loadQuestionSetBtn")
-  ?.addEventListener("click", loadQuestionSets);
+    ?.addEventListener("click", loadQuestionSets);
 
   document.getElementById("clearMemoryBtn")
-  ?.addEventListener("click", clearDraftMemory);
+    ?.addEventListener("click", clearDraftMemory);
+
+  document.getElementById("clearDraftBtn")
+    ?.addEventListener("click", clearDraftQuestions);
 
   document.getElementById("closeQuestionSet")
-  ?.addEventListener("click", () => {
-    document
-      .getElementById("questionSetPanel")
-      ?.classList.add("hidden");
-  });
+    ?.addEventListener("click", () => {
+      document
+        .getElementById("questionSetPanel")
+        ?.classList.add("hidden");
+    });
 
 });
 
