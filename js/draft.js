@@ -5,6 +5,7 @@
 // --------------------------------
 // GLOBAL STATE
 // --------------------------------
+let pendingSetLoadId = null;
 let currentSearchResults = [];
 let selectedQuestionIndex = null;
 let autosaveTimer = null;
@@ -2500,12 +2501,14 @@ async function clearDraftMemory() {
 document.addEventListener("click", async (e)=>{
 
   // LOAD QUESTION SET
-  if (e.target.classList.contains("load-set")) {
+if (e.target.classList.contains("load-set")) {
 
-    const id = e.target.dataset.id;
+  pendingSetLoadId = e.target.dataset.id;
 
-    window.location.href = `draft.html?id=${id}`;
-  }
+  document
+    .getElementById("loadSetDialog")
+    .classList.remove("hidden");
+}
 
   // DELETE QUESTION SET
   if (e.target.classList.contains("delete-set")) {
@@ -2525,6 +2528,74 @@ document.addEventListener("click", async (e)=>{
 
 });
 
+document
+.getElementById("confirmLoadSet")
+?.addEventListener("click", async () => {
+
+  if (!pendingSetLoadId) return;
+
+  const mode = document.querySelector(
+    'input[name="loadMode"]:checked'
+  ).value;
+
+  const { data, error } = await sb
+    .from("draft_exams")
+    .select("schema_json")
+    .eq("id", pendingSetLoadId)
+    .single();
+
+  if (error) {
+    alert("Failed to load question set");
+    return;
+  }
+
+  const incoming =
+    data.schema_json.sections[0].questions || [];
+
+  if (mode === "replace") {
+
+    currentDraft.schema_json.sections[0].questions =
+      JSON.parse(JSON.stringify(incoming));
+
+  } else {
+
+    currentDraft.schema_json.sections[0].questions.push(
+      ...JSON.parse(JSON.stringify(incoming))
+    );
+
+  }
+
+  renderDraft(currentDraft);
+  document
+.getElementById("questionSetPanel")
+.classList.add("hidden");
+
+  document
+    .getElementById("loadSetDialog")
+    .classList.add("hidden");
+
+  pendingSetLoadId = null;
+
+  setStatus(
+    mode === "replace"
+      ? "Question set loaded"
+      : "Question set added"
+  );
+
+});
+
+document
+.getElementById("cancelLoadSet")
+?.addEventListener("click", () => {
+
+  pendingSetLoadId = null;
+
+  document
+    .getElementById("loadSetDialog")
+    .classList.add("hidden");
+
+});
+
 async function saveAsQuestionSetSafe() {
   const name = prompt("Question Set Name:");
   if (!name?.trim()) return;
@@ -2540,7 +2611,7 @@ async function saveAsQuestionSetSafe() {
       .insert({
         title: name.trim(),
         duration,
-        schema_json: currentDraft.schema_json,
+        schema_json: JSON.parse(JSON.stringify(currentDraft.schema_json)),
         logo_url: logoURL,
         status: "question_set"
       });
