@@ -680,11 +680,21 @@ function renderTopics() {
           </div>
         </div>
 
-        <button 
-          class="secondary-btn mt-10 view-topic-btn" 
-          data-id="${t.id}">
-          View Questions
-        </button>
+        <div class="flex gap-10 mt-10">
+
+  <button
+    class="secondary-btn view-topic-btn"
+    data-id="${t.id}">
+    View Questions
+  </button>
+
+  <button 
+    class="secondary-btn open-note-btn" 
+    data-id="${t.id}">
+    Master Note
+  </button>
+
+</div>
 
       </div>
     `;
@@ -1262,6 +1272,15 @@ el.topicsView.addEventListener("click", async (e) => {
     return;
   }
 
+  // ---------------------------
+// OPEN MASTER NOTE
+// ---------------------------
+const noteBtn = e.target.closest(".open-note-btn");
+if (noteBtn) {
+  const topicId = noteBtn.dataset.id;
+  window.location.href = `topic-note.html?id=${topicId}`;
+  return;
+}
   // ---------------------------
   // RENAME
   // ---------------------------
