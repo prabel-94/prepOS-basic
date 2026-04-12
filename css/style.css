@@ -823,6 +823,37 @@ TOPIC NOTE EDITOR
   color:var(--muted);
 }
 
+.topic-link{
+  color:var(--primary);
+  font-weight:600;
+  cursor:pointer;
+}
+
+.topic-link:hover{
+  text-decoration:underline;
+}
+
+.topic-suggest{
+  position:absolute;
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:8px;
+  box-shadow:var(--shadow);
+  padding:6px 0;
+  z-index:2000;
+  min-width:220px;
+}
+
+.topic-suggest-item{
+  padding:6px 12px;
+  cursor:pointer;
+  font-size:14px;
+}
+
+.topic-suggest-item:hover{
+  background:#f3f4f6;
+}
+
 /* ======================================================
 UTILITIES
 ====================================================== */
