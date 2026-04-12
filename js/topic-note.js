@@ -341,6 +341,68 @@ document.querySelectorAll("[data-color]")
 
 });
 
+/* colors */
+document.querySelectorAll("[data-color]")
+.forEach(btn => {
+
+  btn.addEventListener("click", () => {
+
+    const color = btn.dataset.color;
+
+    document.execCommand(
+      "insertHTML",
+      false,
+      `<span class="${color}">${document.getSelection()}</span>`
+    );
+
+    scheduleSave();
+  });
+
+});
+
+
+// --------------------------------
+// LINE SPACING CONTROL
+// --------------------------------
+document.querySelectorAll("[data-spacing]")
+.forEach(btn => {
+
+  btn.addEventListener("click", () => {
+
+    const spacing = btn.dataset.spacing;
+
+    const sel = window.getSelection();
+    const node = sel.anchorNode?.parentElement;
+
+    if (node) {
+      node.style.lineHeight = spacing;
+    }
+
+    scheduleSave();
+
+  });
+
+});
+
+document.querySelectorAll("[data-size]")
+.forEach(btn => {
+
+  btn.addEventListener("click", () => {
+
+    const size = btn.dataset.size;
+
+    document.execCommand(
+      "insertHTML",
+      false,
+      `<span style="font-size:${size}px">${document.getSelection()}</span>`
+    );
+
+    scheduleSave();
+
+  });
+
+});
+
 /* print */
 document.getElementById("printNote")
 .addEventListener("click", () => {
