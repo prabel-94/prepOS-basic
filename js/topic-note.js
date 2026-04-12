@@ -10,6 +10,7 @@ let saveTimer = null;
 let savedRange = null;
 let suggestIndex = -1;
 
+
 function escapeHTML(str){
   return str
     .replace(/&/g,"&amp;")
@@ -148,7 +149,8 @@ async function saveNote() {
 
   if (!topicId) return;
 
-  const rawHtml = serializeTopicLinks(editor.innerHTML);
+  const rawHtml =
+    serializeTopicLinks(editor.innerHTML);
 
   await sb
     .from("topics")
@@ -158,10 +160,6 @@ async function saveNote() {
       note_updated_at: new Date()
     })
     .eq("id", topicId);
-
-  // 🔥 RE-RESOLVE LINKS AFTER SAVE
-  const resolved = await resolveTopicLinks(rawHtml);
-  editor.innerHTML = resolved;
 
   saveStatus.innerText = "Saved ✓";
 }
@@ -180,6 +178,23 @@ document.addEventListener("input", (e) => {
 // --------------------------------
 // DETECT [[ TYPING
 // --------------------------------
+function saveCaret() {
+
+  const sel = window.getSelection();
+  if (!sel.rangeCount) return null;
+
+  return sel.getRangeAt(0).cloneRange();
+}
+
+function restoreCaret(range) {
+
+  if (!range) return;
+
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+}
+
 editor.addEventListener("keyup", async () => {
 
  if (suggestBox.classList.contains("hidden")) return;
@@ -226,6 +241,25 @@ savedRange = sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null;
   }
 
   const text = sel.anchorNode?.textContent || "";
+  // ---------------------------
+// CONVERT [[topic]] ON CLOSE
+// ---------------------------
+if (text.includes("]]")) {
+
+  const html = editor.innerHTML;
+
+  const resolved =
+    await resolveTopicLinks(html);
+
+  if (resolved !== html) {
+
+    const caret = saveCaret();
+
+    editor.innerHTML = resolved;
+
+    restoreCaret(caret);
+  }
+}
 
   const match = text.match(/\[\[(.*?)$/);
 
