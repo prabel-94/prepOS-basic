@@ -54,14 +54,7 @@ async function resolveTopicLinks(html) {
 
         if (!data) continue;
 
-        const link = `
-  <span 
-  class="topic-link"
-  contenteditable="false"
-    data-id="${data.id}">
-    ${escapeHTML(data.name)}
-  </span>
-`;
+        const link = `<span class="topic-link" contenteditable="false" data-id="${data.id}">${escapeHTML(data.name)}</span>`;
 
         html = html.replace(m, link);
     }
