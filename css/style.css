@@ -767,6 +767,62 @@ REVIEW MODE
 .hidden{
   display: none;
 }
+
+/* ======================================================
+TOPIC NOTE EDITOR
+====================================================== */
+
+.note-title-input{
+  font-size:18px;
+  font-weight:600;
+}
+
+.note-toolbar{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+}
+
+.note-toolbar button{
+  padding:6px 10px;
+}
+
+.note-editor{
+  min-height:400px;
+  border:1px solid var(--border);
+  padding:15px;
+  border-radius:var(--radius);
+  background:var(--card);
+  line-height:1.6;
+}
+
+.note-editor:focus{
+  outline:none;
+  border-color:var(--primary);
+}
+
+.hl{
+  background:#fff3a0;
+}
+
+.red{
+  color:#d32f2f;
+}
+
+.blue{
+  color:#1976d2;
+}
+
+.green{
+  color:#388e3c;
+}
+
+.save-indicator{
+  margin-top:10px;
+  font-size:12px;
+  color:var(--muted);
+}
+
 /* ======================================================
 UTILITIES
 ====================================================== */
