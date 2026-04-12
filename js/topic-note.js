@@ -195,9 +195,7 @@ function restoreCaret(range) {
   sel.addRange(range);
 }
 
-editor.addEventListener("keyup", async () => {
-
- if (suggestBox.classList.contains("hidden")) return;
+editor.addEventListener("keyup", async (e) => {
 
   const sel = window.getSelection();
 savedRange = sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null;
