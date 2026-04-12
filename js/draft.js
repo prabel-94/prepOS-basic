@@ -2509,25 +2509,27 @@ document.addEventListener("click", async (e)=>{
   }
 
 });
-
 // ===============================
 // QUESTION SET BUTTONS
 // ===============================
+document.addEventListener("DOMContentLoaded", () => {
 
-document.getElementById("saveQuestionSetBtn")
-?.addEventListener("click", saveAsQuestionSet);
+  document.getElementById("saveQuestionSetBtn")
+  ?.addEventListener("click", saveAsQuestionSet);
 
-document.getElementById("loadQuestionSetBtn")
-?.addEventListener("click", loadQuestionSets);
+  document.getElementById("loadQuestionSetBtn")
+  ?.addEventListener("click", loadQuestionSets);
 
-document.getElementById("clearMemoryBtn")
-?.addEventListener("click", clearDraftMemory);
+  document.getElementById("clearMemoryBtn")
+  ?.addEventListener("click", clearDraftMemory);
 
-document.getElementById("closeQuestionSet")
-?.addEventListener("click", () => {
-  document
-    .getElementById("questionSetPanel")
-    ?.classList.add("hidden");
+  document.getElementById("closeQuestionSet")
+  ?.addEventListener("click", () => {
+    document
+      .getElementById("questionSetPanel")
+      ?.classList.add("hidden");
+  });
+
 });
 
 init();
