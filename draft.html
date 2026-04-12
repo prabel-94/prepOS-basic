@@ -378,5 +378,33 @@ DEV DEBUG
 })();
 </script>
 
+<div id="loadSetDialog" class="modal hidden">
+  <div class="modal-content">
+
+    <h3>Load Question Set</h3>
+
+    <label class="radio-row">
+      <input type="radio" name="loadMode" value="replace" checked>
+      Replace draft
+    </label>
+
+    <label class="radio-row">
+      <input type="radio" name="loadMode" value="append">
+      Add to draft
+    </label>
+
+    <div class="flex gap-10 mt-20">
+      <button id="confirmLoadSet" class="primary-btn">
+        Load
+      </button>
+
+      <button id="cancelLoadSet" class="secondary-btn">
+        Cancel
+      </button>
+    </div>
+
+  </div>
+</div>
+
 </body>
 </html>
