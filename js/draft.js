@@ -2406,9 +2406,9 @@ document.addEventListener("click", (e) => {
 });
 
 // ===============================
-// SAVE AS QUESTION SET
+// SAVE AS QUESTION SET (DEPRECATED)
 // ===============================
-async function saveAsQuestionSet() {
+async function saveAsQuestionSetDeprecated() {
 
   if (!draftId) {
     await saveDraft(true);
@@ -2440,11 +2440,18 @@ async function loadQuestionSets() {
 
   panel.classList.remove("hidden");
 
-  const { data } = await sb
+  const { data, error } = await sb
     .from("draft_exams")
     .select("id,title")
     .eq("status","question_set")
     .order("created_at",{ascending:false});
+
+  if (error) {
+    console.error(error);
+    list.innerHTML = "Failed to load question sets";
+    setStatus("Question set load failed", true);
+    return;
+  }
 
   if (!data.length) {
     list.innerHTML = "No saved question sets";
@@ -2517,13 +2524,43 @@ document.addEventListener("click", async (e)=>{
   }
 
 });
+
+async function saveAsQuestionSetSafe() {
+  const name = prompt("Question Set Name:");
+  if (!name?.trim()) return;
+
+  try {
+    await saveDraft(true);
+
+    const duration =
+      parseInt(document.getElementById("duration")?.value, 10) || 60;
+
+    const { error } = await sb
+      .from("draft_exams")
+      .insert({
+        title: name.trim(),
+        duration,
+        schema_json: currentDraft.schema_json,
+        logo_url: logoURL,
+        status: "question_set"
+      });
+
+    if (error) throw error;
+
+    setStatus("Saved as Question Set ✅");
+  } catch (error) {
+    console.error(error);
+    alert("Failed to save question set");
+    setStatus("Question set save failed", true);
+  }
+}
 // ===============================
 // QUESTION SET BUTTONS
 // ===============================
 document.addEventListener("DOMContentLoaded", () => {
 
   document.getElementById("saveQuestionSetBtn")
-  ?.addEventListener("click", saveAsQuestionSet);
+  ?.addEventListener("click", saveAsQuestionSetSafe);
 
   document.getElementById("loadQuestionSetBtn")
   ?.addEventListener("click", loadQuestionSets);
