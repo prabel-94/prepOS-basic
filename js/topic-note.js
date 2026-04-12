@@ -8,6 +8,7 @@ const saveStatus = document.getElementById("saveStatus");
 let topicId = null;
 let saveTimer = null;
 let savedRange = null;
+let suggestIndex = -1;
 
 function escapeHTML(str){
   return str
@@ -16,6 +17,16 @@ function escapeHTML(str){
     .replace(/>/g,"&gt;")
     .replace(/"/g,"&quot;")
     .replace(/'/g,"&#039;");
+}
+
+function highlightSuggestion() {
+
+  const items = suggestBox.querySelectorAll(".topic-suggest-item");
+
+  items.forEach((el, i) => {
+    el.classList.toggle("active", i === suggestIndex);
+  });
+
 }
 
 function getTopicId() {
@@ -104,15 +115,47 @@ function serializeTopicLinks(html) {
   return div.innerHTML;
 }
 
+async function ensureTopicsExist(html) {
+
+  const matches = html.match(/\[\[(.*?)\]\]/g);
+  if (!matches) return;
+
+  for (const m of matches) {
+
+    const name = m.replace("[[","").replace("]]","").trim();
+    const normalized = name.toLowerCase();
+
+    const { data } = await sb
+      .from("topics")
+      .select("id")
+      .eq("normalized_name", normalized)
+      .maybeSingle();
+
+    if (data) continue;
+
+    await sb
+      .from("topics")
+      .insert({
+        name,
+        normalized_name: normalized
+      });
+
+  }
+}
+
 async function saveNote() {
 
   if (!topicId) return;
+
+  const html = serializeTopicLinks(editor.innerHTML);
+
+  await ensureTopicsExist(html);
 
   await sb
     .from("topics")
     .update({
       note_title: titleInput.value,
-      note_html: serializeTopicLinks(editor.innerHTML),
+      note_html: html,
       note_updated_at: new Date()
     })
     .eq("id", topicId);
@@ -136,8 +179,49 @@ document.addEventListener("input", (e) => {
 // --------------------------------
 editor.addEventListener("keyup", async () => {
 
+ if (suggestBox.classList.contains("hidden")) return;
+
   const sel = window.getSelection();
 savedRange = sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null;
+  // ---------------------------
+  // KEYBOARD NAVIGATION
+  // ---------------------------
+  if (!suggestBox.classList.contains("hidden")) {
+
+    const items = suggestBox.querySelectorAll(".topic-suggest-item");
+
+    if (e.key === "Escape") {
+      suggestBox.classList.add("hidden");
+      return;
+    }
+
+    if (e.key === "ArrowDown") {
+      suggestIndex = Math.min(
+        suggestIndex + 1,
+        items.length - 1
+      );
+      highlightSuggestion();
+      e.preventDefault();
+      return;
+    }
+
+    if (e.key === "ArrowUp") {
+      suggestIndex = Math.max(
+        suggestIndex - 1,
+        0
+      );
+      highlightSuggestion();
+      e.preventDefault();
+      return;
+    }
+
+    if (e.key === "Enter" && suggestIndex >= 0) {
+      items[suggestIndex].click();
+      e.preventDefault();
+      return;
+    }
+  }
+
   const text = sel.anchorNode?.textContent || "";
 
   const match = text.match(/\[\[(.*?)$/);
@@ -175,6 +259,8 @@ savedRange = sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null;
   suggestBox.style.left = rect.left + window.scrollX + "px";
 
   suggestBox.classList.remove("hidden");
+  suggestIndex = 0;
+highlightSuggestion();
 
 });
 /* toolbar commands */
@@ -295,5 +381,16 @@ suggestBox.addEventListener("click", (e) => {
 
   editor.focus();
   scheduleSave();
+
+});
+
+document.addEventListener("click", (e) => {
+
+  if (
+    !suggestBox.contains(e.target) &&
+    e.target !== editor
+  ) {
+    suggestBox.classList.add("hidden");
+  }
 
 });

@@ -854,6 +854,10 @@ TOPIC NOTE EDITOR
   background:#f3f4f6;
 }
 
+.topic-suggest-item.active{
+  background:#eef2ff;
+}
+
 /* ======================================================
 UTILITIES
 ====================================================== */
