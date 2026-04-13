@@ -1522,7 +1522,9 @@ if (preview) {
 
   preview.innerHTML = `
     <div><b>Question:</b></div>
-    <div class="mt-10">${q.text || "(empty question)"}</div>
+    <div class="mt-10" style="white-space:pre-wrap">
+  ${q.text || "(empty question)"}
+</div>
 
     <div class="mt-10"><b>Options:</b></div>
     <ul class="mt-10">
