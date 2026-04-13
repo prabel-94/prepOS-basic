@@ -537,7 +537,7 @@ const caBadge = caEvent
     ].map(opt => `
       <div class="option-row ${q.correct_option === opt.key ? 'correct' : ''}">
         <div class="opt-label">${opt.key}</div>
-        <div class="opt">${opt.text}</div>
+        <div class="opt prepos-text">${opt.text}</div>
         ${q.correct_option === opt.key ? `<div class="correct-mark">✔</div>` : ""}
       </div>
     `).join("");
@@ -573,7 +573,7 @@ const caBadge = caEvent
 
 </div>
 
-        <div class="qtext">${q.question_text}</div>
+        <div class="qtext prepos-text">${q.question_text}</div>
 
         <div class="options mt-10">
           ${optionsHTML}

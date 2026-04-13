@@ -315,9 +315,9 @@ function createQuestionCard(q, index){
         Q${index + 1}
       </div>
 
-      <div class="question-text">
-        ${escapeHTML(stripLeadingNumber(q.text || ""))}
-      </div>
+     <div class="question-text prepos-text">
+  ${escapeHTML(stripLeadingNumber(q.text || ""))}
+</div>
 
       <div class="question-options">
         ${optionsHTML}
@@ -541,9 +541,9 @@ function createReviewOption(opt, idx, correct, student){
   return `
     <div class="${className}">
       <span class="option-letter">${letter}</span>
-      <span class="option-text">
-        ${escapeHTML(opt.text)}
-      </span>
+      <span class="option-text prepos-text">
+  ${letter}. ${escapeHTML(optionText)}
+</span>
     </div>
   `;
 }
@@ -565,9 +565,9 @@ function createReviewCard(q, index){
 
         <div class="explanation hidden">
           <div class="explanation-title">Explanation</div>
-          <div class="explanation-text">
-            ${escapeHTML(q.explanation)}
-          </div>
+          <div class="explanation-text prepos-text">
+  ${escapeHTML(q.explanation)}
+</div>
         </div>
       </div>
     `
@@ -590,9 +590,9 @@ function createReviewCard(q, index){
 
       </div>
 
-      <div class="review-question">
-        ${escapeHTML(stripLeadingNumber(q.question))}
-      </div>
+      <div class="review-question prepos-text">
+  ${escapeHTML(stripLeadingNumber(q.question))}
+</div>
 
       <div class="review-options">
         ${optionsHTML}

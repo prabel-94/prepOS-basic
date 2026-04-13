@@ -1522,7 +1522,7 @@ if (preview) {
 
   preview.innerHTML = `
     <div><b>Question:</b></div>
-    <div class="mt-10" style="white-space:pre-wrap">
+    <div class="mt-10 prepos-text">
   ${q.text || "(empty question)"}
 </div>
 
@@ -1531,14 +1531,16 @@ if (preview) {
       ${opts.map((o, i) => `
   <li>
     ${["A", "B", "C", "D"][i]}: ${o?.text || "-"}
-          ${q.correct === ["A","B","C","D"][i] ? " ✅" : ""}
+          ${q.correct === ["A", "B", "C", "D"][i] ? " ✅" : ""}
         </li>
       `).join("")}
     </ul>
 
     ${q.explanation ? `
       <div class="mt-10"><b>Explanation:</b></div>
-      <div class="mt-10">${q.explanation}</div>
+      <div class="mt-10 prepos-text">
+  ${q.explanation}
+</div>
     ` : ""}
   `;
 }
