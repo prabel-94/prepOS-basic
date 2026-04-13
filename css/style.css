@@ -1071,3 +1071,12 @@ Explanation Toggle & Block
   min-height:80px;
   resize:vertical;
 }
+
+/* ======================================================
+USER GENERATED TEXT FORMATTING
+====================================================== */
+
+.prepos-text{
+white-space: pre-wrap;
+word-break: break-word;
+}
