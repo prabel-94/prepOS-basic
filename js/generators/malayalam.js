@@ -4,6 +4,7 @@ PrepOS Malayalam Generator
 
 const sb = window.supabaseClient;
 
+
 /* =========================================
 Main Export
 ========================================= */
@@ -14,7 +15,7 @@ export const MalayalamGenerator = {
 
     const { pattern } = config;
 
-    switch(pattern) {
+    switch (pattern) {
 
       case "SYNONYM":
         return generateSynonymQuestion();
@@ -23,7 +24,9 @@ export const MalayalamGenerator = {
         return generateOppositeWordQuestion();
 
       default:
-        throw new Error("Unknown Malayalam pattern");
+        throw new Error(
+          "Unknown Malayalam pattern: " + pattern
+        );
 
     }
 
@@ -45,11 +48,12 @@ async function fetchLexiconGroup(groupId, limit = 20) {
     .limit(limit);
 
   if (error) {
-    console.error(error);
+    console.error("Lexicon fetch error:", error);
     return [];
   }
 
   return data || [];
+
 }
 
 
@@ -67,12 +71,12 @@ function pickRandom(arr, count) {
 
 
 /* =========================================
-Pattern — Synonym
+Pattern — SYNONYM
 ========================================= */
 
 async function generateSynonymQuestion() {
 
-  const words = await fetchLexiconGroup("synonyms");
+  const words = await fetchLexiconGroup("SYNONYM");
 
   if (words.length < 4) return null;
 
@@ -96,16 +100,17 @@ async function generateSynonymQuestion() {
     correctIndex,
     "SYNONYM"
   );
+
 }
 
 
 /* =========================================
-Pattern — Opposite
+Pattern — OPPOSITE WORD
 ========================================= */
 
 async function generateOppositeWordQuestion() {
 
-  const words = await fetchLexiconGroup("opposites");
+  const words = await fetchLexiconGroup("OPPOSITE_WORD");
 
   if (words.length < 4) return null;
 
@@ -129,16 +134,18 @@ async function generateOppositeWordQuestion() {
     correctIndex,
     "OPPOSITE_WORD"
   );
+
 }
 
 
 /* =========================================
-Builder (matches draft editor)
+Question Builder
 ========================================= */
 
 function buildQuestion(text, options, correctIndex, pattern) {
 
   return {
+
     id: crypto.randomUUID(),
 
     question_id: null,
@@ -167,6 +174,7 @@ function buildQuestion(text, options, correctIndex, pattern) {
       score: null,
       label: null
     }
+
   };
 
 }
