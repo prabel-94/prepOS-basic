@@ -94,12 +94,14 @@ async function generateSynonymQuestion() {
 
   const correctIndex = options.indexOf(correct.word);
 
-  return buildQuestion(
+  return [
+  buildQuestion(
     `${correct.word} എന്ന വാക്കിന്റെ പര്യായം ഏത്?`,
     options,
     correctIndex,
     "SYNONYM"
-  );
+  )
+];
 
 }
 
@@ -128,12 +130,14 @@ async function generateOppositeWordQuestion() {
 
   const correctIndex = options.indexOf(correct.word);
 
-  return buildQuestion(
+ return [
+  buildQuestion(
     `${correct.word} എന്ന വാക്കിന്റെ വിപരീതപദം ഏത്?`,
     options,
     correctIndex,
     "OPPOSITE_WORD"
-  );
+  )
+];
 
 }
 
