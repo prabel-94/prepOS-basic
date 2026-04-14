@@ -2,6 +2,7 @@
 // PrepOS Draft Editor (v6 - Stable)
 // ===============================
 
+import { runGenerator } from "./generator-core.js";
 // --------------------------------
 // GLOBAL STATE
 // --------------------------------
@@ -1601,6 +1602,47 @@ ensureMetadata(q);
   renderDraft(currentDraft);
 }
 
+// ===============================
+// APPEND GENERATED QUESTION
+// ===============================
+function appendGeneratedQuestion(q) {
+
+  if (!q) return;
+
+  currentDraft
+    .schema_json
+    .sections[0]
+    .questions
+    .push(q);
+
+  renderDraft(currentDraft);
+
+  scheduleAutosave();
+
+}
+// ===============================
+// GENERATOR RUNNER
+// ===============================
+async function generateFromConfig(config) {
+
+  try {
+
+    const q = await runGenerator(config);
+
+    appendGeneratedQuestion(q);
+
+    setStatus("Generated question");
+
+  } catch (err) {
+
+    console.error(err);
+
+    setStatus("Generator failed", true);
+
+  }
+
+}
+
 // --------------------------------
 // SAVE DRAFT (FIXED)
 // --------------------------------
@@ -2388,6 +2430,17 @@ document.getElementById("confirmSaveAll")
 
   });
 
+// ===============================
+// TEST GENERATOR (TEMP)
+// ===============================
+window.testGenerator = () => {
+
+  generateFromConfig({
+    subject: "malayalam",
+    pattern: "SYNONYM"
+  });
+
+};
 
   if (draftId) loadDraft();
   else createEmptyDraft();
