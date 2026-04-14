@@ -1485,6 +1485,36 @@ if (e.target.classList.contains("pattern-option")) {
     .primary_pattern = key;
 
   box.querySelector(".pattern-dropdown").classList.add("hidden");
+  // ===============================
+// GENERATE FROM PATTERN
+// ===============================
+generateFromConfig({
+  subject: "malayalam",
+  pattern: key
+}).then(result => {
+
+  if (!result) return;
+
+  const q = Array.isArray(result)
+    ? result[0]
+    : result;
+
+  const target =
+    currentDraft.schema_json.sections[0].questions[i];
+
+  // preserve metadata
+  const id = target.id;
+  const topics = target.topics;
+  const status = target.bank_status;
+
+  Object.assign(target, q);
+
+  target.id = id;
+  target.topics = topics;
+  target.bank_status = status;
+
+  renderDraft(currentDraft);
+});
 
 }
   // --------------------------------
@@ -1605,15 +1635,23 @@ ensureMetadata(q);
 // ===============================
 // APPEND GENERATED QUESTION
 // ===============================
-function appendGeneratedQuestion(q) {
+function appendGeneratedQuestion(generated) {
 
-  if (!q) return;
+  if (!generated) return;
 
-  currentDraft
-    .schema_json
-    .sections[0]
-    .questions
-    .push(q);
+  const list = Array.isArray(generated)
+    ? generated
+    : [generated];
+
+  list.forEach(q => {
+
+    currentDraft
+      .schema_json
+      .sections[0]
+      .questions
+      .push(q);
+
+  });
 
   renderDraft(currentDraft);
 
@@ -2429,18 +2467,6 @@ document.getElementById("confirmSaveAll")
     document.body.style.overflow = "";
 
   });
-
-// ===============================
-// TEST GENERATOR (TEMP)
-// ===============================
-window.testGenerator = () => {
-
-  generateFromConfig({
-    subject: "malayalam",
-    pattern: "SYNONYM"
-  });
-
-};
 
 window.runGenerator = runGenerator;
 window.generateFromConfig = generateFromConfig;
