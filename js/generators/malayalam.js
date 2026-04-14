@@ -75,37 +75,49 @@ Pattern — SYNONYM
 
 async function generateSynonymQuestion() {
 
-  const words = await fetchLexiconGroup("SYNONYM");
+  const rows = await fetchLexiconGroup("SYNONYM");
 
-  if (words.length < 4) return null;
+  if (!rows.length) return null;
 
-  // pick stem word
-  const stem = pickRandom(words, 1)[0];
+  // group by stem
+  const groups = {};
 
-  // pick correct from another row
-  const correct = pickRandom(
-    words.filter(w => w.id !== stem.id),
-    1
-  )[0];
+  rows.forEach(r => {
+    if (!groups[r.stem]) {
+      groups[r.stem] = [];
+    }
+    groups[r.stem].push(r.value);
+  });
 
-  const distractors = pickRandom(
-    words.filter(
-      w => w.id !== stem.id && w.id !== correct.id
-    ),
-    3
-  );
+  const stems = Object.keys(groups);
+
+  if (stems.length < 2) return null;
+
+  // pick stem
+  const stem = pickRandom(stems, 1)[0];
+
+  const correct =
+    pickRandom(groups[stem], 1)[0];
+
+  // distractors from other stems
+  const otherValues = stems
+    .filter(s => s !== stem)
+    .flatMap(s => groups[s]);
+
+  const distractors =
+    pickRandom(otherValues, 3);
 
   const options = shuffle([
-    correct.word,
-    ...distractors.map(d => d.word)
+    correct,
+    ...distractors
   ]);
 
   const correctIndex =
-    options.indexOf(correct.word);
+    options.indexOf(correct);
 
   return [
     buildQuestion(
-      `${stem.word} എന്ന വാക്കിന്റെ പര്യായം ഏത്?`,
+      `${stem} എന്ന വാക്കിന്റെ പര്യായം ഏത്?`,
       options,
       correctIndex,
       "SYNONYM"
@@ -113,42 +125,53 @@ async function generateSynonymQuestion() {
   ];
 }
 
-
 /* =========================================
 Pattern — OPPOSITE
 ========================================= */
 
 async function generateOppositeWordQuestion() {
 
-  const words = await fetchLexiconGroup("OPPOSITE_WORD");
+  const rows =
+    await fetchLexiconGroup("OPPOSITE_WORD");
 
-  if (words.length < 4) return null;
+  if (!rows.length) return null;
 
-  const stem = pickRandom(words, 1)[0];
+  const groups = {};
 
-  const correct = pickRandom(
-    words.filter(w => w.id !== stem.id),
-    1
-  )[0];
+  rows.forEach(r => {
+    if (!groups[r.stem]) {
+      groups[r.stem] = [];
+    }
+    groups[r.stem].push(r.value);
+  });
 
-  const distractors = pickRandom(
-    words.filter(
-      w => w.id !== stem.id && w.id !== correct.id
-    ),
-    3
-  );
+  const stems = Object.keys(groups);
+
+  if (stems.length < 2) return null;
+
+  const stem = pickRandom(stems, 1)[0];
+
+  const correct =
+    pickRandom(groups[stem], 1)[0];
+
+  const otherValues = stems
+    .filter(s => s !== stem)
+    .flatMap(s => groups[s]);
+
+  const distractors =
+    pickRandom(otherValues, 3);
 
   const options = shuffle([
-    correct.word,
-    ...distractors.map(d => d.word)
+    correct,
+    ...distractors
   ]);
 
   const correctIndex =
-    options.indexOf(correct.word);
+    options.indexOf(correct);
 
   return [
     buildQuestion(
-      `${stem.word} എന്ന വാക്കിന്റെ വിപരീതപദം ഏത്?`,
+      `${stem} എന്ന വാക്കിന്റെ വിപരീതപദം ഏത്?`,
       options,
       correctIndex,
       "OPPOSITE_WORD"
