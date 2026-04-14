@@ -846,7 +846,10 @@ async function replaceQuestionMetadata(questionId, q) {
       difficulty_label_cached: meta.difficulty_label
     })
     .eq("id", questionId);
-     await updateTopicPatterns(questionId, patternKey);
+     await updateTopicPatterns(
+  questionId,
+  q.primary_pattern || null
+);
 }
 async function saveAllQuestionsToBank(globalTopics = []) {
 
@@ -1665,17 +1668,21 @@ async function generateFromConfig(config) {
 
   try {
 
-    const q = await runGenerator(config);
+    const generated = await runGenerator(config);
 
-    appendGeneratedQuestion(q);
+    appendGeneratedQuestion(generated);
 
     setStatus("Generated question");
+
+    return generated;   // ← CRITICAL FIX
 
   } catch (err) {
 
     console.error(err);
 
     setStatus("Generator failed", true);
+
+    return null;
 
   }
 

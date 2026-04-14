@@ -69,7 +69,6 @@ function pickRandom(arr, count) {
   return shuffle([...arr]).slice(0, count);
 }
 
-
 /* =========================================
 Pattern — SYNONYM
 ========================================= */
@@ -80,10 +79,19 @@ async function generateSynonymQuestion() {
 
   if (words.length < 4) return null;
 
-  const correct = pickRandom(words, 1)[0];
+  // pick stem word
+  const stem = pickRandom(words, 1)[0];
+
+  // pick correct from another row
+  const correct = pickRandom(
+    words.filter(w => w.id !== stem.id),
+    1
+  )[0];
 
   const distractors = pickRandom(
-    words.filter(w => w.id !== correct.id),
+    words.filter(
+      w => w.id !== stem.id && w.id !== correct.id
+    ),
     3
   );
 
@@ -92,22 +100,22 @@ async function generateSynonymQuestion() {
     ...distractors.map(d => d.word)
   ]);
 
-  const correctIndex = options.indexOf(correct.word);
+  const correctIndex =
+    options.indexOf(correct.word);
 
   return [
-  buildQuestion(
-    `${correct.word} എന്ന വാക്കിന്റെ പര്യായം ഏത്?`,
-    options,
-    correctIndex,
-    "SYNONYM"
-  )
-];
-
+    buildQuestion(
+      `${stem.word} എന്ന വാക്കിന്റെ പര്യായം ഏത്?`,
+      options,
+      correctIndex,
+      "SYNONYM"
+    )
+  ];
 }
 
 
 /* =========================================
-Pattern — OPPOSITE WORD
+Pattern — OPPOSITE
 ========================================= */
 
 async function generateOppositeWordQuestion() {
@@ -116,10 +124,17 @@ async function generateOppositeWordQuestion() {
 
   if (words.length < 4) return null;
 
-  const correct = pickRandom(words, 1)[0];
+  const stem = pickRandom(words, 1)[0];
+
+  const correct = pickRandom(
+    words.filter(w => w.id !== stem.id),
+    1
+  )[0];
 
   const distractors = pickRandom(
-    words.filter(w => w.id !== correct.id),
+    words.filter(
+      w => w.id !== stem.id && w.id !== correct.id
+    ),
     3
   );
 
@@ -128,19 +143,18 @@ async function generateOppositeWordQuestion() {
     ...distractors.map(d => d.word)
   ]);
 
-  const correctIndex = options.indexOf(correct.word);
+  const correctIndex =
+    options.indexOf(correct.word);
 
- return [
-  buildQuestion(
-    `${correct.word} എന്ന വാക്കിന്റെ വിപരീതപദം ഏത്?`,
-    options,
-    correctIndex,
-    "OPPOSITE_WORD"
-  )
-];
-
+  return [
+    buildQuestion(
+      `${stem.word} എന്ന വാക്കിന്റെ വിപരീതപദം ഏത്?`,
+      options,
+      correctIndex,
+      "OPPOSITE_WORD"
+    )
+  ];
 }
-
 
 /* =========================================
 Question Builder
