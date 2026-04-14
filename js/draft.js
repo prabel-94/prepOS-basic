@@ -2442,6 +2442,9 @@ window.testGenerator = () => {
 
 };
 
+window.runGenerator = runGenerator;
+window.generateFromConfig = generateFromConfig;
+
   if (draftId) loadDraft();
   else createEmptyDraft();
 }
