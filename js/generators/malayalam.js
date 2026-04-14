@@ -36,19 +36,18 @@ export const MalayalamGenerator = {
 
 
 /* =========================================
-Fetch words
+Fetch
 ========================================= */
 
-async function fetchLexiconGroup(groupId, limit = 20) {
+async function fetchRows(pattern) {
 
   const { data, error } = await sb
     .from("lexicon_entries")
     .select("*")
-    .eq("group_id", groupId)
-    .limit(limit);
+    .eq("pattern_type", pattern);
 
   if (error) {
-    console.error("Lexicon fetch error:", error);
+    console.error(error);
     return [];
   }
 
@@ -69,37 +68,39 @@ function pickRandom(arr, count) {
   return shuffle([...arr]).slice(0, count);
 }
 
+
 /* =========================================
-Pattern — SYNONYM
+SYNONYM
 ========================================= */
 
 async function generateSynonymQuestion() {
 
-  const rows = await fetchLexiconGroup("SYNONYM");
+  const rows = await fetchRows("SYNONYM");
 
-  if (!rows.length) return null;
+  if (rows.length < 4) return null;
 
   // group by stem
   const groups = {};
 
   rows.forEach(r => {
+
     if (!groups[r.stem]) {
       groups[r.stem] = [];
     }
+
     groups[r.stem].push(r.value);
+
   });
 
   const stems = Object.keys(groups);
 
   if (stems.length < 2) return null;
 
-  // pick stem
   const stem = pickRandom(stems, 1)[0];
 
   const correct =
     pickRandom(groups[stem], 1)[0];
 
-  // distractors from other stems
   const otherValues = stems
     .filter(s => s !== stem)
     .flatMap(s => groups[s]);
@@ -116,33 +117,40 @@ async function generateSynonymQuestion() {
     options.indexOf(correct);
 
   return [
+
     buildQuestion(
       `${stem} എന്ന വാക്കിന്റെ പര്യായം ഏത്?`,
       options,
       correctIndex,
       "SYNONYM"
     )
+
   ];
+
 }
 
+
 /* =========================================
-Pattern — OPPOSITE
+OPPOSITE
 ========================================= */
 
 async function generateOppositeWordQuestion() {
 
   const rows =
-    await fetchLexiconGroup("OPPOSITE_WORD");
+    await fetchRows("OPPOSITE_WORD");
 
-  if (!rows.length) return null;
+  if (rows.length < 4) return null;
 
   const groups = {};
 
   rows.forEach(r => {
+
     if (!groups[r.stem]) {
       groups[r.stem] = [];
     }
+
     groups[r.stem].push(r.value);
+
   });
 
   const stems = Object.keys(groups);
@@ -170,20 +178,29 @@ async function generateOppositeWordQuestion() {
     options.indexOf(correct);
 
   return [
+
     buildQuestion(
       `${stem} എന്ന വാക്കിന്റെ വിപരീതപദം ഏത്?`,
       options,
       correctIndex,
       "OPPOSITE_WORD"
     )
+
   ];
+
 }
 
+
 /* =========================================
-Question Builder
+Builder
 ========================================= */
 
-function buildQuestion(text, options, correctIndex, pattern) {
+function buildQuestion(
+  text,
+  options,
+  correctIndex,
+  pattern
+) {
 
   return {
 
@@ -198,7 +215,8 @@ function buildQuestion(text, options, correctIndex, pattern) {
       text: o
     })),
 
-    correct: ["A","B","C","D"][correctIndex],
+    correct:
+      ["A","B","C","D"][correctIndex],
 
     explanation: "",
 
