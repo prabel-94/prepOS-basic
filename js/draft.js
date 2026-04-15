@@ -1233,6 +1233,11 @@ function renderDraft(draft) {
 
         <div class="q-title">
           Q${i + 1}
+          ${q.generator?.enabled ? `
+            <div class="small">
+              Generated &bull; ${q.generator.pattern || "No pattern selected"}
+            </div>
+          ` : ""}
         </div>
 
         <div class="question-actions">
@@ -1287,16 +1292,49 @@ function renderDraft(draft) {
   Difficulty: ${q.difficulty?.label || "Not set"}
 </div>
 
-<div class="mt-10 pattern-box">
-  <input 
-    class="pattern-input"
-    data-i="${i}"
-    placeholder="Pattern (optional)"
-    value="${q.primary_pattern || ""}"
-    autocomplete="off"
-  />
-  <div class="pattern-dropdown hidden"></div>
+<!-- GENERATOR TOGGLE -->
+<div class="mt-10">
+  <label>
+    <input 
+      type="checkbox"
+      class="generator-enable"
+      data-i="${i}"
+      ${q.generator?.enabled ? "checked" : ""}
+    />
+    Use Generator
+  </label>
 </div>
+
+<!-- GENERATOR PANEL -->
+${q.generator?.enabled ? `
+<div class="generator-panel mt-10">
+
+  <div class="pattern-box">
+    <input 
+      class="pattern-input"
+      data-i="${i}"
+      placeholder="Pattern"
+      value="${q.generator?.pattern || ""}"
+      autocomplete="off"
+    />
+    <div class="pattern-dropdown hidden"></div>
+  </div>
+
+  <button 
+    class="secondary-btn generate-btn mt-10"
+    data-i="${i}">
+    Generate
+  </button>
+  ${q.generator?.generated ? `
+  <button 
+    class="secondary-btn regenerate-btn mt-10"
+    data-i="${i}">
+    Regenerate
+  </button>
+  ` : ""}
+
+</div>
+` : ""}
 
 <div class="topic-tags">
   ${topicsHTML}
@@ -1412,6 +1450,27 @@ syncDifficultyToMeta(q);
   renderMetadataPanel(selectedQuestionIndex);
 });
 
+document.getElementById("questions")?.addEventListener("change", (e) => {
+  if (e.target.classList.contains("generator-enable")) {
+    const i = +e.target.dataset.i;
+
+    const q = currentDraft.schema_json.sections[0].questions[i];
+
+    q.generator = {
+      ...q.generator,
+      enabled: e.target.checked,
+      subject: "malayalam",
+      pattern: q.generator?.pattern || null,
+      source: "rule-based",
+      version: 1,
+      last_generated_at: q.generator?.last_generated_at || null
+    };
+
+    renderDraft(currentDraft);
+    scheduleAutosave();
+  }
+});
+
 document.getElementById("questions")?.addEventListener("input", (e) => {
 
   if (e.target.classList.contains("qtext")) {
@@ -1438,9 +1497,8 @@ document.getElementById("questions")?.addEventListener("input", (e) => {
  if (e.target.classList.contains("pattern-input")) {
 
   const i = +e.target.dataset.i;
-
-  currentDraft.schema_json.sections[0].questions[i].primary_pattern =
-    e.target.value;
+  currentDraft.schema_json.sections[0].questions[i].generator.pattern =
+  e.target.value;
 
   const box = e.target.closest(".pattern-box");
   const dropdown = box.querySelector(".pattern-dropdown");
@@ -1469,6 +1527,122 @@ document.getElementById("questions")
 
 document.getElementById("questions")?.addEventListener("click", (e) => {
 
+if (e.target.classList.contains("generate-btn")) {
+
+  const i = +e.target.dataset.i;
+
+  const q =
+    currentDraft.schema_json.sections[0].questions[i];
+
+  const pattern = q.generator?.pattern;
+
+  if (!pattern) {
+    setStatus("Select a pattern first", true);
+    return;
+  }
+
+  generateFromConfig({
+    subject: "malayalam",
+    pattern
+  }).then(result => {
+
+    if (!result) return;
+
+    const generated =
+      Array.isArray(result)
+        ? result[0]
+        : result;
+
+    const id = q.id;
+    const topics = q.topics;
+    const status = q.bank_status;
+
+    Object.assign(q, generated);
+
+    q.id = id;
+    q.topics = topics;
+    q.bank_status = status;
+    q.generator = {
+      ...q.generator,
+      enabled: true,
+      subject: "malayalam",
+      pattern,
+      source: "rule-based",
+      version: 1,
+      generated: true,
+      last_generated_at: new Date().toISOString()
+    };
+
+    renderDraft(currentDraft);
+    scheduleAutosave();
+
+  });
+
+}
+
+if (e.target.classList.contains("regenerate-btn")) {
+
+  const i = +e.target.dataset.i;
+
+  const q =
+    currentDraft.schema_json.sections[0].questions[i];
+
+  const pattern = q.generator?.pattern;
+
+  if (!pattern) {
+    setStatus("Select a pattern first", true);
+    return;
+  }
+
+  if (!confirm("Regenerate question? Current content will be replaced.")) {
+    return;
+  }
+
+  generateFromConfig({
+    subject: "malayalam",
+    pattern
+  }).then(result => {
+
+    if (!result) return;
+
+    const generated =
+      Array.isArray(result)
+        ? result[0]
+        : result;
+
+    const id = q.id;
+    const topics = q.topics;
+    const status = q.bank_status;
+
+    const oldDifficulty = q.difficulty;
+
+Object.assign(q, generated);
+
+// preserve difficulty if user already modified
+if (oldDifficulty && oldDifficulty.label) {
+  q.difficulty = oldDifficulty;
+}
+
+    q.id = id;
+    q.topics = topics;
+    q.bank_status = status;
+    q.generator = {
+      ...q.generator,
+      enabled: true,
+      subject: "malayalam",
+      pattern,
+      source: "rule-based",
+      version: 1,
+      generated: true,
+      last_generated_at: new Date().toISOString()
+    };
+
+    renderDraft(currentDraft);
+    scheduleAutosave();
+
+  });
+
+}
 
 if (e.target.classList.contains("pattern-option")) {
 
@@ -1482,43 +1656,12 @@ if (e.target.classList.contains("pattern-option")) {
   const i = +input.dataset.i;
 
   currentDraft
-    .schema_json
-    .sections[0]
-    .questions[i]
-    .primary_pattern = key;
+  .schema_json
+  .sections[0]
+  .questions[i]
+  .generator.pattern = key;
 
   box.querySelector(".pattern-dropdown").classList.add("hidden");
-  // ===============================
-// GENERATE FROM PATTERN
-// ===============================
-generateFromConfig({
-  subject: "malayalam",
-  pattern: key
-}).then(result => {
-
-  if (!result) return;
-
-  const q = Array.isArray(result)
-    ? result[0]
-    : result;
-
-  const target =
-    currentDraft.schema_json.sections[0].questions[i];
-
-  // preserve metadata
-  const id = target.id;
-  const topics = target.topics;
-  const status = target.bank_status;
-
-  Object.assign(target, q);
-
-  target.id = id;
-  target.topics = topics;
-  target.bank_status = status;
-
-  renderDraft(currentDraft);
-});
-
 }
   // --------------------------------
   // META DATA→ OPEN PANEL
@@ -1621,6 +1764,15 @@ const q = {
   bank_status: "draft",
   primary_pattern: null, 
 
+  generator: {
+  enabled: false,
+  subject: "malayalam",
+  pattern: null,
+  source: "rule-based",
+  version: 1,
+  last_generated_at: null
+},
+
   // 🔥 ADD THIS BLOCK
   difficulty: {
     cognitive_level: null,
@@ -1629,6 +1781,7 @@ const q = {
     score: null,
     label: null
   },
+  
 };
 ensureMetadata(q);
   currentDraft.schema_json.sections[0].questions.push(q);
@@ -1668,13 +1821,12 @@ async function generateFromConfig(config) {
 
   try {
 
-    const generated = await runGenerator(config);
-
-    appendGeneratedQuestion(generated);
+    const generated =
+      await runGenerator(config);
 
     setStatus("Generated question");
 
-    return generated;   // ← CRITICAL FIX
+    return generated;
 
   } catch (err) {
 
