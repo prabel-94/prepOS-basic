@@ -567,6 +567,10 @@ function addTopicToQuestion(qIndex, topicName) {
 
   const formatted = formatTopicName(topicName);
 q.topics.push(formatted);
+  q.generator = {
+    ...q.generator,
+    topics_auto: false
+  };
 
   renderDraft(currentDraft);
 }
@@ -574,6 +578,10 @@ q.topics.push(formatted);
 function removeTopic(qIndex, topicIndex) {
   const q = currentDraft.schema_json.sections[0].questions[qIndex];
   q.topics.splice(topicIndex, 1);
+  q.generator = {
+    ...q.generator,
+    topics_auto: false
+  };
   renderDraft(currentDraft);
 }
 
@@ -654,6 +662,8 @@ async function saveQuestionToBank(q) {
   }
 
   // ✅ Stable hash input
+  syncDifficultyToMeta(q);
+
   const hashInput = (
   q.text +
   (q.options || []).map(o => o.text).join("")
@@ -897,6 +907,10 @@ async function saveAllQuestionsToBank(globalTopics = []) {
       globalTopics.length
     ) {
       q.topics = [...globalTopics];
+      q.generator = {
+        ...q.generator,
+        topics_auto: false
+      };
     }
 
     // --------------------------------
@@ -1554,13 +1568,16 @@ if (e.target.classList.contains("generate-btn")) {
         : result;
 
     const id = q.id;
-    const topics = q.topics;
+    const topics = q.topics || [];
     const status = q.bank_status;
+    const generatedTopics = generated.topics || [];
+    const topicsAuto =
+      q.generator?.topics_auto === true || !topics.length;
 
     Object.assign(q, generated);
 
     q.id = id;
-    q.topics = topics;
+    q.topics = topicsAuto ? generatedTopics : topics;
     q.bank_status = status;
     q.generator = {
       ...q.generator,
@@ -1570,6 +1587,7 @@ if (e.target.classList.contains("generate-btn")) {
       source: "rule-based",
       version: 1,
       generated: true,
+      topics_auto: topicsAuto,
       last_generated_at: new Date().toISOString()
     };
 
@@ -1611,8 +1629,11 @@ if (e.target.classList.contains("regenerate-btn")) {
         : result;
 
     const id = q.id;
-    const topics = q.topics;
+    const topics = q.topics || [];
     const status = q.bank_status;
+    const generatedTopics = generated.topics || [];
+    const topicsAuto =
+      q.generator?.topics_auto === true || !topics.length;
 
     const oldDifficulty = q.difficulty;
 
@@ -1624,7 +1645,7 @@ if (oldDifficulty && oldDifficulty.label) {
 }
 
     q.id = id;
-    q.topics = topics;
+    q.topics = topicsAuto ? generatedTopics : topics;
     q.bank_status = status;
     q.generator = {
       ...q.generator,
@@ -1634,6 +1655,7 @@ if (oldDifficulty && oldDifficulty.label) {
       source: "rule-based",
       version: 1,
       generated: true,
+      topics_auto: topicsAuto,
       last_generated_at: new Date().toISOString()
     };
 
@@ -2161,6 +2183,8 @@ document.getElementById("createNewBtn")
 
   try {
     // ✅ Match the same duplicate logic used by the standard bank save flow
+    syncDifficultyToMeta(q);
+
     const hashInput = (
       q.text +
       (q.options || []).map(o =>
@@ -2557,6 +2581,10 @@ document.getElementById("confirmAddToBank")
   ).map(el => formatTopicName(el.dataset.value));
 
   q.topics = topics;
+  q.generator = {
+    ...q.generator,
+    topics_auto: false
+  };
 
 
   // =====================================
