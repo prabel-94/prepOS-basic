@@ -1470,15 +1470,34 @@ document.getElementById("questions")?.addEventListener("change", (e) => {
 
     const q = currentDraft.schema_json.sections[0].questions[i];
 
-    q.generator = {
-      ...q.generator,
-      enabled: e.target.checked,
-      subject: "malayalam",
-      pattern: q.generator?.pattern || null,
-      source: "rule-based",
-      version: 1,
-      last_generated_at: q.generator?.last_generated_at || null
-    };
+   // -----------------------------
+// ENSURE GENERATOR EXISTS
+// -----------------------------
+if (!q.generator) {
+  q.generator = {
+    enabled: false,
+    subject: "malayalam",
+    pattern: null,
+    source: "rule-based",
+    version: 1,
+    last_generated_at: null,
+    generated: false,
+    topics_auto: true
+  };
+}
+
+// -----------------------------
+// TOGGLE ONLY ENABLE FLAG
+// -----------------------------
+q.generator.enabled = e.target.checked;
+
+// -----------------------------
+// SAFETY DEFAULTS (DO NOT OVERWRITE)
+// -----------------------------
+q.generator.subject = q.generator.subject || "malayalam";
+q.generator.pattern = q.generator.pattern || null;
+q.generator.source = q.generator.source || "rule-based";
+q.generator.version = q.generator.version || 1;
 
     renderDraft(currentDraft);
     scheduleAutosave();
