@@ -1917,11 +1917,14 @@ document.querySelectorAll('#questions input[type="radio"]:checked').forEach(el =
     // --------------------------------
     const questions = currentDraft.schema_json.sections[0].questions;
 
-    for (const q of questions) {
-      if (!q.text || !q.text.trim()) {
-        throw new Error("Empty question detected");
+    if (!silent) {
+      for (const q of questions) {
+        if (!q.text || !q.text.trim()) {
+          throw new Error("Empty question detected");
+        }
       }
     }
+
     const payload = {
       title: document.getElementById("title").value || "Untitled Draft",
       duration: parseInt(document.getElementById("duration").value) || 60,
@@ -1957,7 +1960,7 @@ document.querySelectorAll('#questions input[type="radio"]:checked').forEach(el =
   } catch (e) {
     console.error(e);
     setStatus("Save failed", true);
-    throw e;
+    if (!silent) throw e;
   } finally {
     isSaving = false;
   }
