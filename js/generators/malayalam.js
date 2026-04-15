@@ -38,6 +38,16 @@ function getTopicsFromPattern(pattern) {
 }
 
 /* =========================================
+Pattern Registry
+========================================= */
+
+const PatternRegistry = {
+  SYNONYM: generateSynonymQuestion,
+  OPPOSITE_WORD: generateOppositeWordQuestion
+};
+
+
+/* =========================================
 Main Export
 ========================================= */
 
@@ -47,20 +57,15 @@ export const MalayalamGenerator = {
 
     const { pattern } = config;
 
-    switch (pattern) {
+    const generatorFn = PatternRegistry[pattern];
 
-      case "SYNONYM":
-        return generateSynonymQuestion();
-
-      case "OPPOSITE_WORD":
-        return generateOppositeWordQuestion();
-
-      default:
-        throw new Error(
-          "Unknown Malayalam pattern: " + pattern
-        );
-
+    if (!generatorFn) {
+      throw new Error(
+        "Unknown Malayalam pattern: " + pattern
+      );
     }
+
+    return generatorFn(config);
 
   }
 
@@ -186,7 +191,7 @@ async function selectStemForGeneration(stems, groups) {
 SYNONYM
 ========================================= */
 
-async function generateSynonymQuestion() {
+async function generateSynonymQuestion(config) {
 
   const rows = await fetchRows("SYNONYM");
 
@@ -251,7 +256,7 @@ async function generateSynonymQuestion() {
 OPPOSITE
 ========================================= */
 
-async function generateOppositeWordQuestion() {
+async function generateOppositeWordQuestion(config) {
 
   const rows =
     await fetchRows("OPPOSITE_WORD");
