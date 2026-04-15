@@ -1567,29 +1567,63 @@ if (e.target.classList.contains("generate-btn")) {
         ? result[0]
         : result;
 
-    const old = { ...q };
-    const topics = old.topics || [];
-    const generatedTopics = generated.topics || [];
-    const topicsAuto =
-      old.generator?.topics_auto === true || !topics.length;
+    // -----------------------------
+// SAFE SNAPSHOT
+// -----------------------------
+const oldGenerator = q.generator ? { ...q.generator } : null;
+const oldTopics = [...(q.topics || [])];
+const oldBankStatus = q.bank_status;
+const oldId = q.id;
+const oldDifficulty = q.difficulty ? { ...q.difficulty } : null;
 
-    Object.assign(q, generated);
+const generatedTopics = generated.topics || [];
 
-    q.generator = old.generator;
-    q.id = old.id;
-    q.topics = topicsAuto ? generatedTopics : topics;
-    q.bank_status = old.bank_status;
-    q.generator = {
-      ...q.generator,
-      enabled: true,
-      subject: "malayalam",
-      pattern,
-      source: "rule-based",
-      version: 1,
-      generated: true,
-      topics_auto: topicsAuto,
-      last_generated_at: new Date().toISOString()
-    };
+const topicsAuto =
+  oldGenerator?.topics_auto === true || !oldTopics.length;
+
+
+// -----------------------------
+// SAFE MERGE (ONLY CORE FIELDS)
+// -----------------------------
+q.text = generated.text;
+q.options = generated.options;
+q.correct = generated.correct;
+q.explanation = generated.explanation;
+q.primary_pattern = generated.primary_pattern;
+q.difficulty = generated.difficulty;
+
+
+// -----------------------------
+// RESTORE STATE
+// -----------------------------
+q.id = oldId;
+q.bank_status = oldBankStatus;
+
+q.topics = topicsAuto ? generatedTopics : oldTopics;
+
+
+// -----------------------------
+// RESTORE GENERATOR
+// -----------------------------
+q.generator = {
+  ...oldGenerator,
+  enabled: true,
+  subject: "malayalam",
+  pattern,
+  source: "rule-based",
+  version: 1,
+  generated: true,
+  topics_auto: topicsAuto,
+  last_generated_at: new Date().toISOString()
+};
+
+
+// -----------------------------
+// PRESERVE USER DIFFICULTY
+// -----------------------------
+if (oldDifficulty && oldDifficulty.label) {
+  q.difficulty = oldDifficulty;
+}
 
     renderDraft(currentDraft);
     scheduleAutosave();
@@ -1628,37 +1662,63 @@ if (e.target.classList.contains("regenerate-btn")) {
         ? result[0]
         : result;
 
-    const old = { ...q };
-    const topics = old.topics || [];
-    const generatedTopics = generated.topics || [];
-    const topicsAuto =
-      old.generator?.topics_auto === true || !topics.length;
+  // -----------------------------
+// SAFE SNAPSHOT
+// -----------------------------
+const oldGenerator = q.generator ? { ...q.generator } : null;
+const oldTopics = [...(q.topics || [])];
+const oldBankStatus = q.bank_status;
+const oldId = q.id;
+const oldDifficulty = q.difficulty ? { ...q.difficulty } : null;
 
-    const oldDifficulty = old.difficulty;
+const generatedTopics = generated.topics || [];
 
-Object.assign(q, generated);
+const topicsAuto =
+  oldGenerator?.topics_auto === true || !oldTopics.length;
 
-q.generator = old.generator;
 
-// preserve difficulty if user already modified
+// -----------------------------
+// SAFE MERGE
+// -----------------------------
+q.text = generated.text;
+q.options = generated.options;
+q.correct = generated.correct;
+q.explanation = generated.explanation;
+q.primary_pattern = generated.primary_pattern;
+q.difficulty = generated.difficulty;
+
+
+// -----------------------------
+// RESTORE STATE
+// -----------------------------
+q.id = oldId;
+q.bank_status = oldBankStatus;
+
+q.topics = topicsAuto ? generatedTopics : oldTopics;
+
+
+// -----------------------------
+// RESTORE GENERATOR
+// -----------------------------
+q.generator = {
+  ...oldGenerator,
+  enabled: true,
+  subject: "malayalam",
+  pattern,
+  source: "rule-based",
+  version: 1,
+  generated: true,
+  topics_auto: topicsAuto,
+  last_generated_at: new Date().toISOString()
+};
+
+
+// -----------------------------
+// PRESERVE USER DIFFICULTY
+// -----------------------------
 if (oldDifficulty && oldDifficulty.label) {
   q.difficulty = oldDifficulty;
 }
-
-    q.id = old.id;
-    q.topics = topicsAuto ? generatedTopics : topics;
-    q.bank_status = old.bank_status;
-    q.generator = {
-      ...q.generator,
-      enabled: true,
-      subject: "malayalam",
-      pattern,
-      source: "rule-based",
-      version: 1,
-      generated: true,
-      topics_auto: topicsAuto,
-      last_generated_at: new Date().toISOString()
-    };
 
     renderDraft(currentDraft);
     scheduleAutosave();
