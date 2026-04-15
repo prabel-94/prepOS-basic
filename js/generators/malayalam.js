@@ -4,6 +4,8 @@ PrepOS Malayalam Generator
 
 const sb = window.supabaseClient;
 
+const ADAPTIVE_MODE = true;
+
 
 
 /* =========================================
@@ -85,7 +87,7 @@ async function fetchRows(pattern) {
 
 }
 
-async function getUserWordStats() {
+async function getUserWordStatsMap() {
 
   const userId = window.currentUser?.id;
 
@@ -93,13 +95,21 @@ async function getUserWordStats() {
 
   const { data } = await sb
     .from("user_lexicon_word_stats")
-    .select("word_id, seen_count")
+    .select("word_text, seen_count, correct_count")
     .eq("user_id", userId);
 
   const map = {};
 
   (data || []).forEach(row => {
-    map[row.word_id] = row.seen_count;
+
+    const seen = row.seen_count || 0;
+    const correct = row.correct_count || 0;
+
+    const weakness =
+      seen === 0 ? 1 : 1 - (correct / seen);
+
+    map[row.word_text] = weakness;
+
   });
 
   return map;
@@ -117,6 +127,58 @@ function shuffle(arr) {
 
 function pickRandom(arr, count) {
   return shuffle([...arr]).slice(0, count);
+}
+
+async function selectStemForGeneration(stems, groups) {
+
+  const candidates = stems.filter(stem => {
+    const otherValues = stems
+      .filter(s => s !== stem)
+      .flatMap(s => groups[s]);
+
+    return otherValues.length >= 3;
+  });
+
+  if (!candidates.length) return null;
+
+  if (!ADAPTIVE_MODE) {
+    return pickRandom(candidates, 1)[0];
+  }
+
+  const stats = await getUserWordStatsMap();
+
+  if (!Object.keys(stats).length) {
+    return pickRandom(candidates, 1)[0];
+  }
+
+  const scored = candidates.map(stem => {
+
+    const values = groups[stem];
+
+    // average weakness of values
+    const weaknesses = values.map(v =>
+      stats[v] ?? 1
+    );
+
+    const avg =
+      weaknesses.reduce((a, b) => a + b, 0) /
+      weaknesses.length;
+
+    return {
+      stem,
+      score: avg
+    };
+
+  });
+
+  // sort by weakness (descending)
+  scored.sort((a, b) => b.score - a.score);
+
+  // take top weak stems
+  const top = scored.slice(0, 5);
+
+  return pickRandom(top, 1)[0].stem;
+
 }
 
 
@@ -147,25 +209,10 @@ async function generateSynonymQuestion() {
 
   if (stems.length < 2) return null;
 
-  const stats = await getUserWordStats();
+  const stem =
+    await selectStemForGeneration(stems, groups);
 
-  // score stems by least usage
-  const scored = stems.map(stem => {
-
-    const row = rows.find(r => r.stem === stem);
-
-    const count = stats[row?.id] || 0;
-
-    return { stem, count };
-
-  });
-
-  // sort ascending (least seen first)
-  scored.sort((a, b) => a.count - b.count);
-
-  const top = scored.slice(0, 5); // pick from least-used pool
-
-  const stem = pickRandom(top, 1)[0].stem;
+  if (!stem) return null;
 
   const correct =
     pickRandom(groups[stem], 1)[0];
@@ -227,25 +274,10 @@ async function generateOppositeWordQuestion() {
 
   if (stems.length < 2) return null;
 
-  const stats = await getUserWordStats();
+  const stem =
+    await selectStemForGeneration(stems, groups);
 
-  // score stems by least usage
-  const scored = stems.map(stem => {
-
-    const row = rows.find(r => r.stem === stem);
-
-    const count = stats[row?.id] || 0;
-
-    return { stem, count };
-
-  });
-
-  // sort ascending (least seen first)
-  scored.sort((a, b) => a.count - b.count);
-
-  const top = scored.slice(0, 5); // pick from least-used pool
-
-  const stem = pickRandom(top, 1)[0].stem;
+  if (!stem) return null;
 
   const correct =
     pickRandom(groups[stem], 1)[0];

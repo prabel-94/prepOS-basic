@@ -155,17 +155,36 @@ async function saveGroup(card) {
   }));
 
   const stemToReplace = group.originalStem || group.stem;
+  let existingRows = [];
 
-  const { error: deleteError } = await sb
-    .from("lexicon_entries")
-    .delete()
-    .eq("pattern_type", selectedPattern)
-    .eq("stem", stemToReplace);
+  if (group.originalStem) {
+    const { data, error: loadError } = await sb
+      .from("lexicon_entries")
+      .select("pattern_type, stem, value")
+      .eq("pattern_type", selectedPattern)
+      .eq("stem", stemToReplace);
 
-  if (deleteError) {
-    console.error(deleteError);
-    setStatus("Failed to update word group", true);
-    return;
+    if (loadError) {
+      console.error(loadError);
+      setStatus("Failed to prepare word group update", true);
+      return;
+    }
+
+    existingRows = data || [];
+  }
+
+  if (group.originalStem) {
+    const { error: deleteError } = await sb
+      .from("lexicon_entries")
+      .delete()
+      .eq("pattern_type", selectedPattern)
+      .eq("stem", stemToReplace);
+
+    if (deleteError) {
+      console.error(deleteError);
+      setStatus("Failed to update word group", true);
+      return;
+    }
   }
 
   const { error } = await sb
@@ -174,6 +193,19 @@ async function saveGroup(card) {
 
   if (error) {
     console.error(error);
+
+    if (existingRows.length) {
+      const { error: restoreError } = await sb
+        .from("lexicon_entries")
+        .insert(existingRows);
+
+      if (restoreError) {
+        console.error(restoreError);
+        setStatus("Save failed and restore also failed", true);
+        return;
+      }
+    }
+
     setStatus("Failed to save word group", true);
     return;
   }
