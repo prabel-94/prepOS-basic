@@ -1876,7 +1876,10 @@ async function saveDraft(silent = false) {
 // --------------------------------
 document.querySelectorAll(".qtext").forEach(el => {
   const i = +el.dataset.i;
-  currentDraft.schema_json.sections[0].questions[i].text = el.value;
+  const q = currentDraft.schema_json.sections[0].questions[i];
+  if (!q) return;
+
+  q.text = el.value;
 });
 
 document.querySelectorAll(".opt").forEach(el => {
@@ -1884,6 +1887,7 @@ document.querySelectorAll(".opt").forEach(el => {
   const oi = +el.dataset.oi;
 
   const q = currentDraft.schema_json.sections[0].questions[i];
+  if (!q) return;
 
   if (!q.options[oi]) {
     q.options[oi] = { id: ["A","B","C","D"][oi], text: "" };
@@ -1894,12 +1898,18 @@ document.querySelectorAll(".opt").forEach(el => {
 
 document.querySelectorAll(".explanation").forEach(el => {
   const i = +el.dataset.i;
-  currentDraft.schema_json.sections[0].questions[i].explanation = el.value;
+  const q = currentDraft.schema_json.sections[0].questions[i];
+  if (!q) return;
+
+  q.explanation = el.value;
 });
 
-document.querySelectorAll('input[type="radio"]:checked').forEach(el => {
+document.querySelectorAll('#questions input[type="radio"]:checked').forEach(el => {
   const i = +el.dataset.i;
-  currentDraft.schema_json.sections[0].questions[i].correct = el.value;
+  const q = currentDraft.schema_json.sections[0].questions[i];
+  if (!q || Number.isNaN(i)) return;
+
+  q.correct = el.value;
 });
 
 // --------------------------------
