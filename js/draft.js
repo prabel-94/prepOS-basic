@@ -40,8 +40,6 @@ function renderPatternDropdown(container, query, mode = "all") {
 
   const q = query.toLowerCase();
 
-  const allowedPatterns = ["SYNONYM", "OPPOSITE_WORD"];
-
 let filtered = patternDefinitions;
 
 // 🔥 APPLY MODE FILTER
@@ -1585,13 +1583,33 @@ document.getElementById("questions")?.addEventListener("input", (e) => {
 document.getElementById("questions")
 ?.addEventListener("focusin", (e) => {
 
-  if (!e.target.classList.contains("pattern-input")) return;
+  // -----------------------------
+  // GENERATOR PATTERN INPUT
+  // -----------------------------
+  if (e.target.classList.contains("pattern-input")) {
 
-  const box = e.target.closest(".pattern-box");
-  const dropdown = box.querySelector(".pattern-dropdown");
+    const box = e.target.closest(".pattern-box");
+    const dropdown = box.querySelector(".pattern-dropdown");
 
-  renderPatternDropdown(dropdown, "");
-  dropdown.classList.remove("hidden");
+    renderPatternDropdown(dropdown, "");
+    dropdown.classList.remove("hidden");
+
+    return;
+  }
+
+  // -----------------------------
+  // PRIMARY PATTERN INPUT
+  // -----------------------------
+  if (e.target.classList.contains("primary-pattern-input")) {
+
+    const box = e.target.closest("div");
+    const dropdown = box.querySelector(".primary-pattern-dropdown");
+
+    renderPatternDropdown(dropdown, "");
+    dropdown.classList.remove("hidden");
+
+    return;
+  }
 
 });
 
@@ -2548,11 +2566,18 @@ function setupTopicInput(inputId, tagsId, warningsId) {
   // ------------------------
   document.addEventListener("click", (e) => {
 
-    if (!dropdown.contains(e.target) && e.target !== input) {
-      dropdown.classList.add("hidden");
-    }
+  document.querySelectorAll(".pattern-dropdown")
+    .forEach(d => {
 
-  });
+      const box = d.closest(".pattern-box") || d.parentElement;
+
+      if (!box.contains(e.target)) {
+        d.classList.add("hidden");
+      }
+
+    });
+
+});
 
 }
 
