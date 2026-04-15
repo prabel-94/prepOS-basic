@@ -1817,9 +1817,29 @@ if (e.target.classList.contains("pattern-option")) {
 
     const i = +input.dataset.i;
 
-    currentDraft.schema_json.sections[0]
-      .questions[i]
-      .generator.pattern = key;
+    const q =
+      currentDraft.schema_json.sections[0].questions[i];
+
+    // -----------------------------
+    // ENSURE GENERATOR EXISTS
+    // -----------------------------
+    if (!q.generator) {
+      q.generator = {
+        enabled: false,
+        subject: "malayalam",
+        pattern: null,
+        source: "rule-based",
+        version: 1,
+        last_generated_at: null,
+        generated: false,
+        topics_auto: true
+      };
+    }
+
+    // -----------------------------
+    // SAFE UPDATE
+    // -----------------------------
+    q.generator.pattern = key;
 
     box.querySelector(".pattern-dropdown")
       .classList.add("hidden");
@@ -1842,7 +1862,7 @@ if (e.target.classList.contains("pattern-option")) {
 
   }
 
-  return; // ✅ VERY IMPORTANT (prevents fallthrough)
+  return;
 } // --------------------------------
   // META DATA→ OPEN PANEL
   // --------------------------------
