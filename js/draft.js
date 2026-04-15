@@ -36,13 +36,24 @@ const mode = params.get("mode");
 let patternDefinitions = [];
 let caEventDefinitions = [];
 
-function renderPatternDropdown(container, query) {
+function renderPatternDropdown(container, query, mode = "all") {
 
   const q = query.toLowerCase();
 
-  const filtered = patternDefinitions
-    .filter(p => p.key.toLowerCase().includes(q))
-    .sort((a, b) => a.key.localeCompare(b.key));
+  const allowedPatterns = ["SYNONYM", "OPPOSITE_WORD"];
+
+let filtered = patternDefinitions;
+
+// 🔥 APPLY MODE FILTER
+if (container.classList.contains("generator-dropdown")) {
+  const allowedPatterns = ["SYNONYM", "OPPOSITE_WORD"];
+  filtered = filtered.filter(p => allowedPatterns.includes(p.key));
+}
+
+// 🔍 SEARCH FILTER
+filtered = filtered
+  .filter(p => p.key.toLowerCase().includes(q))
+  .sort((a, b) => a.key.localeCompare(b.key));
   if (!filtered.length) {
     container.innerHTML = `<div class="pattern-empty">No match</div>`;
     return;
@@ -1290,6 +1301,18 @@ function renderDraft(draft) {
         placeholder="Enter question..."
       >${q.text || ""}</textarea>
 
+      <!-- PRIMARY PATTERN (METADATA) -->
+<div class="mt-10">
+  <input 
+    class="primary-pattern-input"
+    data-i="${i}"
+    placeholder="Pattern (e.g., ASC, Awarded)"
+    value="${q.primary_pattern || ""}"
+    autocomplete="off"
+  />
+  <div class="pattern-dropdown primary-pattern-dropdown hidden"></div>
+</div>
+
       <!-- OPTIONS -->
       <div class="options">
         ${optionsHTML}
@@ -1331,7 +1354,7 @@ ${q.generator?.enabled ? `
       value="${q.generator?.pattern || ""}"
       autocomplete="off"
     />
-    <div class="pattern-dropdown hidden"></div>
+    <div class="pattern-dropdown generator-dropdown hidden"></div>
   </div>
 
   <button 
@@ -1505,6 +1528,20 @@ q.generator.version = q.generator.version || 1;
 });
 
 document.getElementById("questions")?.addEventListener("input", (e) => {
+
+  if (e.target.classList.contains("primary-pattern-input")) {
+
+  const i = +e.target.dataset.i;
+
+  const q = currentDraft.schema_json.sections[0].questions[i];
+
+  q.primary_pattern = e.target.value;
+
+  const box = e.target.closest("div");
+  const dropdown = box.querySelector(".primary-pattern-dropdown");
+
+  renderPatternDropdown(dropdown, e.target.value);
+}
 
   if (e.target.classList.contains("qtext")) {
     currentDraft.schema_json.sections[0].questions[+e.target.dataset.i].text = e.target.value;
@@ -1750,22 +1787,45 @@ if (e.target.classList.contains("pattern-option")) {
 
   const key = e.target.dataset.key;
 
-  const box = e.target.closest(".pattern-box");
-  const input = box.querySelector(".pattern-input");
+  const isGenerator =
+    e.target.closest(".pattern-box") !== null;
 
-  input.value = key;
+  if (isGenerator) {
 
-  const i = +input.dataset.i;
+    const box = e.target.closest(".pattern-box");
+    const input = box.querySelector(".pattern-input");
 
-  currentDraft
-  .schema_json
-  .sections[0]
-  .questions[i]
-  .generator.pattern = key;
+    input.value = key;
 
-  box.querySelector(".pattern-dropdown").classList.add("hidden");
-}
-  // --------------------------------
+    const i = +input.dataset.i;
+
+    currentDraft.schema_json.sections[0]
+      .questions[i]
+      .generator.pattern = key;
+
+    box.querySelector(".pattern-dropdown")
+      .classList.add("hidden");
+
+  } else {
+
+    const box = e.target.closest("div");
+    const input = box.querySelector(".primary-pattern-input");
+
+    input.value = key;
+
+    const i = +input.dataset.i;
+
+    currentDraft.schema_json.sections[0]
+      .questions[i]
+      .primary_pattern = key;
+
+    box.querySelector(".primary-pattern-dropdown")
+      .classList.add("hidden");
+
+  }
+
+  return; // ✅ VERY IMPORTANT (prevents fallthrough)
+} // --------------------------------
   // META DATA→ OPEN PANEL
   // --------------------------------
 
