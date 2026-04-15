@@ -5,6 +5,36 @@ PrepOS Malayalam Generator
 const sb = window.supabaseClient;
 
 
+
+/* =========================================
+Topic Mapping
+========================================= */
+
+function getTopicsFromPattern(pattern) {
+
+  switch (pattern) {
+
+    case "SYNONYM":
+      return [
+        "Malayalam",
+        "Vocabulary",
+        "Synonyms"
+      ];
+
+    case "OPPOSITE_WORD":
+      return [
+        "Malayalam",
+        "Vocabulary",
+        "Antonyms"
+      ];
+
+    default:
+      return [];
+
+  }
+
+}
+
 /* =========================================
 Main Export
 ========================================= */
@@ -55,6 +85,27 @@ async function fetchRows(pattern) {
 
 }
 
+async function getUserWordStats() {
+
+  const userId = window.currentUser?.id;
+
+  if (!userId) return {};
+
+  const { data } = await sb
+    .from("user_lexicon_word_stats")
+    .select("word_id, seen_count")
+    .eq("user_id", userId);
+
+  const map = {};
+
+  (data || []).forEach(row => {
+    map[row.word_id] = row.seen_count;
+  });
+
+  return map;
+
+}
+
 
 /* =========================================
 Utils
@@ -96,7 +147,25 @@ async function generateSynonymQuestion() {
 
   if (stems.length < 2) return null;
 
-  const stem = pickRandom(stems, 1)[0];
+  const stats = await getUserWordStats();
+
+  // score stems by least usage
+  const scored = stems.map(stem => {
+
+    const row = rows.find(r => r.stem === stem);
+
+    const count = stats[row?.id] || 0;
+
+    return { stem, count };
+
+  });
+
+  // sort ascending (least seen first)
+  scored.sort((a, b) => a.count - b.count);
+
+  const top = scored.slice(0, 5); // pick from least-used pool
+
+  const stem = pickRandom(top, 1)[0].stem;
 
   const correct =
     pickRandom(groups[stem], 1)[0];
@@ -116,16 +185,17 @@ async function generateSynonymQuestion() {
   const correctIndex =
     options.indexOf(correct);
 
-  return [
-
-    buildQuestion(
+  const q = buildQuestion(
       `${stem} എന്ന വാക്കിന്റെ പര്യായം ഏത്?`,
       options,
       correctIndex,
-      "SYNONYM"
-    )
+      "SYNONYM",
+      getDifficultyFromPattern("SYNONYM")
+    );
 
-  ];
+  q.topics = getTopicsFromPattern("SYNONYM");
+
+  return [q];
 
 }
 
@@ -157,7 +227,25 @@ async function generateOppositeWordQuestion() {
 
   if (stems.length < 2) return null;
 
-  const stem = pickRandom(stems, 1)[0];
+  const stats = await getUserWordStats();
+
+  // score stems by least usage
+  const scored = stems.map(stem => {
+
+    const row = rows.find(r => r.stem === stem);
+
+    const count = stats[row?.id] || 0;
+
+    return { stem, count };
+
+  });
+
+  // sort ascending (least seen first)
+  scored.sort((a, b) => a.count - b.count);
+
+  const top = scored.slice(0, 5); // pick from least-used pool
+
+  const stem = pickRandom(top, 1)[0].stem;
 
   const correct =
     pickRandom(groups[stem], 1)[0];
@@ -177,20 +265,52 @@ async function generateOppositeWordQuestion() {
   const correctIndex =
     options.indexOf(correct);
 
-  return [
-
-    buildQuestion(
+  const q = buildQuestion(
       `${stem} എന്ന വാക്കിന്റെ വിപരീതപദം ഏത്?`,
       options,
       correctIndex,
-      "OPPOSITE_WORD"
-    )
+      "OPPOSITE_WORD",
+      getDifficultyFromPattern("OPPOSITE_WORD")
+    );
 
-  ];
+  q.topics = getTopicsFromPattern("OPPOSITE_WORD");
+
+  return [q];
 
 }
 
+/* =========================================
+Difficulty Mapping
+========================================= */
 
+function getDifficultyFromPattern(pattern) {
+
+  switch (pattern) {
+
+    case "SYNONYM":
+      return {
+        cognitive_level: "recall",
+        complexity_level: "low",
+        depth_level: "surface",
+        score: 2,
+        label: "easy"
+      };
+
+    case "OPPOSITE_WORD":
+      return {
+        cognitive_level: "recall",
+        complexity_level: "low",
+        depth_level: "surface",
+        score: 1,
+        label: "easy"
+      };
+
+    default:
+      return null;
+
+  }
+
+}
 /* =========================================
 Builder
 ========================================= */
@@ -199,7 +319,8 @@ function buildQuestion(
   text,
   options,
   correctIndex,
-  pattern
+  pattern,
+  difficulty
 ) {
 
   return {
@@ -226,7 +347,7 @@ function buildQuestion(
 
     bank_status: "draft",
 
-    difficulty: {
+    difficulty: difficulty || {
       cognitive_level: null,
       complexity_level: null,
       depth_level: null,

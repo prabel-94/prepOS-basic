@@ -298,6 +298,38 @@ QUESTION CARD (BUILDER)
   transform: translateY(-2px);
 }
 
+/* LEXICON MANAGER */
+.lexicon-groups{
+  display:grid;
+  gap:14px;
+}
+
+.group-card{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:8px;
+  padding:16px;
+  box-shadow:var(--shadow);
+}
+
+.group-card .stem-input{
+  width:100%;
+  font-weight:600;
+  margin-bottom:12px;
+}
+
+.group-card .values{
+  display:grid;
+  gap:8px;
+}
+
+.value-row{
+  display:grid;
+  grid-template-columns:1fr auto;
+  gap:8px;
+  align-items:center;
+}
+
 /* HEADER */
 
 .q-header{
