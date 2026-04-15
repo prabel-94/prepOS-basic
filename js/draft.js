@@ -1567,18 +1567,18 @@ if (e.target.classList.contains("generate-btn")) {
         ? result[0]
         : result;
 
-    const id = q.id;
-    const topics = q.topics || [];
-    const status = q.bank_status;
+    const old = { ...q };
+    const topics = old.topics || [];
     const generatedTopics = generated.topics || [];
     const topicsAuto =
-      q.generator?.topics_auto === true || !topics.length;
+      old.generator?.topics_auto === true || !topics.length;
 
     Object.assign(q, generated);
 
-    q.id = id;
+    q.generator = old.generator;
+    q.id = old.id;
     q.topics = topicsAuto ? generatedTopics : topics;
-    q.bank_status = status;
+    q.bank_status = old.bank_status;
     q.generator = {
       ...q.generator,
       enabled: true,
@@ -1628,25 +1628,26 @@ if (e.target.classList.contains("regenerate-btn")) {
         ? result[0]
         : result;
 
-    const id = q.id;
-    const topics = q.topics || [];
-    const status = q.bank_status;
+    const old = { ...q };
+    const topics = old.topics || [];
     const generatedTopics = generated.topics || [];
     const topicsAuto =
-      q.generator?.topics_auto === true || !topics.length;
+      old.generator?.topics_auto === true || !topics.length;
 
-    const oldDifficulty = q.difficulty;
+    const oldDifficulty = old.difficulty;
 
 Object.assign(q, generated);
+
+q.generator = old.generator;
 
 // preserve difficulty if user already modified
 if (oldDifficulty && oldDifficulty.label) {
   q.difficulty = oldDifficulty;
 }
 
-    q.id = id;
+    q.id = old.id;
     q.topics = topicsAuto ? generatedTopics : topics;
-    q.bank_status = status;
+    q.bank_status = old.bank_status;
     q.generator = {
       ...q.generator,
       enabled: true,
