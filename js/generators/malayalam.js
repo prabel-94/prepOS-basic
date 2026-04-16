@@ -18,16 +18,16 @@ function getTopicsFromPattern(pattern) {
 
     case "SYNONYM":
       return [
-        "Malayalam",
-        "Vocabulary",
-        "Synonyms"
+        "MALAYALAM",
+        "VOCABULARY",
+        "SYNONYM"
       ];
 
     case "OPPOSITE_WORD":
       return [
-        "Malayalam",
-        "Vocabulary",
-        "Antonyms"
+        "MALAYALAM",
+        "VOCABULARY",
+        "ANTONYM"
       ];
 
     default:

@@ -181,6 +181,17 @@ function updateConfirmState() {
 }
 
 function formatTopicName(name) {
+
+  // convert KEY → display name
+  const map = {
+    MALAYALAM: "Malayalam",
+    VOCABULARY: "Vocabulary",
+    SYNONYM: "Synonyms",
+    ANTONYM: "Antonyms"
+  };
+
+  if (map[name]) return map[name];
+
   return name
     .trim()
     .replace(/\s+/g, " ")
@@ -597,56 +608,65 @@ function removeTopic(qIndex, topicIndex) {
 // --------------------------------
 // TOPIC DB LINKING
 // --------------------------------
-async function getOrCreateTopic(name) {
 
-  const clean = name.trim().replace(/\s+/g, " ");
-  const formatted = formatTopicName(clean);
-  const normalized = clean.toLowerCase();
+async function resolveTopicKeys(topicKeys) {
 
-  // Try fetch
-  const { data: existing } = await sb
-    .from("topics")
-    .select("id")
-    .eq("normalized_name", normalized)
-    .maybeSingle();
+  if (!topicKeys || !topicKeys.length) return [];
 
-  if (existing) return existing.id;
-
-  // Try insert (safe because of UNIQUE index)
   const { data, error } = await sb
     .from("topics")
-    .insert({
-      name: formatted,
-      normalized_name: normalized
-    })
-    .select()
-    .single();
+    .select("id, topic_key")
+    .in("topic_key", topicKeys);
 
-  // 🔥 Handle race condition
-  if (error && error.code === "23505") {
-    const { data: retry } = await sb
-      .from("topics")
-      .select("id")
-      .eq("normalized_name", normalized)
-      .single();
-
-    return retry.id;
+  if (error) {
+    console.error("Topic key resolve error:", error);
+    return [];
   }
 
-  return data.id;
+  const map = {};
+
+  (data || []).forEach(t => {
+    map[t.topic_key] = t.id;
+  });
+
+  return topicKeys
+    .map(k => map[k])
+    .filter(Boolean);
+}
+
+async function resolveTopicKeys(topicKeys) {
+
+  if (!topicKeys?.length) return [];
+
+  const { data, error } = await sb
+    .from("topics")
+    .select("id, topic_key")
+    .in("topic_key", topicKeys);
+
+  if (error) {
+    console.error("Topic key resolve error:", error);
+    return [];
+  }
+
+  const map = {};
+  (data || []).forEach(t => {
+    map[t.topic_key] = t.id;
+  });
+
+  return topicKeys.map(k => map[k]).filter(Boolean);
 }
 
 async function attachTopics(questionId, topics = []) {
 
-  console.log("ATTACHING TOPICS →", topics, "for Q:", questionId);
+  console.log("ATTACHING TOPIC KEYS →", topics);
 
-  for (const t of topics) {
+  const topicIds = await resolveTopicKeys(
+  topics.map(t => t.toUpperCase())
+);
 
-    const topicId = await getOrCreateTopic(t);
+  for (const topicId of topicIds) {
 
-    console.log("Resolved Topic:", t, "→ ID:", topicId);
-
-    const { data, error } = await sb
+    const { error } = await sb
       .from("question_topics")
       .upsert({
         question_id: questionId,
