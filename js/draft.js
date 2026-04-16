@@ -634,6 +634,7 @@ async function resolveTopicKeys(topicKeys) {
     .filter(Boolean);
 }
 
+
 async function attachTopics(questionId, topics = []) {
 
   console.log("ATTACHING TOPIC KEYS →", topics);
@@ -1343,16 +1344,16 @@ function renderDraft(draft) {
 ${q.generator?.enabled ? `
 <div class="generator-panel mt-10">
 
-  <div class="pattern-box">
-    <input 
-      class="pattern-input"
-      data-i="${i}"
-      placeholder="Pattern"
-      value="${q.generator?.pattern || ""}"
-      autocomplete="off"
-    />
-    <div class="pattern-dropdown generator-dropdown hidden"></div>
-  </div>
+<div class="pattern-box">
+  <select 
+    class="pattern-select"
+    data-i="${i}"
+  >
+    <option value="">Select Pattern</option>
+    <option value="SYNONYM" ${q.generator?.pattern === "SYNONYM" ? "selected" : ""}>Synonym</option>
+    <option value="OPPOSITE_WORD" ${q.generator?.pattern === "OPPOSITE_WORD" ? "selected" : ""}>Opposite Word</option>
+  </select>
+</div>
 
   <button 
     class="secondary-btn generate-btn mt-10"
@@ -1526,6 +1527,34 @@ q.generator.version = q.generator.version || 1;
 
 document.getElementById("questions")?.addEventListener("input", (e) => {
 
+  // --------------------------------
+// GENERATOR PATTERN SELECT (NEW)
+// --------------------------------
+if (e.target.classList.contains("pattern-select")) {
+
+  const i = +e.target.dataset.i;
+
+  const q = currentDraft.schema_json.sections[0].questions[i];
+
+  // ensure generator exists
+  if (!q.generator) {
+    q.generator = {
+      enabled: false,
+      subject: "malayalam",
+      pattern: null,
+      source: "rule-based",
+      version: 1,
+      last_generated_at: null,
+      generated: false,
+      topics_auto: true
+    };
+  }
+
+  // ✅ CRITICAL: update pattern
+  q.generator.pattern = e.target.value;
+
+}
+
   if (e.target.classList.contains("primary-pattern-input")) {
 
   const i = +e.target.dataset.i;
@@ -1561,18 +1590,6 @@ document.getElementById("questions")?.addEventListener("input", (e) => {
     currentDraft.schema_json.sections[0].questions[+e.target.dataset.i].explanation = e.target.value;
   }
 
- if (e.target.classList.contains("pattern-input")) {
-
-  const i = +e.target.dataset.i;
-  currentDraft.schema_json.sections[0].questions[i].generator.pattern =
-  e.target.value;
-
-  const box = e.target.closest(".pattern-box");
-  const dropdown = box.querySelector(".pattern-dropdown");
-
-  renderPatternDropdown(dropdown, e.target.value);
-}
-
   scheduleAutosave();
 });
 
@@ -1585,16 +1602,6 @@ document.getElementById("questions")
   // -----------------------------
   // GENERATOR PATTERN INPUT
   // -----------------------------
-  if (e.target.classList.contains("pattern-input")) {
-
-    const box = e.target.closest(".pattern-box");
-    const dropdown = box.querySelector(".pattern-dropdown");
-
-    renderPatternDropdown(dropdown, "");
-    dropdown.classList.remove("hidden");
-
-    return;
-  }
 
   // -----------------------------
   // PRIMARY PATTERN INPUT
@@ -1810,10 +1817,6 @@ if (e.target.classList.contains("pattern-option")) {
   if (isGenerator) {
 
     const box = e.target.closest(".pattern-box");
-    const input = box.querySelector(".pattern-input");
-
-    input.value = key;
-
     const i = +input.dataset.i;
 
     const q =
