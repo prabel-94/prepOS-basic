@@ -2581,25 +2581,6 @@ function setupTopicInput(inputId, tagsId, warningsId) {
     dropdown.classList.add("hidden");
 
   });
-
-  // ------------------------
-  // CLOSE ON OUTSIDE
-  // ------------------------
-  document.addEventListener("click", (e) => {
-
-  document.querySelectorAll(".pattern-dropdown")
-    .forEach(d => {
-
-      const box = d.closest(".pattern-box") || d.parentElement;
-
-      if (!box.contains(e.target)) {
-        d.classList.add("hidden");
-      }
-
-    });
-
-});
-
 }
 
 // --------------------------------
@@ -2884,20 +2865,6 @@ document.addEventListener("click", (e) => {
   input.value = e.target.dataset.fix;
   input.dispatchEvent(new Event("input"));
 });
-
-document.addEventListener("click", (e) => {
-
-  document.querySelectorAll(".pattern-dropdown")
-    .forEach(d => {
-
-      if (!d.closest(".pattern-box").contains(e.target)) {
-        d.classList.add("hidden");
-      }
-
-    });
-
-});
-
 // ===============================
 // SAVE AS QUESTION SET (DEPRECATED)
 // ===============================
@@ -3144,6 +3111,25 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 init();
+
+// ========================================
+// GLOBAL DROPDOWN CLOSE HANDLER (SINGLE SOURCE)
+// ========================================
+document.addEventListener("click", (e) => {
+
+  document.querySelectorAll(".pattern-dropdown")
+    .forEach(d => {
+
+      const container =
+        d.closest(".pattern-box") || d.parentElement;
+
+      if (!container || !container.contains(e.target)) {
+        d.classList.add("hidden");
+      }
+
+    });
+
+});
 
 // --------------------------------
 // GLOBALS
