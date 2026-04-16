@@ -1061,7 +1061,19 @@ async function loadDraft() {
     return;
     
   }
-  currentDraft = data;
+  // --------------------------------
+// SAFETY: HANDLE NULL DATA
+// --------------------------------
+if (!data) {
+  console.warn("Draft not found, creating new draft");
+
+  createEmptyDraft();
+  setStatus("Draft not found — new draft created");
+
+  return;
+}
+
+currentDraft = data;
 currentDraft.status = data.status || "draft";
 
 currentDraft.schema_json.sections[0].questions.forEach(q => {
