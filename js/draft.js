@@ -1054,12 +1054,13 @@ async function loadDraft() {
     .from("draft_exams")
     .select("*")
     .eq("id", draftId)
-    .single();
+    .maybeSingle()
 
   if (error) {
     console.error(error);
     setStatus("Load failed", true);
     return;
+    
   }
   currentDraft = data;
 currentDraft.status = data.status || "draft";

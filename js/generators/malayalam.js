@@ -100,22 +100,35 @@ async function getUserWordStatsMap() {
 
   const { data } = await sb
     .from("user_lexicon_word_stats")
-    .select("word_text, seen_count, correct_count")
+    .select("word_id, seen_count, correct_count, wrong_count, lexicon_entries(word)")
     .eq("user_id", userId);
 
   const map = {};
 
   (data || []).forEach(row => {
 
-    const seen = row.seen_count || 0;
-    const correct = row.correct_count || 0;
+  const seen = row.seen_count || 0;
+  const correct = row.correct_count || 0;
+  const wrong = row.wrong_count || 0;
 
-    const weakness =
-      seen === 0 ? 1 : 1 - (correct / seen);
+  // -----------------------------
+  // WEAKNESS CALCULATION (FIXED)
+  // -----------------------------
+  const weakness =
+    seen === 0
+      ? 1
+      : wrong / seen;
 
-    map[row.word_text] = weakness;
+  // -----------------------------
+  // FIX WORD MAPPING (CRITICAL)
+  // -----------------------------
+  const word = row.lexicon_entries?.word;
 
-  });
+  if (word) {
+    map[word] = weakness;
+  }
+
+});
 
   return map;
 
@@ -132,6 +145,41 @@ function shuffle(arr) {
 
 function pickRandom(arr, count) {
   return shuffle([...arr]).slice(0, count);
+}
+
+/* =========================================
+Topic Resolver (CRITICAL)
+========================================= */
+
+async function resolveTopics(topicNames) {
+
+  if (!topicNames || !topicNames.length) return [];
+
+  // normalize names (trim + lowercase)
+  const normalized = topicNames.map(t =>
+    t.trim().toLowerCase()
+  );
+
+  const { data, error } = await sb
+    .from("topics")
+    .select("id, name, normalized_name")
+    .in("normalized_name", normalized);
+
+  if (error) {
+    console.error("Topic resolve error:", error);
+    return [];
+  }
+
+  // map normalized_name → id
+  const map = {};
+  (data || []).forEach(t => {
+    map[t.normalized_name] = t.id;
+  });
+
+  // return ONLY valid topic IDs
+  return normalized
+    .map(n => map[n])
+    .filter(Boolean);
 }
 
 async function selectStemForGeneration(stems, groups) {
@@ -245,7 +293,8 @@ async function generateSynonymQuestion(config) {
       getDifficultyFromPattern("SYNONYM")
     );
 
-  q.topics = getTopicsFromPattern("SYNONYM");
+  const topicNames = getTopicsFromPattern("SYNONYM");
+q.topics = topicNames;
 
   return [q];
 
@@ -310,7 +359,8 @@ async function generateOppositeWordQuestion(config) {
       getDifficultyFromPattern("OPPOSITE_WORD")
     );
 
-  q.topics = getTopicsFromPattern("OPPOSITE_WORD");
+  const topicNames = getTopicsFromPattern("OPPOSITE_WORD");
+q.topics = topicNames;
 
   return [q];
 
