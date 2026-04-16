@@ -8,7 +8,7 @@ PrepOS Generator Core
 Entry point for ALL generators
 ========================================= */
 
-import { MalayalamGenerator } from "./Generators/malayalam.js"
+import { MalayalamGenerator } from "./generators/malayalam.js"
 // English + Maths added later
 
 
