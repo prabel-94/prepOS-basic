@@ -1,29 +1,38 @@
-// ===============================
-// PrepOS Lexicon Manager
-// ===============================
+/* =========================================
+PrepOS Lexicon Manager (v2 - Correct Architecture)
+========================================= */
 
 const sb = window.supabaseClient;
 
+/* =========================================
+STATE
+========================================= */
+
 const state = {
-  pattern: "SYNONYM",
+  topic: "vocabulary",
   groups: []
 };
 
 const el = {
-  patternSelect: document.getElementById("patternSelect"),
+  topicInput: document.getElementById("topicInput"),
   addGroupBtn: document.getElementById("addGroupBtn"),
   groupsContainer: document.getElementById("groupsContainer"),
   status: document.getElementById("lexiconStatus")
 };
 
-function setStatus(message, isError = false) {
+
+/* =========================================
+UTILS
+========================================= */
+
+function setStatus(msg, isError = false) {
   if (!el.status) return;
-  el.status.textContent = message;
+  el.status.textContent = msg;
   el.status.style.color = isError ? "var(--danger)" : "";
 }
 
-function escapeHTML(value = "") {
-  return String(value)
+function escapeHTML(str = "") {
+  return String(str)
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
@@ -31,47 +40,54 @@ function escapeHTML(value = "") {
     .replaceAll("'", "&#039;");
 }
 
+function shuffle(arr) {
+  return arr.sort(() => Math.random() - 0.5);
+}
+
+
+/* =========================================
+GROUPING (CORE)
+========================================= */
+
 function groupRows(rows) {
   const map = {};
 
   rows.forEach(r => {
-    if (!map[r.stem]) {
-      map[r.stem] = [];
+    if (!map[r.group_id]) {
+      map[r.group_id] = [];
     }
-
-    map[r.stem].push(r.value);
+    map[r.group_id].push(r.word);
   });
 
   return map;
 }
 
+
+/* =========================================
+RENDER
+========================================= */
+
 function renderGroup(group, index) {
   return `
     <div class="group-card" data-index="${index}">
 
-      <input
-        class="stem-input"
-        value="${escapeHTML(group.stem)}"
-        placeholder="Stem word"
-      />
-
       <div class="values">
-        ${group.values.map((v, valueIndex) => `
-          <div class="value-row" data-value-index="${valueIndex}">
+        ${group.words.map((w, i) => `
+          <div class="value-row" data-index="${i}">
             <input
-              class="value-input"
-              value="${escapeHTML(v)}"
-              placeholder="Value"
+              class="word-input"
+              value="${escapeHTML(w)}"
+              placeholder="Word"
             />
-            <button type="button" class="delete-value secondary-btn">x</button>
+            <button class="delete-word secondary-btn">×</button>
           </div>
         `).join("")}
       </div>
 
       <div class="flex gap-10 mt-10">
-        <button type="button" class="add-value secondary-btn">+ Add Value</button>
-        <button type="button" class="save-group primary-btn">Save</button>
-        <button type="button" class="delete-group secondary-btn">Delete</button>
+        <button class="add-word secondary-btn">+ Add Word</button>
+        <button class="save-group primary-btn">Save</button>
+        <button class="delete-group secondary-btn">Delete</button>
       </div>
 
     </div>
@@ -82,109 +98,94 @@ function renderGroups() {
   if (!state.groups.length) {
     el.groupsContainer.innerHTML = `
       <div class="question-card">
-        No word groups yet.
+        No groups yet. Start adding vocabulary groups.
       </div>
     `;
     return;
   }
 
   el.groupsContainer.innerHTML =
-    state.groups.map((group, index) => renderGroup(group, index)).join("");
+    state.groups.map((g, i) => renderGroup(g, i)).join("");
 }
 
+
+/* =========================================
+LOAD
+========================================= */
+
 async function loadGroups() {
-  setStatus("Loading word groups...");
+
+  setStatus("Loading groups...");
 
   const { data, error } = await sb
     .from("lexicon_entries")
-    .select("id, stem, value")
-    .eq("pattern_type", state.pattern)
-    .order("stem", { ascending: true });
+    .select("id, word, group_id, topic")
+    .eq("topic", state.topic);
 
   if (error) {
     console.error(error);
-    setStatus("Failed to load word groups", true);
+    setStatus("Failed to load groups", true);
     return;
   }
 
   const grouped = groupRows(data || []);
 
-  state.groups = Object.entries(grouped).map(([stem, values]) => ({
-    stem,
-    originalStem: stem,
-    values
+  state.groups = Object.entries(grouped).map(([group_id, words]) => ({
+    group_id,
+    original_group_id: group_id,
+    words
   }));
 
   renderGroups();
-  setStatus(`${state.groups.length} word groups loaded`);
+  setStatus(`${state.groups.length} groups loaded`);
 }
 
-function syncGroupFromCard(card) {
+
+/* =========================================
+SYNC FROM UI
+========================================= */
+
+function syncGroup(card) {
   const index = +card.dataset.index;
   const group = state.groups[index];
 
-  group.stem = card.querySelector(".stem-input").value.trim();
-  group.values = [...card.querySelectorAll(".value-input")]
-    .map(input => input.value.trim())
+  const words = [...card.querySelectorAll(".word-input")]
+    .map(i => i.value.trim())
     .filter(Boolean);
+
+  group.words = [...new Set(words)];
 
   return group;
 }
 
+
+/* =========================================
+SAVE GROUP
+========================================= */
+
 async function saveGroup(card) {
-  const group = syncGroupFromCard(card);
 
-  if (!group.stem) {
-    setStatus("Stem is required", true);
+  const group = syncGroup(card);
+
+  if (!group.words.length) {
+    setStatus("Add at least one word", true);
     return;
   }
 
-  const uniqueValues = [...new Set(group.values)];
+  const group_id = group.group_id || crypto.randomUUID();
 
-  if (!uniqueValues.length) {
-    setStatus("Add at least one value", true);
-    return;
-  }
-
-  const selectedPattern = state.pattern;
-
-  const rows = uniqueValues.map(v => ({
-    pattern_type: selectedPattern,
-    stem: group.stem,
-    value: v
+  const rows = group.words.map(word => ({
+    word,
+    group_id,
+    topic: state.topic
   }));
 
-  const stemToReplace = group.originalStem || group.stem;
-  let existingRows = [];
-
-  if (group.originalStem) {
-    const { data, error: loadError } = await sb
-      .from("lexicon_entries")
-      .select("pattern_type, stem, value")
-      .eq("pattern_type", selectedPattern)
-      .eq("stem", stemToReplace);
-
-    if (loadError) {
-      console.error(loadError);
-      setStatus("Failed to prepare word group update", true);
-      return;
-    }
-
-    existingRows = data || [];
-  }
-
-  if (group.originalStem) {
-    const { error: deleteError } = await sb
+  // delete old
+  if (group.original_group_id) {
+    await sb
       .from("lexicon_entries")
       .delete()
-      .eq("pattern_type", selectedPattern)
-      .eq("stem", stemToReplace);
-
-    if (deleteError) {
-      console.error(deleteError);
-      setStatus("Failed to update word group", true);
-      return;
-    }
+      .eq("group_id", group.original_group_id);
   }
 
   const { error } = await sb
@@ -193,87 +194,77 @@ async function saveGroup(card) {
 
   if (error) {
     console.error(error);
-
-    if (existingRows.length) {
-      const { error: restoreError } = await sb
-        .from("lexicon_entries")
-        .insert(existingRows);
-
-      if (restoreError) {
-        console.error(restoreError);
-        setStatus("Save failed and restore also failed", true);
-        return;
-      }
-    }
-
-    setStatus("Failed to save word group", true);
+    setStatus("Save failed", true);
     return;
   }
 
-  group.originalStem = group.stem;
-  group.values = uniqueValues;
+  group.group_id = group_id;
+  group.original_group_id = group_id;
 
-  renderGroups();
-  setStatus("Word group saved");
+  setStatus("Group saved");
+  await loadGroups();
 }
 
+
+/* =========================================
+DELETE GROUP
+========================================= */
+
 async function deleteGroup(card) {
+
   const index = +card.dataset.index;
   const group = state.groups[index];
 
-  if (!confirm("Delete this word group?")) return;
+  if (!confirm("Delete this group?")) return;
 
-  if (group.originalStem) {
-    const { error } = await sb
+  if (group.original_group_id) {
+    await sb
       .from("lexicon_entries")
       .delete()
-      .eq("pattern_type", state.pattern)
-      .eq("stem", group.originalStem);
-
-    if (error) {
-      console.error(error);
-      setStatus("Failed to delete word group", true);
-      return;
-    }
+      .eq("group_id", group.original_group_id);
   }
 
   state.groups.splice(index, 1);
   renderGroups();
-  setStatus("Word group deleted");
+
+  setStatus("Group deleted");
 }
 
-el.patternSelect?.addEventListener("change", async (e) => {
-  state.pattern = e.target.value;
-  await loadGroups();
-});
+
+/* =========================================
+EVENTS
+========================================= */
 
 el.addGroupBtn?.addEventListener("click", () => {
+
   state.groups.unshift({
-    stem: "",
-    originalStem: null,
-    values: [""]
+    group_id: null,
+    original_group_id: null,
+    words: [""]
   });
 
   renderGroups();
+
 });
 
+
 el.groupsContainer?.addEventListener("click", async (e) => {
+
   const card = e.target.closest(".group-card");
   if (!card) return;
 
-  if (e.target.classList.contains("add-value")) {
-    const group = syncGroupFromCard(card);
-    group.values.push("");
+  const group = syncGroup(card);
+
+  if (e.target.classList.contains("add-word")) {
+    group.words.push("");
     renderGroups();
   }
 
-  if (e.target.classList.contains("delete-value")) {
-    const group = syncGroupFromCard(card);
-    const valueRow = e.target.closest(".value-row");
-    const valueIndex = +valueRow.dataset.valueIndex;
-
-    group.values.splice(valueIndex, 1);
-    if (!group.values.length) group.values.push("");
+  if (e.target.classList.contains("delete-word")) {
+    const row = e.target.closest(".value-row");
+    const i = +row.dataset.index;
+    group.words.splice(i, 1);
+    if (!group.words.length) group.words.push("");
     renderGroups();
   }
 
@@ -284,6 +275,18 @@ el.groupsContainer?.addEventListener("click", async (e) => {
   if (e.target.classList.contains("delete-group")) {
     await deleteGroup(card);
   }
+
 });
+
+
+el.topicInput?.addEventListener("change", async (e) => {
+  state.topic = e.target.value.trim().toLowerCase();
+  await loadGroups();
+});
+
+
+/* =========================================
+INIT
+========================================= */
 
 loadGroups();
