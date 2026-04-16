@@ -76,12 +76,11 @@ export const MalayalamGenerator = {
 Fetch
 ========================================= */
 
-async function fetchRows(pattern) {
+async function fetchRows() {
 
   const { data, error } = await sb
     .from("lexicon_entries")
-    .select("*")
-    .eq("pattern_type", pattern);
+    .select("*");
 
   if (error) {
     console.error(error);
@@ -241,7 +240,7 @@ SYNONYM
 
 async function generateSynonymQuestion(config) {
 
-  const rows = await fetchRows("SYNONYM");
+  const rows = await fetchRows();
 
   if (rows.length < 4) return null;
 
@@ -308,7 +307,7 @@ OPPOSITE
 async function generateOppositeWordQuestion(config) {
 
   const rows =
-    await fetchRows("OPPOSITE_WORD");
+    await fetchRows();
 
   if (rows.length < 4) return null;
 
