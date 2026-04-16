@@ -634,28 +634,6 @@ async function resolveTopicKeys(topicKeys) {
     .filter(Boolean);
 }
 
-async function resolveTopicKeys(topicKeys) {
-
-  if (!topicKeys?.length) return [];
-
-  const { data, error } = await sb
-    .from("topics")
-    .select("id, topic_key")
-    .in("topic_key", topicKeys);
-
-  if (error) {
-    console.error("Topic key resolve error:", error);
-    return [];
-  }
-
-  const map = {};
-  (data || []).forEach(t => {
-    map[t.topic_key] = t.id;
-  });
-
-  return topicKeys.map(k => map[k]).filter(Boolean);
-}
-
 async function attachTopics(questionId, topics = []) {
 
   console.log("ATTACHING TOPIC KEYS →", topics);
