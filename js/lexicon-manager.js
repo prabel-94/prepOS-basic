@@ -214,7 +214,6 @@ function syncGroup(card) {
 /* =========================================
 SAVE GROUP
 ========================================= */
-
 async function saveGroup(card) {
 
   const group = syncGroup(card);
@@ -224,21 +223,47 @@ async function saveGroup(card) {
     return;
   }
 
-  const group_id = group.group_id || crypto.randomUUID();
+  let group_id = group.group_id;
 
-  const rows = group.words.map(word => ({
-    word,
-    group_id,
-    topic: state.topic
-  }));
+  // ========================================
+  // 1. CREATE GROUP IF NEW
+  // ========================================
 
-  // delete old
+  if (!group_id) {
+
+    group_id = crypto.randomUUID();
+
+    const { error: groupError } = await sb
+      .from("lexicon_groups")
+      .insert({ id: group_id });
+
+    if (groupError) {
+      console.error(groupError);
+      setStatus("Failed to create group", true);
+      return;
+    }
+  }
+
+  // ========================================
+  // 2. DELETE OLD ENTRIES (if editing)
+  // ========================================
+
   if (group.original_group_id) {
     await sb
       .from("lexicon_entries")
       .delete()
       .eq("group_id", group.original_group_id);
   }
+
+  // ========================================
+  // 3. INSERT WORDS
+  // ========================================
+
+  const rows = group.words.map(word => ({
+    word,
+    group_id,
+    topic: state.topic
+  }));
 
   const { error } = await sb
     .from("lexicon_entries")
@@ -250,13 +275,17 @@ async function saveGroup(card) {
     return;
   }
 
+  // ========================================
+  // 4. UPDATE LOCAL STATE
+  // ========================================
+
   group.group_id = group_id;
   group.original_group_id = group_id;
 
-  setStatus("Group saved");
+  setStatus("Group saved ✅");
+
   await loadGroups();
 }
-
 
 /* =========================================
 DELETE GROUP
