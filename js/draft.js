@@ -2028,62 +2028,32 @@ function appendGeneratedQuestion(generated) {
   scheduleAutosave();
 
 }
-// ===============================
-// GENERATOR RUNNER
+/ ===============================
+// GENERATOR RUNNER (CLEAN)
 // ===============================
 async function generateFromConfig(config) {
 
-  // --------------------------------
-// APPLY GENERATED RESULT TO UI
-// --------------------------------
-
-if (!result) {
-  console.error("Generator returned empty result");
-  return;
-}
-
-// Question text
-q.text = result.text || "";
-
-// Options
-q.options = result.options || [];
-
-// Correct answer
-q.correctIndex = result.correctIndex ?? 0;
-
-// Explanation
-q.explanation = result.explanation || "";
-
-// Topics (important for your system)
-q.topics = result.topics || [];
-
-// Mark generated
-q.generator.generated = true;
-q.generator.last_generated_at = new Date().toISOString();
-
-// Re-render UI
-renderQuestions();
-scheduleSave();
-
   try {
 
-    const generated =
-      await runGenerator(config);
+    const result = await runGenerator(config);
+
+    if (!result) {
+      console.error("Generator returned empty result");
+      setStatus("Generator returned empty result", true);
+      return null;
+    }
 
     setStatus("Generated question");
 
-    return generated;
+    return result;
 
   } catch (err) {
 
     console.error(err);
-
     setStatus("Generator failed", true);
 
     return null;
-
   }
-
 }
 
 // --------------------------------
