@@ -249,13 +249,18 @@ async function generateSynonymQuestion(config) {
 
   rows.forEach(r => {
 
-    if (!groups[r.stem]) {
-      groups[r.stem] = [];
-    }
+  const stem = r.group_id;   // ✅ use group_id
+  const value = r.word;      // ✅ use word
 
-    groups[r.stem].push(r.value);
+  if (!stem || !value) return;
 
-  });
+  if (!groups[stem]) {
+    groups[stem] = [];
+  }
+
+  groups[stem].push(value);
+
+});
 
   const stems = Object.keys(groups);
 
@@ -315,13 +320,18 @@ async function generateOppositeWordQuestion(config) {
 
   rows.forEach(r => {
 
-    if (!groups[r.stem]) {
-      groups[r.stem] = [];
-    }
+  const stem = r.group_id;   // ✅ use group_id
+  const value = r.word;      // ✅ use word
 
-    groups[r.stem].push(r.value);
+  if (!stem || !value) return;
 
-  });
+  if (!groups[stem]) {
+    groups[stem] = [];
+  }
+
+  groups[stem].push(value);
+
+});
 
   const stems = Object.keys(groups);
 
