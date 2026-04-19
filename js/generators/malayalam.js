@@ -222,32 +222,49 @@ async function generateOppositeWordQuestion(config = {}) {
 
   if (groupIds.length < 2) return null;
 
-  // ========================================
-  // 3. PICK BASE GROUP
-  // ========================================
+// ========================================
+// 3. PICK BASE GROUP (ONLY LINKED GROUPS)
+// ========================================
 
-  const baseGroupId =
-    groupIds[Math.floor(Math.random() * groupIds.length)];
+// fetch all relations
+const { data: relations } = await sb
+  .from("lexicon_group_relations")
+  .select("group_id_1, group_id_2");
 
-  const baseWords = groups[baseGroupId];
+if (!relations || relations.length === 0) {
+  console.warn("No relations found");
+  return null;
+}
 
-  if (!baseWords || baseWords.length === 0) return null;
+// collect linked group ids
+const linkedGroupIds = new Set();
 
-  const stem =
-    baseWords[Math.floor(Math.random() * baseWords.length)];
+relations.forEach(r => {
+  linkedGroupIds.add(r.group_id_1);
+  linkedGroupIds.add(r.group_id_2);
+});
+
+const validGroupIds = [...linkedGroupIds];
+
+if (!validGroupIds.length) return null;
+
+// pick base group ONLY from linked ones
+const baseGroupId =
+  validGroupIds[Math.floor(Math.random() * validGroupIds.length)];
+
+const baseWords = groups[baseGroupId];
+
+if (!baseWords || baseWords.length === 0) return null;
+
+const stem =
+  baseWords[Math.floor(Math.random() * baseWords.length)];
+
 
   // ========================================
   // 4. FETCH RELATIONS (CORE UPGRADE)
   // ========================================
 
   let oppositeGroupId = null;
-
-  const { data: relations } = await sb
-    .from("lexicon_group_relations")
-    .select("group_id_1, group_id_2")
-    .or(
-      `group_id_1.eq.${baseGroupId},group_id_2.eq.${baseGroupId}`
-    );
 
   if (relations && relations.length > 0) {
 
@@ -271,10 +288,9 @@ async function generateOppositeWordQuestion(config = {}) {
 // ========================================
 // 5. STRICT MODE (NO FALLBACK)
 // ========================================
-
 if (!oppositeGroupId) {
   console.warn("No opposite group linked for:", baseGroupId);
-  return null; // 🚨 DO NOT GENERATE
+  return null;
 }
 
 
@@ -332,24 +348,17 @@ if (!oppositeGroupId) {
   // ========================================
   // 8. RETURN FINAL STRUCTURE
   // ========================================
-
-  return {
-    text: `Choose the opposite of: ${stem}`,
-
-    options: {
-      A: options[0],
-      B: options[1],
-      C: options[2],
-      D: options[3]
-    },
-
-    correct_option: correctOption,
-
-    explanation: `${correct} is the opposite of ${stem}`,
-
-    topics: ["opposite_words"]
-  };
+return [
+  buildQuestion({
+    text: `${stem} എന്ന വാക്കിന്റെ വിരുദ്ധം ഏത്?`,
+    options,
+    correctIndex,
+    pattern: "OPPOSITE_WORD",
+    difficulty: { score: 2, label: "easy" },
+    topics: ["MALAYALAM", "VOCABULARY", "ANTONYM"]
+  }) ]; // ✅ CLOSE FUNCTION HERE 
 }
+
 
 
 /* =========================================
