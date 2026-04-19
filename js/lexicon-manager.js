@@ -385,10 +385,7 @@ async function linkOpposite() {
   const { data: existing } = await sb
     .from("lexicon_group_relations")
     .select("id")
-    .or(
-      `and(group_id_1.eq.${selectedGroupA},group_id_2.eq.${selectedGroupB}),
-       and(group_id_1.eq.${selectedGroupB},group_id_2.eq.${selectedGroupA})`
-    );
+    .or(`and(group_id_1.eq.${selectedGroupA},group_id_2.eq.${selectedGroupB}),and(group_id_1.eq.${selectedGroupB},group_id_2.eq.${selectedGroupA})`);
 
   if (existing && existing.length) {
     setStatus("Already linked", true);
