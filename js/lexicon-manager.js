@@ -7,7 +7,8 @@ const sb = window.supabaseClient;
 /* =========================================
 STATE
 ========================================= */
-
+let selectedGroupA = null;
+let selectedGroupB = null;
 const state = {
   topic: "vocabulary",
   groups: []
@@ -108,6 +109,57 @@ function renderGroups() {
     state.groups.map((g, i) => renderGroup(g, i)).join("");
 }
 
+function renderRelationGroups(groups) {
+
+  const map = {};
+
+  groups.forEach(g => {
+    if (g.group_id) {
+      map[g.group_id] = g.words;
+    }
+  });
+
+  renderRelationList("groupA-list", map, "A");
+  renderRelationList("groupB-list", map, "B");
+}
+
+function renderRelationList(containerId, groups, side) {
+
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  container.innerHTML = "";
+
+  Object.entries(groups).forEach(([group_id, words]) => {
+
+    const div = document.createElement("div");
+
+    div.className = "group-item";
+    div.dataset.id = group_id;
+
+    div.textContent = words.slice(0, 3).join(", ");
+
+    div.onclick = () => selectRelationGroup(side, group_id, div);
+
+    container.appendChild(div);
+  });
+}
+
+function selectRelationGroup(side, group_id, el) {
+
+  const containerId = side === "A" ? "groupA-list" : "groupB-list";
+
+  document.querySelectorAll(`#${containerId} .group-item`)
+    .forEach(x => x.classList.remove("active"));
+
+  el.classList.add("active");
+
+  if (side === "A") {
+    selectedGroupA = group_id;
+  } else {
+    selectedGroupB = group_id;
+  }
+}
 
 /* =========================================
 LOAD
@@ -137,9 +189,9 @@ async function loadGroups() {
   }));
 
   renderGroups();
+  renderRelationGroups(state.groups);
   setStatus(`${state.groups.length} groups loaded`);
 }
-
 
 /* =========================================
 SYNC FROM UI
@@ -284,7 +336,54 @@ el.topicInput?.addEventListener("change", async (e) => {
   await loadGroups();
 });
 
+document
+  .getElementById("link-opposite-btn")
+  ?.addEventListener("click", linkOpposite);
 
+let selectedGroupA = null;
+let selectedGroupB = null;
+
+async function linkOpposite() {
+
+  if (!selectedGroupA || !selectedGroupB) {
+    setStatus("Select both groups", true);
+    return;
+  }
+
+  if (selectedGroupA === selectedGroupB) {
+    setStatus("Cannot link same group", true);
+    return;
+  }
+
+  const { data: existing } = await sb
+    .from("lexicon_group_relations")
+    .select("id")
+    .or(
+      `and(group_id_1.eq.${selectedGroupA},group_id_2.eq.${selectedGroupB}),
+       and(group_id_1.eq.${selectedGroupB},group_id_2.eq.${selectedGroupA})`
+    );
+
+  if (existing && existing.length) {
+    setStatus("Already linked", true);
+    return;
+  }
+
+  const { error } = await sb
+    .from("lexicon_group_relations")
+    .insert({
+      group_id_1: selectedGroupA,
+      group_id_2: selectedGroupB,
+      relation_type: "ANTONYM"
+    });
+
+  if (error) {
+    console.error(error);
+    setStatus("Link failed", true);
+    return;
+  }
+
+  setStatus("Opposite linked ✅");
+}
 /* =========================================
 INIT
 ========================================= */
