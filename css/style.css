@@ -1112,3 +1112,40 @@ USER GENERATED TEXT FORMATTING
 white-space: pre-wrap;
 word-break: break-word;
 }
+
+/* =========================================
+RELATION BUILDER
+========================================= */
+
+.relation-columns {
+  display: flex;
+  gap: 20px;
+}
+
+.group-panel {
+  flex: 1;
+}
+
+.group-list {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  min-height: 180px;
+  padding: 8px;
+  background: #fafafa;
+}
+
+.group-item {
+  padding: 6px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.group-item:hover {
+  background: #eef2ff;
+}
+
+.group-item.active {
+  background: var(--primary);
+  color: white;
+}
