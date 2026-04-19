@@ -271,8 +271,16 @@ async function generateSynonymQuestion(config) {
 
   if (!stem) return null;
 
-  const correct =
-    pickRandom(groups[stem], 1)[0];
+ // pick ONE word as the question word
+const questionWord =
+  pickRandom(groups[stem], 1)[0];
+
+// pick correct answer (another synonym)
+const correct =
+  pickRandom(
+    groups[stem].filter(w => w !== questionWord),
+    1
+  )[0];
 
   const otherValues = stems
     .filter(s => s !== stem)
@@ -290,7 +298,7 @@ async function generateSynonymQuestion(config) {
     options.indexOf(correct);
 
   const q = buildQuestion(
-      `${stem} എന്ന വാക്കിന്റെ പര്യായം ഏത്?`,
+      `${questionWord} എന്ന വാക്കിന്റെ പര്യായം ഏത്?`,
       options,
       correctIndex,
       "SYNONYM",
@@ -342,8 +350,16 @@ async function generateOppositeWordQuestion(config) {
 
   if (!stem) return null;
 
-  const correct =
-    pickRandom(groups[stem], 1)[0];
+  // pick ONE word as the question word
+const questionWord =
+  pickRandom(groups[stem], 1)[0];
+
+// pick correct answer (another synonym)
+const correct =
+  pickRandom(
+    groups[stem].filter(w => w !== questionWord),
+    1
+  )[0];
 
   const otherValues = stems
     .filter(s => s !== stem)
@@ -361,7 +377,7 @@ async function generateOppositeWordQuestion(config) {
     options.indexOf(correct);
 
   const q = buildQuestion(
-      `${stem} എന്ന വാക്കിന്റെ വിപരീതപദം ഏത്?`,
+      `${questionWord} എന്ന വാക്കിന്റെ വിപരീതപദം ഏത്?`,
       options,
       correctIndex,
       "OPPOSITE_WORD",
