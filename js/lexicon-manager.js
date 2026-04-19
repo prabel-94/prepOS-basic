@@ -223,13 +223,14 @@ async function saveGroup(card) {
     return;
   }
 
-  let group_id = group.group_id;
+  let isNew = !group.original_group_id;
+  let group_id = group.original_group_id;
 
   // ========================================
   // 1. CREATE GROUP IF NEW
   // ========================================
 
-  if (!group_id) {
+  if (isNew) {
 
     group_id = crypto.randomUUID();
 
@@ -245,14 +246,14 @@ async function saveGroup(card) {
   }
 
   // ========================================
-  // 2. DELETE OLD ENTRIES (if editing)
+  // 2. DELETE OLD ENTRIES (ONLY IF EXISTING)
   // ========================================
 
-  if (group.original_group_id) {
+  if (!isNew) {
     await sb
       .from("lexicon_entries")
       .delete()
-      .eq("group_id", group.original_group_id);
+      .eq("group_id", group_id);
   }
 
   // ========================================
@@ -276,7 +277,7 @@ async function saveGroup(card) {
   }
 
   // ========================================
-  // 4. UPDATE LOCAL STATE
+  // 4. UPDATE STATE
   // ========================================
 
   group.group_id = group_id;
