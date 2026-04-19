@@ -267,15 +267,16 @@ async function generateOppositeWordQuestion(config = {}) {
   // 5. FALLBACK (IMPORTANT)
   // ========================================
 
-  if (!oppositeGroupId) {
 
-    const otherGroups = groupIds.filter(
-      id => id !== baseGroupId
-    );
+// ========================================
+// 5. STRICT MODE (NO FALLBACK)
+// ========================================
 
-    oppositeGroupId =
-      otherGroups[Math.floor(Math.random() * otherGroups.length)];
-  }
+if (!oppositeGroupId) {
+  console.warn("No opposite group linked for:", baseGroupId);
+  return null; // 🚨 DO NOT GENERATE
+}
+
 
   const correctWords = groups[oppositeGroupId];
 
