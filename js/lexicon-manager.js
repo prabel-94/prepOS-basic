@@ -340,9 +340,6 @@ document
   .getElementById("link-opposite-btn")
   ?.addEventListener("click", linkOpposite);
 
-let selectedGroupA = null;
-let selectedGroupB = null;
-
 async function linkOpposite() {
 
   if (!selectedGroupA || !selectedGroupB) {
