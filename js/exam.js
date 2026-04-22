@@ -171,6 +171,17 @@ if(!attemptId){
   localStorage.setItem(ATTEMPT_ID_KEY, attemptId);
 }
 
+function getDeviceId(){
+
+  let id = localStorage.getItem("prepos_device_id")
+
+  if(!id){
+    id = crypto.randomUUID()
+    localStorage.setItem("prepos_device_id", id)
+  }
+
+  return id
+}
 /* ---------- attempt state ---------- */
 let attemptState = JSON.parse(localStorage.getItem(ATTEMPT_KEY) || "null");
 
@@ -431,28 +442,40 @@ const selected =
     if(chosen === q.correct) score++;
   });
 
-const bankAnswers = answers.filter(a => a.question_id); // 🔥filter bank Qs
+const bankAnswers = answers.filter(a => a.question_id);
 
-  try{
+try{
 
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/exam_attempts`, {
-      method: "POST",
-      headers: {
-        apikey: SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-        "Content-Type": "application/json",
-        Prefer: "return=minimal"
-      },
-      body: JSON.stringify({
-        exam_id: examId,
-        device_id: attemptId,
-        student_name: studentName,
-        answers,
-        score,
-        question_count: answers.length,
-        submitted_at: new Date().toISOString()
-      })
-    });
+  const { data: userData } = await sb.auth.getUser()
+  const user = userData?.user
+
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/exam_attempts`, {
+    method: "POST",
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      "Content-Type": "application/json",
+      Prefer: "return=minimal"
+    },
+    body: JSON.stringify({
+      exam_id: examId,
+
+      // ✅ FIXED
+      device_id: getDeviceId(),   // persistent
+      attempt_id: attemptId,      // per attempt
+
+      student_name: studentName,
+
+      // ✅ already correct
+      student_id: user ? user.id : null,
+
+      answers,
+      score,
+      question_count: answers.length,
+      submitted_at: new Date().toISOString()
+    })
+  });
+
 
     if (!res.ok) {
       console.error("Failed to save attempt", res.status)

@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>PrepOS Student</title>
+
+<link rel="stylesheet" href="css/style.css">
+
+</head>
+
+<body>
+
+<div class="container">
+
+  <!-- =========================
+  HEADER
+  ========================= -->
+
+  <div class="mt-10">
+    <div class="h1">PrepOS</div>
+    <div class="text-muted mt-5">Student Dashboard</div>
+  </div>
+
+
+  <!-- =========================
+  START EXAM
+  ========================= -->
+
+  <div class="card mt-30">
+
+    <div class="h2">Start Exam</div>
+    <div class="section-sub mt-5">
+      Enter exam ID provided by your teacher.
+    </div>
+
+    <input
+      id="examId"
+      placeholder="Enter exam id"
+      class="w-full mt-20"
+    >
+
+    <button onclick="startExam()" class="primary-btn w-full mt-10">
+      Start Exam
+    </button>
+
+  </div>
+
+
+  <!-- =========================
+  RECENT ATTEMPTS
+  ========================= -->
+
+  <div class="card">
+
+    <div class="h3">Recent Attempts</div>
+
+    <div id="recentAttempts" class="mt-10">
+      Loading attempts...
+    </div>
+
+  </div>
+
+
+  <!-- =========================
+  PERFORMANCE
+  ========================= -->
+
+  <div class="card">
+
+    <div class="h3">Performance</div>
+
+    <div id="performanceBox" class="mt-10 text-muted">
+      Loading performance...
+    </div>
+
+  </div>
+
+</div>
+
+
+<!-- =========================
+SCRIPTS
+========================= -->
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js"></script>
+
+<script>
+
+/* =========================
+AUTH GUARD
+========================= */
+
+async function requireAuth(){
+
+  const { data } = await sb.auth.getSession()
+
+  if(!data.session){
+    window.location.href = "login.html"
+  }
+
+}
+
+
+/* =========================
+START EXAM
+========================= */
+
+function startExam(){
+
+  const id = document.getElementById("examId").value.trim()
+
+  if(!id){
+    alert("Enter exam id")
+    return
+  }
+
+  location.href = `exam.html?id=${id}`
+
+}
+
+
+/* =========================
+LOAD RECENT ATTEMPTS
+========================= */
+
+async function loadRecentAttempts(){
+
+  const container = document.getElementById("recentAttempts")
+
+  try{
+
+    const { data: userData } = await sb.auth.getUser()
+    const user = userData.user
+
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/exam_attempts?select=id,score,exam_id,submitted_at&student_id=eq.${user.id}&order=submitted_at.desc&limit=5`,
+      {
+        headers:{
+          apikey: SUPABASE_ANON_KEY,
+          Authorization:`Bearer ${SUPABASE_ANON_KEY}`
+        }
+      }
+    )
+
+    if(!res.ok){
+      throw new Error("Failed to load attempts")
+    }
+
+    const data = await res.json()
+
+    container.innerHTML=""
+
+    if(!data.length){
+      container.innerHTML="<div class='empty-state'>No attempts yet</div>"
+      return
+    }
+
+    data.forEach(a=>{
+
+      const div=document.createElement("div")
+      div.className="recent-item mt-10"
+
+      div.innerHTML=`
+        <b>Exam ID: ${a.exam_id}</b><br>
+        Score: ${a.score}<br>
+        <div class="text-muted mt-5">
+          ${new Date(a.submitted_at).toLocaleString()}
+        </div>
+      `
+
+      container.appendChild(div)
+
+    })
+
+  }catch(err){
+    console.error(err)
+    container.innerHTML="<div class='empty-state'>Unable to load attempts</div>"
+  }
+}
+
+
+/* =========================
+LOAD PERFORMANCE
+========================= */
+
+async function loadPerformance(){
+
+  const container = document.getElementById("performanceBox")
+
+  try{
+
+    const { data: userData } = await sb.auth.getUser()
+    const user = userData.user
+
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/exam_attempts?select=score&student_id=eq.${user.id}`,
+      {
+        headers:{
+          apikey: SUPABASE_ANON_KEY,
+          Authorization:`Bearer ${SUPABASE_ANON_KEY}`
+        }
+      }
+    )
+
+    if(!res.ok){
+      throw new Error("Failed to load performance")
+    }
+
+    const data = await res.json()
+
+    if(!data.length){
+      container.innerHTML="No data yet"
+      return
+    }
+
+    const scores = data.map(x=>x.score)
+    const avg = Math.round(scores.reduce((a,b)=>a+b,0)/scores.length)
+
+    container.innerHTML = `
+      Average Score: <b>${avg}%</b><br>
+      Attempts: ${scores.length}
+    `
+
+  }catch(err){
+    console.error(err)
+    container.innerHTML="Unable to load performance"
+  }
+}
+
+
+/* =========================
+INIT
+========================= */
+
+async function init(){
+
+  await requireAuth()  // 🔥 blocks anonymous access
+
+  await loadRecentAttempts()
+  await loadPerformance()
+
+}
+
+init()
+
+</script>
+
+</body>
+</html>
