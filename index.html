@@ -186,11 +186,42 @@ SCRIPTS
 
 (async () => {
   await requireAuth()
+  await requireTeacherAccess()  // 🔥 NEW
 })()
 
 async function logout(){
   await sb.auth.signOut()
   location.href = "login.html"
+}
+
+async function requireTeacherAccess(){
+
+  const { data: userData } = await sb.auth.getUser()
+  const user = userData?.user
+
+  if(!user){
+    window.location.href = "login.html"
+    return
+  }
+
+  const { data, error } = await sb
+    .from("users")
+    .select("role")
+    .eq("id", user.id)
+    .single()
+
+  if(error || !data){
+    window.location.href = "login.html"
+    return
+  }
+
+  const role = data.role
+
+  // 🔥 CORE LOGIC
+  if(role !== "teacher" && role !== "admin"){
+    window.location.href = "login.html"
+  }
+
 }
 
 

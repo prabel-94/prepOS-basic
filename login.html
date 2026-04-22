@@ -70,7 +70,10 @@ async function login(){
 
 }
 
-
+/* =========================
+insert into users (id, role)
+values ('USER_UUID_HERE', 'student'); -- or teacher
+========================= */
 /* =========================
 ROLE ROUTING
 ========================= */
@@ -88,15 +91,14 @@ async function routeUser(userId){
     return
   }
 
-  if(role === "admin"){
-  location.href = "index.html" // full system
-}
-else if(role === "teacher"){
-  location.href = "index.html"
-}
-else if(role === "student"){
-  location.href = "student-dashboard.html"
-}
+  const role = data.role  
+
+  if(role === "teacher" || role === "admin"){
+    location.href = "index.html"
+  }
+  else if(role === "student"){
+    location.href = "student-dashboard.html"
+  }
   else{
     alert("Invalid role")
   }
@@ -107,8 +109,3 @@ else if(role === "student"){
 
 </body>
 </html>
-
-/* =========================
-insert into users (id, role)
-values ('USER_UUID_HERE', 'student'); -- or teacher
-========================= */
