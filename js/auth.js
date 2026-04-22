@@ -1,23 +1,38 @@
 // ===============================
-// Simple Dev Password Gate
+// PrepOS Auth Guard
 // ===============================
 
-const DEV_PASSWORD = "Bonda007"; // change this
+async function requireAuth(){
 
-function checkAccess() {
-  const allowed = localStorage.getItem("prepos_access");
+  const { data } = await sb.auth.getSession()
 
-  if (allowed === "granted") return;
-
-  const entered = prompt("Enter access password:");
-
-  if (entered === DEV_PASSWORD) {
-    localStorage.setItem("prepos_access", "granted");
-  } else {
-    alert("Access denied");
-    document.body.innerHTML = "<h2 style='text-align:center;margin-top:50px;'>Access Denied</h2>";
+  if(!data.session){
+    window.location.href = "login.html"
   }
+
 }
 
-// Run immediately
-checkAccess();
+async function getCurrentUser(){
+
+  const { data } = await sb.auth.getUser()
+  return data.user
+
+}
+
+async function getUserRole(){
+
+  const user = await getCurrentUser()
+
+  if(!user) return null
+
+  const { data, error } = await sb
+    .from("users")
+    .select("role")
+    .eq("id", user.id)
+    .single()
+
+  if(error) return null
+
+  return data.role
+
+}

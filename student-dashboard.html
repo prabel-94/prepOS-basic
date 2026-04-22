@@ -19,10 +19,16 @@
   HEADER
   ========================= -->
 
-  <div class="mt-10">
+ <div class="mt-10 flex" style="justify-content:space-between; align-items:center;">
+
+  <div>
     <div class="h1">PrepOS</div>
     <div class="text-muted mt-5">Student Dashboard</div>
   </div>
+
+  <button onclick="logout()">Logout</button>
+
+</div>
 
 
   <!-- =========================
@@ -87,6 +93,7 @@ SCRIPTS
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/config.js"></script>
+<script src="js/auth.js"></script>
 
 <script>
 
@@ -230,7 +237,13 @@ async function loadPerformance(){
     container.innerHTML="Unable to load performance"
   }
 }
-
+/* =========================
+LOG OUT
+========================= */
+async function logout(){
+  await sb.auth.signOut()
+  location.href = "login.html"
+}
 
 /* =========================
 INIT
@@ -238,7 +251,7 @@ INIT
 
 async function init(){
 
-  await requireAuth()  // 🔥 blocks anonymous access
+  await requireAuth()  // 🔥 MUST BE FIRST
 
   await loadRecentAttempts()
   await loadPerformance()
