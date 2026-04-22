@@ -52,6 +52,27 @@ PRACTICE MODE (NEW)
 
 </div>
 
+<!-- =========================
+STUDENT MODE
+========================= -->
+
+<div class="card mt-20">
+
+  <div class="h2">Student Mode</div>
+
+  <div class="section-sub mt-5">
+    Switch to student dashboard and practice as a learner.
+  </div>
+
+  <button 
+    onclick="goToStudent()" 
+    class="primary-btn w-full mt-20"
+  >
+    🎓 Go to Student Dashboard
+  </button>
+
+</div>
+
 
   <!-- =========================
   PRIMARY ACTION
@@ -229,6 +250,10 @@ async function requireTeacherAccess(){
 /* =========================
 NAVIGATION
 ========================= */
+
+function goToStudent(){
+  location.href = "student.html"
+}
 
 function goToCreatorMode(){
   location.href = "creator-mode.html"
