@@ -304,9 +304,16 @@ async function replacePatternMetadata(questionId, patternKey) {
 async function replaceQuestionMetadata(questionId, difficulty) {
 
   await sb
-    .from("question_metadata")
-    .delete()
-    .eq("question_id", questionId);
+  .from("question_metadata")
+  .delete()
+  .eq("question_id", questionId)
+  .in("key", [
+    "cognitive_level",
+    "complexity_level",
+    "depth_level",
+    "difficulty_score",
+    "difficulty_label"
+  ]);
 
   const rows = [
     { key: "cognitive_level", value: difficulty.cognitive_level },
@@ -530,7 +537,7 @@ const caBadge = caEvent
     ].map(opt => `
       <div class="option-row ${q.correct_option === opt.key ? 'correct' : ''}">
         <div class="opt-label">${opt.key}</div>
-        <div class="opt">${opt.text}</div>
+        <div class="opt prepos-text">${opt.text}</div>
         ${q.correct_option === opt.key ? `<div class="correct-mark">✔</div>` : ""}
       </div>
     `).join("");
@@ -566,15 +573,38 @@ const caBadge = caEvent
 
 </div>
 
-        <div class="qtext">${q.question_text}</div>
+        <div class="qtext prepos-text">${q.question_text}</div>
 
         <div class="options mt-10">
           ${optionsHTML}
         </div>
 
-        <div class="topic-tags mt-10">
-          ${topicsHTML}
-        </div>
+<div class="topic-tags mt-10">
+  ${topicsHTML}
+</div>
+
+${q.explanation ? `
+  <div class="explanation-toggle clickable" data-id="${q.id}">
+    Show Explanation
+  </div>
+` : `
+  <div class="explanation-toggle clickable" data-id="${q.id}">
+    Add Explanation
+  </div>
+`}
+
+<div class="explanation-block hidden" id="exp-${q.id}">
+  <textarea 
+    class="explanation-input"
+    data-id="${q.id}"
+  >${q.explanation || ""}</textarea>
+
+  <button 
+    class="primary-btn save-explanation"
+    data-id="${q.id}">
+    Save Explanation
+  </button>
+</div>
 
       </div>
     `;
@@ -650,11 +680,21 @@ function renderTopics() {
           </div>
         </div>
 
-        <button 
-          class="secondary-btn mt-10 view-topic-btn" 
-          data-id="${t.id}">
-          View Questions
-        </button>
+        <div class="flex gap-10 mt-10">
+
+  <button
+    class="secondary-btn view-topic-btn"
+    data-id="${t.id}">
+    View Questions
+  </button>
+
+  <button 
+    class="secondary-btn open-note-btn" 
+    data-id="${t.id}">
+    Master Note
+  </button>
+
+</div>
 
       </div>
     `;
@@ -1048,7 +1088,7 @@ document.getElementById("caList")
 
 });
 // CLICK DIFFICULTY BADGE
-el.questionsView.addEventListener("click", (e) => {
+el.questionsView.addEventListener("click", async (e) => {
 
   // 🔥 CA CLICK
 const caBadge = e.target.closest(".ca-badge");
@@ -1134,6 +1174,46 @@ if (patternBadge) {
 
   return;
 }
+// TOGGLE EXPLANATION
+const toggle = e.target.closest(".explanation-toggle");
+if (toggle) {
+
+  const id = toggle.dataset.id;
+  const block = document.getElementById(`exp-${id}`);
+
+  block.classList.toggle("hidden");
+
+  toggle.innerText =
+    block.classList.contains("hidden")
+      ? "Show Explanation"
+      : "Hide Explanation";
+
+  return;
+}
+
+// SAVE EXPLANATION
+const saveExp = e.target.closest(".save-explanation");
+if (saveExp) {
+
+  const id = saveExp.dataset.id;
+
+  const textarea = document.querySelector(
+    `.explanation-input[data-id="${id}"]`
+  );
+
+  const value = textarea.value.trim();
+
+  await sb
+    .from("questions")
+    .update({
+      explanation: value || null
+    })
+    .eq("id", id);
+
+  await fetchQuestions();
+
+  return;
+}
 
   // 🔥 DELETE
   if (e.target.classList.contains("delete-btn")) {
@@ -1192,6 +1272,15 @@ el.topicsView.addEventListener("click", async (e) => {
     return;
   }
 
+  // ---------------------------
+// OPEN MASTER NOTE
+// ---------------------------
+const noteBtn = e.target.closest(".open-note-btn");
+if (noteBtn) {
+  const topicId = noteBtn.dataset.id;
+  window.location.href = `topic-note.html?id=${topicId}`;
+  return;
+}
   // ---------------------------
   // RENAME
   // ---------------------------

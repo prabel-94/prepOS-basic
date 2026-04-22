@@ -2,9 +2,11 @@
 // PrepOS Draft Editor (v6 - Stable)
 // ===============================
 
+import { runGenerator } from "./generator-core.js";
 // --------------------------------
 // GLOBAL STATE
 // --------------------------------
+let pendingSetLoadId = null;
 let currentSearchResults = [];
 let selectedQuestionIndex = null;
 let autosaveTimer = null;
@@ -34,13 +36,22 @@ const mode = params.get("mode");
 let patternDefinitions = [];
 let caEventDefinitions = [];
 
-function renderPatternDropdown(container, query) {
+function renderPatternDropdown(container, query, mode = "all") {
 
   const q = query.toLowerCase();
 
-  const filtered = patternDefinitions
-    .filter(p => p.key.toLowerCase().includes(q))
-    .sort((a, b) => a.key.localeCompare(b.key));
+let filtered = patternDefinitions;
+
+// 🔥 APPLY MODE FILTER
+if (container.classList.contains("generator-dropdown")) {
+  const allowedPatterns = ["SYNONYM", "OPPOSITE_WORD"];
+  filtered = filtered.filter(p => allowedPatterns.includes(p.key));
+}
+
+// 🔍 SEARCH FILTER
+filtered = filtered
+  .filter(p => p.key.toLowerCase().includes(q))
+  .sort((a, b) => a.key.localeCompare(b.key));
   if (!filtered.length) {
     container.innerHTML = `<div class="pattern-empty">No match</div>`;
     return;
@@ -170,6 +181,17 @@ function updateConfirmState() {
 }
 
 function formatTopicName(name) {
+
+  // convert KEY → display name
+  const map = {
+    MALAYALAM: "Malayalam",
+    VOCABULARY: "Vocabulary",
+    SYNONYM: "Synonyms",
+    ANTONYM: "Antonyms"
+  };
+
+  if (map[name]) return map[name];
+
   return name
     .trim()
     .replace(/\s+/g, " ")
@@ -565,6 +587,10 @@ function addTopicToQuestion(qIndex, topicName) {
 
   const formatted = formatTopicName(topicName);
 q.topics.push(formatted);
+  q.generator = {
+    ...q.generator,
+    topics_auto: false
+  };
 
   renderDraft(currentDraft);
 }
@@ -572,62 +598,54 @@ q.topics.push(formatted);
 function removeTopic(qIndex, topicIndex) {
   const q = currentDraft.schema_json.sections[0].questions[qIndex];
   q.topics.splice(topicIndex, 1);
+  q.generator = {
+    ...q.generator,
+    topics_auto: false
+  };
   renderDraft(currentDraft);
 }
 
 // --------------------------------
 // TOPIC DB LINKING
 // --------------------------------
-async function getOrCreateTopic(name) {
 
-  const clean = name.trim().replace(/\s+/g, " ");
-  const formatted = formatTopicName(clean);
-  const normalized = clean.toLowerCase();
+async function resolveTopicKeys(topicKeys) {
 
-  // Try fetch
-  const { data: existing } = await sb
-    .from("topics")
-    .select("id")
-    .eq("normalized_name", normalized)
-    .maybeSingle();
+  if (!topicKeys || !topicKeys.length) return [];
 
-  if (existing) return existing.id;
-
-  // Try insert (safe because of UNIQUE index)
   const { data, error } = await sb
     .from("topics")
-    .insert({
-      name: formatted,
-      normalized_name: normalized
-    })
-    .select()
-    .single();
+    .select("id, topic_key")
+    .in("topic_key", topicKeys);
 
-  // 🔥 Handle race condition
-  if (error && error.code === "23505") {
-    const { data: retry } = await sb
-      .from("topics")
-      .select("id")
-      .eq("normalized_name", normalized)
-      .single();
-
-    return retry.id;
+  if (error) {
+    console.error("Topic key resolve error:", error);
+    return [];
   }
 
-  return data.id;
+  const map = {};
+
+  (data || []).forEach(t => {
+    map[t.topic_key] = t.id;
+  });
+
+  return topicKeys
+    .map(k => map[k])
+    .filter(Boolean);
 }
+
 
 async function attachTopics(questionId, topics = []) {
 
-  console.log("ATTACHING TOPICS →", topics, "for Q:", questionId);
+  console.log("ATTACHING TOPIC KEYS →", topics);
 
-  for (const t of topics) {
+  const topicIds = await resolveTopicKeys(
+  topics.map(t => t.toUpperCase())
+);
 
-    const topicId = await getOrCreateTopic(t);
+  for (const topicId of topicIds) {
 
-    console.log("Resolved Topic:", t, "→ ID:", topicId);
-
-    const { data, error } = await sb
+    const { error } = await sb
       .from("question_topics")
       .upsert({
         question_id: questionId,
@@ -652,6 +670,8 @@ async function saveQuestionToBank(q) {
   }
 
   // ✅ Stable hash input
+  syncDifficultyToMeta(q);
+
   const hashInput = (
   q.text +
   (q.options || []).map(o => o.text).join("")
@@ -844,7 +864,10 @@ async function replaceQuestionMetadata(questionId, q) {
       difficulty_label_cached: meta.difficulty_label
     })
     .eq("id", questionId);
-     await updateTopicPatterns(questionId, patternKey);
+     await updateTopicPatterns(
+  questionId,
+  q.primary_pattern || null
+);
 }
 async function saveAllQuestionsToBank(globalTopics = []) {
 
@@ -892,6 +915,10 @@ async function saveAllQuestionsToBank(globalTopics = []) {
       globalTopics.length
     ) {
       q.topics = [...globalTopics];
+      q.generator = {
+        ...q.generator,
+        topics_auto: false
+      };
     }
 
     // --------------------------------
@@ -1026,14 +1053,29 @@ async function loadDraft() {
     .from("draft_exams")
     .select("*")
     .eq("id", draftId)
-    .single();
+    .maybeSingle()
 
   if (error) {
     console.error(error);
     setStatus("Load failed", true);
     return;
+    
   }
-  currentDraft = data;
+  // --------------------------------
+// SAFETY: HANDLE NULL DATA
+// --------------------------------
+if (!data) {
+  console.warn("Draft not found, creating new draft");
+
+  createEmptyDraft();
+  setStatus("Draft not found — new draft created");
+
+  return;
+}
+
+currentDraft = data;
+currentDraft.status = data.status || "draft";
+
 currentDraft.schema_json.sections[0].questions.forEach(q => {
   ensureMetadata(q);
   syncMetaToDifficulty(q);
@@ -1048,6 +1090,26 @@ currentDraft.schema_json.sections[0].questions.forEach(q => {
 
   setStatus("Loaded");
 
+}
+
+// ===============================
+// CLEAR ALL QUESTIONS
+// ===============================
+function clearDraftQuestions() {
+
+  if (!currentDraft) return;
+
+  const confirmClear = confirm(
+    "Delete ALL questions in this draft?"
+  );
+
+  if (!confirmClear) return;
+
+  currentDraft.schema_json.sections[0].questions = [];
+
+  renderDraft(currentDraft);
+
+  setStatus("Draft cleared");
 }
 
 function deleteQuestion(index) {
@@ -1206,6 +1268,11 @@ function renderDraft(draft) {
 
         <div class="q-title">
           Q${i + 1}
+          ${q.generator?.enabled ? `
+            <div class="small">
+              Generated &bull; ${q.generator.pattern || "No pattern selected"}
+            </div>
+          ` : ""}
         </div>
 
         <div class="question-actions">
@@ -1244,6 +1311,18 @@ function renderDraft(draft) {
         placeholder="Enter question..."
       >${q.text || ""}</textarea>
 
+      <!-- PRIMARY PATTERN (METADATA) -->
+<div class="mt-10">
+  <input 
+    class="primary-pattern-input"
+    data-i="${i}"
+    placeholder="Pattern (e.g., ASC, Awarded)"
+    value="${q.primary_pattern || ""}"
+    autocomplete="off"
+  />
+  <div class="pattern-dropdown primary-pattern-dropdown hidden"></div>
+</div>
+
       <!-- OPTIONS -->
       <div class="options">
         ${optionsHTML}
@@ -1260,16 +1339,49 @@ function renderDraft(draft) {
   Difficulty: ${q.difficulty?.label || "Not set"}
 </div>
 
-<div class="mt-10 pattern-box">
-  <input 
-    class="pattern-input"
-    data-i="${i}"
-    placeholder="Pattern (optional)"
-    value="${q.primary_pattern || ""}"
-    autocomplete="off"
-  />
-  <div class="pattern-dropdown hidden"></div>
+<!-- GENERATOR TOGGLE -->
+<div class="mt-10">
+  <label>
+    <input 
+      type="checkbox"
+      class="generator-enable"
+      data-i="${i}"
+      ${q.generator?.enabled ? "checked" : ""}
+    />
+    Use Generator
+  </label>
 </div>
+
+<!-- GENERATOR PANEL -->
+${q.generator?.enabled ? `
+<div class="generator-panel mt-10">
+
+<div class="pattern-box">
+  <select 
+    class="pattern-select"
+    data-i="${i}"
+  >
+    <option value="">Select Pattern</option>
+    <option value="SYNONYM" ${q.generator?.pattern === "SYNONYM" ? "selected" : ""}>Synonym</option>
+    <option value="OPPOSITE_WORD" ${q.generator?.pattern === "OPPOSITE_WORD" ? "selected" : ""}>Opposite Word</option>
+  </select>
+</div>
+
+  <button 
+    class="secondary-btn generate-btn mt-10"
+    data-i="${i}">
+    Generate
+  </button>
+  ${q.generator?.generated ? `
+  <button 
+    class="secondary-btn regenerate-btn mt-10"
+    data-i="${i}">
+    Regenerate
+  </button>
+  ` : ""}
+
+</div>
+` : ""}
 
 <div class="topic-tags">
   ${topicsHTML}
@@ -1385,7 +1497,89 @@ syncDifficultyToMeta(q);
   renderMetadataPanel(selectedQuestionIndex);
 });
 
+document.getElementById("questions")?.addEventListener("change", (e) => {
+  if (e.target.classList.contains("generator-enable")) {
+    const i = +e.target.dataset.i;
+
+    const q = currentDraft.schema_json.sections[0].questions[i];
+
+   // -----------------------------
+// ENSURE GENERATOR EXISTS
+// -----------------------------
+if (!q.generator) {
+  q.generator = {
+    enabled: false,
+    subject: "malayalam",
+    pattern: null,
+    source: "rule-based",
+    version: 1,
+    last_generated_at: null,
+    generated: false,
+    topics_auto: true
+  };
+}
+
+// -----------------------------
+// TOGGLE ONLY ENABLE FLAG
+// -----------------------------
+q.generator.enabled = e.target.checked;
+
+// -----------------------------
+// SAFETY DEFAULTS (DO NOT OVERWRITE)
+// -----------------------------
+q.generator.subject = q.generator.subject || "malayalam";
+q.generator.pattern = q.generator.pattern || null;
+q.generator.source = q.generator.source || "rule-based";
+q.generator.version = q.generator.version || 1;
+
+    renderDraft(currentDraft);
+    scheduleAutosave();
+  }
+});
+
 document.getElementById("questions")?.addEventListener("input", (e) => {
+
+  // --------------------------------
+// GENERATOR PATTERN SELECT (NEW)
+// --------------------------------
+if (e.target.classList.contains("pattern-select")) {
+
+  const i = +e.target.dataset.i;
+
+  const q = currentDraft.schema_json.sections[0].questions[i];
+
+  // ensure generator exists
+  if (!q.generator) {
+    q.generator = {
+      enabled: false,
+      subject: "malayalam",
+      pattern: null,
+      source: "rule-based",
+      version: 1,
+      last_generated_at: null,
+      generated: false,
+      topics_auto: true
+    };
+  }
+
+  // ✅ CRITICAL: update pattern
+  q.generator.pattern = e.target.value;
+
+}
+
+  if (e.target.classList.contains("primary-pattern-input")) {
+
+  const i = +e.target.dataset.i;
+
+  const q = currentDraft.schema_json.sections[0].questions[i];
+
+  q.primary_pattern = e.target.value;
+
+  const box = e.target.closest("div");
+  const dropdown = box.querySelector(".primary-pattern-dropdown");
+
+  renderPatternDropdown(dropdown, e.target.value);
+}
 
   if (e.target.classList.contains("qtext")) {
     currentDraft.schema_json.sections[0].questions[+e.target.dataset.i].text = e.target.value;
@@ -1408,19 +1602,6 @@ document.getElementById("questions")?.addEventListener("input", (e) => {
     currentDraft.schema_json.sections[0].questions[+e.target.dataset.i].explanation = e.target.value;
   }
 
- if (e.target.classList.contains("pattern-input")) {
-
-  const i = +e.target.dataset.i;
-
-  currentDraft.schema_json.sections[0].questions[i].primary_pattern =
-    e.target.value;
-
-  const box = e.target.closest(".pattern-box");
-  const dropdown = box.querySelector(".pattern-dropdown");
-
-  renderPatternDropdown(dropdown, e.target.value);
-}
-
   scheduleAutosave();
 });
 
@@ -1430,40 +1611,273 @@ document.getElementById("questions")?.addEventListener("input", (e) => {
 document.getElementById("questions")
 ?.addEventListener("focusin", (e) => {
 
-  if (!e.target.classList.contains("pattern-input")) return;
+  // -----------------------------
+  // GENERATOR PATTERN INPUT
+  // -----------------------------
 
-  const box = e.target.closest(".pattern-box");
-  const dropdown = box.querySelector(".pattern-dropdown");
+  // -----------------------------
+  // PRIMARY PATTERN INPUT
+  // -----------------------------
+  if (e.target.classList.contains("primary-pattern-input")) {
 
-  renderPatternDropdown(dropdown, "");
-  dropdown.classList.remove("hidden");
+    const box = e.target.closest("div");
+    const dropdown = box.querySelector(".primary-pattern-dropdown");
+
+    renderPatternDropdown(dropdown, "");
+    dropdown.classList.remove("hidden");
+
+    return;
+  }
 
 });
 
 document.getElementById("questions")?.addEventListener("click", (e) => {
 
+if (e.target.classList.contains("generate-btn")) {
+
+  const i = +e.target.dataset.i;
+
+  const q =
+    currentDraft.schema_json.sections[0].questions[i];
+
+  const pattern = q.generator?.pattern;
+
+  if (!pattern) {
+    setStatus("Select a pattern first", true);
+    return;
+  }
+
+  generateFromConfig({
+    subject: "malayalam",
+    pattern
+  }).then(result => {
+
+    if (!result) return;
+
+    const generated =
+      Array.isArray(result)
+        ? result[0]
+        : result;
+
+    // -----------------------------
+// SAFE SNAPSHOT
+// -----------------------------
+const oldGenerator = q.generator ? { ...q.generator } : null;
+const oldTopics = [...(q.topics || [])];
+const oldBankStatus = q.bank_status;
+const oldId = q.id;
+const oldDifficulty = q.difficulty ? { ...q.difficulty } : null;
+
+const generatedTopics = generated.topics || [];
+
+const topicsAuto =
+  oldGenerator?.topics_auto === true || !oldTopics.length;
+
+
+// -----------------------------
+// SAFE MERGE (ONLY CORE FIELDS)
+// -----------------------------
+q.text = generated.text;
+q.options = generated.options;
+q.correct = generated.correct;
+q.explanation = generated.explanation;
+q.primary_pattern = generated.primary_pattern;
+q.difficulty = generated.difficulty;
+
+
+// -----------------------------
+// RESTORE STATE
+// -----------------------------
+q.id = oldId;
+q.bank_status = oldBankStatus;
+
+q.topics = topicsAuto ? generatedTopics : oldTopics;
+
+
+// -----------------------------
+// RESTORE GENERATOR
+// -----------------------------
+q.generator = {
+  ...oldGenerator,
+  enabled: true,
+  subject: "malayalam",
+  pattern,
+  source: "rule-based",
+  version: 1,
+  generated: true,
+  topics_auto: topicsAuto,
+  last_generated_at: new Date().toISOString()
+};
+
+
+// -----------------------------
+// PRESERVE USER DIFFICULTY
+// -----------------------------
+if (oldDifficulty && oldDifficulty.label) {
+  q.difficulty = oldDifficulty;
+}
+
+    renderDraft(currentDraft);
+    scheduleAutosave();
+
+  });
+
+}
+
+if (e.target.classList.contains("regenerate-btn")) {
+
+  const i = +e.target.dataset.i;
+
+  const q =
+    currentDraft.schema_json.sections[0].questions[i];
+
+  const pattern = q.generator?.pattern;
+
+  if (!pattern) {
+    setStatus("Select a pattern first", true);
+    return;
+  }
+
+  if (!confirm("Regenerate question? Current content will be replaced.")) {
+    return;
+  }
+
+  generateFromConfig({
+    subject: "malayalam",
+    pattern
+  }).then(result => {
+
+    if (!result) return;
+
+    const generated =
+      Array.isArray(result)
+        ? result[0]
+        : result;
+
+  // -----------------------------
+// SAFE SNAPSHOT
+// -----------------------------
+const oldGenerator = q.generator ? { ...q.generator } : null;
+const oldTopics = [...(q.topics || [])];
+const oldBankStatus = q.bank_status;
+const oldId = q.id;
+const oldDifficulty = q.difficulty ? { ...q.difficulty } : null;
+
+const generatedTopics = generated.topics || [];
+
+const topicsAuto =
+  oldGenerator?.topics_auto === true || !oldTopics.length;
+
+
+// -----------------------------
+// SAFE MERGE
+// -----------------------------
+q.text = generated.text;
+q.options = generated.options;
+q.correct = generated.correct;
+q.explanation = generated.explanation;
+q.primary_pattern = generated.primary_pattern;
+q.difficulty = generated.difficulty;
+
+
+// -----------------------------
+// RESTORE STATE
+// -----------------------------
+q.id = oldId;
+q.bank_status = oldBankStatus;
+
+q.topics = topicsAuto ? generatedTopics : oldTopics;
+
+
+// -----------------------------
+// RESTORE GENERATOR
+// -----------------------------
+q.generator = {
+  ...oldGenerator,
+  enabled: true,
+  subject: "malayalam",
+  pattern,
+  source: "rule-based",
+  version: 1,
+  generated: true,
+  topics_auto: topicsAuto,
+  last_generated_at: new Date().toISOString()
+};
+
+
+// -----------------------------
+// PRESERVE USER DIFFICULTY
+// -----------------------------
+if (oldDifficulty && oldDifficulty.label) {
+  q.difficulty = oldDifficulty;
+}
+
+    renderDraft(currentDraft);
+    scheduleAutosave();
+
+  });
+
+}
 
 if (e.target.classList.contains("pattern-option")) {
 
   const key = e.target.dataset.key;
 
-  const box = e.target.closest(".pattern-box");
-  const input = box.querySelector(".pattern-input");
+  const isGenerator =
+    e.target.closest(".pattern-box") !== null;
 
-  input.value = key;
+  if (isGenerator) {
 
-  const i = +input.dataset.i;
+    const box = e.target.closest(".pattern-box");
+    const i = +input.dataset.i;
 
-  currentDraft
-    .schema_json
-    .sections[0]
-    .questions[i]
-    .primary_pattern = key;
+    const q =
+      currentDraft.schema_json.sections[0].questions[i];
 
-  box.querySelector(".pattern-dropdown").classList.add("hidden");
+    // -----------------------------
+    // ENSURE GENERATOR EXISTS
+    // -----------------------------
+    if (!q.generator) {
+      q.generator = {
+        enabled: false,
+        subject: "malayalam",
+        pattern: null,
+        source: "rule-based",
+        version: 1,
+        last_generated_at: null,
+        generated: false,
+        topics_auto: true
+      };
+    }
 
-}
-  // --------------------------------
+    // -----------------------------
+    // SAFE UPDATE
+    // -----------------------------
+    q.generator.pattern = key;
+
+    box.querySelector(".pattern-dropdown")
+      .classList.add("hidden");
+
+  } else {
+
+    const box = e.target.closest("div");
+    const input = box.querySelector(".primary-pattern-input");
+
+    input.value = key;
+
+    const i = +input.dataset.i;
+
+    currentDraft.schema_json.sections[0]
+      .questions[i]
+      .primary_pattern = key;
+
+    box.querySelector(".primary-pattern-dropdown")
+      .classList.add("hidden");
+
+  }
+
+  return;
+} // --------------------------------
   // META DATA→ OPEN PANEL
   // --------------------------------
 
@@ -1499,21 +1913,25 @@ if (preview) {
 
   preview.innerHTML = `
     <div><b>Question:</b></div>
-    <div class="mt-10">${q.text || "(empty question)"}</div>
+    <div class="mt-10 prepos-text">
+  ${q.text || "(empty question)"}
+</div>
 
     <div class="mt-10"><b>Options:</b></div>
     <ul class="mt-10">
       ${opts.map((o, i) => `
   <li>
     ${["A", "B", "C", "D"][i]}: ${o?.text || "-"}
-          ${q.correct === ["A","B","C","D"][i] ? " ✅" : ""}
+          ${q.correct === ["A", "B", "C", "D"][i] ? " ✅" : ""}
         </li>
       `).join("")}
     </ul>
 
     ${q.explanation ? `
       <div class="mt-10"><b>Explanation:</b></div>
-      <div class="mt-10">${q.explanation}</div>
+      <div class="mt-10 prepos-text">
+  ${q.explanation}
+</div>
     ` : ""}
   `;
 }
@@ -1560,6 +1978,15 @@ const q = {
   bank_status: "draft",
   primary_pattern: null, 
 
+  generator: {
+  enabled: false,
+  subject: "malayalam",
+  pattern: null,
+  source: "rule-based",
+  version: 1,
+  last_generated_at: null
+},
+
   // 🔥 ADD THIS BLOCK
   difficulty: {
     cognitive_level: null,
@@ -1568,10 +1995,65 @@ const q = {
     score: null,
     label: null
   },
+  
 };
 ensureMetadata(q);
   currentDraft.schema_json.sections[0].questions.push(q);
   renderDraft(currentDraft);
+}
+
+// ===============================
+// APPEND GENERATED QUESTION
+// ===============================
+function appendGeneratedQuestion(generated) {
+
+  if (!generated) return;
+
+  const list = Array.isArray(generated)
+    ? generated
+    : [generated];
+
+  list.forEach(q => {
+
+    currentDraft
+      .schema_json
+      .sections[0]
+      .questions
+      .push(q);
+
+  });
+
+  renderDraft(currentDraft);
+
+  scheduleAutosave();
+
+}
+//===============================
+// GENERATOR RUNNER (CLEAN)
+// ===============================
+async function generateFromConfig(config) {
+
+  try {
+
+    const result = await runGenerator(config);
+
+    if (!result) {
+      console.error("Generator returned empty result");
+      setStatus("Generator returned empty result", true);
+      return null;
+    }
+
+    setStatus("Generated question");
+
+    return result;
+
+  } catch (err) {
+
+    console.error(err);
+    setStatus("Generator failed", true);
+
+    return null;
+  }
 }
 
 // --------------------------------
@@ -1588,7 +2070,10 @@ async function saveDraft(silent = false) {
 // --------------------------------
 document.querySelectorAll(".qtext").forEach(el => {
   const i = +el.dataset.i;
-  currentDraft.schema_json.sections[0].questions[i].text = el.value;
+  const q = currentDraft.schema_json.sections[0].questions[i];
+  if (!q) return;
+
+  q.text = el.value;
 });
 
 document.querySelectorAll(".opt").forEach(el => {
@@ -1596,6 +2081,7 @@ document.querySelectorAll(".opt").forEach(el => {
   const oi = +el.dataset.oi;
 
   const q = currentDraft.schema_json.sections[0].questions[i];
+  if (!q) return;
 
   if (!q.options[oi]) {
     q.options[oi] = { id: ["A","B","C","D"][oi], text: "" };
@@ -1606,12 +2092,18 @@ document.querySelectorAll(".opt").forEach(el => {
 
 document.querySelectorAll(".explanation").forEach(el => {
   const i = +el.dataset.i;
-  currentDraft.schema_json.sections[0].questions[i].explanation = el.value;
+  const q = currentDraft.schema_json.sections[0].questions[i];
+  if (!q) return;
+
+  q.explanation = el.value;
 });
 
-document.querySelectorAll('input[type="radio"]:checked').forEach(el => {
+document.querySelectorAll('#questions input[type="radio"]:checked').forEach(el => {
   const i = +el.dataset.i;
-  currentDraft.schema_json.sections[0].questions[i].correct = el.value;
+  const q = currentDraft.schema_json.sections[0].questions[i];
+  if (!q || Number.isNaN(i)) return;
+
+  q.correct = el.value;
 });
 
 // --------------------------------
@@ -1619,17 +2111,20 @@ document.querySelectorAll('input[type="radio"]:checked').forEach(el => {
     // --------------------------------
     const questions = currentDraft.schema_json.sections[0].questions;
 
-    for (const q of questions) {
-      if (!q.text || !q.text.trim()) {
-        throw new Error("Empty question detected");
+    if (!silent) {
+      for (const q of questions) {
+        if (!q.text || !q.text.trim()) {
+          throw new Error("Empty question detected");
+        }
       }
     }
+
     const payload = {
       title: document.getElementById("title").value || "Untitled Draft",
       duration: parseInt(document.getElementById("duration").value) || 60,
       schema_json: currentDraft.schema_json,
       logo_url: logoURL,
-      status: "draft"
+      status: currentDraft.status || "draft"
     };
 
     if (!draftId) {
@@ -1659,6 +2154,7 @@ document.querySelectorAll('input[type="radio"]:checked').forEach(el => {
   } catch (e) {
     console.error(e);
     setStatus("Save failed", true);
+    if (!silent) throw e;
   } finally {
     isSaving = false;
   }
@@ -1694,13 +2190,15 @@ async function publishDraft() {
     if (error) throw error;
 
     // ✅ Update draft
-    await sb
+    const { error: draftUpdateError } = await sb
       .from("draft_exams")
       .update({
         status: "published",
         published_exam_id: session.id
       })
       .eq("id", draftId);
+
+    if (draftUpdateError) throw draftUpdateError;
 
     setStatus("Published ✅");
 
@@ -1891,10 +2389,16 @@ document.getElementById("createNewBtn")
   const q = currentDraft.schema_json.sections[0].questions[selectedQuestionIndex];
 
   try {
-    // ✅ Generate hash FIRST
-    const hash = await generateHash(
-      q.text.trim().toLowerCase()
-    );
+    // ✅ Match the same duplicate logic used by the standard bank save flow
+    syncDifficultyToMeta(q);
+
+    const hashInput = (
+      q.text +
+      (q.options || []).map(o =>
+        typeof o === "string" ? o : o.text
+      ).join("")
+    ).trim().toLowerCase();
+    const hash = await generateHash(hashInput);
 
     // ✅ Insert cleanly
     const { data, error } = await sb
@@ -1979,6 +2483,7 @@ q.bank_status = "saved";
         window.duplicateQuestionId,
         q.primary_pattern || null
       );
+      q.question_id = window.duplicateQuestionId;
       q.bank_status = "duplicate";
 
     renderDraft(currentDraft);
@@ -2091,18 +2596,6 @@ function setupTopicInput(inputId, tagsId, warningsId) {
     dropdown.classList.add("hidden");
 
   });
-
-  // ------------------------
-  // CLOSE ON OUTSIDE
-  // ------------------------
-  document.addEventListener("click", (e) => {
-
-    if (!dropdown.contains(e.target) && e.target !== input) {
-      dropdown.classList.add("hidden");
-    }
-
-  });
-
 }
 
 // --------------------------------
@@ -2283,6 +2776,10 @@ document.getElementById("confirmAddToBank")
   ).map(el => formatTopicName(el.dataset.value));
 
   q.topics = topics;
+  q.generator = {
+    ...q.generator,
+    topics_auto: false
+  };
 
 
   // =====================================
@@ -2353,6 +2850,9 @@ document.getElementById("confirmSaveAll")
 
   });
 
+window.runGenerator = runGenerator;
+window.generateFromConfig = generateFromConfig;
+
   if (draftId) loadDraft();
   else createEmptyDraft();
 }
@@ -2380,21 +2880,271 @@ document.addEventListener("click", (e) => {
   input.value = e.target.dataset.fix;
   input.dispatchEvent(new Event("input"));
 });
+// ===============================
+// SAVE AS QUESTION SET (DEPRECATED)
+// ===============================
+async function saveAsQuestionSetDeprecated() {
 
+  if (!draftId) {
+    await saveDraft(true);
+  }
+
+  const name = prompt("Question Set Name:");
+  if (!name) return;
+
+  currentDraft.status = "question_set"; // move BEFORE DB update
+
+  await sb
+    .from("draft_exams")
+    .update({
+      title: name,
+      status: "question_set"
+    })
+    .eq("id", draftId);
+
+  setStatus("Saved as Question Set ✅");
+}
+
+// ===============================
+// LOAD QUESTION SETS
+// ===============================
+async function loadQuestionSets() {
+
+  const panel = document.getElementById("questionSetPanel");
+  const list = document.getElementById("questionSetList");
+
+  panel.classList.remove("hidden");
+
+  const { data, error } = await sb
+    .from("draft_exams")
+    .select("id,title")
+    .eq("status","question_set")
+    .order("created_at",{ascending:false});
+
+  if (error) {
+    console.error(error);
+    list.innerHTML = "Failed to load question sets";
+    setStatus("Question set load failed", true);
+    return;
+  }
+
+  if (!data.length) {
+    list.innerHTML = "No saved question sets";
+    return;
+  }
+
+  list.innerHTML = data.map(d=>`
+    <div class="question-card">
+
+      <b>${d.title}</b>
+
+      <div class="mt-10 flex gap-10">
+
+        <button class="secondary-btn load-set"
+                data-id="${d.id}">
+          Load
+        </button>
+
+        <button class="secondary-btn delete-set"
+                data-id="${d.id}">
+          Delete
+        </button>
+
+      </div>
+
+    </div>
+  `).join("");
+}
+
+// ===============================
+// CLEAR MEMORY
+// ===============================
+async function clearDraftMemory() {
+
+  if (!confirm("Clear all non-question-set drafts?"))
+    return;
+
+  await sb
+    .from("draft_exams")
+    .delete()
+    .neq("status","question_set");
+
+  setStatus("Memory cleared ✅");
+}
+
+document.addEventListener("click", async (e)=>{
+
+  // LOAD QUESTION SET
+if (e.target.classList.contains("load-set")) {
+
+  pendingSetLoadId = e.target.dataset.id;
+
+  document
+    .getElementById("loadSetDialog")
+    .classList.remove("hidden");
+}
+
+  // DELETE QUESTION SET
+  if (e.target.classList.contains("delete-set")) {
+
+    const id = e.target.dataset.id;
+
+    if (!confirm("Delete this question set?"))
+      return;
+
+    await sb
+      .from("draft_exams")
+      .delete()
+      .eq("id", id);
+
+    loadQuestionSets();
+  }
+
+});
+
+document
+.getElementById("confirmLoadSet")
+?.addEventListener("click", async () => {
+
+  if (!pendingSetLoadId) return;
+
+  const mode = document.querySelector(
+    'input[name="loadMode"]:checked'
+  ).value;
+
+  const { data, error } = await sb
+    .from("draft_exams")
+    .select("schema_json")
+    .eq("id", pendingSetLoadId)
+    .single();
+
+  if (error) {
+    alert("Failed to load question set");
+    return;
+  }
+
+  const incoming =
+    data.schema_json.sections[0].questions || [];
+
+  if (mode === "replace") {
+
+    currentDraft.schema_json.sections[0].questions =
+      JSON.parse(JSON.stringify(incoming));
+
+  } else {
+
+    currentDraft.schema_json.sections[0].questions.push(
+      ...JSON.parse(JSON.stringify(incoming))
+    );
+
+  }
+
+  renderDraft(currentDraft);
+  document
+.getElementById("questionSetPanel")
+.classList.add("hidden");
+
+  document
+    .getElementById("loadSetDialog")
+    .classList.add("hidden");
+
+  pendingSetLoadId = null;
+
+  setStatus(
+    mode === "replace"
+      ? "Question set loaded"
+      : "Question set added"
+  );
+
+});
+
+document
+.getElementById("cancelLoadSet")
+?.addEventListener("click", () => {
+
+  pendingSetLoadId = null;
+
+  document
+    .getElementById("loadSetDialog")
+    .classList.add("hidden");
+
+});
+
+async function saveAsQuestionSetSafe() {
+  const name = prompt("Question Set Name:");
+  if (!name?.trim()) return;
+
+  try {
+    await saveDraft(true);
+
+    const duration =
+      parseInt(document.getElementById("duration")?.value, 10) || 60;
+
+    const { error } = await sb
+      .from("draft_exams")
+      .insert({
+        title: name.trim(),
+        duration,
+        schema_json: JSON.parse(JSON.stringify(currentDraft.schema_json)),
+        logo_url: logoURL,
+        status: "question_set"
+      });
+
+    if (error) throw error;
+
+    setStatus("Saved as Question Set ✅");
+  } catch (error) {
+    console.error(error);
+    alert("Failed to save question set");
+    setStatus("Question set save failed", true);
+  }
+}
+// ===============================
+// QUESTION SET BUTTONS
+// ===============================
+document.addEventListener("DOMContentLoaded", () => {
+
+  document.getElementById("saveQuestionSetBtn")
+    ?.addEventListener("click", saveAsQuestionSetSafe);
+
+  document.getElementById("loadQuestionSetBtn")
+    ?.addEventListener("click", loadQuestionSets);
+
+  document.getElementById("clearMemoryBtn")
+    ?.addEventListener("click", clearDraftMemory);
+
+  document.getElementById("clearDraftBtn")
+    ?.addEventListener("click", clearDraftQuestions);
+
+  document.getElementById("closeQuestionSet")
+    ?.addEventListener("click", () => {
+      document
+        .getElementById("questionSetPanel")
+        ?.classList.add("hidden");
+    });
+
+});
+
+init();
+
+// ========================================
+// GLOBAL DROPDOWN CLOSE HANDLER (SINGLE SOURCE)
+// ========================================
 document.addEventListener("click", (e) => {
 
   document.querySelectorAll(".pattern-dropdown")
     .forEach(d => {
 
-      if (!d.closest(".pattern-box").contains(e.target)) {
+      const container =
+        d.closest(".pattern-box") || d.parentElement;
+
+      if (!container || !container.contains(e.target)) {
         d.classList.add("hidden");
       }
 
     });
 
 });
-
-init();
 
 // --------------------------------
 // GLOBALS

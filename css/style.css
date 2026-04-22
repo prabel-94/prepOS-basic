@@ -298,6 +298,38 @@ QUESTION CARD (BUILDER)
   transform: translateY(-2px);
 }
 
+/* LEXICON MANAGER */
+.lexicon-groups{
+  display:grid;
+  gap:14px;
+}
+
+.group-card{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:8px;
+  padding:16px;
+  box-shadow:var(--shadow);
+}
+
+.group-card .stem-input{
+  width:100%;
+  font-weight:600;
+  margin-bottom:12px;
+}
+
+.group-card .values{
+  display:grid;
+  gap:8px;
+}
+
+.value-row{
+  display:grid;
+  grid-template-columns:1fr auto;
+  gap:8px;
+  align-items:center;
+}
+
 /* HEADER */
 
 .q-header{
@@ -767,6 +799,119 @@ REVIEW MODE
 .hidden{
   display: none;
 }
+
+/* ======================================================
+TOPIC NOTE EDITOR
+====================================================== */
+
+.note-title-input{
+  font-size:18px;
+  font-weight:600;
+}
+
+.note-toolbar{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+
+  position:sticky;
+  top:0;
+  z-index:100;
+
+  background:var(--card);
+  padding:8px;
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+}
+
+.note-toolbar button{
+  padding:6px 10px;
+}
+
+.note-editor{
+  min-height:400px;
+  border:1px solid var(--border);
+  padding:15px;
+  border-radius:var(--radius);
+  background:var(--card);
+  line-height:1.6;
+}
+
+.note-editor:focus{
+  outline:none;
+  border-color:var(--primary);
+}
+
+.hl{
+  background:#fff3a0;
+}
+
+.red{
+  color:#d32f2f;
+}
+
+.blue{
+  color:#1976d2;
+}
+
+.green{
+  color:#388e3c;
+}
+
+.save-indicator{
+  margin-top:10px;
+  font-size:12px;
+  color:var(--muted);
+}
+
+.topic-link{
+  color:var(--primary);
+  font-weight:600;
+  cursor:pointer;
+}
+
+.topic-link:hover{
+  text-decoration:underline;
+}
+
+.topic-suggest{
+  position:absolute;
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:8px;
+  box-shadow:var(--shadow);
+  padding:6px 0;
+  z-index:2000;
+  min-width:220px;
+}
+
+.topic-suggest-item{
+  padding:6px 12px;
+  cursor:pointer;
+  font-size:14px;
+}
+
+.topic-suggest-item:hover{
+  background:#f3f4f6;
+}
+
+.topic-suggest-item.active{
+  background:#eef2ff;
+}
+
+.topic-link{
+  padding:2px 4px;
+  border-radius:4px;
+}
+
+.topic-link:hover{
+  background:#eef2ff;
+}
+
+.topic-link{
+  display:inline;
+}
+
 /* ======================================================
 UTILITIES
 ====================================================== */
@@ -928,4 +1073,79 @@ CA BADGE
   border-radius: 6px;
   font-size: 12px;
   font-weight: 600;
+}
+
+/* ======================================================
+Explanation Toggle & Block 
+====================================================== */
+.explanation-toggle{
+  margin-top:10px;
+  font-size:13px;
+  color:#2563eb;
+  cursor:pointer;
+  font-weight:600;
+}
+
+.explanation-toggle:hover{
+  text-decoration:underline;
+}
+
+.explanation-block{
+  margin-top:10px;
+  padding:10px;
+  border-left:3px solid #2563eb;
+  background:#f9fafb;
+  border-radius:6px;
+}
+
+.explanation-input{
+  width:100%;
+  min-height:80px;
+  resize:vertical;
+}
+
+/* ======================================================
+USER GENERATED TEXT FORMATTING
+====================================================== */
+
+.prepos-text{
+white-space: pre-wrap;
+word-break: break-word;
+}
+
+/* =========================================
+RELATION BUILDER
+========================================= */
+
+.relation-columns {
+  display: flex;
+  gap: 20px;
+}
+
+.group-panel {
+  flex: 1;
+}
+
+.group-list {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  min-height: 180px;
+  padding: 8px;
+  background: #fafafa;
+}
+
+.group-item {
+  padding: 6px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.group-item:hover {
+  background: #eef2ff;
+}
+
+.group-item.active {
+  background: var(--primary);
+  color: white;
 }

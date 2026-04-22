@@ -110,6 +110,14 @@
   CA Events
 </button>
 
+<button
+  type="button"
+  class="secondary-btn"
+  onclick="location.href='lexicon-manager.html'"
+>
+  Lexicon
+</button>
+
   </div>
 
   <!-- =========================
@@ -232,13 +240,18 @@ METADATA PANEL
 
     <div class="mt-20">
       <b>Event</b>
-      <input id="caEventEdit" class="w-full mt-10" />
+      <input id="caEventEdit" class="w-full mt-10" placeholder="Enter event name" />
     </div>
 
     <div class="mt-20">
-      <b>Date</b>
-      <input id="caDateEdit" class="w-full mt-10" />
-    </div>
+  <label for="caDateEdit"><b>Date</b></label>
+
+  <input 
+    id="caDateEdit"
+    type="month"
+    class="w-full mt-10"
+  />
+</div>
 
     <button id="saveCABtn" class="primary-btn w-full mt-20">
       Save CA

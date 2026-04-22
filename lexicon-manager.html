@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>PrepOS Lexicon Manager</title>
+
+<link rel="stylesheet" href="css/style.css">
+
+</head>
+
+<body>
+
+<div class="container">
+
+  <div class="exam-header">
+    <div class="exam-header-right">
+      <h2>Lexicon Manager</h2>
+      <div id="lexiconStatus" class="exam-subtitle">
+        Manage generator word groups
+      </div>
+    </div>
+
+    <button
+      type="button"
+      class="secondary-btn"
+      onclick="location.href='qb-manager.html'"
+    >
+      Back
+    </button>
+  </div>
+
+  <div class="control-bar mt-20">
+    <select id="patternSelect">
+      <option value="SYNONYM">Synonym</option>
+      <option value="OPPOSITE_WORD">Opposite</option>
+    </select>
+
+    <button type="button" id="addGroupBtn" class="primary-btn">
+      + Add Word Group
+    </button>
+  </div>
+
+  <div id="groupsContainer" class="lexicon-groups mt-20"></div>
+  <!-- =========================================
+ANTONYM LINKER
+========================================= -->
+
+<div class="relation-builder mt-20">
+
+  <h3>Link Opposites</h3>
+
+  <div class="relation-columns">
+
+    <!-- GROUP A -->
+    <div class="group-panel">
+      <div class="small">Group A</div>
+      <div id="groupA-list" class="group-list"></div>
+    </div>
+
+    <!-- GROUP B -->
+    <div class="group-panel">
+      <div class="small">Group B</div>
+      <div id="groupB-list" class="group-list"></div>
+    </div>
+
+  </div>
+
+  <div class="mt-10">
+    <button id="link-opposite-btn" class="primary-btn">
+      🔗 Link as Opposite
+    </button>
+  </div>
+
+</div>
+
+</div>
+
+<!-- Supabase -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<!-- Config -->
+<script src="js/config.js"></script>
+
+<!-- Lexicon Manager -->
+<script src="js/lexicon-manager.js"></script>
+
+</body>
+</html>

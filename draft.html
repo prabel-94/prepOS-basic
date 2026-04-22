@@ -89,6 +89,10 @@ WORKSPACE
         <button type="button" id="saveAllToBankBtn" class="secondary-btn">
           Save All to Bank
         </button>
+
+        <button type="button" id="clearDraftBtn" class="secondary-btn">
+          Clear Questions
+        </button>
       </div>
     </div>
 
@@ -195,11 +199,14 @@ ADD TO BANK PANEL
 
 </div>
 
+<div class="mt-10">
+  <label for="caDateInput"><b>Date</b></label>
   <input 
     id="caDateInput"
-    placeholder="2026-03"
-    class="mt-10"
+    type="month"
+    class="w-full mt-10"
   />
+</div>
 
 </div>
 
@@ -283,8 +290,6 @@ SAVE ALL PANEL (FIXED)
 
 </div>
 
-<div id="saveAllResult" class="hidden mt-10"></div>
-
 </aside>
 
 <!-- ======================
@@ -310,18 +315,43 @@ DRAFT ACTIONS
     <div id="examLink" class="question-card hidden"></div>
   </div>
 
-  <div class="actions-row">
-    <button type="button" id="saveDraftBtn" class="secondary-btn">
-      Save Draft
-    </button>
+<div class="actions-row">
 
-    <button type="button" id="publishDraftBtn" class="primary-btn">
-      Publish Exam
-    </button>
-  </div>
+  <button type="button" id="saveDraftBtn" class="secondary-btn">
+    Save Draft
+  </button>
+
+  <button type="button" id="saveQuestionSetBtn" class="secondary-btn">
+    Save as Question Set
+  </button>
+
+  <button type="button" id="loadQuestionSetBtn" class="secondary-btn">
+    Load Question Set
+  </button>
+
+  <button type="button" id="clearMemoryBtn" class="secondary-btn">
+    Clear Memory
+  </button>
+
+  <button type="button" id="publishDraftBtn" class="primary-btn">
+    Publish Exam
+  </button>
+
+</div>
 
 </section>
+<aside class="question-bank-panel hidden" id="questionSetPanel">
 
+  <div class="qb-header">
+    <button type="button" id="closeQuestionSet">← Back</button>
+    <h3>Question Sets</h3>
+  </div>
+
+  <div id="questionSetList" class="mt-20">
+    Loading...
+  </div>
+
+</aside>
 </main>
 
 
@@ -330,12 +360,7 @@ SCRIPTS
 ====================== -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/config.js"></script>
-<script src="js/draft.js"></script>
-
-<script>
-document.getElementById("saveDraftBtn")?.addEventListener("click", saveDraft);
-document.getElementById("publishDraftBtn")?.addEventListener("click", publishDraft);
-</script>
+<script type="module" src="js/draft.js"></script>
 
 
 <!-- ======================
@@ -351,6 +376,34 @@ DEV DEBUG
   document.body.appendChild(script);
 })();
 </script>
+
+<div id="loadSetDialog" class="modal hidden">
+  <div class="modal-content">
+
+    <h3>Load Question Set</h3>
+
+    <label class="radio-row">
+      <input type="radio" name="loadMode" value="replace" checked>
+      Replace draft
+    </label>
+
+    <label class="radio-row">
+      <input type="radio" name="loadMode" value="append">
+      Add to draft
+    </label>
+
+    <div class="flex gap-10 mt-20">
+      <button id="confirmLoadSet" class="primary-btn">
+        Load
+      </button>
+
+      <button id="cancelLoadSet" class="secondary-btn">
+        Cancel
+      </button>
+    </div>
+
+  </div>
+</div>
 
 </body>
 </html>

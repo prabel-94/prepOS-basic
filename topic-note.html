@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Topic Note</title>
+
+<link rel="stylesheet" href="css/style.css">
+
+</head>
+
+<body>
+
+<div class="container">
+
+  <!-- HEADER -->
+  <div class="exam-header">
+
+    <div>
+      <button onclick="history.back()">← Back</button>
+    </div>
+
+    <div>
+      <h2 id="topicName">Topic</h2>
+      <div class="exam-subtitle">
+        Master Topic Note
+      </div>
+    </div>
+
+    <div>
+      <button id="printNote" class="secondary-btn">
+        Print
+      </button>
+    </div>
+
+  </div>
+
+  <!-- TITLE -->
+  <div class="mt-20">
+    <input 
+      id="noteTitle"
+      class="w-full note-title-input"
+      placeholder="Note title..."
+    />
+  </div>
+
+  <!-- TOOLBAR -->
+  <div class="note-toolbar mt-20">
+
+    <button data-cmd="bold"><b>B</b></button>
+    <button data-cmd="italic"><i>I</i></button>
+
+    <button data-cmd="insertUnorderedList">•</button>
+    <button data-cmd="insertOrderedList">1.</button>
+
+    <button data-cmd="justifyLeft">L</button>
+    <button data-cmd="justifyCenter">C</button>
+    <button data-cmd="justifyRight">R</button>
+    
+    <button data-spacing="1.2">S</button>
+    <button data-spacing="1.6">M</button>
+    <button data-spacing="2">L</button>
+    
+    <button data-size="14">A-</button>
+    <button data-size="16">A</button>
+    <button data-size="20">A+</button>
+    
+    <button id="highlightBtn">Highlight</button>
+    
+    <button data-color="red">Red</button>
+    <button data-color="blue">Blue</button>
+    <button data-color="green">Green</button>
+
+  </div>
+
+  <!-- EDITOR -->
+  <div 
+    id="noteEditor"
+    class="note-editor mt-20"
+    contenteditable="true">
+  </div>
+  <div id="topicSuggest" class="topic-suggest hidden"></div>
+
+  <div class="save-indicator" id="saveStatus">
+    Saved
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js"></script>
+<script src="js/topic-note.js"></script>
+
+</body>
+</html>
