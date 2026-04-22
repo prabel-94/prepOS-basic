@@ -11,7 +11,9 @@ let selectedGroupA = null;
 let selectedGroupB = null;
 const state = {
   topic: "vocabulary",
-  groups: []
+  mode: "SESSION", // SESSION | BROWSE
+  sessionGroups: [],
+  dbGroups: []
 };
 
 const el = {
@@ -96,17 +98,27 @@ function renderGroup(group, index) {
 }
 
 function renderGroups() {
-  if (!state.groups.length) {
+
+  const groups =
+    state.mode === "SESSION"
+      ? state.sessionGroups
+      : state.dbGroups;
+
+  if (!groups.length) {
     el.groupsContainer.innerHTML = `
       <div class="question-card">
-        No groups yet. Start adding vocabulary groups.
+        ${
+          state.mode === "SESSION"
+            ? "No groups in this session."
+            : "No groups found."
+        }
       </div>
     `;
     return;
   }
 
   el.groupsContainer.innerHTML =
-    state.groups.map((g, i) => renderGroup(g, i)).join("");
+    groups.map((g, i) => renderGroup(g, i)).join("");
 }
 
 function renderRelationGroups(groups) {
@@ -182,15 +194,15 @@ async function loadGroups() {
 
   const grouped = groupRows(data || []);
 
-  state.groups = Object.entries(grouped).map(([group_id, words]) => ({
+  state.dbGroups = Object.entries(grouped).map(([group_id, words]) => ({
     group_id,
     original_group_id: group_id,
     words
   }));
 
   renderGroups();
-  renderRelationGroups(state.groups);
-  setStatus(`${state.groups.length} groups loaded`);
+renderRelationGroups(state.dbGroups);
+setStatus(`${state.dbGroups.length} groups loaded`);
 }
 
 /* =========================================
@@ -284,8 +296,7 @@ async function saveGroup(card) {
   group.original_group_id = group_id;
 
   setStatus("Group saved ✅");
-
-  await loadGroups();
+  renderGroups();
 }
 
 /* =========================================
@@ -295,7 +306,12 @@ DELETE GROUP
 async function deleteGroup(card) {
 
   const index = +card.dataset.index;
-  const group = state.groups[index];
+  const groups =
+  state.mode === "SESSION"
+    ? state.sessionGroups
+    : state.dbGroups;
+
+const group = groups[index];
 
   if (!confirm("Delete this group?")) return;
 
@@ -306,7 +322,7 @@ async function deleteGroup(card) {
       .eq("group_id", group.original_group_id);
   }
 
-  state.groups.splice(index, 1);
+  groups.splice(index, 1);
   renderGroups();
 
   setStatus("Group deleted");
@@ -317,9 +333,27 @@ async function deleteGroup(card) {
 EVENTS
 ========================================= */
 
+document.getElementById("modeSelect")
+  ?.addEventListener("change", async (e) => {
+
+    state.mode = e.target.value;
+
+    if (state.mode === "BROWSE") {
+      await loadGroups();
+    } else {
+      renderGroups();
+    }
+
+});
+
 el.addGroupBtn?.addEventListener("click", () => {
 
-  state.groups.unshift({
+  const target =
+    state.mode === "SESSION"
+      ? state.sessionGroups
+      : state.dbGroups;
+
+  target.unshift({
     group_id: null,
     original_group_id: null,
     words: [""]
@@ -335,17 +369,22 @@ el.groupsContainer?.addEventListener("click", async (e) => {
   const card = e.target.closest(".group-card");
   if (!card) return;
 
+  const groups =
+  state.mode === "SESSION"
+    ? state.sessionGroups
+    : state.dbGroups;
+
   const group = syncGroup(card);
 
   if (e.target.classList.contains("add-word")) {
-    group.words.push("");
+    groups[card.dataset.index].words.push("");
     renderGroups();
   }
 
   if (e.target.classList.contains("delete-word")) {
     const row = e.target.closest(".value-row");
     const i = +row.dataset.index;
-    group.words.splice(i, 1);
+    groups[card.dataset.index].words.splice(i, 1);
     if (!group.words.length) group.words.push("");
     renderGroups();
   }
@@ -411,5 +450,10 @@ async function linkOpposite() {
 /* =========================================
 INIT
 ========================================= */
+function init() {
+  state.sessionGroups = [];
+  renderGroups();
+  setStatus("Start adding new word groups");
+}
 
-loadGroups();
+init();
