@@ -288,7 +288,7 @@ async function loadRecentExams(){
   try{
 
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/exams?select=id,title,created_at&order=created_at.desc&limit=5`,
+      `${SUPABASE_URL}/rest/v1/exam_sessions?select=id,title,created_at&order=created_at.desc&limit=5`,
       {
         headers:{
           apikey: SUPABASE_ANON_KEY,
@@ -347,7 +347,7 @@ async function loadRecentDraft(){
   try{
 
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/exam_drafts?select=id,title,updated_at&order=updated_at.desc&limit=1`,
+      `${SUPABASE_URL}/rest/v1/draft_exams?select=id,title,updated_at&order=updated_at.desc&limit=1`,
       {
         headers:{
           apikey: SUPABASE_ANON_KEY,
