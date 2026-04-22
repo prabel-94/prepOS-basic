@@ -25,6 +25,22 @@ DESIGN SYSTEM
 }
 
 /* ======================================================
+ELEVATION SYSTEM
+====================================================== */
+
+.shadow-sm{
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.shadow-md{
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.shadow-lg{
+  box-shadow: 0 10px 24px rgba(0,0,0,0.12);
+}
+
+/* ======================================================
 BASE
 ====================================================== */
 
@@ -43,6 +59,30 @@ h1,h2,h3{
 }
 
 .small{
+  color:var(--muted);
+  font-size:14px;
+}
+
+/* ======================================================
+TYPOGRAPHY SCALE
+====================================================== */
+
+.h1{
+  font-size:28px;
+  font-weight:700;
+}
+
+.h2{
+  font-size:22px;
+  font-weight:600;
+}
+
+.h3{
+  font-size:18px;
+  font-weight:600;
+}
+
+.text-muted{
   color:var(--muted);
   font-size:14px;
 }
@@ -115,8 +155,13 @@ button{
   border-radius:8px;
   background:#eee;
   cursor:pointer;
-  transition:all 0.2s ease;
+  transition:all 0.15s ease;
   font-size:14px;
+
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
 }
 
 button:hover{
@@ -128,10 +173,15 @@ button:disabled{
   cursor:not-allowed;
 }
 
+button:active{
+  transform:scale(0.97);
+}
+
 .primary-btn{
   background:var(--primary);
   color:#fff;
   font-weight:600;
+  box-shadow:0 4px 10px rgba(37,99,235,0.2);
 }
 
 .primary-btn:hover{
@@ -387,6 +437,34 @@ QUESTION CARD (BUILDER)
   color:#856404;
 }
 
+/* ======================================================
+CARD SYSTEM
+====================================================== */
+
+.card{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:18px;
+  box-shadow:var(--shadow);
+  transition:all 0.2s ease;
+}
+
+.card:hover{
+  transform:translateY(-2px);
+  box-shadow:0 6px 16px rgba(0,0,0,0.08);
+}
+
+.card + .card{
+  margin-top:20px;
+}
+
+.recent-item{
+  padding:10px;
+  border-radius:6px;
+  background:#fafafa;
+  border:1px solid var(--border);
+}
 /* ======================================================
 DIFFICULTY SYSTEM
 ====================================================== */
@@ -912,12 +990,29 @@ TOPIC NOTE EDITOR
   display:inline;
 }
 
+.section-title{
+  font-size:16px;
+  font-weight:600;
+  margin-bottom:6px;
+}
+
+.section-sub{
+  font-size:13px;
+  color:var(--muted);
+}
 /* ======================================================
 UTILITIES
 ====================================================== */
 
+/* ======================================================
+SPACING SCALE
+====================================================== */
+
+.mt-5{ margin-top:5px; }
 .mt-10{ margin-top:10px; }
+.mt-15{ margin-top:15px; }
 .mt-20{ margin-top:20px; }
+.mt-30{ margin-top:30px; }
 
 .flex{ display:flex; }
 .gap-10{ gap:10px; }
