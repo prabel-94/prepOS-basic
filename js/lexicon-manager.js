@@ -11,12 +11,15 @@ let selectedGroupA = null;
 let selectedGroupB = null;
 const state = {
   topic: "vocabulary",
-  mode: "SESSION", // SESSION | BROWSE
+  mode: "SESSION",
   sessionGroups: [],
-  dbGroups: []
+  dbGroups: [],
+  selectedGroupId: null
 };
 
 const el = {
+  groupSearchSelect: document.getElementById("groupSearchSelect"),
+  groupSearchSelect: document.getElementById("groupSearchSelect"),
   topicInput: document.getElementById("topicInput"),
   addGroupBtn: document.getElementById("addGroupBtn"),
   groupsContainer: document.getElementById("groupsContainer"),
@@ -99,10 +102,15 @@ function renderGroup(group, index) {
 
 function renderGroups() {
 
-  const groups =
+  let groups =
     state.mode === "SESSION"
       ? state.sessionGroups
       : state.dbGroups;
+
+  // Apply filter ONLY in browse mode
+  if (state.mode === "BROWSE" && state.selectedGroupId) {
+    groups = groups.filter(g => g.group_id === state.selectedGroupId);
+  }
 
   if (!groups.length) {
     el.groupsContainer.innerHTML = `
@@ -173,6 +181,27 @@ function selectRelationGroup(side, group_id, el) {
   }
 }
 
+function populateSearchDropdown() {
+
+  if (!el.groupSearchSelect) return;
+
+  el.groupSearchSelect.innerHTML = `
+    <option value="">Select Group</option>
+  `;
+
+  state.dbGroups.forEach(g => {
+
+    const label = g.words.slice(0, 3).join(", ") || "(empty)";
+
+    const option = document.createElement("option");
+    option.value = g.group_id;
+    option.textContent = label;
+
+    el.groupSearchSelect.appendChild(option);
+  });
+
+}
+
 /* =========================================
 LOAD
 ========================================= */
@@ -202,6 +231,7 @@ async function loadGroups() {
 
   renderGroups();
 renderRelationGroups(state.dbGroups);
+populateSearchDropdown();
 setStatus(`${state.dbGroups.length} groups loaded`);
 }
 
@@ -339,8 +369,11 @@ document.getElementById("modeSelect")
     state.mode = e.target.value;
 
     if (state.mode === "BROWSE") {
+      el.groupSearchSelect.style.display = "inline-block";
       await loadGroups();
     } else {
+      el.groupSearchSelect.style.display = "none";
+      state.selectedGroupId = null;
       renderGroups();
     }
 
@@ -399,6 +432,13 @@ el.groupsContainer?.addEventListener("click", async (e) => {
 
 });
 
+el.groupSearchSelect?.addEventListener("change", (e) => {
+
+  state.selectedGroupId = e.target.value || null;
+
+  renderGroups();
+
+});
 
 el.topicInput?.addEventListener("change", async (e) => {
   state.topic = e.target.value.trim().toLowerCase();
@@ -447,6 +487,8 @@ async function linkOpposite() {
 
   setStatus("Opposite linked ✅");
 }
+
+
 /* =========================================
 INIT
 ========================================= */
