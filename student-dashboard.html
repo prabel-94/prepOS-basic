@@ -55,6 +55,27 @@
 
   </div>
 
+  <!-- =========================
+PRACTICE
+========================= -->
+
+<div class="card mt-20">
+
+  <div class="h2">Practice</div>
+
+  <div class="section-sub mt-5">
+    Practice questions using smart generators.
+  </div>
+
+  <button 
+    onclick="goToPractice()" 
+    class="primary-btn w-full mt-20"
+  >
+    Start Practice
+  </button>
+
+</div>
+
 
   <!-- =========================
   RECENT ATTEMPTS
@@ -158,6 +179,10 @@ function startExam(){
 
   location.href = `exam.html?id=${id}`
 
+}
+
+function goToPractice(){
+  location.href = "practice.html"
 }
 
 
