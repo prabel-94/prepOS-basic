@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Practice</title>
+
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+
+<body>
+
+<div class="container">
+
+  <!-- HEADER -->
+  <div class="exam-header">
+    <h2>Practice</h2>
+  </div>
+
+  <!-- CONTROLS -->
+  <div class="control-bar mt-20">
+
+    <select id="patternSelect">
+      <option value="SYNONYM">Synonym</option>
+      <option value="OPPOSITE_WORD">Opposite</option>
+    </select>
+
+    <button id="startBtn" class="primary-btn">
+      Start Practice
+    </button>
+
+  </div>
+
+  <!-- QUESTION AREA -->
+  <div id="practiceArea" class="mt-30 hidden">
+
+    <div id="questionCard" class="question-card"></div>
+
+    <div id="optionsContainer" class="options mt-20"></div>
+
+    <div id="feedback" class="mt-20"></div>
+
+    <button id="nextBtn" class="primary-btn mt-20 hidden">
+      Next Question
+    </button>
+
+  </div>
+
+</div>
+
+<!-- Supabase -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script src="js/config.js"></script>
+<script type="module" src="js/practice.js"></script>
+
+</body>
+</html>
