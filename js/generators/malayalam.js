@@ -1,9 +1,9 @@
 /* =========================================
-PrepOS Malayalam Generator (Final Clean)
+PrepOS Malayalam Generator
 ========================================= */
 
 const sb = window.supabaseClient;
-const ADAPTIVE_MODE = true;
+const DEFAULT_ADAPTIVE_MODE = true;
 
 /* =========================================
 Pattern Registry
@@ -19,9 +19,8 @@ Main Export
 ========================================= */
 
 export const MalayalamGenerator = {
-  async generate(config) {
+  async generate(config = {}) {
     const { pattern } = config;
-
     const fn = PatternRegistry[pattern];
 
     if (!fn) {
@@ -33,36 +32,93 @@ export const MalayalamGenerator = {
 };
 
 /* =========================================
-Fetch Groups (NO MAPPING LAYER)
+Errors
+========================================= */
+
+function createGeneratorError(code, message) {
+  const error = new Error(message);
+  error.code = code;
+  return error;
+}
+
+/* =========================================
+Data Fetching
 ========================================= */
 
 async function fetchGroups() {
   const { data, error } = await sb
     .from("lexicon_entries")
-    .select("word, group_id");
+    .select("id, word, group_id");
 
   if (error) {
     console.error("Fetch error:", error);
-    return {};
+    throw createGeneratorError(
+      "LEXICON_FETCH_FAILED",
+      "Unable to load words right now."
+    );
+  }
+
+  if (!data || data.length === 0) {
+    throw createGeneratorError(
+      "LEXICON_EMPTY",
+      "No words are available yet. Add lexicon entries to start practicing."
+    );
   }
 
   const groups = {};
 
-  (data || []).forEach(row => {
+  data.forEach(row => {
     if (!row.group_id || !row.word) return;
 
     if (!groups[row.group_id]) {
       groups[row.group_id] = [];
     }
 
-    groups[row.group_id].push(row.word);
+    groups[row.group_id].push({
+      id: row.id,
+      word: row.word
+    });
   });
+
+  if (!Object.keys(groups).length) {
+    throw createGeneratorError(
+      "LEXICON_EMPTY",
+      "No words are available yet. Add lexicon entries to start practicing."
+    );
+  }
 
   return groups;
 }
 
+async function fetchOppositeRelations() {
+  const { data, error } = await sb
+    .from("lexicon_group_relations")
+    .select("group_id_1, group_id_2, relation_type");
+
+  if (error) {
+    console.error("Relation fetch error:", error);
+    throw createGeneratorError(
+      "RELATION_FETCH_FAILED",
+      "Unable to load opposite-word links right now."
+    );
+  }
+
+  const antonymRelations = (data || []).filter(row => {
+    return !row.relation_type || row.relation_type === "ANTONYM";
+  });
+
+  if (!antonymRelations.length) {
+    throw createGeneratorError(
+      "OPPOSITE_RELATIONS_MISSING",
+      "Opposite-word practice needs linked opposite groups in the lexicon manager."
+    );
+  }
+
+  return antonymRelations;
+}
+
 /* =========================================
-Adaptive Stats (word-level)
+Adaptive Stats
 ========================================= */
 
 async function getUserWordStatsMap() {
@@ -79,10 +135,9 @@ async function getUserWordStatsMap() {
   (data || []).forEach(row => {
     const seen = row.seen_count || 0;
     const wrong = row.wrong_count || 0;
-
     const weakness = seen === 0 ? 1 : wrong / seen;
-
     const word = row.lexicon_entries?.word;
+
     if (word) {
       map[word] = weakness;
     }
@@ -103,25 +158,74 @@ function pickRandom(arr, count) {
   return shuffle([...arr]).slice(0, count);
 }
 
+function getAdaptiveMode(config = {}) {
+  if (typeof config.adaptive === "boolean") {
+    return config.adaptive;
+  }
+
+  return DEFAULT_ADAPTIVE_MODE;
+}
+
+function getGroupWords(groups, groupId) {
+  return (groups[groupId] || []).map(entry => entry.word);
+}
+
+function uniqueEntriesByWord(entries, excludedWords = []) {
+  const seen = new Set(excludedWords);
+  const unique = [];
+
+  shuffle([...entries]).forEach(entry => {
+    if (!entry?.word || seen.has(entry.word)) return;
+    seen.add(entry.word);
+    unique.push(entry);
+  });
+
+  return unique;
+}
+
+function buildDistractors({
+  groups,
+  excludedGroupIds = [],
+  excludedWords = [],
+  count = 3
+}) {
+  const pool = Object.keys(groups)
+    .filter(groupId => !excludedGroupIds.includes(groupId))
+    .flatMap(groupId => groups[groupId]);
+
+  const distractors = uniqueEntriesByWord(pool, excludedWords).slice(0, count);
+
+  if (distractors.length < count) {
+    throw createGeneratorError(
+      "INSUFFICIENT_DISTRACTORS",
+      "Not enough distinct words are available to build this practice question."
+    );
+  }
+
+  return distractors;
+}
+
 /* =========================================
 Group Selection
 ========================================= */
 
-async function selectGroup(groups) {
+async function selectGroup(groups, adaptiveMode) {
   const keys = Object.keys(groups);
 
-  const valid = keys.filter(k => {
-    const own = groups[k];
+  const valid = keys.filter(groupId => {
+    const own = groups[groupId] || [];
     const others = keys
-      .filter(x => x !== k)
-      .flatMap(x => groups[x]);
+      .filter(id => id !== groupId)
+      .flatMap(id => groups[id] || []);
 
-    return own.length >= 2 && others.length >= 3;
+    return own.length >= 2 && uniqueEntriesByWord(others).length >= 3;
   });
 
-  if (!valid.length) return null;
+  if (!valid.length) {
+    return null;
+  }
 
-  if (!ADAPTIVE_MODE) {
+  if (!adaptiveMode) {
     return pickRandom(valid, 1)[0];
   }
 
@@ -131,238 +235,153 @@ async function selectGroup(groups) {
     return pickRandom(valid, 1)[0];
   }
 
-  const scored = valid.map(k => {
-    const words = groups[k];
-
+  const scored = valid.map(groupId => {
+    const words = getGroupWords(groups, groupId);
     const avg =
-      words.reduce((sum, w) => sum + (stats[w] ?? 1), 0) /
+      words.reduce((sum, word) => sum + (stats[word] ?? 1), 0) /
       words.length;
 
-    return { k, score: avg };
+    return { groupId, score: avg };
   });
 
   scored.sort((a, b) => b.score - a.score);
 
-  return pickRandom(scored.slice(0, 5), 1)[0].k;
+  return pickRandom(scored.slice(0, 5), 1)[0].groupId;
 }
 
 /* =========================================
 SYNONYM GENERATOR
 ========================================= */
 
-async function generateSynonymQuestion() {
+async function generateSynonymQuestion(config = {}) {
   const groups = await fetchGroups();
+  const groupId = await selectGroup(groups, getAdaptiveMode(config));
 
-  const group_id = await selectGroup(groups);
-  if (!group_id) return null;
+  if (!groupId) {
+    throw createGeneratorError(
+      "INSUFFICIENT_LEXICON_DATA",
+      "Add at least two related words in one group and three distractor words in other groups."
+    );
+  }
 
-  const words = groups[group_id];
-
-  if (words.length < 2) return null;
-
-  const questionWord = pickRandom(words, 1)[0];
-
-  const correct = pickRandom(
-    words.filter(w => w !== questionWord),
+  const words = groups[groupId];
+  const questionEntry = pickRandom(words, 1)[0];
+  const correctEntry = pickRandom(
+    words.filter(entry => entry.id !== questionEntry.id),
     1
   )[0];
 
-  const distractors = pickRandom(
-    Object.keys(groups)
-      .filter(k => k !== group_id)
-      .flatMap(k => groups[k]),
-    3
-  );
-
-  const options = shuffle([correct, ...distractors]);
-  const correctIndex = options.indexOf(correct);
-
-  return [buildQuestion({
-    text: `${questionWord} എന്ന വാക്കിന്റെ പര്യായം ഏത്?`,
-    options,
-    correctIndex,
-    pattern: "SYNONYM",
-    difficulty: { score: 2, label: "easy" },
-    topics: ["MALAYALAM", "VOCABULARY", "SYNONYM"]
-  })];
-}
-
-/* =========================================
-OPPOSITE GENERATOR (TEMP LOGIC)
-========================================= */
-async function generateOppositeWordQuestion(config = {}) {
-
-  // ========================================
-  // 1. FETCH ALL WORDS
-  // ========================================
-
-  const { data: rows, error } = await sb
-    .from("lexicon_entries")
-    .select("group_id, word");
-
-  if (error || !rows || rows.length < 4) {
-    console.error("Lexicon fetch failed", error);
-    return null;
-  }
-
-  // ========================================
-  // 2. GROUP WORDS
-  // ========================================
-
-  const groups = {};
-
-  rows.forEach(r => {
-    if (!groups[r.group_id]) {
-      groups[r.group_id] = [];
-    }
-    groups[r.group_id].push(r.word);
+  const distractors = buildDistractors({
+    groups,
+    excludedGroupIds: [groupId],
+    excludedWords: [questionEntry.word, correctEntry.word],
+    count: 3
   });
 
-  const groupIds = Object.keys(groups);
+  const options = shuffle([
+    correctEntry.word,
+    ...distractors.map(entry => entry.word)
+  ]);
 
-  if (groupIds.length < 2) return null;
-
-// ========================================
-// 3. PICK BASE GROUP (ONLY LINKED GROUPS)
-// ========================================
-
-// fetch all relations
-const { data: relations } = await sb
-  .from("lexicon_group_relations")
-  .select("group_id_1, group_id_2");
-
-if (!relations || relations.length === 0) {
-  console.warn("No relations found");
-  return null;
-}
-
-// collect linked group ids
-const linkedGroupIds = new Set();
-
-relations.forEach(r => {
-  linkedGroupIds.add(r.group_id_1);
-  linkedGroupIds.add(r.group_id_2);
-});
-
-const validGroupIds = [...linkedGroupIds];
-
-if (!validGroupIds.length) return null;
-
-// pick base group ONLY from linked ones
-const baseGroupId =
-  validGroupIds[Math.floor(Math.random() * validGroupIds.length)];
-
-const baseWords = groups[baseGroupId];
-
-if (!baseWords || baseWords.length === 0) return null;
-
-const stem =
-  baseWords[Math.floor(Math.random() * baseWords.length)];
-
-
-  // ========================================
-  // 4. FETCH RELATIONS (CORE UPGRADE)
-  // ========================================
-
-  let oppositeGroupId = null;
-
-  if (relations && relations.length > 0) {
-
-    const possible = relations.map(r =>
-      r.group_id_1 === baseGroupId
-        ? r.group_id_2
-        : r.group_id_1
-    );
-
-    if (possible.length > 0) {
-      oppositeGroupId =
-        possible[Math.floor(Math.random() * possible.length)];
-    }
-  }
-
-  // ========================================
-  // 5. FALLBACK (IMPORTANT)
-  // ========================================
-
-
-// ========================================
-// 5. STRICT MODE (NO FALLBACK)
-// ========================================
-if (!oppositeGroupId) {
-  console.warn("No opposite group linked for:", baseGroupId);
-  return null;
-}
-
-
-  const correctWords = groups[oppositeGroupId];
-
-  if (!correctWords || correctWords.length === 0) return null;
-
-  const correct =
-    correctWords[Math.floor(Math.random() * correctWords.length)];
-
-  // ========================================
-  // 6. DISTRACTORS
-  // ========================================
-
-  const distractors = [];
-
-  const otherGroups = groupIds.filter(
-    id => id !== baseGroupId && id !== oppositeGroupId
-  );
-
-  while (distractors.length < 3 && otherGroups.length > 0) {
-
-    const g =
-      otherGroups[Math.floor(Math.random() * otherGroups.length)];
-
-    const words = groups[g];
-
-    if (words && words.length) {
-      const w =
-        words[Math.floor(Math.random() * words.length)];
-
-      if (!distractors.includes(w) && w !== correct) {
-        distractors.push(w);
+  return [
+    buildQuestion({
+      text: `${questionEntry.word} എന്ന വാക്കിന്റെ പര്യായം ഏത്?`,
+      options,
+      correctIndex: options.indexOf(correctEntry.word),
+      pattern: "SYNONYM",
+      difficulty: { score: 2, label: "easy" },
+      topics: ["MALAYALAM", "VOCABULARY", "SYNONYM"],
+      tracking: {
+        promptEntryIds: [questionEntry.id],
+        correctEntryIds: [correctEntry.id]
       }
-    }
-  }
-
-  // fallback fill
-  while (distractors.length < 3) {
-    distractors.push(correctWords[0]);
-  }
-
-  // ========================================
-  // 7. SHUFFLE OPTIONS
-  // ========================================
-
-  const options = [correct, ...distractors]
-    .sort(() => Math.random() - 0.5);
-
-  const correctIndex = options.indexOf(correct);
-
-  const correctOption =
-    ["A", "B", "C", "D"][correctIndex];
-
-  // ========================================
-  // 8. RETURN FINAL STRUCTURE
-  // ========================================
-return [
-  buildQuestion({
-    text: `${stem} എന്ന വാക്കിന്റെ വിരുദ്ധം ഏത്?`,
-    options,
-    correctIndex,
-    pattern: "OPPOSITE_WORD",
-    difficulty: { score: 2, label: "easy" },
-    topics: ["MALAYALAM", "VOCABULARY", "ANTONYM"]
-  }) ]; // ✅ CLOSE FUNCTION HERE 
+    })
+  ];
 }
-
-
 
 /* =========================================
-Question Builder (STANDARD CONTRACT)
+OPPOSITE GENERATOR
+========================================= */
+
+async function generateOppositeWordQuestion() {
+  const groups = await fetchGroups();
+  const relations = await fetchOppositeRelations();
+
+  const adjacency = {};
+
+  relations.forEach(row => {
+    if (!groups[row.group_id_1] || !groups[row.group_id_2]) return;
+
+    adjacency[row.group_id_1] ||= [];
+    adjacency[row.group_id_2] ||= [];
+
+    adjacency[row.group_id_1].push(row.group_id_2);
+    adjacency[row.group_id_2].push(row.group_id_1);
+  });
+
+  const linkedGroupIds = Object.keys(adjacency).filter(groupId => {
+    return (
+      (groups[groupId] || []).length > 0 &&
+      (adjacency[groupId] || []).some(linkedId => (groups[linkedId] || []).length > 0)
+    );
+  });
+
+  if (!linkedGroupIds.length) {
+    throw createGeneratorError(
+      "OPPOSITE_RELATIONS_INVALID",
+      "Opposite-word links exist, but they do not connect to usable word groups yet."
+    );
+  }
+
+  const baseGroupId = pickRandom(linkedGroupIds, 1)[0];
+  const oppositeCandidates = (adjacency[baseGroupId] || []).filter(groupId => {
+    return (groups[groupId] || []).length > 0;
+  });
+
+  if (!oppositeCandidates.length) {
+    throw createGeneratorError(
+      "OPPOSITE_RELATIONS_INVALID",
+      "The selected word group does not have a usable opposite group yet."
+    );
+  }
+
+  const oppositeGroupId = pickRandom(oppositeCandidates, 1)[0];
+  const baseWords = groups[baseGroupId];
+  const oppositeWords = groups[oppositeGroupId];
+
+  const stemEntry = pickRandom(baseWords, 1)[0];
+  const correctEntry = pickRandom(oppositeWords, 1)[0];
+
+  const distractors = buildDistractors({
+    groups,
+    excludedGroupIds: [baseGroupId, oppositeGroupId],
+    excludedWords: [stemEntry.word, correctEntry.word],
+    count: 3
+  });
+
+  const options = shuffle([
+    correctEntry.word,
+    ...distractors.map(entry => entry.word)
+  ]);
+
+  return [
+    buildQuestion({
+      text: `${stemEntry.word} എന്ന വാക്കിന്റെ വിരുദ്ധം ഏത്?`,
+      options,
+      correctIndex: options.indexOf(correctEntry.word),
+      pattern: "OPPOSITE_WORD",
+      difficulty: { score: 2, label: "easy" },
+      topics: ["MALAYALAM", "VOCABULARY", "ANTONYM"],
+      tracking: {
+        promptEntryIds: [stemEntry.id],
+        correctEntryIds: [correctEntry.id]
+      }
+    })
+  ];
+}
+
+/* =========================================
+Question Builder
 ========================================= */
 
 function buildQuestion({
@@ -371,22 +390,23 @@ function buildQuestion({
   correctIndex,
   pattern,
   difficulty,
-  topics
+  topics,
+  tracking = null
 }) {
   return {
     id: crypto.randomUUID(),
     question_id: null,
     text,
-    options: options.map((o, i) => ({
-      id: ["A", "B", "C", "D"][i],
-      text: o
+    options: options.map((optionText, index) => ({
+      id: ["A", "B", "C", "D"][index],
+      text: optionText
     })),
     correct: ["A", "B", "C", "D"][correctIndex],
     explanation: "",
     topics,
     primary_pattern: pattern,
     bank_status: "draft",
-    difficulty
+    difficulty,
+    tracking
   };
 }
-

@@ -283,6 +283,22 @@ QB MANAGER LAYOUT
   min-width:140px;
 }
 
+.toggle-row{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:10px 12px;
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:8px;
+  min-height:42px;
+  box-sizing:border-box;
+}
+
+.toggle-row input{
+  margin:0;
+}
+
 /* WORKSPACE SPLIT */
 .manager-workspace{
   display:block;
@@ -523,6 +539,24 @@ DIFFICULTY SYSTEM
   line-height: 1.5;
 }
 
+.practice-status,
+.practice-progress{
+  font-size:14px;
+  margin-top:10px;
+}
+
+.practice-status{
+  color:var(--muted);
+}
+
+.practice-status.error{
+  color:var(--danger);
+}
+
+.practice-progress{
+  color:var(--muted);
+}
+
 /* OPTIONS */
 
 .options{
@@ -584,6 +618,33 @@ DIFFICULTY SYSTEM
 .option-row.correct{
   background: var(--success-bg);
   border-color: var(--success);
+}
+
+.option-btn{
+  width:100%;
+  justify-content:flex-start;
+  text-align:left;
+  background:var(--card);
+  border:1px solid var(--border);
+  color:var(--text);
+  padding:12px 14px;
+}
+
+.option-btn:hover{
+  border-color:var(--primary);
+  background:#f8fbff;
+}
+
+.option-btn.correct{
+  background:var(--success-bg);
+  border-color:var(--success);
+  color:var(--success);
+}
+
+.option-btn.wrong{
+  background:var(--danger-bg);
+  border-color:var(--danger);
+  color:var(--danger);
 }
 /* ======================================================
 PATTERN SYSTEM
