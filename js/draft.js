@@ -2158,6 +2158,8 @@ document.querySelectorAll('#questions input[type="radio"]:checked').forEach(el =
       if (!silent) setStatus("Saved");
     }
 
+    console.log("saveDraft: success", { draftId, status: currentDraft.status });
+
   } catch (e) {
     console.error(e);
     setStatus("Save failed", true);
