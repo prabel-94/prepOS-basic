@@ -392,6 +392,7 @@ ensureMetadata(newQuestion);
   currentDraft.schema_json.sections[0].questions.push(newQuestion);
 
   renderDraft(currentDraft);
+  scheduleAutosave();
 
   setStatus("Question added to draft ✅");
   // 🔥 AUTO REFRESH SEARCH RESULTS
@@ -1109,6 +1110,7 @@ function clearDraftQuestions() {
   currentDraft.schema_json.sections[0].questions = [];
 
   renderDraft(currentDraft);
+  scheduleAutosave();
 
   setStatus("Draft cleared");
 }
@@ -1129,6 +1131,7 @@ function deleteQuestion(index) {
   }
 
   renderDraft(currentDraft);
+  scheduleAutosave();
 }
 
 function duplicateQuestion(index) {
@@ -1145,6 +1148,7 @@ function duplicateQuestion(index) {
   currentDraft.schema_json.sections[0].questions.splice(index + 1, 0, clone);
 
   renderDraft(currentDraft);
+  scheduleAutosave();
 }
 
 function moveQuestionUp(index) {
@@ -1162,6 +1166,7 @@ function moveQuestionUp(index) {
   }
 
   renderDraft(currentDraft);
+  scheduleAutosave();
 }
 
 function moveQuestionDown(index) {
@@ -1179,6 +1184,7 @@ function moveQuestionDown(index) {
   }
 
   renderDraft(currentDraft);
+  scheduleAutosave();
 }
 
 // --------------------------------
@@ -2001,6 +2007,7 @@ const q = {
 ensureMetadata(q);
   currentDraft.schema_json.sections[0].questions.push(q);
   renderDraft(currentDraft);
+  scheduleAutosave();
 }
 
 // ===============================
@@ -2341,8 +2348,11 @@ document.getElementById("metadataContent")
 });
  
 // --------------------------------
-// PUBLISH BUTTON
+// SAVE / PUBLISH BUTTONS
 // --------------------------------
+document.getElementById("saveDraftBtn")
+  ?.addEventListener("click", () => saveDraft());
+
 document.getElementById("publishDraftBtn")
   ?.addEventListener("click", publishDraft);
 
