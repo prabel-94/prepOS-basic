@@ -2218,12 +2218,20 @@ async function publishDraft() {
     validateDraftForPublish();
     setStatus("Publishing...");
 
-    const payload = {
-      title: document.getElementById("title").value || "Untitled Exam",
-      duration: parseInt(document.getElementById("duration").value) || 60,
-      schema_json: currentDraft.schema_json,
-      logo_url: logoURL || null
-    };
+    const { data: userData } = await sb.auth.getUser();
+const user = userData?.user;
+
+if (!user) {
+  throw new Error("User not authenticated");
+}
+
+const payload = {
+  title: document.getElementById("title").value || "Untitled Exam",
+  duration: parseInt(document.getElementById("duration").value) || 60,
+  schema_json: currentDraft.schema_json,
+  logo_url: logoURL || null,
+  created_by: user.id   // 🔥 THIS IS THE FIX
+};
 
     // ✅ Insert into exam_sessions (NOT exams)
     const { data: session, error } = await sb
