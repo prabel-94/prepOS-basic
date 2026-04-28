@@ -2277,6 +2277,12 @@ document.getElementById("metadataContent")
   }
 });
  
+// --------------------------------
+// PUBLISH BUTTON
+// --------------------------------
+document.getElementById("publishDraftBtn")
+  ?.addEventListener("click", publishDraft);
+  
    // --------------------------------
 // CLOSE META PANEL
 // --------------------------------
