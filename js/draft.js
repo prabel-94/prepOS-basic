@@ -12,6 +12,7 @@ let selectedQuestionIndex = null;
 let autosaveTimer = null;
 let topicTimer = null;
 let isSaving = false;
+let isPublishing = false;
 
 let currentDraft = null;
 let logoURL = null;
@@ -2059,8 +2060,9 @@ async function generateFromConfig(config) {
 // --------------------------------
 // SAVE DRAFT (FIXED)
 // --------------------------------
-async function saveDraft(silent = false) {
+async function saveDraft(silent = false, options = {}) {
   if (!currentDraft) return;
+  const shouldThrow = Boolean(options.throwOnError);
 
 // WAIT if already saving
 while (isSaving) {
@@ -2159,7 +2161,7 @@ document.querySelectorAll('#questions input[type="radio"]:checked').forEach(el =
   } catch (e) {
     console.error(e);
     setStatus("Save failed", true);
-    if (!silent) throw e;
+    if (!silent || shouldThrow) throw e;
   } finally {
     isSaving = false;
   }
@@ -2168,14 +2170,43 @@ document.querySelectorAll('#questions input[type="radio"]:checked').forEach(el =
 // --------------------------------
 // ✅ PUBLISH DRAFT (FINAL VERSION)
 // --------------------------------
+function validateDraftForPublish() {
+  const questions = currentDraft?.schema_json?.sections?.[0]?.questions || [];
+
+  if (!questions.length) {
+    throw new Error("Add at least one question before publishing");
+  }
+
+  questions.forEach((q, index) => {
+    if (!q.text || !q.text.trim()) {
+      throw new Error(`Question ${index + 1} is empty`);
+    }
+  });
+}
+
 async function publishDraft() {
+  if (isPublishing) return;
+
   if (!draftId) {
     alert("Save draft before publishing");
     return;
   }
 
+  const publishBtn = document.getElementById("publishDraftBtn");
+  const originalPublishText = publishBtn?.innerText;
+  let createdSessionId = null;
+  let draftUpdated = false;
+
   try {
-    await saveDraft(true);
+    isPublishing = true;
+
+    if (publishBtn) {
+      publishBtn.disabled = true;
+      publishBtn.innerText = "Publishing...";
+    }
+
+    await saveDraft(true, { throwOnError: true });
+    validateDraftForPublish();
     setStatus("Publishing...");
 
     const payload = {
@@ -2193,6 +2224,7 @@ async function publishDraft() {
       .single();
 
     if (error) throw error;
+    createdSessionId = session.id;
 
     // ✅ Update draft
     const { error: draftUpdateError } = await sb
@@ -2204,6 +2236,10 @@ async function publishDraft() {
       .eq("id", draftId);
 
     if (draftUpdateError) throw draftUpdateError;
+    draftUpdated = true;
+
+    currentDraft.status = "published";
+    currentDraft.published_exam_id = session.id;
 
     setStatus("Published ✅");
 
@@ -2221,7 +2257,27 @@ async function publishDraft() {
 
   } catch (err) {
     console.error(err);
+
+    if (createdSessionId && !draftUpdated) {
+      const { error: cleanupError } = await sb
+        .from("exam_sessions")
+        .delete()
+        .eq("id", createdSessionId);
+
+      if (cleanupError) {
+        console.error("Publish cleanup failed:", cleanupError);
+      }
+    }
+
+    alert(err.message || "Publish failed");
     setStatus("Publish failed", true);
+  } finally {
+    isPublishing = false;
+
+    if (publishBtn) {
+      publishBtn.disabled = false;
+      publishBtn.innerText = originalPublishText || "Publish";
+    }
   }
 }
 
