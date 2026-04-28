@@ -2060,7 +2060,12 @@ async function generateFromConfig(config) {
 // SAVE DRAFT (FIXED)
 // --------------------------------
 async function saveDraft(silent = false) {
-  if (!currentDraft || isSaving) return;
+  if (!currentDraft) return;
+
+// WAIT if already saving
+while (isSaving) {
+  await new Promise(r => setTimeout(r, 50));
+}
 
   isSaving = true;
 
@@ -2282,7 +2287,7 @@ document.getElementById("metadataContent")
 // --------------------------------
 document.getElementById("publishDraftBtn")
   ?.addEventListener("click", publishDraft);
-  
+
    // --------------------------------
 // CLOSE META PANEL
 // --------------------------------
