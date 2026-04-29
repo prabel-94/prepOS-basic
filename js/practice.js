@@ -9,6 +9,7 @@ const adaptiveToggle = document.getElementById("adaptiveToggle");
 const startBtn = document.getElementById("startBtn");
 const generatorControls = document.getElementById("generatorControls");
 const bankControls = document.getElementById("bankControls");
+const bankTopicSelect = document.getElementById("bankTopicSelect");
 const bankOrderSelect = document.getElementById("bankOrderSelect");
 const modeButtons = document.querySelectorAll(".practice-mode-card");
 
@@ -46,6 +47,7 @@ async function init() {
 
   const { data } = await sb.auth.getUser();
   window.currentUser = data?.user || null;
+  await loadBankTopics();
   startBtn.disabled = false;
 }
 
@@ -73,7 +75,16 @@ function getSessionLimit() {
 }
 
 function getModeLabel() {
-  return state.mode === "bank" ? "Question Bank" : "Generator";
+  if (state.mode !== "bank") {
+    return "Generator";
+  }
+
+  const selectedTopic =
+    bankTopicSelect.options[bankTopicSelect.selectedIndex]?.text || "";
+
+  return bankTopicSelect.value
+    ? `Question Bank | ${selectedTopic.replace(/\s+\(\d+\)$/, "")}`
+    : "Question Bank";
 }
 
 function setStatus(message = "", isError = false) {
@@ -120,6 +131,7 @@ function setLoading(isLoading, label = "Generating question...") {
   });
   patternSelect.disabled = isLoading;
   subjectSelect.disabled = isLoading;
+  bankTopicSelect.disabled = isLoading;
   bankOrderSelect.disabled = isLoading;
   sessionLimitSelect.disabled = isLoading;
   adaptiveToggle.disabled = isLoading;
@@ -211,18 +223,92 @@ function normalizeBankQuestion(row) {
   };
 }
 
-async function loadBankQuestions() {
+async function loadBankTopics() {
   const { data, error } = await sb
-    .from("questions")
-    .select("id, question_text, option_a, option_b, option_c, option_d, correct_option, explanation, created_at")
-    .order("created_at", { ascending: false })
-    .limit(200);
+    .from("question_topics")
+    .select(`
+      topic_id,
+      topics ( id, name )
+    `);
+
+  if (error) {
+    console.error("Topic load failed:", error);
+    setStatus("Topics could not be loaded. Bank practice will still work.", true);
+    return;
+  }
+
+  const topicMap = new Map();
+
+  (data || []).forEach(row => {
+    if (!row.topics) return;
+
+    const current = topicMap.get(row.topic_id) || {
+      id: row.topics.id,
+      name: row.topics.name,
+      count: 0
+    };
+
+    current.count += 1;
+    topicMap.set(row.topic_id, current);
+  });
+
+  const topics = [...topicMap.values()]
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  bankTopicSelect.innerHTML = `
+    <option value="">All Topics</option>
+    ${topics.map(topic => `
+      <option value="${escapeHTML(topic.id)}">
+        ${escapeHTML(topic.name)} (${topic.count})
+      </option>
+    `).join("")}
+  `;
+}
+
+async function loadBankQuestions() {
+  let data;
+  let error;
+
+  if (bankTopicSelect.value) {
+    const response = await sb
+      .from("question_topics")
+      .select(`
+        questions (
+          id,
+          question_text,
+          option_a,
+          option_b,
+          option_c,
+          option_d,
+          correct_option,
+          explanation,
+          created_at
+        )
+      `)
+      .eq("topic_id", bankTopicSelect.value)
+      .limit(200);
+
+    data = (response.data || [])
+      .map(row => row.questions)
+      .filter(Boolean);
+    error = response.error;
+  } else {
+    const response = await sb
+      .from("questions")
+      .select("id, question_text, option_a, option_b, option_c, option_d, correct_option, explanation, created_at")
+      .order("created_at", { ascending: false })
+      .limit(200);
+
+    data = response.data || [];
+    error = response.error;
+  }
 
   if (error) {
     throw error;
   }
 
-  let questions = (data || [])
+  let questions = data
+    .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
     .map(normalizeBankQuestion)
     .filter(question => question.text && question.options.length >= 2);
 
@@ -273,6 +359,13 @@ modeButtons.forEach(button => {
   button.addEventListener("click", () => setPracticeMode(button.dataset.mode));
 });
 
+[bankTopicSelect, bankOrderSelect].forEach(select => {
+  select.addEventListener("change", () => {
+    state.bankQuestions = [];
+    state.bankCursor = 0;
+  });
+});
+
 /* =========================================
 Question Flow
 ========================================= */
@@ -306,11 +399,19 @@ async function loadQuestion() {
 
       if (!bankQuestion) {
         if (state.answeredCount > 0) {
-          finishSession("No more bank questions in this session.");
+          finishSession(
+            bankTopicSelect.value
+              ? "No more questions are available for this topic."
+              : "No more bank questions are available in this session."
+          );
           return;
         }
 
-        throw new Error("No saved question bank questions are available yet.");
+        throw new Error(
+          bankTopicSelect.value
+            ? "No saved question bank questions are available for this topic yet."
+            : "No saved question bank questions are available yet."
+        );
       }
 
       state.currentQuestion = bankQuestion;
