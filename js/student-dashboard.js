@@ -64,6 +64,10 @@ AVAILABLE EXAMS
 async function loadAvailableExams(){
 
   const container = document.getElementById("availableExams")
+  if (!container) {
+  console.error("availableExams container missing");
+  return;
+}
 
   try{
 
