@@ -18,17 +18,53 @@
     <h2>Practice</h2>
   </div>
 
+  <div class="practice-mode-grid mt-20" role="group" aria-label="Practice mode">
+    <button
+      id="generatorModeBtn"
+      class="practice-mode-card active"
+      type="button"
+      data-mode="generator"
+    >
+      <span class="practice-mode-title">Generator Practice</span>
+      <span class="practice-mode-sub">Practice with smart generated questions.</span>
+    </button>
+
+    <button
+      id="bankModeBtn"
+      class="practice-mode-card"
+      type="button"
+      data-mode="bank"
+    >
+      <span class="practice-mode-title">Question Bank Practice</span>
+      <span class="practice-mode-sub">Practice saved questions from the bank.</span>
+    </button>
+  </div>
+
   <!-- CONTROLS -->
   <div class="control-bar mt-20">
 
-    <select id="subjectSelect">
-      <option value="malayalam">Malayalam</option>
-    </select>
+    <div id="generatorControls" class="practice-control-group">
+      <select id="subjectSelect">
+        <option value="malayalam">Malayalam</option>
+      </select>
 
-    <select id="patternSelect">
-      <option value="SYNONYM">Synonym</option>
-      <option value="OPPOSITE_WORD">Opposite</option>
-    </select>
+      <select id="patternSelect">
+        <option value="SYNONYM">Synonym</option>
+        <option value="OPPOSITE_WORD">Opposite</option>
+      </select>
+
+      <label class="toggle-row">
+        <input id="adaptiveToggle" type="checkbox" checked>
+        <span>Adaptive Mode</span>
+      </label>
+    </div>
+
+    <div id="bankControls" class="practice-control-group hidden">
+      <select id="bankOrderSelect">
+        <option value="random" selected>Random Bank Questions</option>
+        <option value="latest">Latest Bank Questions</option>
+      </select>
+    </div>
 
     <select id="sessionLimitSelect">
       <option value="0">Unlimited</option>
@@ -36,11 +72,6 @@
       <option value="10" selected>10 Questions</option>
       <option value="20">20 Questions</option>
     </select>
-
-    <label class="toggle-row">
-      <input id="adaptiveToggle" type="checkbox" checked>
-      <span>Adaptive Mode</span>
-    </label>
 
     <button id="startBtn" class="primary-btn">
       Start Practice
