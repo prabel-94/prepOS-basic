@@ -4,6 +4,36 @@
 
 const sb = window.supabaseClient;
 
+
+
+
+async function requireStudentAccess(){
+
+  const { data: userData } = await sb.auth.getUser()
+  const user = userData?.user
+
+  if(!user){
+    window.location.href = "login.html"
+    return
+  }
+
+  const { data, error } = await sb
+    .from("users")
+    .select("role")
+    .eq("id", user.id)
+    .single()
+
+  if(error || !data){
+    window.location.href = "login.html"
+    return
+  }
+
+  const role = data.role
+
+  if(role !== "student" && role !== "admin"){
+    window.location.href = "login.html"
+  }
+}
 /* =========================
 START EXAM
 ========================= */
