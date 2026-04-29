@@ -7,6 +7,10 @@ const patternSelect = document.getElementById("patternSelect");
 const sessionLimitSelect = document.getElementById("sessionLimitSelect");
 const adaptiveToggle = document.getElementById("adaptiveToggle");
 const startBtn = document.getElementById("startBtn");
+const generatorControls = document.getElementById("generatorControls");
+const bankControls = document.getElementById("bankControls");
+const bankOrderSelect = document.getElementById("bankOrderSelect");
+const modeButtons = document.querySelectorAll(".practice-mode-card");
 
 const practiceArea = document.getElementById("practiceArea");
 const questionCard = document.getElementById("questionCard");
@@ -25,7 +29,10 @@ const state = {
   answeredCount: 0,
   correctCount: 0,
   sessionLimit: 10,
-  started: false
+  started: false,
+  mode: "generator",
+  bankQuestions: [],
+  bankCursor: 0
 };
 
 /* =========================================
@@ -65,6 +72,10 @@ function getSessionLimit() {
   return value > 0 ? value : Infinity;
 }
 
+function getModeLabel() {
+  return state.mode === "bank" ? "Question Bank" : "Generator";
+}
+
 function setStatus(message = "", isError = false) {
   if (!message) {
     practiceStatus.textContent = "";
@@ -94,8 +105,8 @@ function updateProgress() {
 
   practiceProgress.textContent =
     state.currentQuestion
-      ? `Question ${nextQuestionNumber}${state.sessionLimit === Infinity ? "" : ` of ${limitLabel}`} | Correct ${state.correctCount}/${state.answeredCount}`
-      : `Answered ${state.answeredCount}${state.sessionLimit === Infinity ? "" : ` of ${limitLabel}`} | Correct ${state.correctCount}/${state.answeredCount}`;
+      ? `${getModeLabel()} | Question ${nextQuestionNumber}${state.sessionLimit === Infinity ? "" : ` of ${limitLabel}`} | Correct ${state.correctCount}/${state.answeredCount}`
+      : `${getModeLabel()} | Answered ${state.answeredCount}${state.sessionLimit === Infinity ? "" : ` of ${limitLabel}`} | Correct ${state.correctCount}/${state.answeredCount}`;
 
   practiceProgress.classList.remove("hidden");
 }
@@ -104,8 +115,12 @@ function setLoading(isLoading, label = "Generating question...") {
   state.loading = isLoading;
   startBtn.disabled = isLoading;
   nextBtn.disabled = isLoading;
+  modeButtons.forEach(button => {
+    button.disabled = isLoading;
+  });
   patternSelect.disabled = isLoading;
   subjectSelect.disabled = isLoading;
+  bankOrderSelect.disabled = isLoading;
   sessionLimitSelect.disabled = isLoading;
   adaptiveToggle.disabled = isLoading;
   startBtn.innerText = isLoading ? "Loading..." : "Start Practice";
@@ -147,6 +162,97 @@ function getCorrectOption(question) {
   return question.options.find(option => option.id === question.correct);
 }
 
+function setPracticeMode(mode) {
+  state.mode = mode;
+
+  modeButtons.forEach(button => {
+    button.classList.toggle("active", button.dataset.mode === mode);
+  });
+
+  generatorControls.classList.toggle("hidden", mode !== "generator");
+  bankControls.classList.toggle("hidden", mode !== "bank");
+
+  practiceArea.classList.add("hidden");
+  state.started = false;
+  state.currentQuestion = null;
+  feedback.innerHTML = "";
+  questionCard.innerHTML = "";
+  optionsContainer.innerHTML = "";
+  nextBtn.classList.add("hidden");
+  sessionSummary.classList.add("hidden");
+  setStatus("");
+  updateProgress();
+}
+
+function shuffleQuestions(questions) {
+  const shuffled = [...questions];
+
+  for (let i = shuffled.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+
+  return shuffled;
+}
+
+function normalizeBankQuestion(row) {
+  return {
+    id: row.id,
+    source: "bank",
+    text: row.question_text || "",
+    options: [
+      { id: "A", text: row.option_a || "" },
+      { id: "B", text: row.option_b || "" },
+      { id: "C", text: row.option_c || "" },
+      { id: "D", text: row.option_d || "" }
+    ].filter(option => option.text),
+    correct: String(row.correct_option || "A").toUpperCase(),
+    explanation: row.explanation || ""
+  };
+}
+
+async function loadBankQuestions() {
+  const { data, error } = await sb
+    .from("questions")
+    .select("id, question_text, option_a, option_b, option_c, option_d, correct_option, explanation, created_at")
+    .order("created_at", { ascending: false })
+    .limit(200);
+
+  if (error) {
+    throw error;
+  }
+
+  let questions = (data || [])
+    .map(normalizeBankQuestion)
+    .filter(question => question.text && question.options.length >= 2);
+
+  if (bankOrderSelect.value === "random") {
+    questions = shuffleQuestions(questions);
+  }
+
+  state.bankQuestions = questions;
+  state.bankCursor = 0;
+}
+
+function getNextBankQuestion() {
+  if (!state.bankQuestions.length) {
+    return null;
+  }
+
+  if (state.bankCursor >= state.bankQuestions.length) {
+    if (state.sessionLimit === Infinity) {
+      state.bankQuestions = shuffleQuestions(state.bankQuestions);
+      state.bankCursor = 0;
+    } else {
+      return null;
+    }
+  }
+
+  const question = state.bankQuestions[state.bankCursor];
+  state.bankCursor += 1;
+  return question;
+}
+
 /* =========================================
 Session Controls
 ========================================= */
@@ -154,10 +260,18 @@ Session Controls
 startBtn.addEventListener("click", async () => {
   practiceArea.classList.remove("hidden");
   resetSession();
+  if (state.mode === "bank") {
+    state.bankQuestions = [];
+    state.bankCursor = 0;
+  }
   await loadQuestion();
 });
 
 nextBtn.addEventListener("click", loadQuestion);
+
+modeButtons.forEach(button => {
+  button.addEventListener("click", () => setPracticeMode(button.dataset.mode));
+});
 
 /* =========================================
 Question Flow
@@ -177,20 +291,43 @@ async function loadQuestion() {
   state.currentQuestion = null;
   updateProgress();
 
-  setLoading(true);
+  const loadingLabel =
+    state.mode === "bank" ? "Loading bank question..." : "Generating question...";
+
+  setLoading(true, loadingLabel);
 
   try {
-    const result = await runGenerator({
-      subject: subjectSelect.value,
-      pattern: patternSelect.value,
-      adaptive: adaptiveToggle.checked
-    });
+    if (state.mode === "bank") {
+      if (!state.bankQuestions.length) {
+        await loadBankQuestions();
+      }
 
-    if (!result || !result.length) {
-      throw new Error("No question could be generated for the current settings.");
+      const bankQuestion = getNextBankQuestion();
+
+      if (!bankQuestion) {
+        if (state.answeredCount > 0) {
+          finishSession("No more bank questions in this session.");
+          return;
+        }
+
+        throw new Error("No saved question bank questions are available yet.");
+      }
+
+      state.currentQuestion = bankQuestion;
+    } else {
+      const result = await runGenerator({
+        subject: subjectSelect.value,
+        pattern: patternSelect.value,
+        adaptive: adaptiveToggle.checked
+      });
+
+      if (!result || !result.length) {
+        throw new Error("No question could be generated for the current settings.");
+      }
+
+      state.currentQuestion = result[0];
     }
 
-    state.currentQuestion = result[0];
     renderQuestion(state.currentQuestion);
     setStatus("");
     updateProgress();
@@ -201,7 +338,12 @@ async function loadQuestion() {
     `;
     optionsContainer.innerHTML = "";
     nextBtn.classList.add("hidden");
-    setStatus("Practice is waiting for more generator data.", true);
+    setStatus(
+      state.mode === "bank"
+        ? "Practice is waiting for saved bank questions."
+        : "Practice is waiting for more generator data.",
+      true
+    );
     updateProgress();
   } finally {
     setLoading(false);
@@ -253,14 +395,22 @@ async function handleAnswer(selected) {
     feedback.innerHTML = `Wrong. Correct answer: ${correct}. ${escapeHTML(correctOption?.text || "")}`;
   }
 
+  if (state.currentQuestion.explanation) {
+    feedback.innerHTML += `
+      <div class="text-muted mt-10">${escapeHTML(state.currentQuestion.explanation)}</div>
+    `;
+  }
+
   nextBtn.classList.remove("hidden");
   updateProgress();
 
-  try {
-    await updateStats(selected === correct);
-  } catch (error) {
-    console.error("Stats update failed:", error);
-    setStatus("Question saved locally, but adaptive stats could not be updated.", true);
+  if (state.mode === "generator") {
+    try {
+      await updateStats(selected === correct);
+    } catch (error) {
+      console.error("Stats update failed:", error);
+      setStatus("Question saved locally, but adaptive stats could not be updated.", true);
+    }
   }
 
   if (state.answeredCount >= state.sessionLimit) {
@@ -270,7 +420,7 @@ async function handleAnswer(selected) {
   }
 }
 
-function finishSession() {
+function finishSession(message = "Session finished. Start again for a new set.") {
   state.currentQuestion = null;
   questionCard.innerHTML = `
     <div class="qtext">Session complete</div>
@@ -292,7 +442,7 @@ function finishSession() {
   `;
   sessionSummary.classList.remove("hidden");
 
-  setStatus("Session finished. Start again for a new set.");
+  setStatus(message);
   updateProgress();
 }
 

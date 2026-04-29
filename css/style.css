@@ -324,6 +324,15 @@ QB MANAGER LAYOUT
     align-items:stretch;
   }
 
+  .practice-mode-grid{
+    grid-template-columns:1fr;
+  }
+
+  .practice-control-group{
+    flex-direction:column;
+    align-items:stretch;
+  }
+
 }
 
 /* ======================================================
@@ -543,6 +552,52 @@ DIFFICULTY SYSTEM
 .practice-progress{
   font-size:14px;
   margin-top:10px;
+}
+
+.practice-mode-grid{
+  display:grid;
+  grid-template-columns:repeat(2, minmax(0, 1fr));
+  gap:12px;
+}
+
+.practice-mode-card{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  justify-content:flex-start;
+  gap:4px;
+  min-height:92px;
+  padding:16px;
+  text-align:left;
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:8px;
+  color:var(--text);
+  box-shadow:var(--shadow);
+}
+
+.practice-mode-card.active{
+  border-color:var(--primary);
+  background:#f8fbff;
+  box-shadow:0 4px 12px rgba(37,99,235,0.14);
+}
+
+.practice-mode-title{
+  font-size:16px;
+  font-weight:700;
+}
+
+.practice-mode-sub{
+  color:var(--muted);
+  font-size:13px;
+  line-height:1.35;
+}
+
+.practice-control-group{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  align-items:center;
 }
 
 .practice-status{
