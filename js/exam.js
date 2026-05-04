@@ -565,8 +565,8 @@ function createReviewOption(opt, idx, correct, student){
     <div class="${className}">
       <span class="option-letter">${letter}</span>
       <span class="option-text prepos-text">
-  ${letter}. ${escapeHTML(optionText)}
-</span>
+        ${letter}. ${escapeHTML(opt?.text || "")}
+      </span>
     </div>
   `;
 }
