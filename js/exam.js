@@ -259,21 +259,11 @@ async function loadExam(){
       localStorage.setItem(ATTEMPT_KEY, JSON.stringify(attemptState));
     }
 
-    /* ---------- INITIALIZE TIMER ---------- */
+    /* ---------- INITIALIZE TIMER (NOT STARTED YET) ---------- */
 
     timer = new TimerEngine({
       duration: attemptState.duration,
       startedAt: attemptState.startedAt
-    });
-
-    timer.start({
-      onTick: ({ formatted }) => {
-        document.getElementById("examTimer").innerText = formatted;
-      },
-      onEnd: () => {
-        alert("Time up! Auto submitting...");
-        submitExam();
-      }
     });
 
     /* ---------- EXTRACT QUESTIONS ---------- */
@@ -307,7 +297,44 @@ async function loadExam(){
     /* ---------- RENDER ---------- */
 
     renderQuiz(window.examQuestionsRaw);
-    showExam();
+
+    /* ---------- START EXAM BUTTON ---------- */
+
+    document.getElementById("startExamBtn").addEventListener("click", () => {
+      const studentName = document.getElementById("studentName").value.trim();
+      if (!studentName) {
+        alert("Please enter your name");
+        return;
+      }
+
+      // Store student name
+      localStorage.setItem("studentName", studentName);
+
+      // Hide student info
+      document.getElementById("studentInfoSection").style.display = "none";
+
+      // Show exam
+      showExam();
+
+      // Start timer
+      timer.start({
+        onTick: ({ formatted }) => {
+          document.getElementById("examTimer").innerText = formatted;
+        },
+        onEnd: () => {
+          alert("Time up! Auto submitting...");
+          submitExam();
+        }
+      });
+    });
+
+  }
+  catch(err){
+
+    console.error("Exam loading failed:", err);
+    showError(err.message || "Failed to load exam");
+
+  }
 
   }
   catch(err){
@@ -434,7 +461,7 @@ async function submitExam(){
 
   if(attemptState.status==="submitted") return;
 
-  timer.stop(); // stop timer
+  if (timer) timer.stop(); // stop timer if exists
 
   if(!window.examQuestionsRaw){
     console.error("Raw questions missing");
@@ -442,10 +469,7 @@ async function submitExam(){
     return;
   }
 
-  const studentInput =
-    document.getElementById("studentName");
-
-  const studentName = studentInput.value.trim();
+  const studentName = localStorage.getItem("studentName") || "";
 
   if(!studentName){
     alert("Please enter your name");
