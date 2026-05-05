@@ -4,7 +4,14 @@
 
 const sb = window.supabaseClient;
 
-
+function escapeHTML(value){
+  return String(value ?? "")
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;")
+    .replace(/'/g,"&#039;");
+}
 
 
 async function requireStudentAccess(){
@@ -71,8 +78,15 @@ async function loadAvailableExams(){
 
   try{
 
+    const { data: userData } = await sb.auth.getUser()
+    const user = userData?.user
+
+    if(!user){
+      throw new Error("User not authenticated")
+    }
+
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/exam_sessions?select=id,title,created_at&order=created_at.desc`,
+      `${SUPABASE_URL}/rest/v1/exam_assignments?select=exam_sessions(id,title,created_at)&student_id=eq.${encodeURIComponent(user.id)}`,
       {
         headers:{
           apikey: SUPABASE_ANON_KEY,
@@ -86,21 +100,24 @@ async function loadAvailableExams(){
     }
 
     const data = await res.json()
+    const exams = data
+      .map(assignment => assignment.exam_sessions)
+      .filter(Boolean)
 
     container.innerHTML = ""
 
-    if(!data.length){
+    if(!exams.length){
       container.innerHTML = "<div class='empty-state'>No exams available</div>"
       return
     }
 
-    data.forEach(exam => {
+    exams.forEach(exam => {
 
       const div = document.createElement("div")
       div.className = "recent-item mt-10"
 
       div.innerHTML = `
-        <b>${exam.title || "Untitled Exam"}</b><br>
+        <b>${escapeHTML(exam.title || "Untitled Exam")}</b><br>
         <div class="text-muted mt-5">
           ${new Date(exam.created_at).toLocaleString()}
         </div>
@@ -241,5 +258,6 @@ EXPORT TO WINDOW
 ========================= */
 
 window.startExam = startExam
+window.startExamById = startExamById
 window.goToPractice = goToPractice
 window.initStudent = initStudent
