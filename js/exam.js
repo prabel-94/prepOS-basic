@@ -1,4 +1,8 @@
+import { TimerEngine } from "./timer.js";
+
 console.log("SCRIPT STARTED");
+
+let timer; // global timer instance
 
 /* ---------- watermark image ---------- */
 
@@ -158,6 +162,7 @@ if(!examId){
 
 const ATTEMPT_KEY = `prepos-attempt-${examId}`;
 const ATTEMPT_ID_KEY = `prepos-attempt-id-${examId}`;
+const TIMER_KEY = `timer-${examId}`;
 
 function createAttemptId(examId){
   const rand = Math.random().toString(36).slice(2,7);
@@ -245,6 +250,31 @@ async function loadExam(){
     if(titleEl){
       titleEl.textContent = window.examTitle;
     }
+
+    /* ---------- EXTEND ATTEMPT STATE ---------- */
+
+    if (!attemptState.startedAt) {
+      attemptState.startedAt = Date.now();
+      attemptState.duration = exam.duration || 1800; // default 30 min
+      localStorage.setItem(ATTEMPT_KEY, JSON.stringify(attemptState));
+    }
+
+    /* ---------- INITIALIZE TIMER ---------- */
+
+    timer = new TimerEngine({
+      duration: attemptState.duration,
+      startedAt: attemptState.startedAt
+    });
+
+    timer.start({
+      onTick: ({ formatted }) => {
+        document.getElementById("examTimer").innerText = formatted;
+      },
+      onEnd: () => {
+        alert("Time up! Auto submitting...");
+        submitExam();
+      }
+    });
 
     /* ---------- EXTRACT QUESTIONS ---------- */
 
@@ -404,6 +434,8 @@ async function submitExam(){
 
   if(attemptState.status==="submitted") return;
 
+  timer.stop(); // stop timer
+
   if(!window.examQuestionsRaw){
     console.error("Raw questions missing");
     alert("Exam not loaded properly");
@@ -442,7 +474,12 @@ const selected =
     if(chosen === q.correct) score++;
   });
 
-const bankAnswers = answers.filter(a => a.question_id);
+  /* ---------- CALCULATE TIME TAKEN ---------- */
+
+  const elapsed = Math.floor((Date.now() - attemptState.startedAt) / 1000);
+  const time_taken = Math.min(elapsed, attemptState.duration);
+
+  const bankAnswers = answers.filter(a => a.question_id);
 
 try{
 
@@ -472,6 +509,7 @@ try{
       answers,
       score,
       question_count: answers.length,
+      time_taken,
       submitted_at: new Date().toISOString()
     })
   });
@@ -486,6 +524,9 @@ try{
     /* ---------- lock ---------- */
     attemptState.status="submitted";
     localStorage.setItem(ATTEMPT_KEY, JSON.stringify(attemptState));
+
+    /* ---------- clean up timer ---------- */
+    localStorage.removeItem(TIMER_KEY);
 
     document.querySelectorAll('input[type="radio"]')
       .forEach(el=>el.disabled=true);
