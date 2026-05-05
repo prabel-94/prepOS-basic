@@ -193,11 +193,21 @@ button:active{
   color:#333;
 }
 
+.danger-btn{
+  background:var(--danger);
+  color:#fff;
+  font-weight:600;
+}
+
 /* ======================================================
 FORM ELEMENTS
 ====================================================== */
 
 input[type="text"],
+input[type="date"],
+input[type="number"],
+input:not([type]),
+select,
 textarea{
   width:100%;
   padding:10px;
@@ -205,6 +215,7 @@ textarea{
   margin-bottom:12px;
   border:1px solid var(--border);
   border-radius:6px;
+  box-sizing:border-box;
 }
 
 .logo-preview {
