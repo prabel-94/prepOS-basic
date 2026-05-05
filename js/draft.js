@@ -19,6 +19,10 @@ let logoURL = null;
 
 const sb = window.supabaseClient;
 
+let selectedStudents = [];
+let currentExamId = null;
+let studentSearchTimer = null;
+
 // --------------------------------
 // URL PARAM
 // --------------------------------
@@ -29,6 +33,15 @@ const mode = params.get("mode");
 // --------------------------------
 // HELPERS
 // --------------------------------
+
+function escapeHTML(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
 
 // --------------------------------
 // METADATA SYSTEM (v2 - COMPAT)
@@ -2268,7 +2281,10 @@ const payload = {
         <b>Exam Published</b><br>
         <a href="exam.html?id=${session.id}" target="_blank">
           Open Exam
-        </a>
+        </a><br>
+        <button type="button" class="primary-btn mt-10" onclick="openAssignModal('${session.id}')">
+          Assign to Students
+        </button>
       `;
     }
 
@@ -2294,6 +2310,130 @@ const payload = {
     if (publishBtn) {
       publishBtn.disabled = false;
       publishBtn.innerText = originalPublishText || "Publish";
+    }
+  }
+}
+
+function renderStudentList(students = []) {
+  const list = document.getElementById("studentList");
+  if (!list) return;
+
+  if (!students.length) {
+    list.innerHTML = `<div class="empty-state">No students found</div>`;
+    return;
+  }
+
+  list.innerHTML = students.map(student => {
+    const checked = selectedStudents.includes(student.id) ? "checked" : "";
+    const label = student.name || student.email || "Unnamed student";
+
+    return `
+      <label class="radio-row">
+        <input
+          type="checkbox"
+          value="${escapeHTML(student.id)}"
+          ${checked}
+        >
+        ${escapeHTML(label)}
+      </label>
+    `;
+  }).join("");
+}
+
+async function loadStudents(search = "") {
+  const list = document.getElementById("studentList");
+  if (list) list.innerHTML = "Loading students...";
+
+  let query = sb
+    .from("users")
+    .select("id, name")
+    .eq("role", "student")
+    .limit(20);
+
+  if (search.trim()) {
+    query = query.ilike("name", `%${search.trim()}%`);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error(error);
+    if (list) list.innerHTML = `<div class="empty-state">Unable to load students</div>`;
+    return;
+  }
+
+  renderStudentList(data || []);
+}
+
+function openAssignModal(examId) {
+  currentExamId = examId;
+  selectedStudents = [];
+
+  const modal = document.getElementById("assignModal");
+  const search = document.getElementById("studentSearch");
+
+  if (search) search.value = "";
+  modal?.classList.remove("hidden");
+  document.body.style.overflow = "hidden";
+
+  loadStudents();
+}
+
+function closeAssignModal() {
+  document.getElementById("assignModal")?.classList.add("hidden");
+  document.body.style.overflow = "";
+  currentExamId = null;
+  selectedStudents = [];
+}
+
+async function assignSelected() {
+  if (!currentExamId) {
+    alert("No exam selected");
+    return;
+  }
+
+  if (!selectedStudents.length) {
+    alert("Select at least one student");
+    return;
+  }
+
+  const assignBtn = document.getElementById("assignSelectedBtn");
+  const originalText = assignBtn?.innerText;
+
+  try {
+    if (assignBtn) {
+      assignBtn.disabled = true;
+      assignBtn.innerText = "Assigning...";
+    }
+
+    const { data: userData } = await sb.auth.getUser();
+    const teacher = userData?.user;
+
+    if (!teacher) {
+      throw new Error("User not authenticated");
+    }
+
+    const rows = selectedStudents.map(studentId => ({
+      exam_id: currentExamId,
+      student_id: studentId,
+      assigned_by: teacher.id
+    }));
+
+    const { error } = await sb
+      .from("exam_assignments")
+      .insert(rows);
+
+    if (error) throw error;
+
+    alert("Assigned successfully");
+    closeAssignModal();
+  } catch (error) {
+    console.error(error);
+    alert("Assignment failed");
+  } finally {
+    if (assignBtn) {
+      assignBtn.disabled = false;
+      assignBtn.innerText = originalText || "Assign";
     }
   }
 }
@@ -3210,6 +3350,35 @@ document.addEventListener("DOMContentLoaded", () => {
         ?.classList.add("hidden");
     });
 
+  document.getElementById("assignSelectedBtn")
+    ?.addEventListener("click", assignSelected);
+
+  document.getElementById("closeAssignModal")
+    ?.addEventListener("click", closeAssignModal);
+
+  document.getElementById("studentSearch")
+    ?.addEventListener("input", e => {
+      clearTimeout(studentSearchTimer);
+      studentSearchTimer = setTimeout(() => {
+        loadStudents(e.target.value);
+      }, 250);
+    });
+
+  document.getElementById("studentList")
+    ?.addEventListener("change", e => {
+      if (e.target.type !== "checkbox") return;
+
+      const studentId = e.target.value;
+
+      if (e.target.checked) {
+        if (!selectedStudents.includes(studentId)) {
+          selectedStudents.push(studentId);
+        }
+      } else {
+        selectedStudents = selectedStudents.filter(id => id !== studentId);
+      }
+    });
+
 });
 
 init();
@@ -3242,3 +3411,5 @@ window.deleteQuestion = deleteQuestion;
 window.duplicateQuestion = duplicateQuestion;
 window.moveQuestionUp = moveQuestionUp;
 window.moveQuestionDown = moveQuestionDown;
+window.openAssignModal = openAssignModal;
+window.assignSelected = assignSelected;
