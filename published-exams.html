@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="icon" type="image/png" href="assets/prepos-icon.png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PrepOS Published Exams</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+
+<div class="container">
+
+  <div class="mt-10 flex" style="justify-content:space-between; align-items:center;">
+    <div>
+      <div class="h1">Published Exams</div>
+      <div class="text-muted mt-5">View, filter, and permanently delete published exams.</div>
+    </div>
+
+    <button onclick="location.href='index.html'" class="secondary-btn">
+      Home
+    </button>
+  </div>
+
+  <div class="card mt-30">
+    <div class="h3">Filters</div>
+
+    <div class="flex gap-10 mt-20" style="flex-wrap:wrap;">
+      <select id="dateFilter">
+        <option value="all">All dates</option>
+        <option value="today">Today</option>
+        <option value="7">Last 7 days</option>
+        <option value="30">Last 30 days</option>
+        <option value="custom">Custom range</option>
+      </select>
+
+      <input id="fromDate" type="date" class="hidden">
+      <input id="toDate" type="date" class="hidden">
+
+      <button id="applyFiltersBtn" class="primary-btn">
+        Apply
+      </button>
+
+      <button id="clearFiltersBtn" class="secondary-btn">
+        Clear
+      </button>
+    </div>
+  </div>
+
+  <div class="card mt-20">
+    <div class="flex" style="justify-content:space-between; align-items:center; gap:10px;">
+      <div>
+        <div class="h3">Exams</div>
+        <div id="examCount" class="text-muted mt-5">Loading...</div>
+      </div>
+
+      <button id="refreshExamsBtn" class="secondary-btn">
+        Refresh
+      </button>
+    </div>
+
+    <div id="publishedExamList" class="mt-20">
+      Loading exams...
+    </div>
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/published-exams.js"></script>
+
+</body>
+</html>
