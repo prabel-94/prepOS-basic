@@ -440,9 +440,10 @@ async function loadQuestion() {
     optionsContainer.innerHTML = "";
     nextBtn.classList.add("hidden");
     setStatus(
-      state.mode === "bank"
+      error?.message ||
+      (state.mode === "bank"
         ? "Practice is waiting for saved bank questions."
-        : "Practice is waiting for more generator data.",
+        : "Practice is waiting for more generator data."),
       true
     );
     updateProgress();

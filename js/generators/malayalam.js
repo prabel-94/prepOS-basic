@@ -161,7 +161,12 @@ function buildDistractors({
     .filter(groupId => !excludedGroupIds.includes(groupId))
     .flatMap(groupId => groups[groupId]);
 
-  const distractors = uniqueEntriesByWord(pool, excludedWords).slice(0, count);
+  let distractors = uniqueEntriesByWord(pool, excludedWords).slice(0, count);
+
+  if (distractors.length < count) {
+    const fallbackPool = Object.values(groups).flat();
+    distractors = uniqueEntriesByWord(fallbackPool, excludedWords).slice(0, count);
+  }
 
   if (distractors.length < count) {
     throw createGeneratorError(

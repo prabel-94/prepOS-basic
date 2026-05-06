@@ -76,7 +76,7 @@ RENDER
 
 function renderGroup(group, index) {
   return `
-    <div class="group-card" data-index="${index}">
+    <div class="group-card" data-group-id="${group.group_id || ''}" data-index="${group.group_id ? '' : index}">
 
       <div class="small mb-10">
         ${group.language_code === "en" ? "🇬🇧 English" : "🇮🇳 Malayalam"}
@@ -103,6 +103,25 @@ function renderGroup(group, index) {
 
     </div>
   `;
+}
+
+function getCurrentGroups() {
+  return state.mode === "SESSION"
+    ? state.sessionGroups
+    : state.dbGroups;
+}
+
+function findGroupByCard(card) {
+  const groups = getCurrentGroups();
+  const groupId = card.dataset.groupId;
+
+  if (groupId) {
+    const group = groups.find(g => g.group_id === groupId);
+    if (group) return group;
+  }
+
+  const index = +card.dataset.index;
+  return groups[index] || groups[0];
 }
 
 function renderGroups() {
@@ -247,13 +266,7 @@ SYNC FROM UI
 ========================================= */
 
 function syncGroup(card) {
-  const index = +card.dataset.index;
-  const groups =
-    state.mode === "SESSION"
-      ? state.sessionGroups
-      : state.dbGroups;
-
-  const group = groups[index];
+  const group = findGroupByCard(card);
 
   const words = [...card.querySelectorAll(".word-input")]
     .map(i => i.value.trim())
@@ -351,13 +364,19 @@ DELETE GROUP
 
 async function deleteGroup(card) {
 
-  const index = +card.dataset.index;
-  const groups =
-  state.mode === "SESSION"
-    ? state.sessionGroups
-    : state.dbGroups;
+  const groups = getCurrentGroups();
+  const groupId = card.dataset.groupId;
+  let index = groupId
+    ? groups.findIndex(g => g.group_id === groupId)
+    : +card.dataset.index;
 
-const group = groups[index];
+  if (Number.isNaN(index) || index < 0) {
+    index = -1;
+  }
+
+  const group = index !== -1 && groups[index]
+    ? groups[index]
+    : groups[0];
 
   if (!confirm("Delete this group?")) return;
 
@@ -368,7 +387,11 @@ const group = groups[index];
       .eq("group_id", group.original_group_id);
   }
 
-  groups.splice(index, 1);
+  const removeIndex = index !== -1 ? index : groups.indexOf(group);
+  if (removeIndex !== -1) {
+    groups.splice(removeIndex, 1);
+  }
+
   renderGroups();
 
   setStatus("Group deleted");
@@ -419,22 +442,17 @@ el.groupsContainer?.addEventListener("click", async (e) => {
   const card = e.target.closest(".group-card");
   if (!card) return;
 
-  const groups =
-  state.mode === "SESSION"
-    ? state.sessionGroups
-    : state.dbGroups;
-
   const group = syncGroup(card);
 
   if (e.target.classList.contains("add-word")) {
-    groups[card.dataset.index].words.push("");
+    group.words.push("");
     renderGroups();
   }
 
   if (e.target.classList.contains("delete-word")) {
     const row = e.target.closest(".value-row");
     const i = +row.dataset.index;
-    groups[card.dataset.index].words.splice(i, 1);
+    group.words.splice(i, 1);
     if (!group.words.length) group.words.push("");
     renderGroups();
   }
