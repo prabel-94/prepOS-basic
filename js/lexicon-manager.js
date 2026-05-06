@@ -12,6 +12,7 @@ let selectedGroupB = null;
 const state = {
   topic: "vocabulary",
   mode: "SESSION",
+  language: "ml",
   sessionGroups: [],
   dbGroups: [],
   selectedGroupId: null
@@ -19,8 +20,8 @@ const state = {
 
 const el = {
   groupSearchSelect: document.getElementById("groupSearchSelect"),
-  groupSearchSelect: document.getElementById("groupSearchSelect"),
   topicInput: document.getElementById("topicInput"),
+  languageSelect: document.getElementById("languageSelect"),
   addGroupBtn: document.getElementById("addGroupBtn"),
   groupsContainer: document.getElementById("groupsContainer"),
   status: document.getElementById("lexiconStatus")
@@ -76,6 +77,10 @@ RENDER
 function renderGroup(group, index) {
   return `
     <div class="group-card" data-index="${index}">
+
+      <div class="small mb-10">
+        ${group.language_code === "en" ? "🇬🇧 English" : "🇮🇳 Malayalam"}
+      </div>
 
       <div class="values">
         ${group.words.map((w, i) => `
@@ -212,8 +217,9 @@ async function loadGroups() {
 
   const { data, error } = await sb
     .from("lexicon_entries")
-    .select("id, word, group_id, topic")
-    .eq("topic", state.topic);
+    .select("id, word, group_id, topic, language_code")
+    .eq("topic", state.topic)
+    .eq("language_code", state.language);
 
   if (error) {
     console.error(error);
@@ -226,7 +232,8 @@ async function loadGroups() {
   state.dbGroups = Object.entries(grouped).map(([group_id, words]) => ({
     group_id,
     original_group_id: group_id,
-    words
+    words,
+    language_code: state.language
   }));
 
   renderGroups();
@@ -241,7 +248,12 @@ SYNC FROM UI
 
 function syncGroup(card) {
   const index = +card.dataset.index;
-  const group = state.groups[index];
+  const groups =
+    state.mode === "SESSION"
+      ? state.sessionGroups
+      : state.dbGroups;
+
+  const group = groups[index];
 
   const words = [...card.querySelectorAll(".word-input")]
     .map(i => i.value.trim())
@@ -278,7 +290,10 @@ async function saveGroup(card) {
 
     const { error: groupError } = await sb
       .from("lexicon_groups")
-      .insert({ id: group_id });
+      .insert({
+        id: group_id,
+        language_code: state.language
+      });
 
     if (groupError) {
       console.error(groupError);
@@ -305,7 +320,8 @@ async function saveGroup(card) {
   const rows = group.words.map(word => ({
     word,
     group_id,
-    topic: state.topic
+    topic: state.topic,
+    language_code: state.language
   }));
 
   const { error } = await sb
@@ -389,7 +405,8 @@ el.addGroupBtn?.addEventListener("click", () => {
   target.unshift({
     group_id: null,
     original_group_id: null,
-    words: [""]
+    words: [""],
+    language_code: state.language
   });
 
   renderGroups();
@@ -443,6 +460,21 @@ el.groupSearchSelect?.addEventListener("change", (e) => {
 el.topicInput?.addEventListener("change", async (e) => {
   state.topic = e.target.value.trim().toLowerCase();
   await loadGroups();
+});
+
+el.languageSelect?.addEventListener("change", async (e) => {
+
+  state.language = e.target.value;
+
+  if (state.mode === "BROWSE") {
+    await loadGroups();
+  }
+
+  setStatus(
+    state.language === "ml"
+      ? "Malayalam mode"
+      : "English mode"
+  );
 });
 
 document
