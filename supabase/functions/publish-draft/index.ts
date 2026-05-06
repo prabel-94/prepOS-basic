@@ -75,7 +75,7 @@ Deno.serve(async (req) => {
 
         questionCount++
 
-        if (!q.question) {
+        if (!q.text) {
           return new Response(
             JSON.stringify({ error: "Question text missing" }),
             { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }

@@ -12,6 +12,7 @@ let selectedQuestionIndex = null;
 let autosaveTimer = null;
 let topicTimer = null;
 let isSaving = false;
+let isSavingToBank = false;
 let isPublishing = false;
 
 let currentDraft = null;
@@ -41,6 +42,13 @@ function escapeHTML(value) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
+}
+
+function normalizeTopicName(name) {
+  return String(name || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
 }
 
 // --------------------------------
@@ -624,55 +632,75 @@ function removeTopic(qIndex, topicIndex) {
 // TOPIC DB LINKING
 // --------------------------------
 
-async function resolveTopicKeys(topicKeys) {
+async function resolveTopicIds(topicNames = []) {
 
-  if (!topicKeys || !topicKeys.length) return [];
+  if (!topicNames.length) return [];
+
+  const normalizedTopics =
+    topicNames.map(normalizeTopicName);
 
   const { data, error } = await sb
     .from("topics")
-    .select("id, topic_key")
-    .in("topic_key", topicKeys);
+    .select("id, normalized_name")
+    .in("normalized_name", normalizedTopics);
 
   if (error) {
-    console.error("Topic key resolve error:", error);
-    return [];
+    console.error("Topic resolve error:", error);
+    throw error;
   }
 
-  const map = {};
+  const topicMap = {};
 
-  (data || []).forEach(t => {
-    map[t.topic_key] = t.id;
+  (data || []).forEach(topic => {
+    topicMap[topic.normalized_name] = topic.id;
   });
 
-  return topicKeys
-    .map(k => map[k])
+  const resolvedIds = normalizedTopics
+    .map(name => topicMap[name])
     .filter(Boolean);
+
+  return resolvedIds;
 }
 
 
 async function attachTopics(questionId, topics = []) {
 
-  console.log("ATTACHING TOPIC KEYS →", topics);
-
-  const topicIds = await resolveTopicKeys(
-  topics.map(t => t.toUpperCase())
-);
-
-  for (const topicId of topicIds) {
-
-    const { error } = await sb
-      .from("question_topics")
-      .upsert({
-        question_id: questionId,
-        topic_id: topicId
-      });
-
-    if (error) {
-      console.error("❌ Attach failed:", error);
-    } else {
-      console.log("✅ Attached:", topicId);
-    }
+  if (!questionId) {
+    throw new Error("Missing questionId");
   }
+
+  if (!topics.length) {
+    throw new Error("No topics provided");
+  }
+
+  const topicIds = await resolveTopicIds(topics);
+
+  if (!topicIds.length) {
+    throw new Error(
+      "No valid topic IDs resolved"
+    );
+  }
+
+  const rows = topicIds.map(topicId => ({
+    question_id: questionId,
+    topic_id: topicId
+  }));
+
+  const { error } = await sb
+    .from("question_topics")
+    .upsert(rows, {
+      onConflict: "question_id,topic_id"
+    });
+
+  if (error) {
+    console.error("Topic attach failed:", error);
+    throw error;
+  }
+
+  console.log(
+    "Topics attached:",
+    rows.length
+  );
 }
 
 // --------------------------------
@@ -696,48 +724,50 @@ async function saveQuestionToBank(q) {
   const hash = await generateHash(hashInput);
 
   // ✅ Check duplicate
-  const { data: existing } = await sb
+  const { data: existingQuestion } = await sb
     .from("questions")
-    .select("id")
+    .select("*")
     .eq("question_hash", hash)
     .maybeSingle();
 
   let questionId;
-  let isDuplicate = false;
 
-  if (existing) {
-    questionId = existing.id;
-    isDuplicate = true;
-  } else {
+  if (existingQuestion) {
+    return {
+      success: true,
+      isDuplicate: true,
+      existingQuestionId: existingQuestion.id,
+      existingQuestion: existingQuestion
+    };
+  }
 
-    // ✅ Normalize options safely
-    const opts = (q.options || []).map(o =>
-      typeof o === "string" ? o : o.text
-    );
+  // ✅ Normalize options safely
+  const opts = (q.options || []).map(o =>
+    typeof o === "string" ? o : o.text
+  );
 
-      const { data, error } = await sb
-        .from("questions")
-        .insert({
-          question_text: q.text,
-          option_a: opts[0] || "",
-          option_b: opts[1] || "",
-          option_c: opts[2] || "",
-          option_d: opts[3] || "",
-          correct_option: ["A","B","C","D"].includes(q.correct)
+  const { data, error } = await sb
+    .from("questions")
+    .insert({
+      question_text: q.text,
+      option_a: opts[0] || "",
+      option_b: opts[1] || "",
+      option_c: opts[2] || "",
+      option_d: opts[3] || "",
+      correct_option: ["A","B","C","D"].includes(q.correct)
   ? q.correct
   : "A",
-          explanation: q.explanation || "",
-          question_hash: hash,
-          difficulty_score_cached: q.meta_structured?.difficulty_score,
-          difficulty_label_cached: q.meta_structured?.difficulty_label
-        })
-        .select()
-        .single();
+      explanation: q.explanation || "",
+      question_hash: hash,
+      difficulty_score_cached: q.meta_structured?.difficulty_score,
+      difficulty_label_cached: q.meta_structured?.difficulty_label
+    })
+    .select()
+    .single();
 
-    if (error) throw error;
+  if (error) throw error;
 
-    questionId = data.id;
-  }
+  questionId = data.id;
 await attachTopics(questionId, q.topics);
 await replacePatternMetadata(
   questionId,
@@ -822,7 +852,7 @@ const metadata = [
 // 🔥 LINK BACK TO DRAFT
 q.question_id = questionId;
 
-return { questionId, isDuplicate };
+return { questionId, isDuplicate: false };
 }
 
 // --------------------------------
@@ -2125,7 +2155,7 @@ async function generateFromConfig(config) {
   } catch (err) {
 
     console.error(err);
-    setStatus("Generator failed", true);
+    setStatus(err?.message || "Generator failed", true);
 
     return null;
   }
@@ -2664,93 +2694,6 @@ document.getElementById("topicDropdown")
   document.getElementById("topicDropdown").classList.add("hidden");
 });
 
-document.getElementById("createNewBtn")
-  ?.addEventListener("click", async () => {
-
-  const q = currentDraft.schema_json.sections[0].questions[selectedQuestionIndex];
-
-  try {
-    // ✅ Match the same duplicate logic used by the standard bank save flow
-    syncDifficultyToMeta(q);
-
-    const hashInput = (
-      q.text +
-      (q.options || []).map(o =>
-        typeof o === "string" ? o : o.text
-      ).join("")
-    ).trim().toLowerCase();
-    const hash = await generateHash(hashInput);
-
-    // ✅ Insert cleanly
-    const { data, error } = await sb
-      .from("questions")
-      .insert({
-        question_text: q.text,
-        option_a: q.options[0]?.text || "",
-        option_b: q.options[1]?.text || "",
-        option_c: q.options[2]?.text || "",
-        option_d: q.options[3]?.text || "",
-        correct_option: q.correct,
-        explanation: q.explanation,
-        question_hash: hash,
-        difficulty_score_cached: q.meta_structured?.difficulty_score,
-        difficulty_label_cached: q.meta_structured?.difficulty_label
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    // ✅ Attach topics AFTER insert
-    await attachTopics(data.id, q.topics);
-    await replacePatternMetadata(
-  data.id,
-  q.primary_pattern || null
-);
-// 🔥 SAVE DIFFICULTY METADATA
-if (q.meta_structured?.difficulty_score !== null) {
-
-syncDifficultyToMeta(q);
-  const meta = q.meta_structured || {};
-const metadata = [
-  { key: "cognitive_level", value: meta.cognitive_level },
-  { key: "complexity_level", value: meta.complexity },
-  { key: "depth_level", value: meta.depth },
-  { key: "difficulty_score", value: meta.difficulty_score },
-  { key: "difficulty_label", value: meta.difficulty_label },
-  { key: "question_type", value: meta.question_type || "mcq_single" }
-];
-
-  const rows = metadata.map(m => ({
-    question_id: data.id,
-    key: m.key,
-    value: m.value
-  }));
-
-  await sb
-  .from("question_metadata")
-  .upsert(rows, { onConflict: "question_id,key" });
-}
-
-// 🔥 ADD THIS (MISSING LINK)
-q.question_id = data.id;
-
-q.bank_status = "saved";
-
-    renderDraft(currentDraft);
-
-    document.getElementById("addToBankPanel").classList.add("hidden");
-    document.getElementById("duplicateBox").classList.add("hidden");
-
-    setStatus("New question created ✅");
-
-  } catch (err) {
-    console.error(err);
-    alert(err.message);
-  }
-
-});
-
   document.getElementById("useExistingBtn")
   ?.addEventListener("click", async () => {
 
@@ -2771,6 +2714,7 @@ q.bank_status = "saved";
 
     document.getElementById("addToBankPanel").classList.add("hidden");
     document.getElementById("duplicateBox").classList.add("hidden");
+    document.body.style.overflow = "";
 
     setStatus("Linked to existing question ✅");
 
@@ -3045,40 +2989,64 @@ renderTopicWarnings([], "bulkTopicWarnings");
 document.getElementById("confirmAddToBank")
   ?.addEventListener("click", async () => {
 
-  if (selectedQuestionIndex === null) return;
+  if (isSavingToBank) return;
 
-  const q = currentDraft.schema_json.sections[0].questions[selectedQuestionIndex];
+  isSavingToBank = true;
 
-  // --------------------------------
-  // EXTRACT TOPICS FROM TAGS
-  // --------------------------------
-  const topics = Array.from(
-    document.querySelectorAll("#bankTopicTags .topic-tag")
-  ).map(el => formatTopicName(el.dataset.value));
+  const btn = document.getElementById("confirmAddToBank");
+  const originalText = btn?.innerText;
 
-  q.topics = topics;
-  q.generator = {
-    ...q.generator,
-    topics_auto: false
-  };
-
-
-  // =====================================
-  // CAPTURE CURRENT AFFAIRS (ADD HERE)
-  // =====================================
-  const isCA = document.getElementById("caToggle")?.checked;
-
-  if (isCA) {
-    q.ca_event = {
-      type: document.getElementById("caEventInput")?.value?.trim() || null,
-      date: document.getElementById("caDateInput")?.value?.trim() || null
-    };
-  } else {
-    q.ca_event = null;
+  if (btn) {
+    btn.disabled = true;
+    btn.innerText = "Saving...";
   }
 
-
   try {
+
+    if (selectedQuestionIndex === null) return;
+
+    const q =
+      currentDraft.schema_json.sections[0]
+        .questions[selectedQuestionIndex];
+
+    // --------------------------------
+    // EXTRACT TOPICS FROM TAGS
+    // --------------------------------
+    const topics = Array.from(
+      document.querySelectorAll("#bankTopicTags .topic-tag")
+    ).map(el => formatTopicName(el.dataset.value));
+
+    q.topics = topics;
+
+    q.generator = {
+      ...q.generator,
+      topics_auto: false
+    };
+
+    // =====================================
+    // CAPTURE CURRENT AFFAIRS
+    // =====================================
+    const isCA =
+      document.getElementById("caToggle")?.checked;
+
+    if (isCA) {
+
+      q.ca_event = {
+        type:
+          document.getElementById("caEventInput")
+            ?.value?.trim() || null,
+
+        date:
+          document.getElementById("caDateInput")
+            ?.value?.trim() || null
+      };
+
+    } else {
+
+      q.ca_event = null;
+
+    }
+
     const res = await saveQuestionToBank(q);
 
     // --------------------------------
@@ -3086,10 +3054,15 @@ document.getElementById("confirmAddToBank")
     // --------------------------------
     if (res.isDuplicate) {
 
-      document.getElementById("duplicateBox").classList.remove("hidden");
-      window.duplicateQuestionId = res.questionId;
+      document.getElementById("duplicateBox")
+        ?.classList.remove("hidden");
 
-      setStatus("Duplicate detected. Choose an action.");
+      window.duplicateQuestionId =
+        res.existingQuestionId;
+
+      setStatus(
+        "This question already exists in the bank."
+      );
 
       return;
     }
@@ -3101,14 +3074,31 @@ document.getElementById("confirmAddToBank")
 
     renderDraft(currentDraft);
 
-    document.getElementById("addToBankPanel").classList.add("hidden");
+    document.getElementById("addToBankPanel")
+      ?.classList.add("hidden");
+
     document.body.style.overflow = "";
 
     setStatus("Question saved to bank ✅");
 
   } catch (err) {
+
     console.error(err);
-    alert("Failed to save question");
+
+    alert(
+      err?.message ||
+      "Failed to save question"
+    );
+
+  } finally {
+
+    isSavingToBank = false;
+
+    if (btn) {
+      btn.disabled = false;
+      btn.innerText = originalText || "Save";
+    }
+
   }
 
 });
