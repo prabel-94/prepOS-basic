@@ -561,17 +561,17 @@ async function updateStats(isCorrect) {
 
   const { data: existingRows, error: selectError } = await sb
     .from("user_lexicon_word_stats")
-    .select("lexicon_entry_id, seen_count, wrong_count")
+    .select("word_id, seen_count, wrong_count")
     .eq("user_id", userId)
-    .in("lexicon_entry_id", entryIds);
+    .in("word_id", entryIds);
 
   if (selectError) {
     throw selectError;
   }
 
   const existingMap = new Map(
-    (existingRows || []).map(row => [row.lexicon_entry_id, row])
-  );
+  (existingRows || []).map(row => [row.word_id, row])
+);
 
   const rows = entryIds.map(lexiconEntryId => {
     const existing = existingMap.get(lexiconEntryId);
@@ -579,17 +579,17 @@ async function updateStats(isCorrect) {
     const wrongCount = (existing?.wrong_count || 0) + (isCorrect ? 0 : 1);
 
     return {
-      user_id: userId,
-      lexicon_entry_id: lexiconEntryId,
-      seen_count: seenCount,
-      wrong_count: wrongCount
-    };
+  user_id: userId,
+  word_id: lexiconEntryId,
+  seen_count: seenCount,
+  wrong_count: wrongCount
+};
   });
 
   const { error: upsertError } = await sb
     .from("user_lexicon_word_stats")
     .upsert(rows, {
-      onConflict: "user_id,lexicon_entry_id"
+      onConflict: "user_id,word_id"
     });
 
   if (upsertError) {

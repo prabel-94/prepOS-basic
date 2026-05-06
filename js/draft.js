@@ -743,6 +743,36 @@ await replacePatternMetadata(
   questionId,
   q.primary_pattern || null
 );
+// =====================================
+// SAVE GENERATOR TRACKING
+// =====================================
+if (q.generator_tracking) {
+
+  await sb
+    .from("question_metadata")
+    .upsert({
+      question_id: questionId,
+      key: "generator_tracking",
+      value: q.generator_tracking
+    }, {
+      onConflict: "question_id,key"
+    });
+
+}
+
+if (q.generator_meta) {
+
+  await sb
+    .from("question_metadata")
+    .upsert({
+      question_id: questionId,
+      key: "generator_meta",
+      value: q.generator_meta
+    }, {
+      onConflict: "question_id,key"
+    });
+
+}
 // ===============================
 // SAVE CURRENT AFFAIRS 
 // ===============================
@@ -1152,6 +1182,8 @@ function duplicateQuestion(index) {
 
   const clone = JSON.parse(JSON.stringify(q));
   clone.id = crypto.randomUUID();
+  // preserve provenance but reset bank state
+clone.bank_status = "draft";
 
   // ✅ Ensure difficulty object exists and is clean
   if (clone.difficulty) {
@@ -1704,6 +1736,17 @@ q.explanation = generated.explanation;
 q.primary_pattern = generated.primary_pattern;
 q.difficulty = generated.difficulty;
 
+// -----------------------------
+// PRESERVE GENERATOR TRACKING
+// -----------------------------
+q.generator_tracking = generated.tracking || null;
+
+q.generator_meta = {
+  generated_at: new Date().toISOString(),
+  generator_version: generated.version || 1,
+  source: generated.source || "rule-based"
+};
+
 
 // -----------------------------
 // RESTORE STATE
@@ -1798,6 +1841,17 @@ q.correct = generated.correct;
 q.explanation = generated.explanation;
 q.primary_pattern = generated.primary_pattern;
 q.difficulty = generated.difficulty;
+
+// -----------------------------
+// PRESERVE GENERATOR TRACKING
+// -----------------------------
+q.generator_tracking = generated.tracking || null;
+
+q.generator_meta = {
+  generated_at: new Date().toISOString(),
+  generator_version: generated.version || 1,
+  source: generated.source || "rule-based"
+};
 
 
 // -----------------------------

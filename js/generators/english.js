@@ -1,7 +1,3 @@
-/* =========================================
-PrepOS Malayalam Generator
-========================================= */
-
 import {
   fetchGroups,
   buildQuestion
@@ -11,30 +7,25 @@ const sb = window.supabaseClient;
 const DEFAULT_ADAPTIVE_MODE = true;
 
 /* =========================================
-Pattern Registry
+ENGLISH GENERATOR
 ========================================= */
 
-const PatternRegistry = {
-  SYNONYM: generateSynonymQuestion,
-  OPPOSITE_WORD: generateOppositeWordQuestion
-};
+export async function runEnglishGenerator(config) {
 
-/* =========================================
-Main Export
-========================================= */
+  const groups = await fetchGroups("en");
 
-export const MalayalamGenerator = {
-  async generate(config = {}) {
-    const { pattern } = config;
-    const fn = PatternRegistry[pattern];
+  switch(config.pattern){
 
-    if (!fn) {
-      throw new Error("Unknown Malayalam pattern: " + pattern);
-    }
+    case "SYNONYM":
+      return [await generateSynonym(groups, config)];
 
-    return fn(config);
+    case "OPPOSITE_WORD":
+      return [await generateOpposite(groups)];
+
+    default:
+      return [];
   }
-};
+}
 
 /* =========================================
 Errors
@@ -47,7 +38,7 @@ function createGeneratorError(code, message) {
 }
 
 /* =========================================
-Data Fetching
+Relations
 ========================================= */
 
 async function fetchOppositeRelations() {
@@ -88,11 +79,11 @@ async function getUserWordStatsMap() {
   const { data } = await sb
     .from("user_lexicon_word_stats")
     .select(`
-  word_id,
-  seen_count,
-  wrong_count,
-  lexicon_entries!user_lexicon_word_stats_word_id_fkey(word)
-`)
+      word_id,
+      seen_count,
+      wrong_count,
+      lexicon_entries!user_lexicon_word_stats_word_id_fkey(word)
+    `)
     .eq("user_id", userId);
 
   const map = {};
@@ -221,8 +212,7 @@ async function selectGroup(groups, adaptiveMode) {
 SYNONYM GENERATOR
 ========================================= */
 
-async function generateSynonymQuestion(config = {}) {
-  const groups = await fetchGroups("ml");
+async function generateSynonym(groups, config = {}) {
   const groupId = await selectGroup(groups, getAdaptiveMode(config));
 
   if (!groupId) {
@@ -251,28 +241,25 @@ async function generateSynonymQuestion(config = {}) {
     ...distractors.map(entry => entry.word)
   ]);
 
-  return [
-    buildQuestion({
-      text: `${questionEntry.word} എന്ന വാക്കിന്റെ പര്യായം ഏത്?`,
-      options,
-      correctIndex: options.indexOf(correctEntry.word),
-      pattern: "SYNONYM",
-      difficulty: { score: 2, label: "easy" },
-      topics: ["MALAYALAM", "VOCABULARY", "SYNONYM"],
-      tracking: {
-        promptEntryIds: [questionEntry.id],
-        correctEntryIds: [correctEntry.id]
-      }
-    })
-  ];
+  return buildQuestion({
+    text: `Which word is closest in meaning to "${questionEntry.word}"?`,
+    options,
+    correctIndex: options.indexOf(correctEntry.word),
+    pattern: "SYNONYM",
+    difficulty: { score: 2, label: "easy" },
+    topics: ["ENGLISH", "VOCABULARY", "SYNONYM"],
+    tracking: {
+      promptEntryIds: [questionEntry.id],
+      correctEntryIds: [correctEntry.id]
+    }
+  });
 }
 
 /* =========================================
 OPPOSITE GENERATOR
 ========================================= */
 
-async function generateOppositeWordQuestion() {
-  const groups = await fetchGroups("ml");
+async function generateOpposite(groups) {
   const relations = await fetchOppositeRelations();
 
   const adjacency = {};
@@ -332,18 +319,16 @@ async function generateOppositeWordQuestion() {
     ...distractors.map(entry => entry.word)
   ]);
 
-  return [
-    buildQuestion({
-      text: `${stemEntry.word} എന്ന വാക്കിന്റെ വിരുദ്ധം ഏത്?`,
-      options,
-      correctIndex: options.indexOf(correctEntry.word),
-      pattern: "OPPOSITE_WORD",
-      difficulty: { score: 2, label: "easy" },
-      topics: ["MALAYALAM", "VOCABULARY", "ANTONYM"],
-      tracking: {
-        promptEntryIds: [stemEntry.id],
-        correctEntryIds: [correctEntry.id]
-      }
-    })
-  ];
+  return buildQuestion({
+    text: `Which word is opposite in meaning to "${stemEntry.word}"?`,
+    options,
+    correctIndex: options.indexOf(correctEntry.word),
+    pattern: "OPPOSITE_WORD",
+    difficulty: { score: 2, label: "easy" },
+    topics: ["ENGLISH", "VOCABULARY", "ANTONYM"],
+    tracking: {
+      promptEntryIds: [stemEntry.id],
+      correctEntryIds: [correctEntry.id]
+    }
+  });
 }
