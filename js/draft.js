@@ -289,10 +289,10 @@ function renderTopicWarnings(warnings, containerId = "topicWarnings") {
 
   container.innerHTML = warnings.map(w => `
     <div class="warning-text">
-      ⚠ ${w.message}
+      ⚠ ${escapeHTML(w.message)}
       ${
         w.suggestion
-          ? `<button class="fix-btn" data-fix="${w.suggestion}">Fix</button>`
+          ? `<button class="fix-btn" data-fix="${escapeHTML(w.suggestion)}">Fix</button>`
           : ""
       }
     </div>
@@ -452,18 +452,18 @@ function renderQuestionBankResults(questions) {
     return `
       <div class="question-card">
 
-        <div><b>${q.question_text}</b></div>
+        <div><b>${escapeHTML(q.question_text)}</b></div>
 
         <div class="mt-10 small">
-          A. ${q.option_a || "-"}<br>
-          B. ${q.option_b || "-"}<br>
-          C. ${q.option_c || "-"}<br>
-          D. ${q.option_d || "-"}
+          A. ${escapeHTML(q.option_a || "-")}<br>
+          B. ${escapeHTML(q.option_b || "-")}<br>
+          C. ${escapeHTML(q.option_c || "-")}<br>
+          D. ${escapeHTML(q.option_d || "-")}
         </div>
 
         <button
           class="${exists ? "secondary-btn" : "primary-btn"} mt-10 add-from-bank-btn"
-          data-id="${q.id}"
+          data-id="${escapeHTML(q.id)}"
         >
           ${exists ? "Already Added" : "+ Add to Draft"}
         </button>
@@ -555,7 +555,7 @@ const formatted = formatTopicName(clean);
   div.dataset.value = normalized;
 
   div.innerHTML = `
-    ${formatted}
+    ${escapeHTML(formatted)}
     <button type="button">×</button>
   `;
 
@@ -1299,7 +1299,7 @@ function renderDraft(draft) {
     // --------------------------
     const topicsHTML = (q.topics || []).map((t, ti) => `
       <div class="topic-tag">
-        ${t}
+        ${escapeHTML(t)}
         <button 
           class="remove-topic" 
           data-q="${i}" 
@@ -1330,7 +1330,7 @@ function renderDraft(draft) {
             class="opt" 
             data-i="${i}" 
             data-oi="${oi}" 
-            value="${opt.text || ""}" 
+            value="${escapeHTML(opt.text || "")}" 
             placeholder="Option ${label}"
           />
         </label>
@@ -1352,7 +1352,7 @@ function renderDraft(draft) {
           Q${i + 1}
           ${q.generator?.enabled ? `
             <div class="small">
-              Generated &bull; ${q.generator.pattern || "No pattern selected"}
+              Generated &bull; ${escapeHTML(q.generator.pattern || "No pattern selected")}
             </div>
           ` : ""}
         </div>
@@ -1391,7 +1391,7 @@ function renderDraft(draft) {
         class="qtext" 
         data-i="${i}" 
         placeholder="Enter question..."
-      >${q.text || ""}</textarea>
+      >${escapeHTML(q.text || "")}</textarea>
 
       <!-- PRIMARY PATTERN (METADATA) -->
 <div class="mt-10">
@@ -1399,7 +1399,7 @@ function renderDraft(draft) {
     class="primary-pattern-input"
     data-i="${i}"
     placeholder="Pattern (e.g., ASC, Awarded)"
-    value="${q.primary_pattern || ""}"
+    value="${escapeHTML(q.primary_pattern || "")}"
     autocomplete="off"
   />
   <div class="pattern-dropdown primary-pattern-dropdown hidden"></div>
@@ -1415,7 +1415,7 @@ function renderDraft(draft) {
         class="explanation" 
         data-i="${i}" 
         placeholder="Explanation (optional)"
-      >${q.explanation || ""}</textarea>
+      >${escapeHTML(q.explanation || "")}</textarea>
        
       <div class="mt-10 small">
   Difficulty: ${q.difficulty?.label || "Not set"}
@@ -2013,29 +2013,40 @@ if (e.target.classList.contains("edit-metadata-btn")) {
     const preview = document.getElementById("bankQuestionPreview");
 
 if (preview) {
+
   const opts = q.options || [];
 
   preview.innerHTML = `
     <div><b>Question:</b></div>
+
     <div class="mt-10 prepos-text">
-  ${q.text || "(empty question)"}
-</div>
+      ${escapeHTML(q.text || "(empty question)")}
+    </div>
 
     <div class="mt-10"><b>Options:</b></div>
+
     <ul class="mt-10">
       ${opts.map((o, i) => `
-  <li>
-    ${["A", "B", "C", "D"][i]}: ${o?.text || "-"}
-          ${q.correct === ["A", "B", "C", "D"][i] ? " ✅" : ""}
+
+        <li>
+          ${["A", "B", "C", "D"][i]}:
+          ${escapeHTML(o?.text || "-")}
+
+          ${q.correct === ["A", "B", "C", "D"][i]
+            ? " ✅"
+            : ""
+          }
         </li>
+
       `).join("")}
     </ul>
 
     ${q.explanation ? `
       <div class="mt-10"><b>Explanation:</b></div>
+
       <div class="mt-10 prepos-text">
-  ${q.explanation}
-</div>
+        ${escapeHTML(q.explanation)}
+      </div>
     ` : ""}
   `;
 }
@@ -2651,16 +2662,16 @@ const exactMatch = topics.some(
 
     // Existing topics
     html += topics.map(t => `
-  <div class="topic-tag topic-option" data-id="${t.id}">
-    ${t.name}
+  <div class="topic-tag topic-option" data-id="${escapeHTML(t.id)}">
+    ${escapeHTML(t.name)}
   </div>
 `).join("");
 
     // 🔥 Add "Create New" only if NO exact match
     if (!exactMatch && query.trim()) {
       html += `
-    <div class="topic-tag create-new" data-value="${query}">
-      + Create "${formatTopicName(query)}"
+    <div class="topic-tag create-new" data-value="${escapeHTML(query)}">
+      + Create "${escapeHTML(formatTopicName(query))}"
     </div>
   `;
     }
@@ -2766,16 +2777,16 @@ function setupTopicInput(inputId, tagsId, warningsId) {
 
     // existing topics
     html += topics.map(t => `
-      <div class="topic-option" data-value="${t.name}">
-        ${t.name}
+      <div class="topic-option" data-value="${escapeHTML(t.name)}">
+        ${escapeHTML(t.name)}
       </div>
     `).join("");
 
     // create new
     if (!exactMatch) {
       html += `
-        <div class="topic-option create-new" data-value="${query}">
-          + Create "${formatTopicName(query)}"
+        <div class="topic-option create-new" data-value="${escapeHTML(query)}">
+          + Create "${escapeHTML(formatTopicName(query))}"
         </div>
       `;
     }
