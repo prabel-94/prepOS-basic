@@ -337,14 +337,6 @@ async function loadExam(){
   }
 
   }
-  catch(err){
-
-    console.error("Exam loading failed:", err);
-    showError(err.message || "Failed to load exam");
-
-  }
-
-}
 
 /* ---------- COMPONENT: OPTION ROW ---------- */
 function createOptionRow(qIndex, optionText, optionIndex){
