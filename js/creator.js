@@ -15,17 +15,27 @@ async function createDraft(title, questions, duration){
 
 try{
 
-const res = await fetch(
-"https://bcqjfosxneuyoyuzhdiq.supabase.co/functions/v1/create-exam",
-{
-method:"POST",
-headers:{
-"Content-Type":"application/json",
-"apikey":SUPABASE_ANON_KEY,
-"Authorization":`Bearer ${SUPABASE_ANON_KEY}`
-},
-body:JSON.stringify({title,questions,duration})
-});
+  const session = await sb.auth.getSession();
+  const accessToken = session?.data?.session?.access_token;
+  const headers = {
+    "Content-Type":"application/json"
+  };
+
+  if (accessToken) {
+    headers.Authorization = `Bearer ${accessToken}`;
+  } else {
+    alert("Please sign in to create an exam draft.");
+    return null;
+  }
+
+  const res = await fetch(
+    "https://bcqjfosxneuyoyuzhdiq.supabase.co/functions/v1/create-exam",
+    {
+      method:"POST",
+      headers,
+      body:JSON.stringify({title,questions,duration})
+    }
+  );
 
 if(!res.ok){
 const errorText = await res.text();
