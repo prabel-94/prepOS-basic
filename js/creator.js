@@ -28,19 +28,22 @@ body:JSON.stringify({title,questions,duration})
 });
 
 if(!res.ok){
-alert("Failed to create exam draft")
-console.error("Create exam failed",res.status)
-return null
+const errorText = await res.text();
+console.error("Create exam failed", res.status, errorText);
+alert(`Failed to create exam draft (${res.status})`);
+return null;
 }
 
 const data = await res.json();
 
 if(data.error){
+console.error("Create exam failed", data.error);
 alert(data.error);
 return null;
 }
 
-return data.draftLink;
+const draftLink = data.draftLink || `${window.location.origin}/draft.html?id=${data.draftId}`;
+return draftLink;
 
 }catch(e){
 console.error(e);
