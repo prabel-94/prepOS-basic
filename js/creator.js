@@ -18,7 +18,8 @@ try{
   const session = await sb.auth.getSession();
   const accessToken = session?.data?.session?.access_token;
   const headers = {
-    "Content-Type":"application/json"
+    "Content-Type":"application/json",
+    apikey: SUPABASE_ANON_KEY
   };
 
   if (accessToken) {
