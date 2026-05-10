@@ -7,60 +7,80 @@ const corsHeaders = {
 }
 
 Deno.serve(async (req) => {
+  try {
+    if (req.method === "OPTIONS") {
+      return new Response("ok", { headers: corsHeaders })
+    }
 
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders })
-  }
+    const body = await req.json().catch(() => null)
 
-  const body = await req.json()
+    if (!body || !Array.isArray(body.questions)) {
+      return new Response(JSON.stringify({ error: "Invalid request body" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400,
+      })
+    }
 
-  const supabase = createClient(
-    Deno.env.get("PROJECT_URL")!,
-    Deno.env.get("SERVICE_ROLE_KEY")!
-  )
+    const projectUrl = Deno.env.get("PROJECT_URL") || Deno.env.get("SUPABASE_URL")
+    const serviceRoleKey = Deno.env.get("SERVICE_ROLE_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")
 
-  const { title, questions, duration, instructions } = body
+    if (!projectUrl || !serviceRoleKey) {
+      return new Response(JSON.stringify({ error: "Server misconfiguration: missing Supabase env vars" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 500,
+      })
+    }
 
-  // ⭐ Build schema_json (wrap questions into sections)
-  const schema = {
-    sections: [
-      {
-        title: "Section 1",
-        questions
-      }
-    ]
-  }
+    const supabase = createClient(projectUrl, serviceRoleKey)
+    const { title = "Untitled Exam", questions, duration = 30, instructions = "" } = body
 
-  // ⭐ Insert draft instead of quiz
-  const { data, error } = await supabase
-    .from("draft_exams")
-    .insert({
-      title: title || "Untitled Exam",
-      instructions: instructions || "",
-      duration: duration || 30,
-      schema_json: schema,
-      status: "draft"
-    })
-    .select()
-    .single()
+    const schema = {
+      sections: [
+        {
+          title: "Section 1",
+          questions,
+        }
+      ]
+    }
 
-  if (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 400,
-    })
-  }
+    const { data, error } = await supabase
+      .from("draft_exams")
+      .insert({
+        title,
+        instructions,
+        duration,
+        schema_json: schema,
+        status: "draft"
+      })
+      .select()
+      .single()
 
-  // ⭐ Build draft link (editor)
-  const base = Deno.env.get("SITE_URL")!.replace(/\/$/,"")
-  const draftLink = `${base}/draft.html?id=${data.id}`
+    if (error) {
+      return new Response(JSON.stringify({ error: error.message }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400,
+      })
+    }
 
-  return new Response(
-    JSON.stringify({
+    const siteUrl = Deno.env.get("SITE_URL")?.replace(/\/$/, "")
+
+    const responseBody: Record<string, unknown> = {
       success: true,
       draftId: data.id,
-      draftLink
-    }),
-    { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-  )
+    }
+
+    if (siteUrl) {
+      responseBody.draftLink = `${siteUrl}/draft.html?id=${data.id}`
+    }
+
+    return new Response(JSON.stringify(responseBody), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    })
+  } catch (error) {
+    console.error("Create exam function error", error)
+    return new Response(JSON.stringify({ error: "Internal server error" }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500,
+    })
+  }
 })
