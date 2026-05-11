@@ -64,16 +64,45 @@ explanation = lines
 .trim();
 }
 
-const options = lines.slice(answerIndex-4,answerIndex);
-if(options.length!==4) return null;
+const optionLines = lines.slice(answerIndex-4,answerIndex);
+if(optionLines.length!==4) return null;
 
-const question = lines.slice(0,answerIndex-4).join("\n");
+const questionText = lines.slice(0,answerIndex-4).join("\n");
 
-return{
-question:question,
-options:options.map(o=>o.replace(/^[A-D]\.\s*/,"")),
-correct:answer,
-explanation:explanation
+// ⭐ UNIFIED SCHEMA TRANSFORMATION
+const optionsArray = optionLines.map((o, i) => ({
+  id: ["A", "B", "C", "D"][i],
+  text: o.replace(/^[A-D]\.\s*/, "")
+}));
+
+// Map answer letter to correct index
+const correctIndex = answer.charCodeAt(0) - 65; // A=0, B=1, C=2, D=3
+
+return {
+  id: crypto.randomUUID(),
+  question_id: null,
+  text: questionText,
+  options: optionsArray,
+  correct: correctIndex, // ⭐ Store as index, not letter
+  explanation: explanation,
+  topics: [],
+  bank_status: "draft",
+  primary_pattern: null,
+  generator: {
+    enabled: false,
+    subject: "general",
+    pattern: null,
+    source: "parser",
+    version: 1,
+    last_generated_at: null
+  },
+  difficulty: {
+    cognitive_level: null,
+    complexity_level: null,
+    depth_level: null,
+    score: null,
+    label: null
+  }
 };
 
 }).filter(Boolean);
