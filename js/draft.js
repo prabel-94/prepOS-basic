@@ -736,151 +736,280 @@ async function attachTopics(questionId, topicIds = []) {
 // --------------------------------
 async function saveQuestionToBank(q) {
 
+  // --------------------------------
+  // VALIDATION
+  // --------------------------------
   if (!q.topics || q.topics.length === 0) {
-    throw new Error("Question must have at least one topic");
+    throw new Error(
+      "Question must have at least one topic"
+    );
   }
 
-  // ✅ Stable hash input
+  // --------------------------------
+  // SYNC METADATA
+  // --------------------------------
   syncDifficultyToMeta(q);
 
-  const hashInput = (
-  q.text +
-  (q.options || []).map(o => o.text).join("")
-).trim().toLowerCase();
+  // --------------------------------
+  // RESOLVE / CREATE TOPICS FIRST
+  // --------------------------------
+  const topicIds =
+    await resolveTopicIds(q.topics);
 
-  // ✅ MUST await
+  if (!topicIds.length) {
+    throw new Error(
+      "No valid topic IDs resolved"
+    );
+  }
+
+  // --------------------------------
+  // GENERATE HASH
+  // --------------------------------
+  const hashInput = (
+    q.text +
+    (q.options || [])
+      .map(o =>
+        typeof o === "string"
+          ? o
+          : o.text
+      )
+      .join("")
+  )
+    .trim()
+    .toLowerCase();
+
   const hash = await generateHash(hashInput);
 
-  // ✅ Check duplicate
-  const { data: existingQuestion } = await sb
+  // --------------------------------
+  // DUPLICATE CHECK
+  // --------------------------------
+  const {
+    data: existingQuestion,
+    error: duplicateError
+  } = await sb
     .from("questions")
     .select("*")
     .eq("question_hash", hash)
     .maybeSingle();
 
-  let questionId;
+  if (duplicateError) {
+    throw duplicateError;
+  }
 
+  // --------------------------------
+  // DUPLICATE FLOW
+  // --------------------------------
   if (existingQuestion) {
+
+    // attach missing topics
+    await attachTopics(
+      existingQuestion.id,
+      topicIds
+    );
+
+    await replacePatternMetadata(
+      existingQuestion.id,
+      q.primary_pattern || null
+    );
+
+    q.question_id = existingQuestion.id;
+
     return {
       success: true,
       isDuplicate: true,
       existingQuestionId: existingQuestion.id,
-      existingQuestion: existingQuestion
+      existingQuestion
     };
   }
 
-  // ✅ Normalize options safely
+  // --------------------------------
+  // NORMALIZE OPTIONS
+  // --------------------------------
   const opts = (q.options || []).map(o =>
-    typeof o === "string" ? o : o.text
+    typeof o === "string"
+      ? o
+      : o.text
   );
 
-  const { data, error } = await sb
+  // --------------------------------
+  // INSERT QUESTION
+  // --------------------------------
+  const {
+    data,
+    error
+  } = await sb
     .from("questions")
     .insert({
       question_text: q.text,
+
       option_a: opts[0] || "",
       option_b: opts[1] || "",
       option_c: opts[2] || "",
       option_d: opts[3] || "",
-      correct_option: ["A","B","C","D"].includes(q.correct)
-  ? q.correct
-  : "A",
-      explanation: q.explanation || "",
+
+      correct_option:
+        ["A","B","C","D"].includes(q.correct)
+          ? q.correct
+          : "A",
+
+      explanation:
+        q.explanation || "",
+
       question_hash: hash,
-      difficulty_score_cached: q.meta_structured?.difficulty_score,
-      difficulty_label_cached: q.meta_structured?.difficulty_label
+
+      difficulty_score_cached:
+        q.meta_structured?.difficulty_score,
+
+      difficulty_label_cached:
+        q.meta_structured?.difficulty_label
     })
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) {
+    console.error(
+      "Question insert failed:",
+      error
+    );
 
-  questionId = data.id;
-await attachTopics(questionId, q.topics);
-await replacePatternMetadata(
-  questionId,
-  q.primary_pattern || null
-);
-// =====================================
-// SAVE GENERATOR TRACKING
-// =====================================
-if (q.generator_tracking) {
+    throw error;
+  }
 
-  await sb
-    .from("question_metadata")
-    .upsert({
+  const questionId = data.id;
+
+  // --------------------------------
+  // ATTACH TOPICS
+  // --------------------------------
+  await attachTopics(
+    questionId,
+    topicIds
+  );
+
+  // --------------------------------
+  // PATTERN METADATA
+  // --------------------------------
+  await replacePatternMetadata(
+    questionId,
+    q.primary_pattern || null
+  );
+
+  // --------------------------------
+  // GENERATOR TRACKING
+  // --------------------------------
+  if (q.generator_tracking) {
+
+    await sb
+      .from("question_metadata")
+      .upsert({
+        question_id: questionId,
+        key: "generator_tracking",
+        value: q.generator_tracking
+      }, {
+        onConflict: "question_id,key"
+      });
+  }
+
+  // --------------------------------
+  // GENERATOR META
+  // --------------------------------
+  if (q.generator_meta) {
+
+    await sb
+      .from("question_metadata")
+      .upsert({
+        question_id: questionId,
+        key: "generator_meta",
+        value: q.generator_meta
+      }, {
+        onConflict: "question_id,key"
+      });
+  }
+
+  // --------------------------------
+  // CURRENT AFFAIRS
+  // --------------------------------
+  if (q.ca_event) {
+
+    await sb
+      .from("question_metadata")
+      .upsert([
+        {
+          question_id: questionId,
+          key: "ca_event",
+          value: q.ca_event.type
+        },
+        {
+          question_id: questionId,
+          key: "ca_date",
+          value: q.ca_event.date
+        }
+      ], {
+        onConflict: "question_id,key"
+      });
+  }
+
+  // --------------------------------
+  // DIFFICULTY METADATA
+  // --------------------------------
+  if (
+    q.meta_structured?.difficulty_score !== null
+  ) {
+
+    const meta =
+      q.meta_structured || {};
+
+    const metadata = [
+      {
+        key: "cognitive_level",
+        value: meta.cognitive_level
+      },
+      {
+        key: "complexity_level",
+        value: meta.complexity
+      },
+      {
+        key: "depth_level",
+        value: meta.depth
+      },
+      {
+        key: "difficulty_score",
+        value: meta.difficulty_score
+      },
+      {
+        key: "difficulty_label",
+        value: meta.difficulty_label
+      },
+      {
+        key: "question_type",
+        value:
+          meta.question_type ||
+          "mcq_single"
+      }
+    ];
+
+    const rows = metadata.map(m => ({
       question_id: questionId,
-      key: "generator_tracking",
-      value: q.generator_tracking
-    }, {
-      onConflict: "question_id,key"
-    });
+      key: m.key,
+      value: m.value
+    }));
 
-}
+    await sb
+      .from("question_metadata")
+      .upsert(rows, {
+        onConflict: "question_id,key"
+      });
+  }
 
-if (q.generator_meta) {
+  // --------------------------------
+  // LINK BACK TO DRAFT
+  // --------------------------------
+  q.question_id = questionId;
 
-  await sb
-    .from("question_metadata")
-    .upsert({
-      question_id: questionId,
-      key: "generator_meta",
-      value: q.generator_meta
-    }, {
-      onConflict: "question_id,key"
-    });
-
-}
-// ===============================
-// SAVE CURRENT AFFAIRS 
-// ===============================
-if (q.ca_event) {
-
-  await sb.from("question_metadata")
-  .upsert([
-    {
-      question_id: questionId,
-      key: "ca_event",
-      value: q.ca_event.type
-    },
-    {
-      question_id: questionId,
-      key: "ca_date",
-      value: q.ca_event.date
-    }
-  ], { onConflict: "question_id,key" });
-
-}
-syncDifficultyToMeta(q);// ✅ SYNC difficulty → structured metadata
-// 🔥 SAVE DIFFICULTY METADATA
-if (q.meta_structured?.difficulty_score !== null) {
-
-  const meta = q.meta_structured || {};
-
-const metadata = [
-  { key: "cognitive_level", value: meta.cognitive_level },
-  { key: "complexity_level", value: meta.complexity },
-  { key: "depth_level", value: meta.depth },
-  { key: "difficulty_score", value: meta.difficulty_score },
-  { key: "difficulty_label", value: meta.difficulty_label },
-  { key: "question_type", value: meta.question_type || "mcq_single" }
-];
-
-  const rows = metadata.map(m => ({
-  question_id: questionId,
-  key: m.key,
-  value: m.value
-}));
-
- await sb
-  .from("question_metadata")
-  .upsert(rows, { onConflict: "question_id,key" });
-}
-
-// 🔥 LINK BACK TO DRAFT
-q.question_id = questionId;
-
-return { questionId, isDuplicate: false };
+  return {
+    success: true,
+    isDuplicate: false,
+    questionId
+  };
 }
 
 // --------------------------------
