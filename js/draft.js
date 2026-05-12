@@ -639,7 +639,10 @@ async function resolveTopicIds(topicNames = []) {
   const normalizedTopics =
     topicNames.map(normalizeTopicName);
 
-  const { data, error } = await sb
+  // --------------------------------
+  // FETCH EXISTING TOPICS
+  // --------------------------------
+  const { data: existing, error } = await sb
     .from("topics")
     .select("id, normalized_name")
     .in("normalized_name", normalizedTopics);
@@ -651,15 +654,48 @@ async function resolveTopicIds(topicNames = []) {
 
   const topicMap = {};
 
-  (data || []).forEach(topic => {
+  (existing || []).forEach(topic => {
     topicMap[topic.normalized_name] = topic.id;
   });
 
-  const resolvedIds = normalizedTopics
+  // --------------------------------
+  // FIND MISSING TOPICS
+  // --------------------------------
+  const missing = normalizedTopics.filter(
+    name => !topicMap[name]
+  );
+
+  // --------------------------------
+  // CREATE MISSING TOPICS
+  // --------------------------------
+  if (missing.length) {
+
+    const rows = missing.map(name => ({
+      name: formatTopicName(name),
+      normalized_name: name
+    }));
+
+    const { data: inserted, error: insertError } = await sb
+      .from("topics")
+      .insert(rows)
+      .select("id, normalized_name");
+
+    if (insertError) {
+      console.error("Topic create error:", insertError);
+      throw insertError;
+    }
+
+    (inserted || []).forEach(topic => {
+      topicMap[topic.normalized_name] = topic.id;
+    });
+  }
+
+  // --------------------------------
+  // RETURN IDS
+  // --------------------------------
+  return normalizedTopics
     .map(name => topicMap[name])
     .filter(Boolean);
-
-  return resolvedIds;
 }
 
 
