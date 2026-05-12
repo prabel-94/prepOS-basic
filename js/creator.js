@@ -72,7 +72,7 @@ function parseQuiz(text){
   // 🔥 NORMALIZE LINE ENDINGS
 text = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
 const blocks = text
-.split(/\n(?=Q\d+\.)/g)
+.split(/\n(?=(?:Q\s*)?\d+[\.\)])/gi)
 .map(b=>b.trim())
 .filter(Boolean);
 
