@@ -2,21 +2,41 @@
 <html lang="en">
 
 <head>
+
 <link rel="icon" type="image/png" href="assets/prepos-icon.png">
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <title>Review Questions</title>
 
 <link rel="stylesheet" href="css/style.css">
 
 <style>
-textarea {
-  width: 100%;
-  min-height: 80px;
-  resize: none;
-  white-space: pre-wrap;
-  line-height: 1.5;
+
+textarea{
+  width:100%;
+  min-height:80px;
+  resize:none;
+  white-space:pre-wrap;
+  line-height:1.5;
 }
+
+.option-row{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-bottom:10px;
+}
+
+.option-row input[type="text"]{
+  flex:1;
+}
+
+.q-title{
+  font-weight:600;
+}
+
 </style>
 
 </head>
@@ -26,16 +46,28 @@ textarea {
 <h2>Review & Edit Questions</h2>
 
 <div class="flex gap-10 mb-16">
-  <button onclick="selectAll()">Select All</button>
-  <button onclick="deselectAll()">Deselect All</button>
+
+  <button onclick="selectAll()">
+    Select All
+  </button>
+
+  <button onclick="deselectAll()">
+    Deselect All
+  </button>
+
 </div>
 
 <div id="questionList"></div>
 
 <div class="mt-20">
-  <button class="primary-btn w-full" onclick="createFromSelection()">
+
+  <button
+    class="primary-btn w-full"
+    onclick="createFromSelection()"
+  >
     Add Selected to Draft
   </button>
+
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -44,182 +76,464 @@ textarea {
 
 <script>
 
-const data = JSON.parse(sessionStorage.getItem("parsedData") || "{}");
-let questions = data.questions || [];
+// ======================================
+// LOAD PARSED DATA
+// ======================================
 
-// -----------------------
-// AUTO RESIZE
-// -----------------------
+const data =
+  JSON.parse(
+    sessionStorage.getItem("parsedData") || "{}"
+  );
+
+let questions =
+  Array.isArray(data.questions)
+    ? data.questions
+    : [];
+
+// ======================================
+// HELPERS
+// ======================================
+
 function autoResize(el){
+
   el.style.height = "auto";
   el.style.height = el.scrollHeight + "px";
+
 }
 
-// -----------------------
+function normalizeQuestion(q){
+
+  // ------------------------------------
+  // TEXT
+  // ------------------------------------
+
+  q.text =
+    q.text ||
+    q.question ||
+    "";
+
+  // ------------------------------------
+  // OPTIONS
+  // ------------------------------------
+
+  q.options =
+    (q.options || []).map((opt, i) => {
+
+      // OLD STRING FORMAT
+      if (typeof opt === "string") {
+
+        return {
+          id: ["A","B","C","D"][i],
+          text: opt
+        };
+
+      }
+
+      // NEW OBJECT FORMAT
+      return {
+        id:
+          opt?.id ||
+          ["A","B","C","D"][i],
+
+        text:
+          opt?.text || ""
+      };
+
+    });
+
+  // Ensure 4 options
+  while (q.options.length < 4) {
+
+    q.options.push({
+      id: ["A","B","C","D"][q.options.length],
+      text: ""
+    });
+
+  }
+
+  // ------------------------------------
+  // CORRECT ANSWER
+  // ------------------------------------
+
+  if (typeof q.correct === "number") {
+
+    q.correct =
+      ["A","B","C","D"][q.correct] || "A";
+
+  }
+
+  if (!["A","B","C","D"].includes(q.correct)) {
+
+    q.correct = "A";
+
+  }
+
+  return q;
+
+}
+
+// ======================================
+// NORMALIZE ALL QUESTIONS
+// ======================================
+
+questions =
+  questions.map(normalizeQuestion);
+
+// ======================================
 // RENDER
-// -----------------------
+// ======================================
+
 function render(){
 
-  const container = document.getElementById("questionList");
+  const container =
+    document.getElementById("questionList");
+
   container.innerHTML = "";
 
-  questions.forEach((q,i)=>{
+  questions.forEach((q, i) => {
 
-    const correctIndex =
-      typeof q.correct === "string"
-        ? ["A","B","C","D"].indexOf(q.correct)
-        : q.correct ?? 0;
+    const div =
+      document.createElement("div");
 
-    const div = document.createElement("div");
-    div.className = "question-card";
+    div.className =
+      "question-card";
 
     div.innerHTML = `
 
 <label>
-  <input type="checkbox" id="q-${i}" checked>
-  <span class="q-title">Q${i+1}</span>
+
+  <input
+    type="checkbox"
+    id="q-${i}"
+    checked
+  >
+
+  <span class="q-title">
+    Q${i + 1}
+  </span>
+
 </label>
 
-<label>Question</label>
-<textarea data-i="${i}" class="qtext"></textarea>
+<label class="mt-10">
+  Question
+</label>
 
-<label>Options</label>
+<textarea
+  class="qtext"
+  data-i="${i}"
+></textarea>
 
-${q.options.map((opt,oi)=>{
+<label class="mt-10">
+  Options
+</label>
 
-  const label = ["A","B","C","D"][oi];
+${q.options.map((opt, oi) => {
+
+  const label =
+    ["A","B","C","D"][oi];
 
   return `
-  <div class="option-row">
-    <input type="radio" name="correct-${i}" 
-      data-i="${i}" value="${oi}"
-      ${oi===correctIndex ? "checked" : ""}>
-    <span>${label}</span>
-    <input type="text" class="opt"
-      data-i="${i}" data-oi="${oi}"
-      value="${opt}">
-  </div>
+
+<div class="option-row">
+
+  <input
+    type="radio"
+    name="correct-${i}"
+    data-i="${i}"
+    value="${label}"
+    ${q.correct === label ? "checked" : ""}
+  >
+
+  <span>${label}</span>
+
+  <input
+    type="text"
+    class="opt"
+    data-i="${i}"
+    data-oi="${oi}"
+    value="${opt?.text || ""}"
+  >
+
+</div>
+
   `;
 
 }).join("")}
 
-<label>Explanation</label>
-<textarea class="exp" data-i="${i}"></textarea>
+<label class="mt-10">
+  Explanation
+</label>
+
+<textarea
+  class="exp"
+  data-i="${i}"
+></textarea>
 
     `;
 
     container.appendChild(div);
 
-    // ✅ SAFE VALUE ASSIGNMENT (CRITICAL FIX)
-    const qText = div.querySelector(".qtext");
-    qText.value = q.question || "";
+    // ------------------------------------
+    // SAFE VALUES
+    // ------------------------------------
+
+    const qText =
+      div.querySelector(".qtext");
+
+    qText.value =
+      q.text || "";
+
     autoResize(qText);
 
-    const expText = div.querySelector(".exp");
-    expText.value = q.explanation || "";
+    const expText =
+      div.querySelector(".exp");
+
+    expText.value =
+      q.explanation || "";
+
     autoResize(expText);
 
   });
 
 }
 
-// -----------------------
-// SYNC EDITS → STATE
-// -----------------------
+// ======================================
+// INPUT SYNC
+// ======================================
 
-document.addEventListener("input", e=>{
+document.addEventListener("input", e => {
 
-  if(e.target.classList.contains("qtext")){
-    const i = e.target.dataset.i;
-    questions[i].question = e.target.value;
+  // ------------------------------------
+  // QUESTION TEXT
+  // ------------------------------------
+
+  if (e.target.classList.contains("qtext")) {
+
+    const i =
+      +e.target.dataset.i;
+
+    questions[i].text =
+      e.target.value;
+
     autoResize(e.target);
+
   }
 
-  if(e.target.classList.contains("opt")){
-    const i = e.target.dataset.i;
-    const oi = e.target.dataset.oi;
-    questions[i].options[oi] = e.target.value;
+  // ------------------------------------
+  // OPTION TEXT
+  // ------------------------------------
+
+  if (e.target.classList.contains("opt")) {
+
+    const i =
+      +e.target.dataset.i;
+
+    const oi =
+      +e.target.dataset.oi;
+
+    questions[i].options[oi].text =
+      e.target.value;
+
   }
 
-  if(e.target.classList.contains("exp")){
-    const i = e.target.dataset.i;
-    questions[i].explanation = e.target.value;
+  // ------------------------------------
+  // EXPLANATION
+  // ------------------------------------
+
+  if (e.target.classList.contains("exp")) {
+
+    const i =
+      +e.target.dataset.i;
+
+    questions[i].explanation =
+      e.target.value;
+
     autoResize(e.target);
+
   }
 
 });
 
-document.addEventListener("change", e=>{
+// ======================================
+// RADIO SYNC
+// ======================================
 
-  if(e.target.type === "radio"){
-    const i = e.target.dataset.i;
-    questions[i].correct = +e.target.value;
+document.addEventListener("change", e => {
+
+  if (e.target.type === "radio") {
+
+    const i =
+      +e.target.dataset.i;
+
+    questions[i].correct =
+      e.target.value;
+
   }
 
 });
 
-// -----------------------
+// ======================================
 // SELECTION
-// -----------------------
+// ======================================
 
 function getSelected(){
-  return questions.filter((q,i)=>{
-    return document.getElementById(`q-${i}`).checked;
+
+  return questions.filter((q, i) => {
+
+    return document
+      .getElementById(`q-${i}`)
+      .checked;
+
   });
+
 }
 
 function selectAll(){
-  questions.forEach((_,i)=>{
-    document.getElementById(`q-${i}`).checked = true;
+
+  questions.forEach((_, i) => {
+
+    document
+      .getElementById(`q-${i}`)
+      .checked = true;
+
   });
+
 }
 
 function deselectAll(){
-  questions.forEach((_,i)=>{
-    document.getElementById(`q-${i}`).checked = false;
+
+  questions.forEach((_, i) => {
+
+    document
+      .getElementById(`q-${i}`)
+      .checked = false;
+
   });
+
 }
 
-// -----------------------
+// ======================================
 // CREATE DRAFT
-// -----------------------
+// ======================================
 
 async function createFromSelection(){
 
-  const selected = getSelected();
+  const selected =
+    getSelected();
 
-  if(!selected.length){
+  if (!selected.length) {
+
     alert("Select at least one question");
+
     return;
+
   }
 
-  const mapped = selected.map((q, i) => ({
-    id: `q${Date.now()}_${i}`,
-    text: q.question || "",
-    options: (q.options || []).map((opt, i) => ({
-  id: ["A","B","C","D"][i],
-  text: opt
-})),
-    correct: typeof q.correct === "number"
-      ? ["A","B","C","D"][q.correct]
-      : q.correct || "A",
-    explanation: q.explanation || "",
-    topics: []
-  }));
+  // ------------------------------------
+  // FINAL NORMALIZED PAYLOAD
+  // ------------------------------------
 
-  const draftLink = await createDraft(
-    data.title,
-    mapped,
-    data.duration
-  );
+  const mapped =
+    selected.map((q) => ({
 
-  if(draftLink){
-    window.location.href = draftLink;
+      id:
+        crypto.randomUUID(),
+
+      question_id:
+        null,
+
+      text:
+        q.text || "",
+
+      options:
+        (q.options || []).map((opt, i) => ({
+
+          id:
+            ["A","B","C","D"][i],
+
+          text:
+            opt?.text || ""
+
+        })),
+
+      correct:
+        q.correct || "A",
+
+      explanation:
+        q.explanation || "",
+
+      topics: [],
+
+      bank_status:
+        "draft",
+
+      primary_pattern:
+        null,
+
+      generator: {
+
+        enabled:
+          false,
+
+        subject:
+          "general",
+
+        pattern:
+          null,
+
+        source:
+          "parser",
+
+        version:
+          1,
+
+        last_generated_at:
+          null
+
+      },
+
+      difficulty: {
+
+        cognitive_level:
+          null,
+
+        complexity_level:
+          null,
+
+        depth_level:
+          null,
+
+        score:
+          null,
+
+        label:
+          null
+
+      }
+
+    }));
+
+  // ------------------------------------
+  // CREATE DRAFT
+  // ------------------------------------
+
+  const draftLink =
+    await createDraft(
+      data.title || "Untitled Draft",
+      mapped,
+      data.duration || 60
+    );
+
+  if (draftLink) {
+
+    window.location.href =
+      draftLink;
+
   }
 
 }
 
-// -----------------------
+// ======================================
 
 render();
 
