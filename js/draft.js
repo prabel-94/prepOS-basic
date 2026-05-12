@@ -699,22 +699,14 @@ async function resolveTopicIds(topicNames = []) {
 }
 
 
-async function attachTopics(questionId, topics = []) {
+async function attachTopics(questionId, topicIds = []) {
 
   if (!questionId) {
     throw new Error("Missing questionId");
   }
 
-  if (!topics.length) {
-    throw new Error("No topics provided");
-  }
-
-  const topicIds = await resolveTopicIds(topics);
-
   if (!topicIds.length) {
-    throw new Error(
-      "No valid topic IDs resolved"
-    );
+    throw new Error("No topic IDs provided");
   }
 
   const rows = topicIds.map(topicId => ({
