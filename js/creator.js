@@ -69,115 +69,235 @@ return null;
 // ===============================
 function parseQuiz(text){
 
-  // 🔥 NORMALIZE LINE ENDINGS
-text = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
-const blocks = text
-.split(/\n(?=(?:Q\s*)?\d+[\.\)])/gi)
-.map(b=>b.trim())
-.filter(Boolean);
+  // ===============================
+  // NORMALIZE INPUT
+  // ===============================
 
-return blocks.map(block=>{
+  text = text
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .replace(/^---$/gm, "")
+    .trim();
 
-let lines = block
-  .split(/\n+/)
-  .map(l => l.trim())
-  .filter(Boolean);
+  // ===============================
+  // SPLIT INTO QUESTION BLOCKS
+  // Supports:
+  // 1.
+  // 1)
+  // Q1.
+  // Q1)
+  // Q 1.
+  // ===============================
 
-// 🔥 Merge orphan numbering lines (Q15. → next line)
-if (/^Q?\s*\d+\s*$/.test(lines[0]) && lines[1]) {
-  lines[1] = lines[0] + " " + lines[1];
-  lines.shift();
-}
+  const blocks = text
+    .split(/\n(?=(?:Q\s*)?\d+[\.\)])/gi)
+    .map(b => b.trim())
+    .filter(Boolean);
 
-const answerIndex = lines.findIndex(l=>/^Answer\s*:/i.test(l));
-if(answerIndex===-1){
-  console.log("❌ No answer found", lines);
-  return null;
-}
+  return blocks.map(block => {
 
-let answer = (lines[answerIndex].split(":")[1] || "").trim().toUpperCase();
+    // ===============================
+    // CLEAN LINES
+    // ===============================
 
-// normalize formats like "Option D"
-const match = answer.match(/[A-D]/);
-answer = match ? match[0] : "A";
+    let lines = block
+      .split(/\n+/)
+      .map(l => l.trim())
+      .filter(Boolean);
 
-const explanationIndex = lines.findIndex(l=>/^Explanation\s*:/i.test(l));
+    // ===============================
+    // MERGE ORPHAN NUMBERING
+    // Example:
+    // Q15
+    // Which...
+    // ===============================
 
-let explanation="";
-if(explanationIndex!==-1){
-explanation = lines
-.slice(explanationIndex)
-.join("\n")
-.replace(/^Explanation\s*:/i,"")
-.trim();
-}
+    if (/^Q?\s*\d+\s*$/i.test(lines[0]) && lines[1]) {
+      lines[1] = lines[0] + " " + lines[1];
+      lines.shift();
+    }
 
-// 🔍 detect options (A. B. C. D.)
-const optionRegex = /^[A-Da-d][\.\)\:\-]\s*/;
+    // ===============================
+    // FIND ANSWER
+    // ===============================
 
-const optionLines = lines.filter((l, idx) =>
-  idx < answerIndex &&
-  optionRegex.test(l) &&
-  !/^\d+\.\s*/.test(l) // ❌ exclude numbered statements
-);
+    const answerIndex = lines.findIndex(
+      l => /^Answer\s*:/i.test(l)
+    );
 
-if(optionLines.length !== 4){
-  console.log("❌ Options issue:", optionLines, lines);
-  return null;
-}
+    if (answerIndex === -1) {
+      console.log("❌ No answer found", lines);
+      return null;
+    }
 
-// 🔥 CRITICAL FIX: Transform options to unified schema
-const optionsArray = optionLines.map((o, idx) => ({
-  id: ["A", "B", "C", "D"][idx],
-  text: o.replace(optionRegex, "").trim()
-}));
+    // ===============================
+    // EXTRACT ANSWER LETTER
+    // Supports:
+    // Answer: A
+    // Answer: A)
+    // Answer: Option A
+    // ===============================
 
-// Map letter to index (A=0, B=1, C=2, D=3)
-const correctIndex = answer.charCodeAt(0) - 65;
+    let answerRaw =
+      (lines[answerIndex].split(":")[1] || "")
+        .trim();
 
-const firstOptionLine = optionLines[0];
-const firstOptionIndex = lines.indexOf(firstOptionLine);
+    const answerMatch =
+      answerRaw.match(/[A-D]/i);
 
-// 🔒 SAFETY GUARD
-if(firstOptionIndex === -1){
-  console.log("❌ Option index issue", lines);
-  return null;
-}
+    const answer =
+      answerMatch
+        ? answerMatch[0].toUpperCase()
+        : "A";
 
-const rawQuestion = lines.slice(0, firstOptionIndex).join("\n");
-const question = cleanQuestionText(rawQuestion);
+    // ===============================
+    // EXPLANATION
+    // ===============================
 
-console.log("FINAL QUESTION:", question);
+    const explanationIndex = lines.findIndex(
+      l => /^Explanation\s*:/i.test(l)
+    );
 
-// 🔥 UNIFIED SCHEMA OUTPUT
-return {
-  id: crypto.randomUUID(),
-  question_id: null,
-  text: question,
-  options: optionsArray,
-  correct: correctIndex, // ⭐ Stored as index
-  explanation: explanation,
-  topics: [],
-  bank_status: "draft",
-  primary_pattern: null,
-  generator: {
-    enabled: false,
-    subject: "general",
-    pattern: null,
-    source: "parser",
-    version: 1,
-    last_generated_at: null
-  },
-  difficulty: {
-    cognitive_level: null,
-    complexity_level: null,
-    depth_level: null,
-    score: null,
-    label: null
-  }
-};
+    let explanation = "";
 
-}).filter(Boolean);
+    if (explanationIndex !== -1) {
+
+      explanation = lines
+        .slice(explanationIndex)
+        .join("\n")
+        .replace(/^Explanation\s*:/i, "")
+        .trim();
+    }
+
+    // ===============================
+    // DETECT OPTIONS
+    // Supports:
+    // A.
+    // A)
+    // A:
+    // A-
+    // ===============================
+
+    const optionRegex =
+      /^[A-Da-d][\.\)\:\-]\s*/;
+
+    const optionLines = lines.filter((l, idx) => {
+
+      return (
+        idx < answerIndex &&
+        optionRegex.test(l) &&
+        !/^\d+\.\s*/.test(l) // exclude numbered statements
+      );
+
+    });
+
+    // ===============================
+    // VALIDATE OPTIONS
+    // ===============================
+
+    if (optionLines.length !== 4) {
+
+      console.log(
+        "❌ Options issue:",
+        optionLines,
+        lines
+      );
+
+      return null;
+    }
+
+    // ===============================
+    // BUILD OPTIONS ARRAY
+    // ===============================
+
+    const optionsArray = optionLines.map((o, idx) => ({
+      id: ["A", "B", "C", "D"][idx],
+
+      text: o
+        .replace(optionRegex, "")
+        .trim()
+    }));
+
+    // ===============================
+    // FIND QUESTION TEXT
+    // ===============================
+
+    const firstOptionLine =
+      optionLines[0];
+
+    const firstOptionIndex =
+      lines.indexOf(firstOptionLine);
+
+    if (firstOptionIndex === -1) {
+
+      console.log(
+        "❌ Option index issue",
+        lines
+      );
+
+      return null;
+    }
+
+    const rawQuestion = lines
+      .slice(0, firstOptionIndex)
+      .join("\n");
+
+    const question =
+      cleanQuestionText(rawQuestion);
+
+    console.log(
+      "✅ FINAL QUESTION:",
+      question
+    );
+
+    // ===============================
+    // RETURN UNIFIED SCHEMA
+    // ===============================
+
+    return {
+
+      id: crypto.randomUUID(),
+
+      question_id: null,
+
+      text: question,
+
+      options: optionsArray,
+
+      // ✅ FIXED
+      // entire PrepOS system expects:
+      // "A" | "B" | "C" | "D"
+
+      correct: answer,
+
+      explanation: explanation,
+
+      topics: [],
+
+      bank_status: "draft",
+
+      primary_pattern: null,
+
+      generator: {
+        enabled: false,
+        subject: "general",
+        pattern: null,
+        source: "parser",
+        version: 1,
+        last_generated_at: null
+      },
+
+      difficulty: {
+        cognitive_level: null,
+        complexity_level: null,
+        depth_level: null,
+        score: null,
+        label: null
+      }
+
+    };
+
+  }).filter(Boolean);
 }
 
 
