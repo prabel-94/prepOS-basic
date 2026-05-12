@@ -126,9 +126,14 @@ if(optionLines.length !== 4){
   return null;
 }
 
-const options = optionLines.map(o =>
-  o.replace(optionRegex, "")
-);
+// 🔥 CRITICAL FIX: Transform options to unified schema
+const optionsArray = optionLines.map((o, idx) => ({
+  id: ["A", "B", "C", "D"][idx],
+  text: o.replace(optionRegex, "").trim()
+}));
+
+// Map letter to index (A=0, B=1, C=2, D=3)
+const correctIndex = answer.charCodeAt(0) - 65;
 
 const firstOptionLine = optionLines[0];
 const firstOptionIndex = lines.indexOf(firstOptionLine);
@@ -143,11 +148,33 @@ const rawQuestion = lines.slice(0, firstOptionIndex).join("\n");
 const question = cleanQuestionText(rawQuestion);
 
 console.log("FINAL QUESTION:", question);
-return{
-question:question,
-options: options,
-correct:answer,
-explanation:explanation
+
+// 🔥 UNIFIED SCHEMA OUTPUT
+return {
+  id: crypto.randomUUID(),
+  question_id: null,
+  text: question,
+  options: optionsArray,
+  correct: correctIndex, // ⭐ Stored as index
+  explanation: explanation,
+  topics: [],
+  bank_status: "draft",
+  primary_pattern: null,
+  generator: {
+    enabled: false,
+    subject: "general",
+    pattern: null,
+    source: "parser",
+    version: 1,
+    last_generated_at: null
+  },
+  difficulty: {
+    cognitive_level: null,
+    complexity_level: null,
+    depth_level: null,
+    score: null,
+    label: null
+  }
 };
 
 }).filter(Boolean);
@@ -184,7 +211,7 @@ async function generate(){
 const text = document.getElementById("input").value;
 console.log("🔥 BEFORE PARSE");
 const questions = parseQuiz(text);
-console.log("🔥 AFTER PARSE", questions);
+console.log("🔥 AFTER PARSE", JSON.stringify(questions, null, 2));
 
 if(!questions.length){
   alert("No valid questions detected.");
