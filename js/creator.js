@@ -69,7 +69,7 @@ if(!draftId){
 }
 
 const draftLink =
-  `${window.location.origin}/draft.html?id=${draftId}`;
+  `draft.html?id=${draftId}`;
 
 return draftLink;
 
