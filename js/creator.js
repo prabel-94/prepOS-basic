@@ -47,13 +47,30 @@ return null;
 
 const data = await res.json();
 
+console.log("CREATE EXAM RESPONSE:", data);
+
 if(data.error){
-console.error("Create exam failed", data.error);
-alert(data.error);
-return null;
+  console.error("Create exam failed", data.error);
+  alert(data.error);
+  return null;
 }
 
-const draftLink = data.draftLink || `${window.location.origin}/draft.html?id=${data.draftId}`;
+const draftId =
+  data.draft_id ||
+  data.draft?.id;
+
+if(!draftId){
+
+  console.error("Missing draft id", data);
+
+  alert("Draft created but ID missing");
+
+  return null;
+}
+
+const draftLink =
+  `${window.location.origin}/draft.html?id=${draftId}`;
+
 return draftLink;
 
 }catch(e){
