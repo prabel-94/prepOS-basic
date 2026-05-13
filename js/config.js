@@ -34,8 +34,17 @@ window.sb = window.supabaseClient;
 Expose credentials if needed
 ======================================== */
 
-window.SUPABASE_URL = SUPABASE_URL
-window.SUPABASE_ANON_KEY = SUPABASE_ANON_KEY
+window.supabaseClient = (window.supabase || supabase).createClient(
+  SUPABASE_URL,
+  SUPABASE_ANON_KEY,
+  {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true
+    }
+  }
+);
 
 
 
