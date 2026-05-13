@@ -205,6 +205,7 @@ async function createDraft(
 // ==============================================
 // QCP CLEAN
 // Question Canonicalization Protocol
+// PrepOS Parser Architecture v3
 // ==============================================
 
 function cleanQCP(){
@@ -213,103 +214,135 @@ function cleanQCP(){
     document.getElementById("input").value;
 
   // ============================================
-  // BASIC CLEAN
+  // BASIC NORMALIZATION
   // ============================================
 
-  text = text.replace(
-    /[✅✔️💡⭐✨🔥]/g,
-    ""
-  );
+  text = text
 
-  text = text.replace(
-    /-+/g,
-    ""
-  );
+    // windows line breaks
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
 
-  text = text.replace(
-    /\b(Ans|Correct option)\b\s*[:\-]?\s*/gi,
-    "Answer: "
-  );
+    // emoji cleanup
+    .replace(/[✅✔️💡⭐✨🔥]/g, "")
 
-  text = text.replace(
-    /\bExplanation\b\s*[:\-]?\s*/gi,
-    "Explanation: "
-  );
+    // normalize answer labels
+    .replace(
+      /\b(Ans|Correct option)\b\s*[:\-]?\s*/gi,
+      "Answer: "
+    )
 
-  text = text.replace(
-    /[ \t]+/g,
-    " "
-  );
+    // normalize explanation labels
+    .replace(
+      /\bExplanation\b\s*[:\-]?\s*/gi,
+      "Explanation: "
+    )
 
-  // ============================================
-  // QUESTION START PATTERNS
-  // ============================================
+    // remove separator lines
+    .replace(/^---+$/gm, "")
 
-  const QUESTION_PATTERNS = [
+    // collapse spaces
+    .replace(/[ \t]+/g, " ")
 
-    "Which",
-    "What",
-    "Who",
-    "Why",
-    "How",
-    "Consider",
-    "Arrange",
-    "Match",
-    "Select",
-    "Choose",
-    "Identify",
-    "Assertion",
-    "Reason",
-    "With reference",
-    "How many",
-    "The",
-    "Regarding"
+    // remove trailing spaces
+    .replace(/[ \t]+$/gm, "")
 
-  ];
+    .trim();
 
   // ============================================
-  // SPLIT LINES
+  // SPLIT INTO LINES
   // ============================================
 
   let lines =
-    text.split("\n");
+    text
+      .split("\n")
+      .map(l => l.trimEnd());
 
   // ============================================
   // REMOVE EVERYTHING BEFORE FIRST QUESTION
   // ============================================
 
-  let firstQuestionIndex =
+  let firstQuestionIndex = -1;
 
-    lines.findIndex(line => {
+  for(let i = 0; i < lines.length; i++){
 
-      const trimmed =
-        line.trim();
+    const line =
+      lines[i].trim();
 
-      const match =
-        trimmed.match(
-          /^(\d+)([\.\)])\s+(.*)$/
-        );
+    // must begin with number
+    if(
+      !/^\d+[\.\)]\s+/.test(line)
+    ){
+      continue;
+    }
 
-      if(!match){
-        return false;
-      }
+    // look ahead block
+    const block =
+      lines
+        .slice(i, i + 30)
+        .join("\n");
 
-      const content =
-        match[3];
+    // must contain options
+    const hasOptions =
 
-      return QUESTION_PATTERNS.some(pattern =>
+      /A[\)\.]/.test(block) &&
+      /B[\)\.]/.test(block) &&
+      /C[\)\.]/.test(block) &&
+      /D[\)\.]/.test(block);
 
-        content
-          .toLowerCase()
-          .startsWith(
-            pattern.toLowerCase()
-          )
+    // must contain answer
+    const hasAnswer =
+      /Answer\s*:/i.test(block);
 
-      );
+    // question-style syntax
+    const looksLikeQuestion =
 
-    });
+      /[:?]$/.test(line) ||
 
-  // remove header garbage
+      /\bWhich\b/i.test(line) ||
+
+      /\bWhat\b/i.test(line) ||
+
+      /\bWho\b/i.test(line) ||
+
+      /\bWhy\b/i.test(line) ||
+
+      /\bHow\b/i.test(line) ||
+
+      /\bConsider\b/i.test(line) ||
+
+      /\bArrange\b/i.test(line) ||
+
+      /\bMatch\b/i.test(line) ||
+
+      /\bSelect\b/i.test(line) ||
+
+      /\bChoose\b/i.test(line) ||
+
+      /\bIdentify\b/i.test(line) ||
+
+      /\bAssertion\b/i.test(line) ||
+
+      /\bReason\b/i.test(line) ||
+
+      /\bWith reference\b/i.test(line) ||
+
+      /\bHow many\b/i.test(line);
+
+    if(
+      hasOptions &&
+      hasAnswer &&
+      looksLikeQuestion
+    ){
+
+      firstQuestionIndex = i;
+      break;
+
+    }
+
+  }
+
+  // remove intro/header text
   if(firstQuestionIndex > 0){
 
     lines =
@@ -318,68 +351,126 @@ function cleanQCP(){
   }
 
   // ============================================
-  // CANONICALIZE QUESTION NUMBERS
+  // CANONICALIZE QUESTIONS
+  // Convert:
+  // 1. Question...
+  // ->
+  // Q1. Question...
   // ============================================
 
-  const normalized =
-    lines.map(line => {
+  for(let i = 0; i < lines.length; i++){
 
-      const trimmed =
-        line.trim();
+    const line =
+      lines[i].trim();
 
-      const match =
-        trimmed.match(
-          /^(\d+)([\.\)])\s+(.*)$/
-        );
+    // already canonical
+    if(
+      /^Q\d+[\.\)]/i.test(line)
+    ){
+      continue;
+    }
 
-      if(!match){
-        return line;
-      }
+    // must begin with number
+    const numberMatch =
+      line.match(
+        /^(\d+)([\.\)])\s+(.*)$/
+      );
 
-      const [
-        ,
-        num,
-        sep,
-        content
-      ] = match;
+    if(!numberMatch){
+      continue;
+    }
 
-      const isQuestionStart =
-        QUESTION_PATTERNS.some(pattern =>
+    const [
+      ,
+      num,
+      sep,
+      content
+    ] = numberMatch;
 
-          content
-            .toLowerCase()
-            .startsWith(
-              pattern.toLowerCase()
-            )
+    // ==========================================
+    // LOOKAHEAD WINDOW
+    // ==========================================
 
-        );
+    const block =
+      lines
+        .slice(i, i + 30)
+        .join("\n");
 
-      // ----------------------------------------
-      // REAL QUESTION
-      // ----------------------------------------
+    const hasOptions =
 
-      if(isQuestionStart){
+      /A[\)\.]/.test(block) &&
+      /B[\)\.]/.test(block) &&
+      /C[\)\.]/.test(block) &&
+      /D[\)\.]/.test(block);
 
-        return `Q${num}${sep} ${content}`;
+    const hasAnswer =
+      /Answer\s*:/i.test(block);
 
-      }
+    // ==========================================
+    // QUESTION STEM DETECTION
+    // Prevent statement corruption
+    // ==========================================
 
-      // ----------------------------------------
-      // INTERNAL STATEMENT
-      // ----------------------------------------
+    const looksLikeQuestion =
 
-      return line;
+      /[:?]$/.test(line) ||
 
-    });
+      /\bWhich\b/i.test(line) ||
 
-  text =
-    normalized.join("\n");
+      /\bWhat\b/i.test(line) ||
+
+      /\bWho\b/i.test(line) ||
+
+      /\bWhy\b/i.test(line) ||
+
+      /\bHow\b/i.test(line) ||
+
+      /\bConsider\b/i.test(line) ||
+
+      /\bArrange\b/i.test(line) ||
+
+      /\bMatch\b/i.test(line) ||
+
+      /\bSelect\b/i.test(line) ||
+
+      /\bChoose\b/i.test(line) ||
+
+      /\bIdentify\b/i.test(line) ||
+
+      /\bAssertion\b/i.test(line) ||
+
+      /\bReason\b/i.test(line) ||
+
+      /\bWith reference\b/i.test(line) ||
+
+      /\bHow many\b/i.test(line);
+
+    // ==========================================
+    // REAL QUESTION
+    // ==========================================
+
+    if(
+      hasOptions &&
+      hasAnswer &&
+      looksLikeQuestion
+    ){
+
+      lines[i] =
+        `Q${num}${sep} ${content}`;
+
+    }
+
+  }
 
   // ============================================
-  // SPACING
+  // NORMALIZE QUESTION SPACING
   // ============================================
 
-  text = text.replace(
+  let output =
+    lines.join("\n");
+
+  // spacing before questions
+  output = output.replace(
 
     /\n(?=Q\d+[\.\)])/g,
 
@@ -387,16 +478,26 @@ function cleanQCP(){
 
   );
 
-  text = text.trim();
+  // collapse huge gaps
+  output = output.replace(
+    /\n{3,}/g,
+    "\n\n"
+  );
+
+  output = output.trim();
 
   // ============================================
   // WRITE BACK
   // ============================================
 
   document.getElementById("input").value =
-    text;
+    output;
 
-  alert("Cleaned with QCP");
+  // ============================================
+  // FEEDBACK
+  // ============================================
+
+  alert("QCP cleanup complete");
 
 }
 
