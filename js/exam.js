@@ -547,8 +547,6 @@ try{
     document.querySelectorAll('input[type="radio"]')
       .forEach(el=>el.disabled=true);
 
-    studentInput.disabled = true; // ⭐ polish
-
     /* ---------- build review ---------- */
    window.reviewData =
   window.examQuestionsRaw.map((q,i)=>{
