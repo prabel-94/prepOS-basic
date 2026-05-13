@@ -1,32 +1,120 @@
 function cleanQuestionText(text) {
+
   return text
     .trim()
-    // remove Q1. / Q 1. / Q1) / 1. / 1)
+
+    // remove Q1. / Q1) / 1. / 1)
     .replace(/^Q?\s*\d+[\.\)]\s*/i, "")
+
     // remove (1)
     .replace(/^\(\d+\)\s*/, "")
+
     .trim();
+
 }
 
+
+// ======================================
+// SMART QUESTION BLOCK SPLITTER
+// Prevents statement questions from breaking
+// ======================================
+
+function splitQuestionBlocks(text){
+
+  const lines = text.split("\n");
+
+  const blocks = [];
+
+  let current = [];
+
+  for(const line of lines){
+
+    const trimmed = line.trim();
+
+    // ----------------------------------
+    // Detect ACTUAL question start
+    // Examples:
+    // 1. Which...
+    // Q1. Which...
+    // 12) Consider...
+    // ----------------------------------
+
+    const isQuestionStart =
+      /^(Q\s*)?\d+[\.\)]\s+[A-Z]/.test(trimmed);
+
+    // ----------------------------------
+    // Push previous block
+    // ----------------------------------
+
+    if(isQuestionStart && current.length){
+
+      blocks.push(
+        current.join("\n")
+      );
+
+      current = [];
+
+    }
+
+    current.push(line);
+
+  }
+
+  // ----------------------------------
+  // Push final block
+  // ----------------------------------
+
+  if(current.length){
+
+    blocks.push(
+      current.join("\n")
+    );
+
+  }
+
+  return blocks
+    .map(b => b.trim())
+    .filter(Boolean);
+
+}
+
+
 // ===============================
-// CREATE DRAFT (Edge Function)
+// CREATE DRAFT
 // ===============================
-async function createDraft(title, questions, duration){
+
+async function createDraft(
+  title,
+  questions,
+  duration
+){
 
 try{
 
-  const session = await sb.auth.getSession();
-  const accessToken = session?.data?.session?.access_token;
+  const session =
+    await sb.auth.getSession();
+
+  const accessToken =
+    session?.data?.session?.access_token;
+
   const headers = {
     "Content-Type":"application/json",
     apikey: SUPABASE_ANON_KEY
   };
 
-  if (accessToken) {
-    headers.Authorization = `Bearer ${accessToken}`;
-  } else {
-    alert("Please sign in to create an exam draft.");
+  if(accessToken){
+
+    headers.Authorization =
+      `Bearer ${accessToken}`;
+
+  }else{
+
+    alert(
+      "Please sign in to create an exam draft."
+    );
+
     return null;
+
   }
 
   const res = await fetch(
@@ -34,56 +122,98 @@ try{
     {
       method:"POST",
       headers,
-      body:JSON.stringify({title,questions,duration})
+      body:JSON.stringify({
+        title,
+        questions,
+        duration
+      })
     }
   );
 
-if(!res.ok){
-const errorText = await res.text();
-console.error("Create exam failed", res.status, errorText);
-alert(`Failed to create exam draft (${res.status})`);
-return null;
-}
+  if(!res.ok){
 
-const data = await res.json();
+    const errorText =
+      await res.text();
 
-console.log("CREATE EXAM RESPONSE:", data);
+    console.error(
+      "Create exam failed",
+      res.status,
+      errorText
+    );
 
-if(data.error){
-  console.error("Create exam failed", data.error);
-  alert(data.error);
-  return null;
-}
+    alert(
+      `Failed to create exam draft (${res.status})`
+    );
 
-const draftId =
-  data.draft_id ||
-  data.draft?.id;
+    return null;
 
-if(!draftId){
+  }
 
-  console.error("Missing draft id", data);
+  const data = await res.json();
 
-  alert("Draft created but ID missing");
+  console.log(
+    "CREATE EXAM RESPONSE:",
+    data
+  );
 
-  return null;
-}
+  if(data.error){
 
-const draftLink =
-  `draft.html?id=${draftId}`;
+    console.error(
+      "Create exam failed",
+      data.error
+    );
 
-return draftLink;
+    alert(data.error);
+
+    return null;
+
+  }
+
+  const draftId =
+    data.draft_id ||
+    data.draft?.id;
+
+  if(!draftId){
+
+    console.error(
+      "Missing draft id",
+      data
+    );
+
+    alert(
+      "Draft created but ID missing"
+    );
+
+    return null;
+
+  }
+
+  // ----------------------------------
+  // GitHub Pages-safe routing
+  // ----------------------------------
+
+  const draftLink =
+    `draft.html?id=${draftId}`;
+
+  return draftLink;
 
 }catch(e){
-console.error(e);
-alert("Failed to create draft");
-return null;
+
+  console.error(e);
+
+  alert("Failed to create draft");
+
+  return null;
+
 }
+
 }
 
 
 // ===============================
 // PARSER
 // ===============================
+
 function parseQuiz(text){
 
   // ===============================
@@ -98,18 +228,10 @@ function parseQuiz(text){
 
   // ===============================
   // SPLIT INTO QUESTION BLOCKS
-  // Supports:
-  // 1.
-  // 1)
-  // Q1.
-  // Q1)
-  // Q 1.
   // ===============================
 
-  const blocks = text
-    .split(/\n(?=(?:Q\s*)?\d+[\.\)])/gi)
-    .map(b => b.trim())
-    .filter(Boolean);
+  const blocks =
+    splitQuestionBlocks(text);
 
   return blocks.map(block => {
 
@@ -124,40 +246,49 @@ function parseQuiz(text){
 
     // ===============================
     // MERGE ORPHAN NUMBERING
-    // Example:
-    // Q15
-    // Which...
     // ===============================
 
-    if (/^Q?\s*\d+\s*$/i.test(lines[0]) && lines[1]) {
-      lines[1] = lines[0] + " " + lines[1];
+    if(
+      /^Q?\s*\d+\s*$/i.test(lines[0]) &&
+      lines[1]
+    ){
+
+      lines[1] =
+        lines[0] + " " + lines[1];
+
       lines.shift();
+
     }
 
     // ===============================
     // FIND ANSWER
     // ===============================
 
-    const answerIndex = lines.findIndex(
-      l => /^Answer\s*:/i.test(l)
-    );
+    const answerIndex =
+      lines.findIndex(
+        l => /^Answer\s*:/i.test(l)
+      );
 
-    if (answerIndex === -1) {
-      console.log("❌ No answer found", lines);
+    if(answerIndex === -1){
+
+      console.log(
+        "❌ No answer found",
+        lines
+      );
+
       return null;
+
     }
 
     // ===============================
-    // EXTRACT ANSWER LETTER
-    // Supports:
-    // Answer: A
-    // Answer: A)
-    // Answer: Option A
+    // EXTRACT ANSWER
     // ===============================
 
     let answerRaw =
-      (lines[answerIndex].split(":")[1] || "")
-        .trim();
+      (
+        lines[answerIndex]
+          .split(":")[1] || ""
+      ).trim();
 
     const answerMatch =
       answerRaw.match(/[A-D]/i);
@@ -171,48 +302,54 @@ function parseQuiz(text){
     // EXPLANATION
     // ===============================
 
-    const explanationIndex = lines.findIndex(
-      l => /^Explanation\s*:/i.test(l)
-    );
+    const explanationIndex =
+      lines.findIndex(
+        l => /^Explanation\s*:/i.test(l)
+      );
 
     let explanation = "";
 
-    if (explanationIndex !== -1) {
+    if(explanationIndex !== -1){
 
       explanation = lines
         .slice(explanationIndex)
         .join("\n")
-        .replace(/^Explanation\s*:/i, "")
+        .replace(
+          /^Explanation\s*:/i,
+          ""
+        )
         .trim();
+
     }
 
     // ===============================
     // DETECT OPTIONS
-    // Supports:
-    // A.
-    // A)
-    // A:
-    // A-
     // ===============================
 
     const optionRegex =
       /^[A-Da-d][\.\)\:\-]\s*/;
 
-    const optionLines = lines.filter((l, idx) => {
+    const optionLines =
+      lines.filter((l, idx) => {
 
-      return (
-        idx < answerIndex &&
-        optionRegex.test(l) &&
-        !/^\d+\.\s*/.test(l) // exclude numbered statements
-      );
+        return (
 
-    });
+          idx < answerIndex &&
+
+          optionRegex.test(l) &&
+
+          // Prevent numbered statements
+          !/^\d+[\.\)]\s*/.test(l)
+
+        );
+
+      });
 
     // ===============================
     // VALIDATE OPTIONS
     // ===============================
 
-    if (optionLines.length !== 4) {
+    if(optionLines.length !== 4){
 
       console.log(
         "❌ Options issue:",
@@ -221,19 +358,26 @@ function parseQuiz(text){
       );
 
       return null;
+
     }
 
     // ===============================
-    // BUILD OPTIONS ARRAY
+    // BUILD OPTIONS
     // ===============================
 
-    const optionsArray = optionLines.map((o, idx) => ({
-      id: ["A", "B", "C", "D"][idx],
+    const optionsArray =
+      optionLines.map((o, idx) => ({
 
-      text: o
-        .replace(optionRegex, "")
-        .trim()
-    }));
+        id:
+          ["A","B","C","D"][idx],
+
+        text:
+          o.replace(
+            optionRegex,
+            ""
+          ).trim()
+
+      }));
 
     // ===============================
     // FIND QUESTION TEXT
@@ -245,7 +389,7 @@ function parseQuiz(text){
     const firstOptionIndex =
       lines.indexOf(firstOptionLine);
 
-    if (firstOptionIndex === -1) {
+    if(firstOptionIndex === -1){
 
       console.log(
         "❌ Option index issue",
@@ -253,11 +397,13 @@ function parseQuiz(text){
       );
 
       return null;
+
     }
 
-    const rawQuestion = lines
-      .slice(0, firstOptionIndex)
-      .join("\n");
+    const rawQuestion =
+      lines
+        .slice(0, firstOptionIndex)
+        .join("\n");
 
     const question =
       cleanQuestionText(rawQuestion);
@@ -268,124 +414,226 @@ function parseQuiz(text){
     );
 
     // ===============================
-    // RETURN UNIFIED SCHEMA
+    // RETURN SCHEMA
     // ===============================
 
     return {
 
-      id: crypto.randomUUID(),
+      id:
+        crypto.randomUUID(),
 
-      question_id: null,
+      question_id:
+        null,
 
-      text: question,
+      text:
+        question,
 
-      options: optionsArray,
+      options:
+        optionsArray,
 
-      // ✅ FIXED
-      // entire PrepOS system expects:
-      // "A" | "B" | "C" | "D"
+      correct:
+        answer,
 
-      correct: answer,
-
-      explanation: explanation,
+      explanation:
+        explanation,
 
       topics: [],
 
-      bank_status: "draft",
+      bank_status:
+        "draft",
 
-      primary_pattern: null,
+      primary_pattern:
+        null,
 
       generator: {
-        enabled: false,
-        subject: "general",
-        pattern: null,
-        source: "parser",
-        version: 1,
-        last_generated_at: null
+
+        enabled:
+          false,
+
+        subject:
+          "general",
+
+        pattern:
+          null,
+
+        source:
+          "parser",
+
+        version:
+          1,
+
+        last_generated_at:
+          null
+
       },
 
       difficulty: {
-        cognitive_level: null,
-        complexity_level: null,
-        depth_level: null,
-        score: null,
-        label: null
+
+        cognitive_level:
+          null,
+
+        complexity_level:
+          null,
+
+        depth_level:
+          null,
+
+        score:
+          null,
+
+        label:
+          null
+
       }
 
     };
 
   }).filter(Boolean);
+
 }
 
 
 // ===============================
 // QCP CLEAN
 // ===============================
+
 function cleanQCP(){
 
-let text = document.getElementById("input").value;
+  let text =
+    document.getElementById("input").value;
 
-text = text.replace(/[✅✔️💡⭐✨🔥]/g,"");
-text = text.replace(/-+/g,"");
-text = text.replace(/\b(Ans|Correct option)\b\s*[:\-]?\s*/gi,"Answer: ");
-text = text.replace(/\bExplanation\b\s*[:\-]?\s*/gi,"Explanation: ");
-text = text.replace(/[ \t]+/g," ");
-text = text.replace(/\n(?=Q?\s*\d+[\.\)])/g, "\n\n");
-text = text.trim();
+  text = text.replace(
+    /[✅✔️💡⭐✨🔥]/g,
+    ""
+  );
 
-document.getElementById("input").value = text;
+  text = text.replace(
+    /-+/g,
+    ""
+  );
 
-alert("Cleaned with QCP");
+  text = text.replace(
+    /\b(Ans|Correct option)\b\s*[:\-]?\s*/gi,
+    "Answer: "
+  );
+
+  text = text.replace(
+    /\bExplanation\b\s*[:\-]?\s*/gi,
+    "Explanation: "
+  );
+
+  text = text.replace(
+    /[ \t]+/g,
+    " "
+  );
+
+  text = text.trim();
+
+  document.getElementById("input").value =
+    text;
+
+  alert("Cleaned with QCP");
+
 }
 
 
 // ===============================
-// GENERATE → REDIRECT TO DRAFT
+// GENERATE
 // ===============================
+
 async function generate(){
-  console.log("🔥 GENERATE TRIGGERED");
 
-const text = document.getElementById("input").value;
-console.log("🔥 BEFORE PARSE");
-const questions = parseQuiz(text);
-console.log("🔥 AFTER PARSE", JSON.stringify(questions, null, 2));
+  console.log(
+    "🔥 GENERATE TRIGGERED"
+  );
 
-if(!questions.length){
-  alert("No valid questions detected.");
-  return;
-}
+  const text =
+    document.getElementById("input").value;
 
-/* ⭐ build dynamic title */
-function buildExamTitle(base="PrepOS Quiz"){
-  const d = new Date();
+  console.log(
+    "🔥 BEFORE PARSE"
+  );
 
-  const date =
-  d.toLocaleDateString(undefined,{
-    day:"2-digit",
-    month:"short"
-  });
+  const questions =
+    parseQuiz(text);
 
-  const time =
-  d.toLocaleTimeString([],{
-    hour:"2-digit",
-    minute:"2-digit"
-  });
+  console.log(
+    "🔥 AFTER PARSE",
+    JSON.stringify(
+      questions,
+      null,
+      2
+    )
+  );
 
-  return `${base} — ${date} ${time}`;
-}
+  if(!questions.length){
 
-const title = buildExamTitle();
-const duration =
-parseInt(document.getElementById("duration").value)||10;
+    alert(
+      "No valid questions detected."
+    );
 
-/* 🔥 NEW: Store instead of creating draft */
-sessionStorage.setItem("parsedData", JSON.stringify({
-  title,
-  duration,
-  questions
-}));
+    return;
 
-/* 🔥 Redirect to review */
-window.location.href = "parser-review.html";
+  }
+
+  // ===============================
+  // TITLE
+  // ===============================
+
+  function buildExamTitle(
+    base = "PrepOS Quiz"
+  ){
+
+    const d = new Date();
+
+    const date =
+      d.toLocaleDateString(
+        undefined,
+        {
+          day:"2-digit",
+          month:"short"
+        }
+      );
+
+    const time =
+      d.toLocaleTimeString(
+        [],
+        {
+          hour:"2-digit",
+          minute:"2-digit"
+        }
+      );
+
+    return `${base} — ${date} ${time}`;
+
+  }
+
+  const title =
+    buildExamTitle();
+
+  const duration =
+    parseInt(
+      document.getElementById("duration").value
+    ) || 10;
+
+  // ===============================
+  // STORE REVIEW SESSION
+  // ===============================
+
+  sessionStorage.setItem(
+    "parsedData",
+    JSON.stringify({
+      title,
+      duration,
+      questions
+    })
+  );
+
+  // ===============================
+  // REDIRECT
+  // ===============================
+
+  window.location.href =
+    "parser-review.html";
 
 }
