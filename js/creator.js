@@ -401,231 +401,230 @@ function cleanQCP(){
 
 }
 
-// ==============================================
-// PARSER
-// ==============================================
+// ===============================
+// PARSER v3
+// PrepOS Structural Parser
+// ===============================
 
 function parseQuiz(text){
 
-  // ============================================
-  // NORMALIZE
-  // ============================================
+  // ===============================
+  // NORMALIZE INPUT
+  // ===============================
 
   text = text
-
     .replace(/\r\n/g, "\n")
-
     .replace(/\r/g, "\n")
-
-    .replace(/^---$/gm, "")
-
     .trim();
 
-  // ============================================
-  // SPLIT QUESTIONS
-  // ONLY SPLIT ON:
+  // remove markdown separators
+  text = text.replace(/^---+$/gm, "");
+
+  // ===============================
+  // REQUIRE QCP FORMAT
+  // Parser ONLY splits on:
+  //
   // Q1.
-  // Q2)
-  // ============================================
+  // Q2.
+  // Q3.
+  //
+  // This prevents corruption of:
+  // - statement questions
+  // - match list
+  // - chronology
+  // - assertion reason
+  // ===============================
 
   const blocks = text
-
-    .split(
-      /\n(?=Q\d+[\.\)])/g
-    )
-
+    .split(/\n(?=Q\d+[\.\)]\s)/gi)
     .map(b => b.trim())
-
     .filter(Boolean);
 
-  // ============================================
+  console.log("📦 BLOCKS:", blocks);
+
+  // ===============================
   // PARSE EACH BLOCK
-  // ============================================
+  // ===============================
 
   return blocks.map(block => {
 
-    // ==========================================
-    // CLEAN LINES
-    // ==========================================
+    // ===============================
+    // SPLIT LINES
+    // ===============================
 
     let lines = block
-
-      .split(/\n+/)
-
+      .split("\n")
       .map(l => l.trim())
-
       .filter(Boolean);
 
-    // ==========================================
+    if(!lines.length){
+      return null;
+    }
+
+    // ===============================
     // FIND ANSWER
-    // ==========================================
+    // ===============================
 
     const answerIndex =
-      lines.findIndex(l =>
-
-        /^Answer\s*:/i.test(l)
-
+      lines.findIndex(
+        l => /^Answer\s*:/i.test(l)
       );
 
     if(answerIndex === -1){
 
       console.log(
-        "❌ No answer found",
+        "❌ No answer found:",
         lines
       );
 
       return null;
-
     }
 
-    // ==========================================
-    // ANSWER LETTER
-    // ==========================================
+    // ===============================
+    // EXTRACT ANSWER LETTER
+    // ===============================
 
-    let answerRaw =
-
-      (
-        lines[answerIndex]
-        .split(":")[1] || ""
-      )
-
-      .trim();
+    const answerLine =
+      lines[answerIndex];
 
     const answerMatch =
-      answerRaw.match(/[A-D]/i);
+      answerLine.match(/[A-D]/i);
 
     const answer =
-
       answerMatch
+        ? answerMatch[0].toUpperCase()
+        : "A";
 
-      ? answerMatch[0].toUpperCase()
-
-      : "A";
-
-    // ==========================================
-    // EXPLANATION
-    // ==========================================
+    // ===============================
+    // FIND EXPLANATION
+    // ===============================
 
     const explanationIndex =
-      lines.findIndex(l =>
-
-        /^Explanation\s*:/i.test(l)
-
+      lines.findIndex(
+        l => /^Explanation\s*:/i.test(l)
       );
 
     let explanation = "";
 
     if(explanationIndex !== -1){
 
-      explanation = lines
-
-        .slice(explanationIndex)
-
-        .join("\n")
-
-        .replace(
-          /^Explanation\s*:/i,
-          ""
-        )
-
-        .trim();
+      explanation =
+        lines
+          .slice(explanationIndex)
+          .join("\n")
+          .replace(/^Explanation\s*:/i, "")
+          .trim();
 
     }
 
-    // ==========================================
-    // OPTIONS
-    // ==========================================
+    // ===============================
+    // OPTION DETECTION
+    //
+    // STRICT:
+    // A)
+    // B)
+    // C)
+    // D)
+    //
+    // Prevents corruption from:
+    // A. in match lists
+    // numbered statements
+    // ===============================
 
     const optionRegex =
-      /^[A-Da-d][\.\)\:\-]\s*/;
+      /^[A-D][\)\.\:\-]\s+/i;
 
     const optionLines =
-      lines.filter((l, idx) => {
+      lines.filter((line, idx) => {
 
         return (
-
           idx < answerIndex &&
-
-          optionRegex.test(l)
-
+          optionRegex.test(line)
         );
 
       });
 
-    // ==========================================
+    // ===============================
     // VALIDATE OPTIONS
-    // ==========================================
+    // ===============================
 
     if(optionLines.length !== 4){
 
       console.log(
-        "❌ Invalid options",
+        "❌ Invalid option count:",
         optionLines,
         lines
       );
 
       return null;
-
     }
 
-    // ==========================================
-    // OPTIONS ARRAY
-    // ==========================================
+    // ===============================
+    // BUILD OPTIONS
+    // ===============================
 
     const optionsArray =
-      optionLines.map((o, idx) => ({
+      optionLines.map((line, idx) => ({
 
         id:
           ["A","B","C","D"][idx],
 
         text:
-          o
+          line
             .replace(optionRegex, "")
             .trim()
 
       }));
 
-    // ==========================================
-    // QUESTION TEXT
-    // ==========================================
+    // ===============================
+    // FIND QUESTION BODY
+    // ===============================
 
     const firstOptionLine =
       optionLines[0];
 
     const firstOptionIndex =
-      lines.indexOf(
-        firstOptionLine
-      );
+      lines.indexOf(firstOptionLine);
 
     if(firstOptionIndex === -1){
 
       console.log(
-        "❌ Option index issue"
+        "❌ Option index failure",
+        lines
       );
 
       return null;
-
     }
 
-    const rawQuestion =
+    // ===============================
+    // QUESTION TEXT
+    // Preserve ALL internal numbering
+    // ===============================
 
+    let questionText =
       lines
         .slice(0, firstOptionIndex)
         .join("\n");
 
-    const question =
-      cleanQuestionText(
-        rawQuestion
-      );
+    // remove Qx prefix ONLY
+    questionText =
+      questionText.replace(
+        /^Q\d+[\.\)]\s*/i,
+        ""
+      ).trim();
+
+    // ===============================
+    // DEBUG
+    // ===============================
 
     console.log(
-      "✅ FINAL QUESTION:",
-      question
+      "✅ QUESTION:",
+      questionText
     );
 
-    // ==========================================
-    // RETURN PREPOS QUESTION
-    // ==========================================
+    // ===============================
+    // RETURN PREPOS SCHEMA
+    // ===============================
 
     return {
 
@@ -636,7 +635,7 @@ function parseQuiz(text){
         null,
 
       text:
-        question,
+        questionText,
 
       options:
         optionsArray,
