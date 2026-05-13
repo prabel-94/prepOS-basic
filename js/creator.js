@@ -242,7 +242,7 @@ function cleanQCP(){
   );
 
   // ============================================
-  // QUESTION DETECTION
+  // QUESTION START PATTERNS
   // ============================================
 
   const QUESTION_PATTERNS = [
@@ -267,8 +267,59 @@ function cleanQCP(){
 
   ];
 
-  const lines =
+  // ============================================
+  // SPLIT LINES
+  // ============================================
+
+  let lines =
     text.split("\n");
+
+  // ============================================
+  // REMOVE EVERYTHING BEFORE FIRST QUESTION
+  // ============================================
+
+  let firstQuestionIndex =
+
+    lines.findIndex(line => {
+
+      const trimmed =
+        line.trim();
+
+      const match =
+        trimmed.match(
+          /^(\d+)([\.\)])\s+(.*)$/
+        );
+
+      if(!match){
+        return false;
+      }
+
+      const content =
+        match[3];
+
+      return QUESTION_PATTERNS.some(pattern =>
+
+        content
+          .toLowerCase()
+          .startsWith(
+            pattern.toLowerCase()
+          )
+
+      );
+
+    });
+
+  // remove header garbage
+  if(firstQuestionIndex > 0){
+
+    lines =
+      lines.slice(firstQuestionIndex);
+
+  }
+
+  // ============================================
+  // CANONICALIZE QUESTION NUMBERS
+  // ============================================
 
   const normalized =
     lines.map(line => {
@@ -276,21 +327,13 @@ function cleanQCP(){
       const trimmed =
         line.trim();
 
-      // ----------------------------------------
-      // Detect:
-      // 1. Which...
-      // 2) Consider...
-      // ----------------------------------------
-
-      const numberMatch =
+      const match =
         trimmed.match(
           /^(\d+)([\.\)])\s+(.*)$/
         );
 
-      if(!numberMatch){
-
+      if(!match){
         return line;
-
       }
 
       const [
@@ -298,28 +341,21 @@ function cleanQCP(){
         num,
         sep,
         content
-      ] = numberMatch;
-
-      // ----------------------------------------
-      // Real question?
-      // ----------------------------------------
+      ] = match;
 
       const isQuestionStart =
-        QUESTION_PATTERNS.some(pattern => {
+        QUESTION_PATTERNS.some(pattern =>
 
-          return content
+          content
             .toLowerCase()
             .startsWith(
               pattern.toLowerCase()
-            );
+            )
 
-        });
+        );
 
       // ----------------------------------------
-      // Convert:
-      // 1. Which...
-      // →
-      // Q1. Which...
+      // REAL QUESTION
       // ----------------------------------------
 
       if(isQuestionStart){
@@ -329,7 +365,7 @@ function cleanQCP(){
       }
 
       // ----------------------------------------
-      // Otherwise keep as statement
+      // INTERNAL STATEMENT
       // ----------------------------------------
 
       return line;
@@ -340,7 +376,7 @@ function cleanQCP(){
     normalized.join("\n");
 
   // ============================================
-  // SPACE BETWEEN QUESTIONS
+  // SPACING
   // ============================================
 
   text = text.replace(
@@ -352,6 +388,10 @@ function cleanQCP(){
   );
 
   text = text.trim();
+
+  // ============================================
+  // WRITE BACK
+  // ============================================
 
   document.getElementById("input").value =
     text;
