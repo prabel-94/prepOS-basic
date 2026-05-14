@@ -453,7 +453,6 @@ async function loadQuestion() {
 }
 
 function renderQuestion(question) {
-  questionCard.innerHTML = `
     questionCard.innerHTML = `
   <div class="question-text prepos-text">
     ${escapeHTML(question.text)}
