@@ -464,7 +464,11 @@ function renderQuestion(question) {
   question.options.forEach(option => {
     const button = document.createElement("button");
     button.className = "option-btn";
-    button.innerText = `${option.id}. ${option.text}`;
+    button.innerHTML = `
+  <span class="prepos-text">
+    ${escapeHTML(option.id)}. ${escapeHTML(option.text)}
+  </span>
+`;
     button.dataset.optionId = option.id;
     button.onclick = () => handleAnswer(option.id);
     optionsContainer.appendChild(button);
