@@ -454,8 +454,11 @@ async function loadQuestion() {
 
 function renderQuestion(question) {
   questionCard.innerHTML = `
-    <div class="qtext">${escapeHTML(question.text)}</div>
-  `;
+    questionCard.innerHTML = `
+  <div class="question-text prepos-text">
+    ${escapeHTML(question.text)}
+  </div>
+`;
 
   optionsContainer.innerHTML = "";
 
