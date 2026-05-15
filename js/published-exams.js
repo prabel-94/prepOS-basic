@@ -223,10 +223,16 @@ async function deletePublishedExam(examId){
     if(examError) throw examError;
 
     await loadPublishedExams();
-  }catch(error){
-    console.error(error);
-    alert("Delete failed");
   }
+catch(error){
+  console.error("DELETE ERROR:", error);
+
+  alert(
+    error?.message ||
+    JSON.stringify(error) ||
+    "Delete failed"
+  );
+}
 }
 
 function clearFilters(){
