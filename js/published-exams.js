@@ -201,37 +201,34 @@ async function deletePublishedExam(examId){
   if(typed !== "DELETE") return;
 
   try{
-    const { error: assignmentError } = await sb
-      .from("exam_assignments")
-      .delete()
-      .eq("exam_id", examId);
+    const { data: sessionData } = await sb.auth.getSession();
+    const accessToken = sessionData?.session?.access_token;
 
-    if(assignmentError) throw assignmentError;
+    if(!accessToken){
+      throw new Error("Your session expired. Please sign in again.");
+    }
 
-    const { error: attemptsError } = await sb
-      .from("exam_attempts")
-      .delete()
-      .eq("exam_id", examId);
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/delete-published-exam`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${accessToken}`
+      },
+      body: JSON.stringify({ examId })
+    });
 
-    if(attemptsError) throw attemptsError;
+    const result = await res.json().catch(() => ({}));
 
-    const { error: examError } = await sb
-      .from("exam_sessions")
-      .delete()
-      .eq("id", examId);
-
-    if(examError) throw examError;
+    if(!res.ok || !result.success){
+      throw new Error(result.error || `Delete failed (${res.status})`);
+    }
 
     await loadPublishedExams();
   }
 catch(error){
-  console.error("DELETE ERROR:", error);
-
-  alert(
-    error?.message ||
-    JSON.stringify(error) ||
-    "Delete failed"
-  );
+  console.error(error);
+  alert(error.message || "Delete failed");
 }
 }
 
