@@ -63,7 +63,10 @@ function groupRows(rows) {
     if (!map[r.group_id]) {
       map[r.group_id] = [];
     }
-    map[r.group_id].push(r.word);
+    map[r.group_id].push({
+  word: r.word,
+  lexical_class: r.lexical_class || ""
+});
   });
 
   return map;
@@ -85,13 +88,52 @@ function renderGroup(group, index) {
       <div class="values">
         ${group.words.map((w, i) => `
           <div class="value-row" data-index="${i}">
-            <input
-              class="word-input"
-              value="${escapeHTML(w)}"
-              placeholder="Word"
-            />
-            <button class="delete-word secondary-btn">×</button>
-          </div>
+
+  <input
+    class="word-input"
+    value="${escapeHTML(
+    typeof w === "string" ? w : w.word
+  )}"
+    placeholder="Word"
+  />
+
+  <select class="lexical-class-select">
+
+    <option value="">Class</option>
+
+    ${[
+      "ABSTRACT",
+      "EMOTION",
+      "STATE",
+      "QUALITY",
+      "ACTION",
+      "OBJECT",
+      "PLACE",
+      "COLLECTIVE",
+      "TITLE",
+      "PERSON_NEUTRAL",
+      "PERSON_MALE",
+      "PERSON_FEMALE"
+    ].map(type => `
+      <option
+        value="${type}"
+        ${(typeof w === "object" &&
+        w.lexical_class === type)
+        ? "selected"
+        : ""
+      }
+      >
+        ${type}
+      </option>
+    `).join("")}
+
+  </select>
+
+  <button class="delete-word secondary-btn">
+    ×
+  </button>
+
+</div>
         `).join("")}
       </div>
 
@@ -236,7 +278,14 @@ async function loadGroups() {
 
   const { data, error } = await sb
     .from("lexicon_entries")
-    .select("id, word, group_id, topic, language_code")
+    .select(`
+  id,
+  word,
+  lexical_class,
+  group_id,
+  topic,
+  language_code
+`)
     .eq("topic", state.topic)
     .eq("language_code", state.language);
 
@@ -268,11 +317,25 @@ SYNC FROM UI
 function syncGroup(card) {
   const group = findGroupByCard(card);
 
-  const words = [...card.querySelectorAll(".word-input")]
-    .map(i => i.value.trim())
-    .filter(Boolean);
+  const rows = [...card.querySelectorAll(".value-row")];
 
-  group.words = [...new Set(words)];
+group.words = rows.map(row => {
+
+  const word = row
+    .querySelector(".word-input")
+    ?.value
+    .trim();
+
+  const lexicalClass = row
+    .querySelector(".lexical-class-select")
+    ?.value || null;
+
+  return {
+    word,
+    lexical_class: lexicalClass
+  };
+
+}).filter(entry => entry.word);
 
   return group;
 }
@@ -330,12 +393,13 @@ async function saveGroup(card) {
   // 3. INSERT WORDS
   // ========================================
 
-  const rows = group.words.map(word => ({
-    word,
-    group_id,
-    topic: state.topic,
-    language_code: state.language
-  }));
+  const rows = group.words.map(entry => ({
+  word: entry.word,
+  lexical_class: entry.lexical_class,
+  group_id,
+  topic: state.topic,
+  language_code: state.language
+}));
 
   const { error } = await sb
     .from("lexicon_entries")
