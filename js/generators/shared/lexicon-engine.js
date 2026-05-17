@@ -9,12 +9,13 @@ export async function fetchGroups(languageCode) {
   const { data, error } = await sb
     .from("lexicon_entries")
     .select(`
-      id,
-      word,
-      group_id,
-      difficulty,
-      language_code
-    `)
+  id,
+  word,
+  group_id,
+  difficulty,
+  language_code,
+  lexical_class
+`)
     .eq("language_code", languageCode);
 
   if (error) {

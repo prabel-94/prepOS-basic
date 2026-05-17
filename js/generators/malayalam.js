@@ -155,20 +155,65 @@ function buildDistractors({
   groups,
   excludedGroupIds = [],
   excludedWords = [],
+  preferredLexicalClass = null,
   count = 3
 }) {
-  const pool = Object.keys(groups)
+
+  // ========================================
+  // 1. BASE POOL
+  // ========================================
+
+  const basePool = Object.keys(groups)
     .filter(groupId => !excludedGroupIds.includes(groupId))
     .flatMap(groupId => groups[groupId]);
 
-  let distractors = uniqueEntriesByWord(pool, excludedWords).slice(0, count);
+  // ========================================
+  // 2. SAME LEXICAL CLASS POOL
+  // ========================================
 
-  if (distractors.length < count) {
-    const fallbackPool = Object.values(groups).flat();
-    distractors = uniqueEntriesByWord(fallbackPool, excludedWords).slice(0, count);
+  let filteredPool = basePool;
+
+  if (preferredLexicalClass) {
+
+    const sameClassPool = basePool.filter(entry => {
+      return entry.lexical_class === preferredLexicalClass;
+    });
+
+    // Use same-class pool ONLY if enough entries exist
+    if (sameClassPool.length >= count) {
+      filteredPool = sameClassPool;
+    }
   }
 
+  // ========================================
+  // 3. BUILD DISTRACTORS
+  // ========================================
+
+  let distractors = uniqueEntriesByWord(
+    filteredPool,
+    excludedWords
+  ).slice(0, count);
+
+  // ========================================
+  // 4. FALLBACK TO GLOBAL POOL
+  // ========================================
+
   if (distractors.length < count) {
+
+    const fallbackPool = Object.values(groups).flat();
+
+    distractors = uniqueEntriesByWord(
+      fallbackPool,
+      excludedWords
+    ).slice(0, count);
+  }
+
+  // ========================================
+  // 5. FINAL VALIDATION
+  // ========================================
+
+  if (distractors.length < count) {
+
     throw createGeneratorError(
       "INSUFFICIENT_DISTRACTORS",
       "Not enough distinct words are available to build this practice question."
@@ -245,11 +290,16 @@ async function generateSynonymQuestion(config = {}) {
   )[0];
 
   const distractors = buildDistractors({
-    groups,
-    excludedGroupIds: [groupId],
-    excludedWords: [questionEntry.word, correctEntry.word],
-    count: 3
-  });
+  groups,
+  excludedGroupIds: [groupId],
+  excludedWords: [
+    questionEntry.word,
+    correctEntry.word
+  ],
+  preferredLexicalClass:
+    questionEntry.lexical_class,
+  count: 3
+});
 
   const options = shuffle([
     correctEntry.word,
@@ -326,11 +376,19 @@ async function generateOppositeWordQuestion() {
   const correctEntry = pickRandom(oppositeWords, 1)[0];
 
   const distractors = buildDistractors({
-    groups,
-    excludedGroupIds: [baseGroupId, oppositeGroupId],
-    excludedWords: [stemEntry.word, correctEntry.word],
-    count: 3
-  });
+  groups,
+  excludedGroupIds: [
+    baseGroupId,
+    oppositeGroupId
+  ],
+  excludedWords: [
+    stemEntry.word,
+    correctEntry.word
+  ],
+  preferredLexicalClass:
+    stemEntry.lexical_class,
+  count: 3
+});
 
   const options = shuffle([
     correctEntry.word,
