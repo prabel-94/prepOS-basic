@@ -2570,25 +2570,16 @@ async function loadStudents(search = "") {
   const list = document.getElementById("studentList");
   if (list) list.innerHTML = "Loading students...";
 
-  let query = sb
-    .from("users")
-    .select("id, name")
-    .eq("role", "student")
-    .limit(20);
+  try {
+    const result = await invokeEdgeFunction("list-students", {
+      search: search.trim()
+    });
 
-  if (search.trim()) {
-    query = query.ilike("name", `%${search.trim()}%`);
-  }
-
-  const { data, error } = await query;
-
-  if (error) {
+    renderStudentList(result.students || []);
+  } catch (error) {
     console.error(error);
     if (list) list.innerHTML = `<div class="empty-state">Unable to load students</div>`;
-    return;
   }
-
-  renderStudentList(data || []);
 }
 
 function openAssignModal(examId) {

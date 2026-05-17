@@ -64,6 +64,41 @@ begin
   end loop;
 end $$;
 
+do $$
+declare
+  policy_record record;
+begin
+  for policy_record in
+    select schemaname, tablename, policyname
+    from pg_policies
+    where schemaname = 'public'
+      and tablename in (
+        'users',
+        'draft_exams',
+        'exam_sessions',
+        'exam_assignments',
+        'exam_attempts',
+        'questions',
+        'question_topics',
+        'question_metadata',
+        'topics',
+        'topic_patterns',
+        'metadata_definitions',
+        'lexicon_groups',
+        'lexicon_entries',
+        'lexicon_group_relations',
+        'user_lexicon_word_stats'
+      )
+  loop
+    execute format(
+      'drop policy if exists %I on %I.%I',
+      policy_record.policyname,
+      policy_record.schemaname,
+      policy_record.tablename
+    );
+  end loop;
+end $$;
+
 alter table if exists public.draft_exams
   add column if not exists created_by uuid references auth.users(id) default auth.uid();
 
@@ -88,12 +123,12 @@ alter table if exists public.lexicon_entries
 alter table if exists public.metadata_definitions
   add column if not exists created_by uuid references auth.users(id) default auth.uid();
 
-drop policy if exists "users_select_own_or_staff" on public.users;
-create policy "users_select_own_or_staff"
+drop policy if exists "users_select_own_or_admin" on public.users;
+create policy "users_select_own_or_admin"
 on public.users
 for select
 to authenticated
-using (id = auth.uid() or public.is_teacher_or_admin());
+using (id = auth.uid() or public.is_admin());
 
 drop policy if exists "draft_exams_select_owned_or_question_sets" on public.draft_exams;
 create policy "draft_exams_select_owned_or_question_sets"
@@ -188,12 +223,12 @@ with check (
   )
 );
 
-drop policy if exists "questions_read_authenticated" on public.questions;
-create policy "questions_read_authenticated"
+drop policy if exists "questions_read_staff" on public.questions;
+create policy "questions_read_staff"
 on public.questions
 for select
 to authenticated
-using (true);
+using (public.is_teacher_or_admin());
 
 drop policy if exists "questions_write_staff" on public.questions;
 create policy "questions_write_staff"
@@ -203,12 +238,12 @@ to authenticated
 using (public.is_teacher_or_admin())
 with check (public.is_teacher_or_admin());
 
-drop policy if exists "question_topics_read_authenticated" on public.question_topics;
-create policy "question_topics_read_authenticated"
+drop policy if exists "question_topics_read_staff" on public.question_topics;
+create policy "question_topics_read_staff"
 on public.question_topics
 for select
 to authenticated
-using (true);
+using (public.is_teacher_or_admin());
 
 drop policy if exists "question_topics_write_staff" on public.question_topics;
 create policy "question_topics_write_staff"
@@ -218,12 +253,12 @@ to authenticated
 using (public.is_teacher_or_admin())
 with check (public.is_teacher_or_admin());
 
-drop policy if exists "question_metadata_read_authenticated" on public.question_metadata;
-create policy "question_metadata_read_authenticated"
+drop policy if exists "question_metadata_read_staff" on public.question_metadata;
+create policy "question_metadata_read_staff"
 on public.question_metadata
 for select
 to authenticated
-using (true);
+using (public.is_teacher_or_admin());
 
 drop policy if exists "question_metadata_write_staff" on public.question_metadata;
 create policy "question_metadata_write_staff"
@@ -233,12 +268,12 @@ to authenticated
 using (public.is_teacher_or_admin())
 with check (public.is_teacher_or_admin());
 
-drop policy if exists "topics_read_authenticated" on public.topics;
-create policy "topics_read_authenticated"
+drop policy if exists "topics_read_staff" on public.topics;
+create policy "topics_read_staff"
 on public.topics
 for select
 to authenticated
-using (true);
+using (public.is_teacher_or_admin());
 
 drop policy if exists "topics_write_staff" on public.topics;
 create policy "topics_write_staff"
@@ -248,12 +283,12 @@ to authenticated
 using (public.is_teacher_or_admin())
 with check (public.is_teacher_or_admin());
 
-drop policy if exists "topic_patterns_read_authenticated" on public.topic_patterns;
-create policy "topic_patterns_read_authenticated"
+drop policy if exists "topic_patterns_read_staff" on public.topic_patterns;
+create policy "topic_patterns_read_staff"
 on public.topic_patterns
 for select
 to authenticated
-using (true);
+using (public.is_teacher_or_admin());
 
 drop policy if exists "topic_patterns_write_staff" on public.topic_patterns;
 create policy "topic_patterns_write_staff"
@@ -263,12 +298,12 @@ to authenticated
 using (public.is_teacher_or_admin())
 with check (public.is_teacher_or_admin());
 
-drop policy if exists "metadata_definitions_read_authenticated" on public.metadata_definitions;
-create policy "metadata_definitions_read_authenticated"
+drop policy if exists "metadata_definitions_read_staff" on public.metadata_definitions;
+create policy "metadata_definitions_read_staff"
 on public.metadata_definitions
 for select
 to authenticated
-using (true);
+using (public.is_teacher_or_admin());
 
 drop policy if exists "metadata_definitions_write_staff" on public.metadata_definitions;
 create policy "metadata_definitions_write_staff"
