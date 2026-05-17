@@ -78,69 +78,110 @@ RENDER
 ========================================= */
 
 function renderGroup(group, index) {
+
   return `
-    <div class="group-card" data-group-id="${group.group_id || ''}" data-index="${group.group_id ? '' : index}">
+    <div
+      class="group-card"
+      data-group-id="${group.group_id || ''}"
+      data-index="${group.group_id ? '' : index}"
+    >
 
       <div class="small mb-10">
-        ${group.language_code === "en" ? "🇬🇧 English" : "🇮🇳 Malayalam"}
+        ${
+          group.language_code === "en"
+            ? "🇬🇧 English"
+            : "🇮🇳 Malayalam"
+        }
       </div>
 
       <div class="values">
-        ${group.words.map((w, i) => `
-          <div class="value-row" data-index="${i}">
 
-  <input
-    class="word-input"
-    value="${escapeHTML(
-    typeof w === "string" ? w : w.word
-  )}"
-    placeholder="Word"
-  />
+        ${group.words.map((w, i) => {
 
-  <select class="lexical-class-select">
+          const word =
+            typeof w === "string"
+              ? w
+              : (w?.word || "");
 
-    <option value="">Class</option>
+          const lexicalClass =
+            typeof w === "object"
+              ? (w?.lexical_class || "")
+              : "";
 
-    ${[
-      "ABSTRACT",
-      "EMOTION",
-      "STATE",
-      "QUALITY",
-      "ACTION",
-      "OBJECT",
-      "PLACE",
-      "COLLECTIVE",
-      "TITLE",
-      "PERSON_NEUTRAL",
-      "PERSON_MALE",
-      "PERSON_FEMALE"
-    ].map(type => `
-      <option
-        value="${type}"
-        ${(typeof w === "object" &&
-        w.lexical_class === type)
-        ? "selected"
-        : ""
-      }
-      >
-        ${type}
-      </option>
-    `).join("")}
+          return `
+            <div class="value-row" data-index="${i}">
 
-  </select>
+              <input
+                class="word-input"
+                value="${escapeHTML(word)}"
+                placeholder="Word"
+              />
 
-  <button class="delete-word secondary-btn">
-    ×
-  </button>
+              <div class="lexical-class-wrapper">
 
-</div>
-        `).join("")}
+                <select class="lexical-class-select">
+
+                  <option value="">
+                    Class
+                  </option>
+
+                  ${[
+                    "ABSTRACT",
+                    "EMOTION",
+                    "STATE",
+                    "QUALITY",
+                    "ACTION",
+                    "OBJECT",
+                    "PLACE",
+                    "COLLECTIVE",
+                    "TITLE",
+                    "PERSON_NEUTRAL",
+                    "PERSON_MALE",
+                    "PERSON_FEMALE"
+                  ].map(type => `
+
+                    <option
+                      value="${type}"
+                      ${
+                        lexicalClass === type
+                          ? "selected"
+                          : ""
+                      }
+                    >
+                      ${type}
+                    </option>
+
+                  `).join("")}
+
+                </select>
+
+              </div>
+
+              <button class="delete-word secondary-btn">
+                ×
+              </button>
+
+            </div>
+          `;
+
+        }).join("")}
+
       </div>
 
       <div class="flex gap-10 mt-10">
-        <button class="add-word secondary-btn">+ Add Word</button>
-        <button class="save-group primary-btn">Save</button>
-        <button class="delete-group secondary-btn">Delete</button>
+
+        <button class="add-word secondary-btn">
+          + Add Word
+        </button>
+
+        <button class="save-group primary-btn">
+          Save
+        </button>
+
+        <button class="delete-group secondary-btn">
+          Delete
+        </button>
+
       </div>
 
     </div>
@@ -223,7 +264,10 @@ function renderRelationList(containerId, groups, side) {
     div.className = "group-item";
     div.dataset.id = group_id;
 
-    div.textContent = words.slice(0, 3).join(", ");
+    div.textContent = words
+  .slice(0, 3)
+  .map(w => typeof w === "string" ? w : w.word)
+  .join(", ");
 
     div.onclick = () => selectRelationGroup(side, group_id, div);
 
@@ -257,7 +301,12 @@ function populateSearchDropdown() {
 
   state.dbGroups.forEach(g => {
 
-    const label = g.words.slice(0, 3).join(", ") || "(empty)";
+    const label =
+  g.words
+    .slice(0, 3)
+    .map(w => typeof w === "string" ? w : w.word)
+    .join(", ")
+  || "(empty)";
 
     const option = document.createElement("option");
     option.value = g.group_id;
@@ -492,7 +541,12 @@ el.addGroupBtn?.addEventListener("click", () => {
   target.unshift({
     group_id: null,
     original_group_id: null,
-    words: [""],
+    words: [
+  {
+    word: "",
+    lexical_class: ""
+  }
+],
     language_code: state.language
   });
 
@@ -509,7 +563,10 @@ el.groupsContainer?.addEventListener("click", async (e) => {
   const group = syncGroup(card);
 
   if (e.target.classList.contains("add-word")) {
-    group.words.push("");
+    group.words.push({
+  word: "",
+  lexical_class: ""
+});
     renderGroups();
   }
 
@@ -517,7 +574,14 @@ el.groupsContainer?.addEventListener("click", async (e) => {
     const row = e.target.closest(".value-row");
     const i = +row.dataset.index;
     group.words.splice(i, 1);
-    if (!group.words.length) group.words.push("");
+    if (!group.words.length) {
+
+  group.words.push({
+    word: "",
+    lexical_class: ""
+  });
+
+}
     renderGroups();
   }
 
