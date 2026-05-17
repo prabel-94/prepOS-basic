@@ -24,6 +24,27 @@ let selectedStudents = [];
 let currentExamId = null;
 let studentSearchTimer = null;
 
+async function invokeEdgeFunction(name, body) {
+  const { data, error } = await sb.functions.invoke(name, { body });
+
+  if (error) {
+    let message = error.message || `${name} failed`;
+
+    if (error.context instanceof Response) {
+      const details = await error.context.clone().json().catch(() => null);
+      message = details?.error || message;
+    }
+
+    throw new Error(message);
+  }
+
+  if (data?.error) {
+    throw new Error(data.error);
+  }
+
+  return data;
+}
+
 // --------------------------------
 // URL PARAM
 // --------------------------------
@@ -2468,8 +2489,6 @@ async function publishDraft() {
 
   const publishBtn = document.getElementById("publishDraftBtn");
   const originalPublishText = publishBtn?.innerText;
-  let createdSessionId = null;
-  let draftUpdated = false;
 
   try {
     isPublishing = true;
@@ -2483,45 +2502,11 @@ async function publishDraft() {
     validateDraftForPublish();
     setStatus("Publishing...");
 
-    const { data: userData } = await sb.auth.getUser();
-const user = userData?.user;
-
-if (!user) {
-  throw new Error("User not authenticated");
-}
-
-const payload = {
-  title: document.getElementById("title").value || "Untitled Exam",
-  duration: parseInt(document.getElementById("duration").value) || 60,
-  schema_json: currentDraft.schema_json,
-  logo_url: logoURL || null,
-  created_by: user.id   // 🔥 THIS IS THE FIX
-};
-
-    // ✅ Insert into exam_sessions (NOT exams)
-    const { data: session, error } = await sb
-      .from("exam_sessions")
-      .insert([payload])
-      .select()
-      .single();
-
-    if (error) throw error;
-    createdSessionId = session.id;
-
-    // ✅ Update draft
-    const { error: draftUpdateError } = await sb
-      .from("draft_exams")
-      .update({
-        status: "published",
-        published_exam_id: session.id
-      })
-      .eq("id", draftId);
-
-    if (draftUpdateError) throw draftUpdateError;
-    draftUpdated = true;
+    const result = await invokeEdgeFunction("publish-draft", { draftId });
+    const examId = result.examId;
 
     currentDraft.status = "published";
-    currentDraft.published_exam_id = session.id;
+    currentDraft.published_exam_id = examId;
 
     setStatus("Published ✅");
 
@@ -2531,10 +2516,10 @@ const payload = {
       linkBox.classList.remove("hidden");
       linkBox.innerHTML = `
         <b>Exam Published</b><br>
-        <a href="exam.html?id=${session.id}" target="_blank">
+        <a href="exam.html?id=${examId}" target="_blank">
           Open Exam
         </a><br>
-        <button type="button" class="primary-btn mt-10" onclick="openAssignModal('${session.id}')">
+        <button type="button" class="primary-btn mt-10" onclick="openAssignModal('${examId}')">
           Assign to Students
         </button>
       `;
@@ -2542,17 +2527,6 @@ const payload = {
 
   } catch (err) {
     console.error(err);
-
-    if (createdSessionId && !draftUpdated) {
-      const { error: cleanupError } = await sb
-        .from("exam_sessions")
-        .delete()
-        .eq("id", createdSessionId);
-
-      if (cleanupError) {
-        console.error("Publish cleanup failed:", cleanupError);
-      }
-    }
 
     alert(err.message || "Publish failed");
     setStatus("Publish failed", true);
@@ -2658,24 +2632,10 @@ async function assignSelected() {
       assignBtn.innerText = "Assigning...";
     }
 
-    const { data: userData } = await sb.auth.getUser();
-    const teacher = userData?.user;
-
-    if (!teacher) {
-      throw new Error("User not authenticated");
-    }
-
-    const rows = selectedStudents.map(studentId => ({
-      exam_id: currentExamId,
-      student_id: studentId,
-      assigned_by: teacher.id
-    }));
-
-    const { error } = await sb
-      .from("exam_assignments")
-      .insert(rows);
-
-    if (error) throw error;
+    await invokeEdgeFunction("assign-exam", {
+      examId: currentExamId,
+      studentIds: selectedStudents
+    });
 
     alert("Assigned successfully");
     closeAssignModal();
@@ -3403,12 +3363,17 @@ async function clearDraftMemory() {
   if (!confirm("Clear all non-question-set drafts?"))
     return;
 
-  await sb
-    .from("draft_exams")
-    .delete()
-    .neq("status","question_set");
+  try {
+    await invokeEdgeFunction("manage-drafts", {
+      action: "clear-non-question-sets"
+    });
 
-  setStatus("Memory cleared ✅");
+    setStatus("Memory cleared ✅");
+  } catch (error) {
+    console.error(error);
+    alert(error.message || "Memory clear failed");
+    setStatus("Memory clear failed", true);
+  }
 }
 
 document.addEventListener("click", async (e)=>{
@@ -3431,10 +3396,16 @@ if (e.target.classList.contains("load-set")) {
     if (!confirm("Delete this question set?"))
       return;
 
-    await sb
-      .from("draft_exams")
-      .delete()
-      .eq("id", id);
+    try {
+      await invokeEdgeFunction("manage-drafts", {
+        action: "delete",
+        draftId: id
+      });
+    } catch (error) {
+      console.error(error);
+      alert(error.message || "Delete failed");
+      return;
+    }
 
     loadQuestionSets();
   }

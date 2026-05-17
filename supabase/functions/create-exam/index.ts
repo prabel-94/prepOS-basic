@@ -1,86 +1,303 @@
-import "@supabase/functions-js/edge-runtime.d.ts"
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type"
 }
 
-Deno.serve(async (req) => {
+serve(async (req) => {
+
+  // -----------------------------------
+  // CORS
+  // -----------------------------------
+
+  if (req.method === "OPTIONS") {
+    return new Response("ok", {
+      headers: corsHeaders
+    })
+  }
+
+  if (req.method !== "POST") {
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: "Method not allowed"
+      }),
+      {
+        status: 405,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json"
+        }
+      }
+    )
+  }
+
   try {
-    if (req.method === "OPTIONS") {
-      return new Response("ok", { headers: corsHeaders })
+
+    // -----------------------------------
+    // AUTH HEADER
+    // -----------------------------------
+
+    const authHeader =
+      req.headers.get("Authorization") || ""
+
+    // -----------------------------------
+    // SUPABASE CLIENT
+    // -----------------------------------
+
+    const supabase = createClient(
+  Deno.env.get("SUPABASE_URL")!,
+  Deno.env.get("SUPABASE_ANON_KEY")!,
+      {
+        global: {
+          headers: {
+            Authorization: authHeader
+          }
+        }
+      }
+    )
+
+    // -----------------------------------
+    // VERIFY USER
+    // -----------------------------------
+
+    const {
+      data: { user },
+      error: userError
+    } = await supabase.auth.getUser()
+
+    if (userError || !user) {
+
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Unauthorized"
+        }),
+        {
+          status: 401,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json"
+          }
+        }
+      )
+
     }
 
-    const body = await req.json().catch(() => null)
+    const { data: profile, error: profileError } = await supabase
+      .from("users")
+      .select("role")
+      .eq("id", user.id)
+      .single()
 
-    if (!body || !Array.isArray(body.questions)) {
-      return new Response(JSON.stringify({ error: "Invalid request body" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 400,
-      })
+    if (profileError || !profile) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "User profile not found"
+        }),
+        {
+          status: 403,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json"
+          }
+        }
+      )
     }
 
-    const projectUrl = Deno.env.get("PROJECT_URL") || Deno.env.get("SUPABASE_URL")
-    const serviceRoleKey = Deno.env.get("SERVICE_ROLE_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")
-
-    if (!projectUrl || !serviceRoleKey) {
-      return new Response(JSON.stringify({ error: "Server misconfiguration: missing Supabase env vars" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 500,
-      })
+    if (profile.role !== "teacher" && profile.role !== "admin") {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Only teachers and admins can create drafts"
+        }),
+        {
+          status: 403,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json"
+          }
+        }
+      )
     }
 
-    const supabase = createClient(projectUrl, serviceRoleKey)
-    const { title = "Untitled Exam", questions, duration = 30, instructions = "" } = body
+    // -----------------------------------
+    // PARSE BODY
+    // -----------------------------------
+
+    const body = await req.json()
+
+    const {
+      title,
+      instructions,
+      duration,
+      questions
+    } = body
+
+    // -----------------------------------
+    // VALIDATION
+    // -----------------------------------
+
+    if (!Array.isArray(questions) || !questions.length) {
+
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Questions array required"
+        }),
+        {
+          status: 400,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json"
+          }
+        }
+      )
+
+    }
+
+    // -----------------------------------
+    // NORMALIZE QUESTIONS
+    // -----------------------------------
+
+    const normalizedQuestions = questions.map((q, index) => {
+
+      const options = Array.isArray(q.options)
+        ? q.options.map((opt: any, oi: number) => {
+
+            if (typeof opt === "string") {
+
+              return {
+                id: ["A", "B", "C", "D"][oi],
+                text: opt
+              }
+
+            }
+
+            return {
+              id: opt.id || ["A", "B", "C", "D"][oi],
+              text: opt.text || ""
+            }
+
+          })
+        : []
+
+      let correct = q.correct || "A"
+
+      // convert numeric index → letter
+      if (typeof correct === "number") {
+        correct = ["A", "B", "C", "D"][correct] || "A"
+      }
+
+      return {
+        id: q.id || crypto.randomUUID(),
+        text: q.text || "",
+        options,
+        correct,
+        explanation: q.explanation || "",
+        topics: Array.isArray(q.topics)
+          ? q.topics
+          : []
+      }
+
+    })
+
+    // -----------------------------------
+    // BUILD SCHEMA
+    // -----------------------------------
 
     const schema = {
       sections: [
         {
           title: "Section 1",
-          questions,
+          questions: normalizedQuestions
         }
       ]
     }
 
+    // -----------------------------------
+    // INSERT DRAFT
+    // -----------------------------------
+
     const { data, error } = await supabase
       .from("draft_exams")
       .insert({
-        title,
-        instructions,
-        duration,
+        title: title || "Untitled Exam",
+        instructions: instructions || "",
+        duration: duration || 30,
         schema_json: schema,
-        status: "draft"
+        status: "draft",
+        created_by: user.id
       })
       .select()
       .single()
 
+    // -----------------------------------
+    // ERROR HANDLING
+    // -----------------------------------
+
     if (error) {
-      return new Response(JSON.stringify({ error: error.message }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 400,
-      })
+
+      console.error("CREATE DRAFT ERROR:", error)
+
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error
+        }),
+        {
+          status: 400,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json"
+          }
+        }
+      )
+
     }
 
-    const siteUrl = Deno.env.get("SITE_URL")?.replace(/\/$/, "")
+    // -----------------------------------
+    // SUCCESS
+    // -----------------------------------
 
-    const responseBody: Record<string, unknown> = {
-      success: true,
-      draftId: data.id,
-    }
+    return new Response(
+      JSON.stringify({
+        success: true,
+        draft_id: data.id,
+        draft: data
+      }),
+      {
+        status: 200,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json"
+        }
+      }
+    )
 
-    if (siteUrl) {
-      responseBody.draftLink = `${siteUrl}/draft.html?id=${data.id}`
-    }
+  } catch (err) {
 
-    return new Response(JSON.stringify(responseBody), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    })
-  } catch (error) {
-    console.error("Create exam function error", error)
-    return new Response(JSON.stringify({ error: "Internal server error" }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 500,
-    })
+    console.error("EDGE FUNCTION ERROR:", err)
+    const message = err instanceof Error ? err.message : "Unknown error"
+
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: message
+      }),
+      {
+        status: 500,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json"
+        }
+      }
+    )
+
   }
+
 })
