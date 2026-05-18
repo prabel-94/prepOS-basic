@@ -1,50 +1,52 @@
 /* ========================================
 PrepOS Supabase Configuration
-Safe for multi-page applications
+Singleton-safe for multi-page apps
 ======================================== */
 
-/* Supabase project credentials */
-
+/* ========================================
+PROJECT CREDENTIALS
+======================================== */
 const SUPABASE_URL = "https://bcqjfosxneuyoyuzhdiq.supabase.co"
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJjcWpmb3N4bmV1eW95dXpoZGlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE5NDI2OTIsImV4cCI6MjA4NzUxODY5Mn0.mPvlN_JEov6cxCXjMlARrzd5zyFHPH131whlB1cQClA"
 
 /* ========================================
-Create Supabase client safely
+EXPOSE GLOBALS
 ======================================== */
 
-/*
-We only create the client if it does not
-already exist. This prevents duplicate
-client creation when pages reload scripts.
-*/
+window.SUPABASE_URL =
+  SUPABASE_URL
 
-if(!window.supabaseClient){
-
-window.supabaseClient = (window.supabase || supabase).createClient(
-  SUPABASE_URL,
+window.SUPABASE_ANON_KEY =
   SUPABASE_ANON_KEY
-);
+
+/* ========================================
+CREATE SINGLETON CLIENT
+======================================== */
+
+if (!window.supabaseClient) {
+
+  window.supabaseClient =
+    (window.supabase || supabase)
+      .createClient(
+        SUPABASE_URL,
+        SUPABASE_ANON_KEY,
+        {
+          auth: {
+            persistSession: true,
+            autoRefreshToken: true,
+            detectSessionInUrl: true
+          }
+        }
+      )
 
 }
 
-/* global shortcut */
-window.sb = window.supabaseClient;
-
 /* ========================================
-Expose credentials if needed
+GLOBAL SHORTCUT
 ======================================== */
 
-window.supabaseClient = (window.supabase || supabase).createClient(
-  SUPABASE_URL,
-  SUPABASE_ANON_KEY,
-  {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true
-    }
-  }
-);
+window.sb =
+  window.supabaseClient
 
 
 
