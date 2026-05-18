@@ -494,11 +494,38 @@ async function deleteGroup(card) {
   if (!confirm("Delete this group?")) return;
 
   if (group.original_group_id) {
-    await sb
-      .from("lexicon_entries")
-      .delete()
-      .eq("group_id", group.original_group_id);
-  }
+
+  // ========================================
+  // DELETE RELATIONS
+  // ========================================
+
+  await sb
+    .from("lexicon_group_relations")
+    .delete()
+    .or(`
+      group_id_1.eq.${group.original_group_id},
+      group_id_2.eq.${group.original_group_id}
+    `);
+
+  // ========================================
+  // DELETE ENTRIES
+  // ========================================
+
+  await sb
+    .from("lexicon_entries")
+    .delete()
+    .eq("group_id", group.original_group_id);
+
+  // ========================================
+  // DELETE GROUP
+  // ========================================
+
+  await sb
+    .from("lexicon_groups")
+    .delete()
+    .eq("id", group.original_group_id);
+
+}
 
   const removeIndex = index !== -1 ? index : groups.indexOf(group);
   if (removeIndex !== -1) {
