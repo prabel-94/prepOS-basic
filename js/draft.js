@@ -3296,7 +3296,24 @@ document.addEventListener("DOMContentLoaded", () => {
 
 });
 
-init();
+(async () => {
+
+  await requireAuth();
+
+  const {
+    data: { session }
+  } = await sb.auth.getSession();
+
+  console.log("AUTH READY:", !!session);
+
+  if (!session) {
+    window.location.href = "login.html";
+    return;
+  }
+
+  await init();
+
+})();
 
 // ========================================
 // GLOBAL DROPDOWN CLOSE HANDLER (SINGLE SOURCE)
