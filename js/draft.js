@@ -24,8 +24,39 @@ let selectedStudents = [];
 let currentExamId = null;
 let studentSearchTimer = null;
 
+async function getAccessToken() {
+  const { data: sessionData, error: sessionError } = await sb.auth.getSession();
+
+  if (sessionError || !sessionData?.session?.access_token) {
+    throw new Error("Your session expired. Please sign in again.");
+  }
+
+  let accessToken = sessionData.session.access_token;
+  const expiresAt = sessionData.session.expires_at ?? 0;
+  const now = Math.floor(Date.now() / 1000);
+
+  if (expiresAt <= now + 60) {
+    const { data: refreshed, error: refreshError } = await sb.auth.refreshSession();
+
+    if (refreshError || !refreshed.session?.access_token) {
+      throw new Error("Your session expired. Please sign in again.");
+    }
+
+    accessToken = refreshed.session.access_token;
+  }
+
+  return accessToken;
+}
+
 async function invokeEdgeFunction(name, body) {
-  const { data, error } = await sb.functions.invoke(name, { body });
+  const accessToken = await getAccessToken();
+
+  const { data, error } = await sb.functions.invoke(name, {
+    body,
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
 
   if (error) {
     let message = error.message || `${name} failed`;

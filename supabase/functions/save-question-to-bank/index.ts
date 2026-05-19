@@ -22,29 +22,41 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const projectUrl = Deno.env.get("PROJECT_URL") || Deno.env.get("SUPABASE_URL")
-    const serviceRoleKey = Deno.env.get("SERVICE_ROLE_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")
+    const serviceRoleKey =
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SERVICE_ROLE_KEY")
 
-    if (!projectUrl || !serviceRoleKey) {
+    if (!supabaseUrl || !anonKey || !serviceRoleKey) {
       return jsonResponse({ error: "Server misconfiguration" }, 500)
     }
 
     const authHeader = req.headers.get("Authorization") || ""
-    const token = authHeader.replace(/^Bearer\s+/i, "")
 
-    if (!token) {
+    if (!authHeader) {
       return jsonResponse({ error: "Missing authorization token" }, 401)
     }
 
-    const supabase = createClient(projectUrl, serviceRoleKey)
-    const { data: userData, error: userError } = await supabase.auth.getUser(token)
-    const user = userData?.user
+    const userClient = createClient(supabaseUrl, anonKey, {
+      global: {
+        headers: {
+          Authorization: authHeader,
+        },
+      },
+    })
+
+    const {
+      data: { user },
+      error: userError,
+    } = await userClient.auth.getUser()
 
     if (userError || !user) {
       return jsonResponse({ error: "Invalid session" }, 401)
     }
 
-    const { data: profile, error: profileError } = await supabase
+    const adminClient = createClient(supabaseUrl, serviceRoleKey)
+
+    const { data: profile, error: profileError } = await adminClient
       .from("users")
       .select("role")
       .eq("id", user.id)
@@ -65,7 +77,7 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Question payload is required" }, 400)
     }
 
-    const { data, error } = await supabase.rpc("save_question_to_bank", {
+    const { data, error } = await adminClient.rpc("save_question_to_bank", {
       p_actor_id: user.id,
       p_payload: question,
     })
