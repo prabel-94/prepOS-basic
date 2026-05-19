@@ -2,14 +2,19 @@
 // PrepOS Auth Guard
 // ===============================
 
-async function requireAuth(){
+async function requireAuth() {
 
-  const { data } = await sb.auth.getSession()
+  const {
+    data: { user },
+    error
+  } = await sb.auth.getUser();
 
-  if(!data.session){
-    window.location.href = "login.html"
+  if (error || !user) {
+    window.location.href = "login.html";
+    return false;
   }
 
+  return true;
 }
 
 async function getCurrentUser(){
