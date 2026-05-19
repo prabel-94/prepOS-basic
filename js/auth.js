@@ -2,19 +2,19 @@
 // PrepOS Auth Guard
 // ===============================
 
-async function requireAuth() {
+async function requireAuth(){
 
   const {
     data: { user },
     error
-  } = await sb.auth.getUser();
+  } = await sb.auth.getUser()
 
-  if (error || !user) {
-    window.location.href = "login.html";
-    return false;
+  if(error || !user){
+    window.location.href = "login.html"
+    return false
   }
 
-  return true;
+  return true
 }
 
 async function getCurrentUser(){
@@ -41,3 +41,11 @@ async function getUserRole(){
   return data.role
 
 }
+
+// ====================================
+// EXPOSE GLOBALS
+// ====================================
+
+window.requireAuth = requireAuth
+window.getCurrentUser = getCurrentUser
+window.getUserRole = getUserRole
