@@ -48,9 +48,50 @@
 
 </div>
 
-<script src="js/config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js?v=20260520"></script>
+<script type="module" src="js/auth.js"></script>
 
 <script>
+
+let sb = null;
+
+let currentUser = null;
+let currentRole = null;
+
+/* =========================
+AUTH
+========================= */
+
+async function requireTeacherAccess(){
+  const { data: userData } = await sb.auth.getUser();
+  const user = userData?.user;
+
+  if(!user){
+    location.href = "login.html";
+    return false;
+  }
+
+  const { data, error } = await sb
+    .from("users")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  if(error || !data){
+    location.href = "login.html";
+    return false;
+  }
+
+  if(data.role !== "teacher" && data.role !== "admin"){
+    location.href = "login.html";
+    return false;
+  }
+
+  currentUser = user;
+  currentRole = data.role;
+  return true;
+}
 
 /* =========================
 NORMALIZATION
@@ -78,52 +119,93 @@ function normalizeResponse(r){
 
 let currentResponses = [];
 let currentSort = "latest";
+let resultsListenersAttached = false;
 
 /* =========================
-LOAD EXAMS
+LOAD EXAMS (session JWT via supabase client)
 ========================= */
 
 async function loadExams(){
 
-  const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/exam_sessions?select=id,title&order=created_at.desc`,
-    {
-      headers:{
-        apikey:SUPABASE_ANON_KEY,
-        Authorization:`Bearer ${SUPABASE_ANON_KEY}`
-      }
-    }
-  );
-
-  if(!res.ok){
-    document.getElementById("results").innerText="Failed to load exams";
-    return;
-  }
-
-  const data = await res.json();
+  const resultsEl = document.getElementById("results");
   const select = document.getElementById("examSelect");
 
-  select.innerHTML="";
+  try{
 
-  data.forEach(e=>{
-    const opt=document.createElement("option");
-    opt.value=e.id;
-    opt.textContent=e.title;
-    select.appendChild(opt);
-  });
+    let query = sb
+      .from("exam_sessions")
+      .select("id,title,created_at")
+      .order("created_at", { ascending: false });
 
-  if(data.length){
-    loadResponses(data[0].id);
+    if(currentRole !== "admin"){
+      query = query.eq("created_by", currentUser.id);
+    }
+
+    const { data, error } = await query;
+
+    if(error){
+      throw error;
+    }
+
+    const exams = data || [];
+
+    console.log("[PrepOS Results] exams loaded:", {
+      role: currentRole,
+      count: exams.length,
+      userId: currentUser?.id
+    });
+
+    select.innerHTML="";
+
+    if(!exams.length){
+      if(resultsEl){
+        resultsEl.innerHTML =
+          "<div class='empty-state'>No published exams found for your account</div>";
+      }
+      return;
+    }
+
+    exams.forEach(e=>{
+      const opt=document.createElement("option");
+      opt.value=e.id;
+      opt.textContent=e.title || "Untitled Exam";
+      select.appendChild(opt);
+    });
+
+    const preselected =
+      localStorage.getItem("results_exam") ||
+      exams[0].id;
+
+    if(localStorage.getItem("results_exam")){
+      localStorage.removeItem("results_exam");
+    }
+
+    if(exams.some(e => e.id === preselected)){
+      select.value = preselected;
+    }
+
+    await loadResponses(select.value);
+
+    if(!resultsListenersAttached){
+      select.addEventListener("change", e=>{
+        loadResponses(e.target.value);
+      });
+
+      document.getElementById("sortSelect").addEventListener("change", e=>{
+        currentSort = e.target.value;
+        render(currentResponses);
+      });
+
+      resultsListenersAttached = true;
+    }
+
+  }catch(err){
+    console.error("Failed to load exams:", err);
+    if(resultsEl){
+      resultsEl.innerHTML =
+        "<div class='empty-state'>Failed to load exams. Sign in as the teacher who published this exam.</div>";
+    }
   }
-
-  select.addEventListener("change", e=>{
-    loadResponses(e.target.value);
-  });
-
-  document.getElementById("sortSelect").addEventListener("change", e=>{
-    currentSort = e.target.value;
-    render(currentResponses);
-  });
 
 }
 
@@ -133,28 +215,45 @@ LOAD RESPONSES
 
 async function loadResponses(examId){
 
-  const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/exam_attempts?exam_id=eq.${examId}&select=*&order=submitted_at.desc`,
-    {
-      headers:{
-        apikey:SUPABASE_ANON_KEY,
-        Authorization:`Bearer ${SUPABASE_ANON_KEY}`
-      }
-    }
-  );
+  const resultsEl = document.getElementById("results");
 
-  if(!res.ok){
-    console.error("Failed to load responses", res.status);
+  if(!examId){
+    if(resultsEl){
+      resultsEl.innerHTML = "<div class='empty-state'>Select an exam</div>";
+    }
     return;
   }
 
-  const data = await res.json();
+  if(resultsEl){
+    resultsEl.innerHTML = "Loading…";
+  }
 
-  currentResponses = Array.isArray(data)
-    ? data.map(normalizeResponse)
-    : [];
+  try{
 
-  render(currentResponses);
+    const { data, error } = await sb
+      .from("exam_attempts")
+      .select("*")
+      .eq("exam_id", examId)
+      .order("submitted_at", { ascending: false });
+
+    if(error){
+      throw error;
+    }
+
+    currentResponses = Array.isArray(data)
+      ? data.map(normalizeResponse)
+      : [];
+
+    render(currentResponses);
+
+  }catch(err){
+    console.error("Failed to load responses:", err);
+    if(resultsEl){
+      resultsEl.innerHTML =
+        "<div class='empty-state'>Failed to load attempts for this exam</div>";
+    }
+  }
+
 }
 
 /* =========================
@@ -333,7 +432,25 @@ function exportCSV(){
 INIT
 ========================= */
 
-loadExams();
+async function initResultsViewer(){
+
+  try{
+    const { getClient } = await import("./js/core/get-client.js");
+    sb = await getClient();
+  }catch(err){
+    console.error(err);
+    document.getElementById("results").innerHTML =
+      "<div class='empty-state'>PrepOS could not load Supabase. Hard refresh (Ctrl+Shift+R) and try again.</div>";
+    return;
+  }
+
+  const allowed = await requireTeacherAccess();
+  if(!allowed) return;
+
+  await loadExams();
+}
+
+document.addEventListener("DOMContentLoaded", initResultsViewer);
 
 </script>
 

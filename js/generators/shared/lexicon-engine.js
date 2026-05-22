@@ -1,4 +1,4 @@
-const sb = window.supabaseClient;
+import { getClient } from "../../core/get-client.js";
 
 /* =========================================
 FETCH GROUPS
@@ -6,6 +6,7 @@ FETCH GROUPS
 
 export async function fetchGroups(languageCode) {
 
+  const sb = await getClient();
   const { data, error } = await sb
     .from("lexicon_entries")
     .select(`

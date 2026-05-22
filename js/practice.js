@@ -1,6 +1,5 @@
 import { runGenerator } from "./generator-core.js";
-
-const sb = window.supabaseClient;
+import { getClient } from "./core/get-client.js";
 
 const subjectSelect = document.getElementById("subjectSelect");
 const patternSelect = document.getElementById("patternSelect");
@@ -41,6 +40,8 @@ Init
 ========================================= */
 
 async function init() {
+  const sb = await getClient();
+
   if (typeof requireAuth === "function") {
     await requireAuth();
   }
@@ -224,6 +225,7 @@ function normalizeBankQuestion(row) {
 }
 
 async function loadBankTopics() {
+  const sb = await getClient();
   const { data, error } = await sb
     .from("question_topics")
     .select(`
@@ -266,6 +268,7 @@ async function loadBankTopics() {
 }
 
 async function loadBankQuestions() {
+  const sb = await getClient();
   let data;
   let error;
 
@@ -566,6 +569,7 @@ async function updateStats(isCorrect) {
     return;
   }
 
+  const sb = await getClient();
   const { data: existingRows, error: selectError } = await sb
     .from("user_lexicon_word_stats")
     .select("word_id, seen_count, wrong_count")
