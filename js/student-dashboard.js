@@ -87,22 +87,18 @@ async function loadAvailableExams(){
       throw new Error("User not authenticated")
     }
 
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/exam_assignments?select=exam_sessions(id,title,created_at)&student_id=eq.${encodeURIComponent(user.id)}`,
-      {
-        headers:{
-          apikey: SUPABASE_ANON_KEY,
-          Authorization:`Bearer ${SUPABASE_ANON_KEY}`
-        }
-      }
-    )
+    const { data, error } = await sb
+      .from("exam_assignments")
+      .select(`
+        exam_sessions ( id, title, created_at )
+      `)
+      .eq("student_id", user.id)
 
-    if(!res.ok){
-      throw new Error("Failed to load exams")
+    if (error) {
+      throw error
     }
 
-    const data = await res.json()
-    const exams = data
+    const exams = (data || [])
       .map(assignment => assignment.exam_sessions)
       .filter(Boolean)
 
@@ -155,21 +151,20 @@ async function loadRecentAttempts(){
     const { data: userData } = await sb.auth.getUser()
     const user = userData.user
 
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/exam_attempts?select=id,score,exam_id,submitted_at&student_id=eq.${user.id}&order=submitted_at.desc&limit=5`,
-      {
-        headers:{
-          apikey: SUPABASE_ANON_KEY,
-          Authorization:`Bearer ${SUPABASE_ANON_KEY}`
-        }
-      }
-    )
+    const { data, error } = await sb
+      .from("exam_attempts")
+      .select("id, score, exam_id, submitted_at")
+      .eq("student_id", user.id)
+      .order("submitted_at", { ascending: false })
+      .limit(5)
 
-    const data = await res.json()
+    if (error) {
+      throw error
+    }
 
     container.innerHTML=""
 
-    if(!data.length){
+    if(!data?.length){
       container.innerHTML="<div class='empty-state'>No attempts yet</div>"
       return
     }
@@ -211,19 +206,16 @@ async function loadPerformance(){
     const { data: userData } = await sb.auth.getUser()
     const user = userData.user
 
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/exam_attempts?select=score&student_id=eq.${user.id}`,
-      {
-        headers:{
-          apikey: SUPABASE_ANON_KEY,
-          Authorization:`Bearer ${SUPABASE_ANON_KEY}`
-        }
-      }
-    )
+    const { data, error } = await sb
+      .from("exam_attempts")
+      .select("score")
+      .eq("student_id", user.id)
 
-    const data = await res.json()
+    if (error) {
+      throw error
+    }
 
-    if(!data.length){
+    if(!data?.length){
       container.innerHTML="No data yet"
       return
     }
