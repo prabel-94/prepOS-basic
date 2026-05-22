@@ -4,8 +4,6 @@
 
 import { getClient } from "./core/get-client.js";
 
-let sb;
-
 function escapeHTML(value){
   return String(value ?? "")
     .replace(/&/g,"&amp;")
@@ -18,6 +16,7 @@ function escapeHTML(value){
 
 async function requireStudentAccess(){
 
+  const sb = await getClient()
   const { data: userData } = await sb.auth.getUser()
   const user = userData?.user
 
@@ -72,6 +71,7 @@ AVAILABLE EXAMS
 
 async function loadAvailableExams(){
 
+  const sb = await getClient()
   const container = document.getElementById("availableExams")
   if (!container) {
   console.error("availableExams container missing");
@@ -147,6 +147,7 @@ RECENT ATTEMPTS
 
 async function loadRecentAttempts(){
 
+  const sb = await getClient()
   const container = document.getElementById("recentAttempts")
 
   try{
@@ -202,6 +203,7 @@ PERFORMANCE
 
 async function loadPerformance(){
 
+  const sb = await getClient()
   const container = document.getElementById("performanceBox")
 
   try{
@@ -245,8 +247,6 @@ INIT
 ========================= */
 
 async function initStudent(){
-
-  sb = await getClient();
 
   await requireAuth()
   await requireStudentAccess()

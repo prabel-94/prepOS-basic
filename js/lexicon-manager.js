@@ -4,8 +4,6 @@ PrepOS Lexicon Manager (v2 - Correct Architecture)
 
 import { getClient } from "./core/get-client.js";
 
-let sb;
-
 /* =========================================
 STATE
 ========================================= */
@@ -325,6 +323,7 @@ LOAD
 
 async function loadGroups() {
 
+  const sb = await getClient()
   setStatus("Loading groups...");
 
   const { data, error } = await sb
@@ -397,6 +396,7 @@ SAVE GROUP
 ========================================= */
 async function saveGroup(card) {
 
+  const sb = await getClient()
   const group = syncGroup(card);
 
   if (!group.words.length) {
@@ -479,6 +479,7 @@ DELETE GROUP
 
 async function deleteGroup(card) {
 
+  const sb = await getClient()
   const groups = getCurrentGroups();
   const groupId = card.dataset.groupId;
   let index = groupId
@@ -700,7 +701,6 @@ async function linkOpposite() {
 INIT
 ========================================= */
 async function init() {
-  sb = await getClient();
   state.sessionGroups = [];
   renderGroups();
   setStatus("Start adding new word groups");

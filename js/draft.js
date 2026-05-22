@@ -37,7 +37,7 @@ async function debugSessionContext(label, { sessionData, sessionError, userData,
     userId: session?.user?.id ?? userData?.user?.id ?? null,
     sessionError: sessionError?.message ?? null,
     userError: userError?.message ?? null,
-    clientReady: Boolean(window.supabaseClient)
+    clientReady: Boolean(sb)
   });
 }
 
@@ -256,6 +256,8 @@ function renderCAEventDropdown(container, query) {
 
 async function loadPatternDefinitions() {
 
+  const sb = await getClient()
+
   const { data, error } = await sb
     .from("metadata_definitions")
     .select("key, description")
@@ -269,6 +271,8 @@ async function loadPatternDefinitions() {
   patternDefinitions = data || [];
 }
 async function loadCAEventDefinitions() {
+
+  const sb = await getClient()
 
   const { data, error } = await sb
     .from("metadata_definitions")
@@ -499,6 +503,8 @@ async function searchQuestionBank(query) {
 // --------------------------------
 async function addQuestionFromBank(qId, btn) {
 
+  const sb = await getClient()
+
   const { data, error } = await sb
     .from("questions")
     .select("*")
@@ -727,6 +733,8 @@ async function searchTopics(query) {
 
 async function searchTopicsForDropdown(query) {
 
+  const sb = await getClient()
+
   if (!query) return [];
 
   const { data, error } = await sb
@@ -777,6 +785,8 @@ function removeTopic(qIndex, topicIndex) {
 // --------------------------------
 
 async function resolveTopicIds(topicNames = []) {
+
+  const sb = await getClient()
 
   if (!topicNames.length) return [];
 
@@ -845,6 +855,8 @@ async function resolveTopicIds(topicNames = []) {
 
 async function attachTopics(questionId, topicIds = []) {
 
+  const sb = await getClient()
+
   if (!questionId) {
     throw new Error("Missing questionId");
   }
@@ -910,6 +922,8 @@ async function saveQuestionToBank(q) {
 // --------------------------------
 async function updateTopicPatterns(questionId, patternKey) {
 
+  const sb = await getClient()
+
   if (!patternKey) return;
 
   const { data } = await sb
@@ -930,6 +944,8 @@ async function updateTopicPatterns(questionId, patternKey) {
 }
 
 async function replacePatternMetadata(questionId, patternKey) {
+
+  const sb = await getClient()
 
   await sb
     .from("question_metadata")
@@ -955,6 +971,8 @@ async function replacePatternMetadata(questionId, patternKey) {
     .eq("id", questionId);
 }
 async function replaceQuestionMetadata(questionId, q) {
+
+  const sb = await getClient()
 
   // ✅ ALWAYS sync first
   syncDifficultyToMeta(q);
@@ -2544,7 +2562,6 @@ async function uploadLogo(file) {
 // INIT
 // --------------------------------
 async function init() {
-  const sb = await getClient()
 
   await loadPatternDefinitions();
 await loadCAEventDefinitions();
@@ -2666,6 +2683,8 @@ const exactMatch = topics.some(
 
 document.getElementById("topicDropdown")
   ?.addEventListener("click", async (e) => {
+
+  const sb = await getClient()
 
   if (!e.target.classList.contains("topic-option")) return;
 
@@ -3145,6 +3164,8 @@ document.addEventListener("click", (e) => {
 // ===============================
 async function saveAsQuestionSetDeprecated() {
 
+  const sb = await getClient()
+
   if (!draftId) {
     await saveDraft(true);
   }
@@ -3169,6 +3190,8 @@ async function saveAsQuestionSetDeprecated() {
 // LOAD QUESTION SETS
 // ===============================
 async function loadQuestionSets() {
+
+  const sb = await getClient()
 
   const panel = document.getElementById("questionSetPanel");
   const list = document.getElementById("questionSetList");
@@ -3277,6 +3300,8 @@ document
 .getElementById("confirmLoadSet")
 ?.addEventListener("click", async () => {
 
+  const sb = await getClient()
+
   if (!pendingSetLoadId) return;
 
   const mode = document.querySelector(
@@ -3342,6 +3367,7 @@ document
 });
 
 async function saveAsQuestionSetSafe() {
+  const sb = await getClient()
   const name = prompt("Question Set Name:");
   if (!name?.trim()) return;
 
