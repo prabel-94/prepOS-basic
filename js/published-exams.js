@@ -4,8 +4,6 @@
 
 import { getClient } from "./core/get-client.js";
 
-let sb;
-
 let currentUser = null;
 let currentRole = null;
 let currentExams = [];
@@ -20,6 +18,7 @@ function escapeHTML(value){
 }
 
 async function requireTeacherAccess(){
+  const sb = await getClient()
   const { data: userData } = await sb.auth.getUser();
   const user = userData?.user;
 
@@ -95,6 +94,7 @@ function toggleCustomDateInputs(){
 }
 
 async function loadPublishedExams(){
+  const sb = await getClient()
   const list = document.getElementById("publishedExamList");
   const count = document.getElementById("examCount");
 
@@ -190,6 +190,7 @@ function renderExams(exams){
 }
 
 async function deletePublishedExam(examId){
+  const sb = await getClient()
   const exam = currentExams.find(item => item.id === examId);
   const title = exam?.title || "this exam";
 
@@ -248,8 +249,6 @@ function viewResults(examId){
 }
 
 async function initPublishedExams(){
-
-  sb = await getClient();
 
   await requireAuth();
   const allowed = await requireTeacherAccess();

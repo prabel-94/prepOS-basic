@@ -54,8 +54,6 @@
 
 <script>
 
-let sb = null;
-
 let currentUser = null;
 let currentRole = null;
 
@@ -64,6 +62,7 @@ AUTH
 ========================= */
 
 async function requireTeacherAccess(){
+  const sb = await (await import("./js/core/get-client.js")).getClient()
   const { data: userData } = await sb.auth.getUser();
   const user = userData?.user;
 
@@ -127,6 +126,7 @@ LOAD EXAMS (session JWT via supabase client)
 
 async function loadExams(){
 
+  const sb = await (await import("./js/core/get-client.js")).getClient()
   const resultsEl = document.getElementById("results");
   const select = document.getElementById("examSelect");
 
@@ -215,6 +215,7 @@ LOAD RESPONSES
 
 async function loadResponses(examId){
 
+  const sb = await (await import("./js/core/get-client.js")).getClient()
   const resultsEl = document.getElementById("results");
 
   if(!examId){
@@ -435,19 +436,15 @@ INIT
 async function initResultsViewer(){
 
   try{
-    const { getClient } = await import("./js/core/get-client.js");
-    sb = await getClient();
+    const allowed = await requireTeacherAccess();
+    if(!allowed) return;
+
+    await loadExams();
   }catch(err){
     console.error(err);
     document.getElementById("results").innerHTML =
       "<div class='empty-state'>PrepOS could not load Supabase. Hard refresh (Ctrl+Shift+R) and try again.</div>";
-    return;
   }
-
-  const allowed = await requireTeacherAccess();
-  if(!allowed) return;
-
-  await loadExams();
 }
 
 document.addEventListener("DOMContentLoaded", initResultsViewer);
