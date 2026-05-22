@@ -24,6 +24,8 @@ import {
   buildKnowledgeAnalytics
 } from "./knowledge-analytics.js";
 
+import { getClient } from "../core/get-client.js";
+
 
 
 const KNOWLEDGE_CACHE_KEY = "prepos_knowledge_analytics";
@@ -354,31 +356,31 @@ export function triggerExamSubmissionAnalytics(options = {}) {
  */
 export async function fetchPriorExamAttempts({
   examId,
-  supabaseUrl,
-  anonKey,
-  authToken = null,
-  limit = 100
+  limit = 100,
+  sb: client = null
 } = {}) {
 
-  if (!examId || !supabaseUrl || !anonKey) {
+  if (!examId) {
     return [];
   }
 
-  const headers = {
-    apikey: anonKey,
-    Authorization: `Bearer ${authToken ?? anonKey}`
-  };
+  const sb = client ?? await getClient();
 
-  const res = await fetch(
-    `${supabaseUrl}/rest/v1/exam_attempts?exam_id=eq.${examId}&select=id,exam_id,student_name,student_id,answers,score,time_taken,submitted_at&order=submitted_at.desc&limit=${limit}`,
-    { headers }
-  );
+  const { data, error } = await sb
+    .from("exam_attempts")
+    .select(
+      "id, exam_id, student_name, student_id, answers, score, time_taken, submitted_at"
+    )
+    .eq("exam_id", examId)
+    .order("submitted_at", { ascending: false })
+    .limit(limit);
 
-  if (!res.ok) {
+  if (error) {
+    console.warn("[PrepOS Analytics] Prior attempts fetch failed:", error);
     return [];
   }
 
-  return res.json();
+  return data ?? [];
 
 }
 
@@ -399,11 +401,7 @@ export async function runExamSubmissionAnalyticsWithHistory({
 
   sourceQuestions,
 
-  supabaseUrl,
-
-  anonKey,
-
-  authToken
+  sb: client = null
 
 } = {}) {
 
@@ -414,9 +412,7 @@ export async function runExamSubmissionAnalyticsWithHistory({
     priorAttempts =
       await fetchPriorExamAttempts({
         examId,
-        supabaseUrl,
-        anonKey,
-        authToken
+        sb: client
       });
 
     priorAttempts =

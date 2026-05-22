@@ -293,23 +293,19 @@ async function loadRecentExams(){
 
   try{
 
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/exam_sessions?select=id,title,created_at&order=created_at.desc&limit=5`,
-      {
-        headers:{
-          apikey: SUPABASE_ANON_KEY,
-          Authorization:`Bearer ${SUPABASE_ANON_KEY}`
-        }
-      }
-    )
+    const sb = await (await import("./js/core/get-client.js")).getClient()
 
-    if(!res.ok) throw new Error("Failed")
+    const { data, error } = await sb
+      .from("exam_sessions")
+      .select("id, title, created_at")
+      .order("created_at", { ascending: false })
+      .limit(5)
 
-    const data = await res.json()
+    if (error) throw error
 
     container.innerHTML=""
 
-    if(!data.length){
+    if(!data?.length){
       container.innerHTML="<div class='empty-state'>No exams yet</div>"
       return
     }
@@ -352,19 +348,17 @@ async function loadRecentDraft(){
 
   try{
 
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/draft_exams?select=id,title,updated_at&order=updated_at.desc&limit=1`,
-      {
-        headers:{
-          apikey: SUPABASE_ANON_KEY,
-          Authorization:`Bearer ${SUPABASE_ANON_KEY}`
-        }
-      }
-    )
+    const sb = await (await import("./js/core/get-client.js")).getClient()
 
-    const data = await res.json()
+    const { data, error } = await sb
+      .from("draft_exams")
+      .select("id, title, updated_at")
+      .order("updated_at", { ascending: false })
+      .limit(1)
 
-    if(!data.length){
+    if (error) throw error
+
+    if(!data?.length){
       container.innerHTML="<div class='empty-state'>No drafts yet</div>"
       return
     }

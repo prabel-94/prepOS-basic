@@ -523,40 +523,30 @@ try{
   const { data: userData } = await sb.auth.getUser()
   const user = userData?.user
 
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/exam_attempts`, {
-    method: "POST",
-    headers: {
-      apikey: SUPABASE_ANON_KEY,
-      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-      "Content-Type": "application/json",
-      Prefer: "return=minimal"
-    },
-    body: JSON.stringify({
-      exam_id: examId,
+  const {
+    error: attemptError
+  } = await sb
+    .from("exam_attempts")
+    .insert([
+      {
+        exam_id: examId,
+        device_id: getDeviceId(),
+        attempt_id: attemptId,
+        student_name: studentName,
+        student_id: user ? user.id : null,
+        answers,
+        score,
+        question_count: answers.length,
+        time_taken,
+        submitted_at: new Date().toISOString()
+      }
+    ])
 
-      // ✅ FIXED
-      device_id: getDeviceId(),   // persistent
-      attempt_id: attemptId,      // per attempt
-
-      student_name: studentName,
-
-      // ✅ already correct
-      student_id: user ? user.id : null,
-
-      answers,
-      score,
-      question_count: answers.length,
-      time_taken,
-      submitted_at: new Date().toISOString()
-    })
-  });
-
-
-    if (!res.ok) {
-      console.error("Failed to save attempt", res.status)
-      alert("Submission failed. Please try again.")
-      return
-    }
+  if (attemptError) {
+    console.error("Failed to save attempt", attemptError)
+    alert("Submission failed. Please try again.")
+    return
+  }
 
     /* ---------- lock ---------- */
     attemptState.status="submitted";
@@ -582,10 +572,7 @@ try{
         examTitle: window.examTitle || "Exam",
         attempt: attemptRecord,
         rawQuestions: window.examQuestionsRaw,
-        sourceQuestions: window.examQuestions || [],
-        supabaseUrl: SUPABASE_URL,
-        anonKey: SUPABASE_ANON_KEY,
-        authToken: SUPABASE_ANON_KEY
+        sourceQuestions: window.examQuestions || []
       }).catch(err => {
         console.warn(
           "[PrepOS Analytics] Submission analytics failed (non-fatal):",
