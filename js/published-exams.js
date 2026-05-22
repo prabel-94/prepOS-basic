@@ -2,7 +2,9 @@
 // PUBLISHED EXAMS MANAGEMENT
 // =========================
 
-const sb = window.supabaseClient;
+import { getClient } from "./core/get-client.js";
+
+let sb;
 
 let currentUser = null;
 let currentRole = null;
@@ -246,6 +248,9 @@ function viewResults(examId){
 }
 
 async function initPublishedExams(){
+
+  sb = await getClient();
+
   await requireAuth();
   const allowed = await requireTeacherAccess();
   if(!allowed) return;

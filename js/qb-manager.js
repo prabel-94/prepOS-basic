@@ -2,10 +2,12 @@
 // PrepOS QB Manager (v3 - Viewer Mode)
 // ===============================
 
+import { getClient } from "./core/get-client.js";
+
 // --------------------------------
 // INIT
 // --------------------------------
-const sb = window.supabaseClient;
+let sb;
 let selectedQuestionId = null;
 
 // --------------------------------
@@ -1438,6 +1440,7 @@ document.addEventListener("click", (e) => {
 // INIT
 // --------------------------------
 async function init() {
+  sb = await getClient();
   await loadPatternDefinitions();
   bindEvents();
   await fetchTopics();

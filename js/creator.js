@@ -3,6 +3,8 @@
 // creator.js
 // ==============================================
 
+import { getClient } from "./core/get-client.js";
+
 // ==============================================
 // CLEAN QUESTION TEXT
 // ==============================================
@@ -52,6 +54,8 @@ async function createDraft(
 ){
 
   try{
+
+    const sb = await getClient();
 
     // ------------------------------------------
     // SESSION
@@ -807,3 +811,7 @@ async function generate(){
     "parser-review.html";
 
 }
+
+window.createDraft = createDraft;
+window.cleanQCP = cleanQCP;
+window.generate = generate;

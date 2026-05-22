@@ -1,4 +1,6 @@
 import { TimerEngine } from "./timer.js";
+import { PREPOS_ANALYTICS_ENABLED } from "./analytics/analytics-config.js";
+import { getClient } from "./core/get-client.js";
 
 console.log("SCRIPT STARTED");
 
@@ -113,7 +115,7 @@ function normalizeQuestion(q){
   correct = String(correct || "").toUpperCase();
 
   return {
-    question_id: q.question_id || null,
+    question_id: q.question_id || q.id || null,
     text: q.text || q.question || q.question_text || "",
     options: (q.options || []).map(o =>
       typeof o === "string"
@@ -121,7 +123,9 @@ function normalizeQuestion(q){
         : o
     ),
     correct,
-    explanation: q.explanation || q.explanation_text || ""
+    explanation: q.explanation || q.explanation_text || "",
+    topics: Array.isArray(q.topics) ? q.topics : [],
+    bank_status: q.bank_status || null
   };
 
 }
@@ -200,8 +204,45 @@ if(!attemptState || attemptState.attemptId !== attemptId){
   localStorage.setItem(ATTEMPT_KEY, JSON.stringify(attemptState));
 }
 /* ======================================================
-   FETCH EXAM (Clean + Scalable)
+   FETCH EXAM (session-aware + public link fallback)
 ====================================================== */
+
+async function fetchExamSession(examId) {
+
+  const sb = await getClient();
+
+  const { data: sessionData } = await sb.auth.getSession();
+  const hasUserSession = Boolean(sessionData?.session?.access_token);
+
+  console.log("Exam fetch auth:", {
+    examId,
+    hasUserSession,
+    userId: sessionData?.session?.user?.id ?? null
+  });
+
+  const { data: exam, error } = await sb
+    .from("exam_sessions")
+    .select("*")
+    .eq("id", examId)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Exam fetch error:", error);
+    throw new Error(
+      error.message || `Server error loading exam`
+    );
+  }
+
+  if (!exam) {
+    const hint = hasUserSession
+      ? "This exam does not exist, or your account is not allowed to view it."
+      : "This exam does not exist, or the link requires you to sign in first.";
+
+    throw new Error(`Exam not found. ${hint}`);
+  }
+
+  return exam;
+}
 
 async function loadExam(){
 
@@ -210,30 +251,9 @@ async function loadExam(){
 
   try{
 
-    /* ---------- FETCH FROM SUPABASE ---------- */
+    const exam = await fetchExamSession(examId);
 
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/exam_sessions?id=eq.${examId}`,
-      {
-        headers:{
-          apikey: SUPABASE_ANON_KEY,
-          Authorization: `Bearer ${SUPABASE_ANON_KEY}`
-        }
-      }
-    );
-
-    if(!res.ok){
-      throw new Error(`Server error (${res.status})`);
-    }
-
-    const data = await res.json();
-    console.log("Exam fetch result:", data);
-
-    if(!data || !data.length){
-      throw new Error("Exam not found");
-    }
-
-    const exam = data[0];
+    console.log("Exam fetch result:", exam);
 
     /* ---------- BASIC EXAM INFO ---------- */
 
@@ -499,6 +519,7 @@ const selected =
 
 try{
 
+  const sb = await getClient();
   const { data: userData } = await sb.auth.getUser()
   const user = userData?.user
 
@@ -540,6 +561,38 @@ try{
     /* ---------- lock ---------- */
     attemptState.status="submitted";
     localStorage.setItem(ATTEMPT_KEY, JSON.stringify(attemptState));
+
+    /* ---------- analytics (disabled via analytics-config.js) ---------- */
+    if (PREPOS_ANALYTICS_ENABLED) {
+      const { runExamSubmissionAnalyticsWithHistory, buildAttemptRecord } =
+        await import("./analytics/analytics-submission.js");
+
+      const attemptRecord = buildAttemptRecord({
+        examId,
+        attemptId,
+        studentName,
+        studentId: user ? user.id : null,
+        answers,
+        score,
+        timeTaken: time_taken
+      });
+
+      runExamSubmissionAnalyticsWithHistory({
+        examId,
+        examTitle: window.examTitle || "Exam",
+        attempt: attemptRecord,
+        rawQuestions: window.examQuestionsRaw,
+        sourceQuestions: window.examQuestions || [],
+        supabaseUrl: SUPABASE_URL,
+        anonKey: SUPABASE_ANON_KEY,
+        authToken: SUPABASE_ANON_KEY
+      }).catch(err => {
+        console.warn(
+          "[PrepOS Analytics] Submission analytics failed (non-fatal):",
+          err
+        );
+      });
+    }
 
     /* ---------- clean up timer ---------- */
     localStorage.removeItem(TIMER_KEY);

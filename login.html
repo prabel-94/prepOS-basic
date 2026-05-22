@@ -36,7 +36,7 @@
 
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/config.js"></script>
+<script src="js/config.js?v=20260520"></script>
 
 <script>
 
@@ -56,6 +56,8 @@ async function login(){
     errorBox.innerText = "Enter email and password"
     return
   }
+
+  const sb = await (await import("./js/core/get-client.js")).getClient()
 
   const { data, error } = await sb.auth.signInWithPassword({
     email,
@@ -80,6 +82,8 @@ ROLE ROUTING
 ========================= */
 
 async function routeUser(userId){
+
+  const sb = await (await import("./js/core/get-client.js")).getClient()
 
   const { data, error } = await sb
     .from("users")

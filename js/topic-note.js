@@ -1,4 +1,4 @@
-const sb = window.supabaseClient;
+import { getClient } from "./core/get-client.js";
 
 const editor = document.getElementById("noteEditor");
 const suggestBox = document.getElementById("topicSuggest");
@@ -37,6 +37,7 @@ function getTopicId() {
 
 async function resolveTopicLinks(html) {
 
+    const sb = await getClient();
     const matches = html.match(/\[\[(.*?)\]\]/g);
 
     if (!matches) return html;
@@ -64,6 +65,7 @@ async function resolveTopicLinks(html) {
 
 async function loadTopic() {
 
+  const sb = await getClient();
   topicId = getTopicId();
 
   if (!topicId) return;
@@ -112,6 +114,7 @@ function serializeTopicLinks(html) {
 
 async function ensureTopicsExist(html) {
 
+  const sb = await getClient();
   const matches = html.match(/\[\[(.*?)\]\]/g);
   if (!matches) return;
 
@@ -142,6 +145,7 @@ async function saveNote() {
 
   if (!topicId) return;
 
+  const sb = await getClient();
   const rawHtml =
     serializeTopicLinks(editor.innerHTML);
 
@@ -261,6 +265,7 @@ if (text.includes("]]")) {
 
   const query = match[1].toLowerCase();
 
+  const sb = await getClient();
   const { data } = await sb
     .from("topics")
     .select("id,name")

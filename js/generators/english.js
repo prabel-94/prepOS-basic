@@ -2,8 +2,7 @@ import {
   fetchGroups,
   buildQuestion
 } from "./shared/lexicon-engine.js";
-
-const sb = window.supabaseClient;
+import { getClient } from "../core/get-client.js";
 const DEFAULT_ADAPTIVE_MODE = true;
 
 /* =========================================
@@ -42,6 +41,7 @@ Relations
 ========================================= */
 
 async function fetchOppositeRelations() {
+  const sb = await getClient();
   const { data, error } = await sb
     .from("lexicon_group_relations")
     .select("group_id_1, group_id_2, relation_type");
@@ -76,6 +76,7 @@ async function getUserWordStatsMap() {
   const userId = window.currentUser?.id;
   if (!userId) return {};
 
+  const sb = await getClient();
   const { data } = await sb
     .from("user_lexicon_word_stats")
     .select(`

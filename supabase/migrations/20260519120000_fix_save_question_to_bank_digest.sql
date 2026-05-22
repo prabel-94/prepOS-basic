@@ -1,25 +1,5 @@
--- Transactional question-bank save pipeline.
--- The whole operation runs inside one Postgres function call, so question
--- creation, topic linking, metadata writes, pattern links, and difficulty
--- cache updates commit or fail together.
-
-create extension if not exists pgcrypto;
-
-create unique index if not exists topics_normalized_name_uidx
-on public.topics (normalized_name);
-
-create unique index if not exists questions_question_hash_uidx
-on public.questions (question_hash)
-where question_hash is not null;
-
-create unique index if not exists question_topics_question_topic_uidx
-on public.question_topics (question_id, topic_id);
-
-create unique index if not exists question_metadata_question_key_uidx
-on public.question_metadata (question_id, key);
-
-create unique index if not exists topic_patterns_topic_pattern_uidx
-on public.topic_patterns (topic_id, pattern_key);
+-- pgcrypto lives in the extensions schema on hosted Supabase.
+-- save_question_to_bank used search_path = public only, so digest() was not found.
 
 create or replace function public.save_question_to_bank(
   p_actor_id uuid,

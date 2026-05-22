@@ -1,7 +1,7 @@
 // ===============================
 // PrepOS Draft Editor (v6 - Stable)
 // ===============================
-
+import { getClient } from "./core/get-client.js";
 import { runGenerator } from "./generator-core.js";
 // --------------------------------
 // GLOBAL STATE
@@ -18,16 +18,46 @@ let isPublishing = false;
 let currentDraft = null;
 let logoURL = null;
 
-const sb = window.supabaseClient;
-
 let selectedStudents = [];
 let currentExamId = null;
 let studentSearchTimer = null;
 
+async function debugSessionContext(label, { sessionData, sessionError, userData, userError } = {}) {
+  const sb = await getClient();
+  const session = sessionData?.session;
+  const now = Math.floor(Date.now() / 1000);
+  const expiresAt = session?.expires_at ?? null;
+
+  console.debug(`[PrepOS Session] ${label}`, {
+    hasSession: Boolean(session),
+    hasAccessToken: Boolean(session?.access_token),
+    expiresAt,
+    expiresInSec:
+      typeof expiresAt === "number" ? expiresAt - now : null,
+    userId: session?.user?.id ?? userData?.user?.id ?? null,
+    sessionError: sessionError?.message ?? null,
+    userError: userError?.message ?? null,
+    clientReady: Boolean(window.supabaseClient)
+  });
+}
+
 async function getAccessToken() {
+  const sb = await getClient()
   const { data: sessionData, error: sessionError } = await sb.auth.getSession();
 
+  debugSessionContext("getAccessToken:getSession", {
+    sessionData,
+    sessionError
+  });
+
   if (sessionError || !sessionData?.session?.access_token) {
+    const { data: userData, error: userError } = await sb.auth.getUser();
+    debugSessionContext("getAccessToken:before-session-expired-throw", {
+      sessionData,
+      sessionError,
+      userData,
+      userError
+    });
     throw new Error("Your session expired. Please sign in again.");
   }
 
@@ -38,7 +68,19 @@ async function getAccessToken() {
   if (expiresAt <= now + 60) {
     const { data: refreshed, error: refreshError } = await sb.auth.refreshSession();
 
+    debugSessionContext("getAccessToken:after-refresh", {
+      sessionData: refreshed,
+      sessionError: refreshError
+    });
+
     if (refreshError || !refreshed.session?.access_token) {
+      const { data: userData, error: userError } = await sb.auth.getUser();
+      debugSessionContext("getAccessToken:before-refresh-failed-throw", {
+        sessionData: refreshed,
+        sessionError: refreshError,
+        userData,
+        userError
+      });
       throw new Error("Your session expired. Please sign in again.");
     }
 
@@ -49,7 +91,28 @@ async function getAccessToken() {
 }
 
 async function invokeEdgeFunction(name, body) {
-  const accessToken = await getAccessToken();
+  const sb = await getClient()
+  console.debug("[PrepOS Session] invokeEdgeFunction:start", { name });
+
+  let accessToken;
+
+  try {
+    accessToken = await getAccessToken();
+  } catch (err) {
+    const { data: sessionData, error: sessionError } = await sb.auth.getSession();
+    const { data: userData, error: userError } = await sb.auth.getUser();
+    debugSessionContext("invokeEdgeFunction:before-throw", {
+      sessionData,
+      sessionError,
+      userData,
+      userError
+    });
+    console.debug("[PrepOS Session] invokeEdgeFunction:edge-call-skipped", {
+      name,
+      reason: err?.message ?? "no access token"
+    });
+    throw err;
+  }
 
   const { data, error } = await sb.functions.invoke(name, {
     body,
@@ -64,12 +127,39 @@ async function invokeEdgeFunction(name, body) {
     if (error.context instanceof Response) {
       const details = await error.context.clone().json().catch(() => null);
       message = details?.error || message;
+      console.debug("[PrepOS Session] invokeEdgeFunction:edge-error-body", {
+        name,
+        status: error.context.status,
+        details
+      });
+    }
+
+    if (/invalid session/i.test(message)) {
+      const { data: sessionData, error: sessionError } = await sb.auth.getSession();
+      const { data: userData, error: userError } = await sb.auth.getUser();
+      debugSessionContext("invokeEdgeFunction:invalid-session-response", {
+        sessionData,
+        sessionError,
+        userData,
+        userError
+      });
     }
 
     throw new Error(message);
   }
 
   if (data?.error) {
+    if (/invalid session/i.test(String(data.error))) {
+      const { data: sessionData, error: sessionError } = await sb.auth.getSession();
+      const { data: userData, error: userError } = await sb.auth.getUser();
+      debugSessionContext("invokeEdgeFunction:invalid-session-payload", {
+        sessionData,
+        sessionError,
+        userData,
+        userError
+      });
+    }
+
     throw new Error(data.error);
   }
 
@@ -387,6 +477,7 @@ function computeDifficulty({ cognitive, complexity, depth }) {
 // SEARCH QUESTION BANK
 // --------------------------------
 async function searchQuestionBank(query) {
+  const sb = await getClient()
 
   if (!query) return [];
 
@@ -622,6 +713,7 @@ const formatted = formatTopicName(clean);
 }
 
 async function searchTopics(query) {
+  const sb = await getClient()
   if (!query) return [];
 
   const { data } = await sb
@@ -787,6 +879,7 @@ async function attachTopics(questionId, topicIds = []) {
 // QUESTION BANK SAVE
 // --------------------------------
 async function saveQuestionToBank(q) {
+  const sb = await getClient()
 
   if (!q.topics || q.topics.length === 0) {
     throw new Error(
@@ -1077,6 +1170,7 @@ function createEmptyDraft() {
 // LOAD EXISTING DRAFT
 // --------------------------------
 async function loadDraft() {
+  const sb = await getClient()
   if (!draftId) return;
 
   setStatus("Loading...");
@@ -2133,6 +2227,7 @@ async function generateFromConfig(config) {
 // SAVE DRAFT (FIXED)
 // --------------------------------
 async function saveDraft(silent = false, options = {}) {
+  const sb = await getClient()
   if (!currentDraft) return;
   const shouldThrow = Boolean(options.throwOnError);
 
@@ -2259,6 +2354,7 @@ function validateDraftForPublish() {
 }
 
 async function publishDraft() {
+  const sb = await getClient()
   if (isPublishing) return;
 
   if (!draftId) {
@@ -2421,6 +2517,7 @@ async function assignSelected() {
 }
 
 async function uploadLogo(file) {
+  const sb = await getClient()
 
   const fileExt = file.name.split(".").pop();
   const fileName = `logo-${Date.now()}.${fileExt}`;
@@ -2447,6 +2544,7 @@ async function uploadLogo(file) {
 // INIT
 // --------------------------------
 async function init() {
+  const sb = await getClient()
 
   await loadPatternDefinitions();
 await loadCAEventDefinitions();
@@ -3330,6 +3428,8 @@ document.addEventListener("DOMContentLoaded", () => {
 (async () => {
 
   await requireAuth();
+
+  const sb = await getClient();
 
   const {
     data: { session }

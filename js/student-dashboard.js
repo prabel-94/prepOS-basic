@@ -2,7 +2,9 @@
 // STUDENT DASHBOARD
 // =========================
 
-const sb = window.supabaseClient;
+import { getClient } from "./core/get-client.js";
+
+let sb;
 
 function escapeHTML(value){
   return String(value ?? "")
@@ -243,6 +245,8 @@ INIT
 ========================= */
 
 async function initStudent(){
+
+  sb = await getClient();
 
   await requireAuth()
   await requireStudentAccess()

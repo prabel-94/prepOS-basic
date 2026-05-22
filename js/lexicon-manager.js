@@ -2,7 +2,9 @@
 PrepOS Lexicon Manager (v2 - Correct Architecture)
 ========================================= */
 
-const sb = window.supabaseClient;
+import { getClient } from "./core/get-client.js";
+
+let sb;
 
 /* =========================================
 STATE
@@ -697,7 +699,8 @@ async function linkOpposite() {
 /* =========================================
 INIT
 ========================================= */
-function init() {
+async function init() {
+  sb = await getClient();
   state.sessionGroups = [];
   renderGroups();
   setStatus("Start adding new word groups");

@@ -72,11 +72,11 @@ textarea{
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-<script src="js/config.js"></script>
+<script src="js/config.js?v=20260520"></script>
 
-<script src="js/auth.js"></script>
+<script type="module" src="js/auth.js"></script>
 
-<script src="js/creator.js"></script>
+<script type="module" src="js/creator.js"></script>
 
 <script>
 
@@ -545,6 +545,7 @@ async function createFromSelection(){
 
 (async () => {
 
+  const sb = await (await import("./js/core/get-client.js")).getClient()
   const { data } = await sb.auth.getSession();
 
   console.log("Parser Review Session:", data.session);
