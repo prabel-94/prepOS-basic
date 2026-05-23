@@ -14,9 +14,6 @@ function jsonResponse(body: Record<string, unknown>, status = 200) {
 
 Deno.serve(async (req) => {
 
-  // ===============================
-  // Preflight
-  // ===============================
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders })
   }
@@ -33,30 +30,41 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Missing draftId" }, 400)
     }
 
-    const authHeader = req.headers.get("Authorization") || ""
-    const token = authHeader.replace(/^Bearer\s+/i, "")
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")
 
-    if (!token) {
-      return jsonResponse({ error: "Missing authorization token" }, 401)
-    }
-
-    const projectUrl = Deno.env.get("PROJECT_URL") || Deno.env.get("SUPABASE_URL")
-    const serviceRoleKey = Deno.env.get("SERVICE_ROLE_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")
-
-    if (!projectUrl || !serviceRoleKey) {
+    if (!supabaseUrl || !anonKey || !serviceRoleKey) {
       return jsonResponse({ error: "Server misconfiguration" }, 500)
     }
 
-    const supabase = createClient(projectUrl, serviceRoleKey)
+    const authHeader = req.headers.get("Authorization") || ""
 
-    const { data: userData, error: userError } = await supabase.auth.getUser(token)
-    const user = userData?.user
+    if (!authHeader.startsWith("Bearer ")) {
+      return jsonResponse({ error: "Missing authorization token" }, 401)
+    }
+
+    const userClient = createClient(supabaseUrl, anonKey, {
+      global: {
+        headers: {
+          Authorization: authHeader,
+        },
+      },
+    })
+
+    const {
+      data: { user },
+      error: userError,
+    } = await userClient.auth.getUser()
 
     if (userError || !user) {
+      console.error("publish-draft auth failed:", userError?.message)
       return jsonResponse({ error: "Invalid session" }, 401)
     }
 
-    const { data: profile, error: profileError } = await supabase
+    const adminClient = createClient(supabaseUrl, serviceRoleKey)
+
+    const { data: profile, error: profileError } = await adminClient
       .from("users")
       .select("role")
       .eq("id", user.id)
@@ -70,10 +78,7 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Only teachers and admins can publish drafts" }, 403)
     }
 
-    // ===============================
-    // 1️⃣ Fetch draft
-    // ===============================
-    const { data: draft, error: fetchError } = await supabase
+    const { data: draft, error: fetchError } = await adminClient
       .from("draft_exams")
       .select("title, duration, schema_json, logo_url, created_by")
       .eq("id", draftId)
@@ -89,9 +94,6 @@ Deno.serve(async (req) => {
 
     const schema = draft.schema_json
 
-    // ===============================
-    // 2️⃣ Validation
-    // ===============================
     if (!draft.duration) {
       return jsonResponse({ error: "Duration missing" }, 400)
     }
@@ -128,17 +130,14 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "No questions" }, 400)
     }
 
-    // ===============================
-    // 3️⃣ Insert exam (immutable snapshot)
-    // ===============================
-    const { data: exam, error: examError } = await supabase
+    const { data: exam, error: examError } = await adminClient
       .from("exam_sessions")
       .insert({
         title: draft.title,
         duration: draft.duration,
         schema_json: draft.schema_json,
         logo_url: draft.logo_url,
-        created_by: draft.created_by || user.id
+        created_by: draft.created_by || user.id,
       })
       .select()
       .single()
@@ -147,14 +146,11 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: examError?.message || "Exam insert failed" }, 400)
     }
 
-    // ===============================
-    // 4️⃣ Lock draft
-    // ===============================
-    const { error: lockError } = await supabase
+    const { error: lockError } = await adminClient
       .from("draft_exams")
       .update({
         status: "published",
-        published_exam_id: exam.id
+        published_exam_id: exam.id,
       })
       .eq("id", draftId)
 
@@ -162,16 +158,15 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: lockError.message }, 400)
     }
 
-    // ===============================
-    // 5️⃣ Return exam link
-    // ===============================
-    const base = Deno.env.get("SITE_URL")!.replace(/\/$/,"")
-    const examLink = `${base}/exam.html?id=${exam.id}`
+    const siteUrl = Deno.env.get("SITE_URL")?.replace(/\/$/, "") ?? ""
+    const examLink = siteUrl
+      ? `${siteUrl}/exam.html?id=${exam.id}`
+      : `/exam.html?id=${exam.id}`
 
     return jsonResponse({
       success: true,
       examId: exam.id,
-      examLink
+      examLink,
     })
 
   } catch (e) {

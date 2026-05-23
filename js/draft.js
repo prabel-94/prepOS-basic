@@ -43,7 +43,32 @@ async function debugSessionContext(label, { sessionData, sessionError, userData,
 
 async function getAccessToken() {
   const sb = await getClient()
-  const { data: sessionData, error: sessionError } = await sb.auth.getSession();
+
+  const { data: userData, error: userError } = await sb.auth.getUser();
+
+  debugSessionContext("getAccessToken:getUser", {
+    userData,
+    userError
+  });
+
+  if (userError || !userData?.user) {
+    const { data: refreshed, error: refreshError } =
+      await sb.auth.refreshSession();
+
+    debugSessionContext("getAccessToken:after-refresh-no-user", {
+      sessionData: refreshed,
+      sessionError: refreshError
+    });
+
+    if (refreshError || !refreshed?.session?.access_token) {
+      throw new Error("Your session expired. Please sign in again.");
+    }
+
+    return refreshed.session.access_token;
+  }
+
+  const { data: sessionData, error: sessionError } =
+    await sb.auth.getSession();
 
   debugSessionContext("getAccessToken:getSession", {
     sessionData,
@@ -51,13 +76,6 @@ async function getAccessToken() {
   });
 
   if (sessionError || !sessionData?.session?.access_token) {
-    const { data: userData, error: userError } = await sb.auth.getUser();
-    debugSessionContext("getAccessToken:before-session-expired-throw", {
-      sessionData,
-      sessionError,
-      userData,
-      userError
-    });
     throw new Error("Your session expired. Please sign in again.");
   }
 
@@ -66,21 +84,15 @@ async function getAccessToken() {
   const now = Math.floor(Date.now() / 1000);
 
   if (expiresAt <= now + 60) {
-    const { data: refreshed, error: refreshError } = await sb.auth.refreshSession();
+    const { data: refreshed, error: refreshError } =
+      await sb.auth.refreshSession();
 
-    debugSessionContext("getAccessToken:after-refresh", {
+    debugSessionContext("getAccessToken:after-refresh-expiry", {
       sessionData: refreshed,
       sessionError: refreshError
     });
 
-    if (refreshError || !refreshed.session?.access_token) {
-      const { data: userData, error: userError } = await sb.auth.getUser();
-      debugSessionContext("getAccessToken:before-refresh-failed-throw", {
-        sessionData: refreshed,
-        sessionError: refreshError,
-        userData,
-        userError
-      });
+    if (refreshError || !refreshed?.session?.access_token) {
       throw new Error("Your session expired. Please sign in again.");
     }
 
@@ -3457,13 +3469,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const sb = await getClient();
 
-  const {
-    data: { session }
-  } = await sb.auth.getSession();
+  const { data: userData, error: userError } = await sb.auth.getUser();
+  const { data: { session } } = await sb.auth.getSession();
 
-  console.log("AUTH READY:", !!session);
+  console.log("AUTH READY:", {
+    hasSession: !!session,
+    hasUser: !!userData?.user,
+    userError: userError?.message ?? null
+  });
 
-  if (!session) {
+  if (!session?.access_token || !userData?.user) {
     window.location.href = "login.html";
     return;
   }
