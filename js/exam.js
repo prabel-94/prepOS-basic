@@ -168,15 +168,20 @@ const ATTEMPT_KEY = `prepos-attempt-${examId}`;
 const ATTEMPT_ID_KEY = `prepos-attempt-id-${examId}`;
 const TIMER_KEY = `timer-${examId}`;
 
-function createAttemptId(examId){
-  const rand = Math.random().toString(36).slice(2,7);
-  return `${examId}-${rand}`;
+function isUuid(value){
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    String(value || "")
+  );
+}
+
+function createAttemptId(){
+  return crypto.randomUUID();
 }
 
 let attemptId = localStorage.getItem(ATTEMPT_ID_KEY);
 
-if(!attemptId){
-  attemptId = createAttemptId(examId);
+if(!isUuid(attemptId)){
+  attemptId = createAttemptId();
   localStorage.setItem(ATTEMPT_ID_KEY, attemptId);
 }
 
