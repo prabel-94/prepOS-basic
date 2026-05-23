@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
+import { authenticateTeacherRequest } from "../_shared/edge-auth.ts"
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -22,46 +22,19 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const projectUrl = Deno.env.get("PROJECT_URL") || Deno.env.get("SUPABASE_URL")
-    const serviceRoleKey = Deno.env.get("SERVICE_ROLE_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")
+    const auth = await authenticateTeacherRequest(
+      req,
+      "Only teachers and admins can list students"
+    )
 
-    if (!projectUrl || !serviceRoleKey) {
-      return jsonResponse({ error: "Server misconfiguration" }, 500)
-    }
-
-    const authHeader = req.headers.get("Authorization") || ""
-    const token = authHeader.replace(/^Bearer\s+/i, "")
-
-    if (!token) {
-      return jsonResponse({ error: "Missing authorization token" }, 401)
-    }
-
-    const supabase = createClient(projectUrl, serviceRoleKey)
-    const { data: userData, error: userError } = await supabase.auth.getUser(token)
-    const user = userData?.user
-
-    if (userError || !user) {
-      return jsonResponse({ error: "Invalid session" }, 401)
-    }
-
-    const { data: profile, error: profileError } = await supabase
-      .from("users")
-      .select("role")
-      .eq("id", user.id)
-      .single()
-
-    if (profileError || !profile) {
-      return jsonResponse({ error: "User profile not found" }, 403)
-    }
-
-    if (profile.role !== "teacher" && profile.role !== "admin") {
-      return jsonResponse({ error: "Only teachers and admins can list students" }, 403)
+    if (!auth.ok) {
+      return jsonResponse({ error: auth.error }, auth.status)
     }
 
     const body = await req.json().catch(() => ({}))
     const search = typeof body.search === "string" ? body.search.trim() : ""
 
-    let query = supabase
+    let query = auth.adminClient
       .from("users")
       .select("id, name")
       .eq("role", "student")

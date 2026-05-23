@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
+import { authenticateTeacherRequest } from "../_shared/edge-auth.ts"
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -22,27 +22,16 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const projectUrl = Deno.env.get("PROJECT_URL") || Deno.env.get("SUPABASE_URL")
-    const serviceRoleKey = Deno.env.get("SERVICE_ROLE_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")
+    const auth = await authenticateTeacherRequest(
+      req,
+      "Only teachers and admins can assign exams"
+    )
 
-    if (!projectUrl || !serviceRoleKey) {
-      return jsonResponse({ error: "Server misconfiguration" }, 500)
+    if (!auth.ok) {
+      return jsonResponse({ error: auth.error }, auth.status)
     }
 
-    const authHeader = req.headers.get("Authorization") || ""
-    const token = authHeader.replace(/^Bearer\s+/i, "")
-
-    if (!token) {
-      return jsonResponse({ error: "Missing authorization token" }, 401)
-    }
-
-    const supabase = createClient(projectUrl, serviceRoleKey)
-    const { data: userData, error: userError } = await supabase.auth.getUser(token)
-    const user = userData?.user
-
-    if (userError || !user) {
-      return jsonResponse({ error: "Invalid session" }, 401)
-    }
+    const { user, role, adminClient } = auth
 
     const { examId, studentIds } = await req.json().catch(() => ({}))
 
@@ -50,27 +39,15 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Missing examId or studentIds" }, 400)
     }
 
-    const uniqueStudentIds = [...new Set(studentIds.filter((id) => typeof id === "string" && id.trim()))]
+    const uniqueStudentIds = [
+      ...new Set(studentIds.filter((id) => typeof id === "string" && id.trim())),
+    ]
 
     if (!uniqueStudentIds.length) {
       return jsonResponse({ error: "No valid students selected" }, 400)
     }
 
-    const { data: profile, error: profileError } = await supabase
-      .from("users")
-      .select("role")
-      .eq("id", user.id)
-      .single()
-
-    if (profileError || !profile) {
-      return jsonResponse({ error: "User profile not found" }, 403)
-    }
-
-    if (profile.role !== "teacher" && profile.role !== "admin") {
-      return jsonResponse({ error: "Only teachers and admins can assign exams" }, 403)
-    }
-
-    const { data: exam, error: examError } = await supabase
+    const { data: exam, error: examError } = await adminClient
       .from("exam_sessions")
       .select("id, created_by")
       .eq("id", examId)
@@ -80,11 +57,11 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Exam not found" }, 404)
     }
 
-    if (profile.role !== "admin" && exam.created_by !== user.id) {
+    if (role !== "admin" && exam.created_by !== user.id) {
       return jsonResponse({ error: "You can assign only exams you created" }, 403)
     }
 
-    const { data: students, error: studentsError } = await supabase
+    const { data: students, error: studentsError } = await adminClient
       .from("users")
       .select("id")
       .eq("role", "student")
@@ -104,7 +81,7 @@ Deno.serve(async (req) => {
       assigned_by: user.id,
     }))
 
-    const { error: insertError } = await supabase
+    const { error: insertError } = await adminClient
       .from("exam_assignments")
       .insert(rows)
 
