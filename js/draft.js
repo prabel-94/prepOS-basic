@@ -1,7 +1,7 @@
 // ===============================
 // PrepOS Draft Editor (v6 - Stable)
 // ===============================
-
+import { getClient } from "./core/get-client.js";
 import { runGenerator } from "./generator-core.js";
 // --------------------------------
 // GLOBAL STATE
@@ -12,11 +12,159 @@ let selectedQuestionIndex = null;
 let autosaveTimer = null;
 let topicTimer = null;
 let isSaving = false;
+let isSavingToBank = false;
+let isPublishing = false;
 
 let currentDraft = null;
 let logoURL = null;
 
-const sb = window.supabaseClient;
+let selectedStudents = [];
+let currentExamId = null;
+let studentSearchTimer = null;
+
+async function debugSessionContext(label, { sessionData, sessionError, userData, userError } = {}) {
+  const sb = await getClient();
+  const session = sessionData?.session;
+  const now = Math.floor(Date.now() / 1000);
+  const expiresAt = session?.expires_at ?? null;
+
+  console.debug(`[PrepOS Session] ${label}`, {
+    hasSession: Boolean(session),
+    hasAccessToken: Boolean(session?.access_token),
+    expiresAt,
+    expiresInSec:
+      typeof expiresAt === "number" ? expiresAt - now : null,
+    userId: session?.user?.id ?? userData?.user?.id ?? null,
+    sessionError: sessionError?.message ?? null,
+    userError: userError?.message ?? null,
+    clientReady: Boolean(sb)
+  });
+}
+
+async function getAccessToken() {
+  const sb = await getClient()
+  const { data: sessionData, error: sessionError } = await sb.auth.getSession();
+
+  debugSessionContext("getAccessToken:getSession", {
+    sessionData,
+    sessionError
+  });
+
+  if (sessionError || !sessionData?.session?.access_token) {
+    const { data: userData, error: userError } = await sb.auth.getUser();
+    debugSessionContext("getAccessToken:before-session-expired-throw", {
+      sessionData,
+      sessionError,
+      userData,
+      userError
+    });
+    throw new Error("Your session expired. Please sign in again.");
+  }
+
+  let accessToken = sessionData.session.access_token;
+  const expiresAt = sessionData.session.expires_at ?? 0;
+  const now = Math.floor(Date.now() / 1000);
+
+  if (expiresAt <= now + 60) {
+    const { data: refreshed, error: refreshError } = await sb.auth.refreshSession();
+
+    debugSessionContext("getAccessToken:after-refresh", {
+      sessionData: refreshed,
+      sessionError: refreshError
+    });
+
+    if (refreshError || !refreshed.session?.access_token) {
+      const { data: userData, error: userError } = await sb.auth.getUser();
+      debugSessionContext("getAccessToken:before-refresh-failed-throw", {
+        sessionData: refreshed,
+        sessionError: refreshError,
+        userData,
+        userError
+      });
+      throw new Error("Your session expired. Please sign in again.");
+    }
+
+    accessToken = refreshed.session.access_token;
+  }
+
+  return accessToken;
+}
+
+async function invokeEdgeFunction(name, body) {
+  const sb = await getClient()
+  console.debug("[PrepOS Session] invokeEdgeFunction:start", { name });
+
+  let accessToken;
+
+  try {
+    accessToken = await getAccessToken();
+  } catch (err) {
+    const { data: sessionData, error: sessionError } = await sb.auth.getSession();
+    const { data: userData, error: userError } = await sb.auth.getUser();
+    debugSessionContext("invokeEdgeFunction:before-throw", {
+      sessionData,
+      sessionError,
+      userData,
+      userError
+    });
+    console.debug("[PrepOS Session] invokeEdgeFunction:edge-call-skipped", {
+      name,
+      reason: err?.message ?? "no access token"
+    });
+    throw err;
+  }
+
+  const { data, error } = await sb.functions.invoke(name, {
+    body,
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (error) {
+    let message = error.message || `${name} failed`;
+
+    if (error.context instanceof Response) {
+      const details = await error.context.clone().json().catch(() => null);
+      message = details?.error || message;
+      console.debug("[PrepOS Session] invokeEdgeFunction:edge-error-body", {
+        name,
+        status: error.context.status,
+        details
+      });
+    }
+
+    if (/invalid session/i.test(message)) {
+      const { data: sessionData, error: sessionError } = await sb.auth.getSession();
+      const { data: userData, error: userError } = await sb.auth.getUser();
+      debugSessionContext("invokeEdgeFunction:invalid-session-response", {
+        sessionData,
+        sessionError,
+        userData,
+        userError
+      });
+    }
+
+    throw new Error(message);
+  }
+
+  if (data?.error) {
+    if (/invalid session/i.test(String(data.error))) {
+      const { data: sessionData, error: sessionError } = await sb.auth.getSession();
+      const { data: userData, error: userError } = await sb.auth.getUser();
+      debugSessionContext("invokeEdgeFunction:invalid-session-payload", {
+        sessionData,
+        sessionError,
+        userData,
+        userError
+      });
+    }
+
+    throw new Error(data.error);
+  }
+
+  return data;
+}
 
 // --------------------------------
 // URL PARAM
@@ -28,6 +176,22 @@ const mode = params.get("mode");
 // --------------------------------
 // HELPERS
 // --------------------------------
+
+function escapeHTML(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function normalizeTopicName(name) {
+  return String(name || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+}
 
 // --------------------------------
 // METADATA SYSTEM (v2 - COMPAT)
@@ -92,6 +256,8 @@ function renderCAEventDropdown(container, query) {
 
 async function loadPatternDefinitions() {
 
+  const sb = await getClient()
+
   const { data, error } = await sb
     .from("metadata_definitions")
     .select("key, description")
@@ -105,6 +271,8 @@ async function loadPatternDefinitions() {
   patternDefinitions = data || [];
 }
 async function loadCAEventDefinitions() {
+
+  const sb = await getClient()
 
   const { data, error } = await sb
     .from("metadata_definitions")
@@ -267,10 +435,10 @@ function renderTopicWarnings(warnings, containerId = "topicWarnings") {
 
   container.innerHTML = warnings.map(w => `
     <div class="warning-text">
-      ⚠ ${w.message}
+      ⚠ ${escapeHTML(w.message)}
       ${
         w.suggestion
-          ? `<button class="fix-btn" data-fix="${w.suggestion}">Fix</button>`
+          ? `<button class="fix-btn" data-fix="${escapeHTML(w.suggestion)}">Fix</button>`
           : ""
       }
     </div>
@@ -313,6 +481,7 @@ function computeDifficulty({ cognitive, complexity, depth }) {
 // SEARCH QUESTION BANK
 // --------------------------------
 async function searchQuestionBank(query) {
+  const sb = await getClient()
 
   if (!query) return [];
 
@@ -333,6 +502,8 @@ async function searchQuestionBank(query) {
 // ADD QUESTION FROM BANK → DRAFT (UPDATED)
 // --------------------------------
 async function addQuestionFromBank(qId, btn) {
+
+  const sb = await getClient()
 
   const { data, error } = await sb
     .from("questions")
@@ -391,6 +562,7 @@ ensureMetadata(newQuestion);
   currentDraft.schema_json.sections[0].questions.push(newQuestion);
 
   renderDraft(currentDraft);
+  scheduleAutosave();
 
   setStatus("Question added to draft ✅");
   // 🔥 AUTO REFRESH SEARCH RESULTS
@@ -429,18 +601,18 @@ function renderQuestionBankResults(questions) {
     return `
       <div class="question-card">
 
-        <div><b>${q.question_text}</b></div>
+        <div><b>${escapeHTML(q.question_text)}</b></div>
 
         <div class="mt-10 small">
-          A. ${q.option_a || "-"}<br>
-          B. ${q.option_b || "-"}<br>
-          C. ${q.option_c || "-"}<br>
-          D. ${q.option_d || "-"}
+          A. ${escapeHTML(q.option_a || "-")}<br>
+          B. ${escapeHTML(q.option_b || "-")}<br>
+          C. ${escapeHTML(q.option_c || "-")}<br>
+          D. ${escapeHTML(q.option_d || "-")}
         </div>
 
         <button
           class="${exists ? "secondary-btn" : "primary-btn"} mt-10 add-from-bank-btn"
-          data-id="${q.id}"
+          data-id="${escapeHTML(q.id)}"
         >
           ${exists ? "Already Added" : "+ Add to Draft"}
         </button>
@@ -532,7 +704,7 @@ const formatted = formatTopicName(clean);
   div.dataset.value = normalized;
 
   div.innerHTML = `
-    ${formatted}
+    ${escapeHTML(formatted)}
     <button type="button">×</button>
   `;
 
@@ -547,6 +719,7 @@ const formatted = formatTopicName(clean);
 }
 
 async function searchTopics(query) {
+  const sb = await getClient()
   if (!query) return [];
 
   const { data } = await sb
@@ -559,6 +732,8 @@ async function searchTopics(query) {
 }
 
 async function searchTopicsForDropdown(query) {
+
+  const sb = await getClient()
 
   if (!query) return [];
 
@@ -609,181 +784,145 @@ function removeTopic(qIndex, topicIndex) {
 // TOPIC DB LINKING
 // --------------------------------
 
-async function resolveTopicKeys(topicKeys) {
+async function resolveTopicIds(topicNames = []) {
 
-  if (!topicKeys || !topicKeys.length) return [];
+  const sb = await getClient()
 
-  const { data, error } = await sb
+  if (!topicNames.length) return [];
+
+  const normalizedTopics =
+    topicNames.map(normalizeTopicName);
+
+  // --------------------------------
+  // FETCH EXISTING TOPICS
+  // --------------------------------
+  const { data: existing, error } = await sb
     .from("topics")
-    .select("id, topic_key")
-    .in("topic_key", topicKeys);
+    .select("id, normalized_name")
+    .in("normalized_name", normalizedTopics);
 
   if (error) {
-    console.error("Topic key resolve error:", error);
-    return [];
+    console.error("Topic resolve error:", error);
+    throw error;
   }
 
-  const map = {};
+  const topicMap = {};
 
-  (data || []).forEach(t => {
-    map[t.topic_key] = t.id;
+  (existing || []).forEach(topic => {
+    topicMap[topic.normalized_name] = topic.id;
   });
 
-  return topicKeys
-    .map(k => map[k])
+  // --------------------------------
+  // FIND MISSING TOPICS
+  // --------------------------------
+  const missing = normalizedTopics.filter(
+    name => !topicMap[name]
+  );
+
+  // --------------------------------
+  // CREATE MISSING TOPICS
+  // --------------------------------
+  if (missing.length) {
+
+    const rows = missing.map(name => ({
+      name: formatTopicName(name),
+      normalized_name: name
+    }));
+
+    const { data: inserted, error: insertError } = await sb
+      .from("topics")
+      .insert(rows)
+      .select("id, normalized_name");
+
+    if (insertError) {
+      console.error("Topic create error:", insertError);
+      throw insertError;
+    }
+
+    (inserted || []).forEach(topic => {
+      topicMap[topic.normalized_name] = topic.id;
+    });
+  }
+
+  // --------------------------------
+  // RETURN IDS
+  // --------------------------------
+  return normalizedTopics
+    .map(name => topicMap[name])
     .filter(Boolean);
 }
 
 
-async function attachTopics(questionId, topics = []) {
+async function attachTopics(questionId, topicIds = []) {
 
-  console.log("ATTACHING TOPIC KEYS →", topics);
+  const sb = await getClient()
 
-  const topicIds = await resolveTopicKeys(
-  topics.map(t => t.toUpperCase())
-);
-
-  for (const topicId of topicIds) {
-
-    const { error } = await sb
-      .from("question_topics")
-      .upsert({
-        question_id: questionId,
-        topic_id: topicId
-      });
-
-    if (error) {
-      console.error("❌ Attach failed:", error);
-    } else {
-      console.log("✅ Attached:", topicId);
-    }
+  if (!questionId) {
+    throw new Error("Missing questionId");
   }
+
+  if (!topicIds.length) {
+    throw new Error("No topic IDs provided");
+  }
+
+  const rows = topicIds.map(topicId => ({
+    question_id: questionId,
+    topic_id: topicId
+  }));
+
+  const { error } = await sb
+    .from("question_topics")
+    .upsert(rows, {
+      onConflict: "question_id,topic_id"
+    });
+
+  if (error) {
+    console.error("Topic attach failed:", error);
+    throw error;
+  }
+
+  console.log(
+    "Topics attached:",
+    rows.length
+  );
 }
 
 // --------------------------------
 // QUESTION BANK SAVE
 // --------------------------------
 async function saveQuestionToBank(q) {
+  const sb = await getClient()
 
   if (!q.topics || q.topics.length === 0) {
-    throw new Error("Question must have at least one topic");
+    throw new Error(
+      "Question must have at least one topic"
+    );
   }
 
-  // ✅ Stable hash input
   syncDifficultyToMeta(q);
 
-  const hashInput = (
-  q.text +
-  (q.options || []).map(o => o.text).join("")
-).trim().toLowerCase();
+  const result = await invokeEdgeFunction("save-question-to-bank", {
+    question: q
+  });
 
-  // ✅ MUST await
-  const hash = await generateHash(hashInput);
+  const questionId = result.questionId;
+  q.question_id = questionId;
 
-  // ✅ Check duplicate
-  const { data: existing } = await sb
-    .from("questions")
-    .select("id")
-    .eq("question_hash", hash)
-    .maybeSingle();
-
-  let questionId;
-  let isDuplicate = false;
-
-  if (existing) {
-    questionId = existing.id;
-    isDuplicate = true;
-  } else {
-
-    // ✅ Normalize options safely
-    const opts = (q.options || []).map(o =>
-      typeof o === "string" ? o : o.text
-    );
-
-      const { data, error } = await sb
-        .from("questions")
-        .insert({
-          question_text: q.text,
-          option_a: opts[0] || "",
-          option_b: opts[1] || "",
-          option_c: opts[2] || "",
-          option_d: opts[3] || "",
-          correct_option: ["A","B","C","D"].includes(q.correct)
-  ? q.correct
-  : "A",
-          explanation: q.explanation || "",
-          question_hash: hash,
-          difficulty_score_cached: q.meta_structured?.difficulty_score,
-          difficulty_label_cached: q.meta_structured?.difficulty_label
-        })
-        .select()
-        .single();
-
-    if (error) throw error;
-
-    questionId = data.id;
-  }
-await attachTopics(questionId, q.topics);
-await replacePatternMetadata(
-  questionId,
-  q.primary_pattern || null
-);
-// ===============================
-// SAVE CURRENT AFFAIRS 
-// ===============================
-if (q.ca_event) {
-
-  await sb.from("question_metadata")
-  .upsert([
-    {
-      question_id: questionId,
-      key: "ca_event",
-      value: q.ca_event.type
-    },
-    {
-      question_id: questionId,
-      key: "ca_date",
-      value: q.ca_event.date
-    }
-  ], { onConflict: "question_id,key" });
-
-}
-syncDifficultyToMeta(q);// ✅ SYNC difficulty → structured metadata
-// 🔥 SAVE DIFFICULTY METADATA
-if (q.meta_structured?.difficulty_score !== null) {
-
-  const meta = q.meta_structured || {};
-
-const metadata = [
-  { key: "cognitive_level", value: meta.cognitive_level },
-  { key: "complexity_level", value: meta.complexity },
-  { key: "depth_level", value: meta.depth },
-  { key: "difficulty_score", value: meta.difficulty_score },
-  { key: "difficulty_label", value: meta.difficulty_label },
-  { key: "question_type", value: meta.question_type || "mcq_single" }
-];
-
-  const rows = metadata.map(m => ({
-  question_id: questionId,
-  key: m.key,
-  value: m.value
-}));
-
- await sb
-  .from("question_metadata")
-  .upsert(rows, { onConflict: "question_id,key" });
-}
-
-// 🔥 LINK BACK TO DRAFT
-q.question_id = questionId;
-
-return { questionId, isDuplicate };
+  return {
+    success: true,
+    isDuplicate: Boolean(result.isDuplicate),
+    questionId,
+    existingQuestionId: questionId,
+    questionHash: result.questionHash
+  };
 }
 
 // --------------------------------
 // METADATA SYSTEM (REPLACE MODE)
 // --------------------------------
 async function updateTopicPatterns(questionId, patternKey) {
+
+  const sb = await getClient()
 
   if (!patternKey) return;
 
@@ -805,6 +944,8 @@ async function updateTopicPatterns(questionId, patternKey) {
 }
 
 async function replacePatternMetadata(questionId, patternKey) {
+
+  const sb = await getClient()
 
   await sb
     .from("question_metadata")
@@ -830,6 +971,8 @@ async function replacePatternMetadata(questionId, patternKey) {
     .eq("id", questionId);
 }
 async function replaceQuestionMetadata(questionId, q) {
+
+  const sb = await getClient()
 
   // ✅ ALWAYS sync first
   syncDifficultyToMeta(q);
@@ -1045,6 +1188,7 @@ function createEmptyDraft() {
 // LOAD EXISTING DRAFT
 // --------------------------------
 async function loadDraft() {
+  const sb = await getClient()
   if (!draftId) return;
 
   setStatus("Loading...");
@@ -1108,6 +1252,7 @@ function clearDraftQuestions() {
   currentDraft.schema_json.sections[0].questions = [];
 
   renderDraft(currentDraft);
+  scheduleAutosave();
 
   setStatus("Draft cleared");
 }
@@ -1128,6 +1273,7 @@ function deleteQuestion(index) {
   }
 
   renderDraft(currentDraft);
+  scheduleAutosave();
 }
 
 function duplicateQuestion(index) {
@@ -1135,6 +1281,8 @@ function duplicateQuestion(index) {
 
   const clone = JSON.parse(JSON.stringify(q));
   clone.id = crypto.randomUUID();
+  // preserve provenance but reset bank state
+clone.bank_status = "draft";
 
   // ✅ Ensure difficulty object exists and is clean
   if (clone.difficulty) {
@@ -1144,6 +1292,7 @@ function duplicateQuestion(index) {
   currentDraft.schema_json.sections[0].questions.splice(index + 1, 0, clone);
 
   renderDraft(currentDraft);
+  scheduleAutosave();
 }
 
 function moveQuestionUp(index) {
@@ -1161,6 +1310,7 @@ function moveQuestionUp(index) {
   }
 
   renderDraft(currentDraft);
+  scheduleAutosave();
 }
 
 function moveQuestionDown(index) {
@@ -1178,6 +1328,7 @@ function moveQuestionDown(index) {
   }
 
   renderDraft(currentDraft);
+  scheduleAutosave();
 }
 
 // --------------------------------
@@ -1217,7 +1368,7 @@ function renderDraft(draft) {
     // --------------------------
     const topicsHTML = (q.topics || []).map((t, ti) => `
       <div class="topic-tag">
-        ${t}
+        ${escapeHTML(t)}
         <button 
           class="remove-topic" 
           data-q="${i}" 
@@ -1248,7 +1399,7 @@ function renderDraft(draft) {
             class="opt" 
             data-i="${i}" 
             data-oi="${oi}" 
-            value="${opt.text || ""}" 
+            value="${escapeHTML(opt.text || "")}" 
             placeholder="Option ${label}"
           />
         </label>
@@ -1270,7 +1421,7 @@ function renderDraft(draft) {
           Q${i + 1}
           ${q.generator?.enabled ? `
             <div class="small">
-              Generated &bull; ${q.generator.pattern || "No pattern selected"}
+              Generated &bull; ${escapeHTML(q.generator.pattern || "No pattern selected")}
             </div>
           ` : ""}
         </div>
@@ -1309,7 +1460,7 @@ function renderDraft(draft) {
         class="qtext" 
         data-i="${i}" 
         placeholder="Enter question..."
-      >${q.text || ""}</textarea>
+      >${escapeHTML(q.text || "")}</textarea>
 
       <!-- PRIMARY PATTERN (METADATA) -->
 <div class="mt-10">
@@ -1317,7 +1468,7 @@ function renderDraft(draft) {
     class="primary-pattern-input"
     data-i="${i}"
     placeholder="Pattern (e.g., ASC, Awarded)"
-    value="${q.primary_pattern || ""}"
+    value="${escapeHTML(q.primary_pattern || "")}"
     autocomplete="off"
   />
   <div class="pattern-dropdown primary-pattern-dropdown hidden"></div>
@@ -1333,7 +1484,7 @@ function renderDraft(draft) {
         class="explanation" 
         data-i="${i}" 
         placeholder="Explanation (optional)"
-      >${q.explanation || ""}</textarea>
+      >${escapeHTML(q.explanation || "")}</textarea>
        
       <div class="mt-10 small">
   Difficulty: ${q.difficulty?.label || "Not set"}
@@ -1684,6 +1835,17 @@ q.explanation = generated.explanation;
 q.primary_pattern = generated.primary_pattern;
 q.difficulty = generated.difficulty;
 
+// -----------------------------
+// PRESERVE GENERATOR TRACKING
+// -----------------------------
+q.generator_tracking = generated.tracking || null;
+
+q.generator_meta = {
+  generated_at: new Date().toISOString(),
+  generator_version: generated.version || 1,
+  source: generated.source || "rule-based"
+};
+
 
 // -----------------------------
 // RESTORE STATE
@@ -1778,6 +1940,17 @@ q.correct = generated.correct;
 q.explanation = generated.explanation;
 q.primary_pattern = generated.primary_pattern;
 q.difficulty = generated.difficulty;
+
+// -----------------------------
+// PRESERVE GENERATOR TRACKING
+// -----------------------------
+q.generator_tracking = generated.tracking || null;
+
+q.generator_meta = {
+  generated_at: new Date().toISOString(),
+  generator_version: generated.version || 1,
+  source: generated.source || "rule-based"
+};
 
 
 // -----------------------------
@@ -1909,29 +2082,40 @@ if (e.target.classList.contains("edit-metadata-btn")) {
     const preview = document.getElementById("bankQuestionPreview");
 
 if (preview) {
+
   const opts = q.options || [];
 
   preview.innerHTML = `
     <div><b>Question:</b></div>
+
     <div class="mt-10 prepos-text">
-  ${q.text || "(empty question)"}
-</div>
+      ${escapeHTML(q.text || "(empty question)")}
+    </div>
 
     <div class="mt-10"><b>Options:</b></div>
+
     <ul class="mt-10">
       ${opts.map((o, i) => `
-  <li>
-    ${["A", "B", "C", "D"][i]}: ${o?.text || "-"}
-          ${q.correct === ["A", "B", "C", "D"][i] ? " ✅" : ""}
+
+        <li>
+          ${["A", "B", "C", "D"][i]}:
+          ${escapeHTML(o?.text || "-")}
+
+          ${q.correct === ["A", "B", "C", "D"][i]
+            ? " ✅"
+            : ""
+          }
         </li>
+
       `).join("")}
     </ul>
 
     ${q.explanation ? `
       <div class="mt-10"><b>Explanation:</b></div>
+
       <div class="mt-10 prepos-text">
-  ${q.explanation}
-</div>
+        ${escapeHTML(q.explanation)}
+      </div>
     ` : ""}
   `;
 }
@@ -2000,6 +2184,7 @@ const q = {
 ensureMetadata(q);
   currentDraft.schema_json.sections[0].questions.push(q);
   renderDraft(currentDraft);
+  scheduleAutosave();
 }
 
 // ===============================
@@ -2050,7 +2235,7 @@ async function generateFromConfig(config) {
   } catch (err) {
 
     console.error(err);
-    setStatus("Generator failed", true);
+    setStatus(err?.message || "Generator failed", true);
 
     return null;
   }
@@ -2059,8 +2244,15 @@ async function generateFromConfig(config) {
 // --------------------------------
 // SAVE DRAFT (FIXED)
 // --------------------------------
-async function saveDraft(silent = false) {
-  if (!currentDraft || isSaving) return;
+async function saveDraft(silent = false, options = {}) {
+  const sb = await getClient()
+  if (!currentDraft) return;
+  const shouldThrow = Boolean(options.throwOnError);
+
+// WAIT if already saving
+while (isSaving) {
+  await new Promise(r => setTimeout(r, 50));
+}
 
   isSaving = true;
 
@@ -2151,10 +2343,12 @@ document.querySelectorAll('#questions input[type="radio"]:checked').forEach(el =
       if (!silent) setStatus("Saved");
     }
 
+    console.log("saveDraft: success", { draftId, status: currentDraft.status });
+
   } catch (e) {
     console.error(e);
     setStatus("Save failed", true);
-    if (!silent) throw e;
+    if (!silent || shouldThrow) throw e;
   } finally {
     isSaving = false;
   }
@@ -2163,42 +2357,49 @@ document.querySelectorAll('#questions input[type="radio"]:checked').forEach(el =
 // --------------------------------
 // ✅ PUBLISH DRAFT (FINAL VERSION)
 // --------------------------------
+function validateDraftForPublish() {
+  const questions = currentDraft?.schema_json?.sections?.[0]?.questions || [];
+
+  if (!questions.length) {
+    throw new Error("Add at least one question before publishing");
+  }
+
+  questions.forEach((q, index) => {
+    if (!q.text || !q.text.trim()) {
+      throw new Error(`Question ${index + 1} is empty`);
+    }
+  });
+}
+
 async function publishDraft() {
+  const sb = await getClient()
+  if (isPublishing) return;
+
   if (!draftId) {
     alert("Save draft before publishing");
     return;
   }
 
+  const publishBtn = document.getElementById("publishDraftBtn");
+  const originalPublishText = publishBtn?.innerText;
+
   try {
-    await saveDraft(true);
+    isPublishing = true;
+
+    if (publishBtn) {
+      publishBtn.disabled = true;
+      publishBtn.innerText = "Publishing...";
+    }
+
+    await saveDraft(true, { throwOnError: true });
+    validateDraftForPublish();
     setStatus("Publishing...");
 
-    const payload = {
-      title: document.getElementById("title").value || "Untitled Exam",
-      duration: parseInt(document.getElementById("duration").value) || 60,
-      schema_json: currentDraft.schema_json,
-      logo_url: logoURL || null
-    };
+    const result = await invokeEdgeFunction("publish-draft", { draftId });
+    const examId = result.examId;
 
-    // ✅ Insert into exam_sessions (NOT exams)
-    const { data: session, error } = await sb
-      .from("exam_sessions")
-      .insert([payload])
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    // ✅ Update draft
-    const { error: draftUpdateError } = await sb
-      .from("draft_exams")
-      .update({
-        status: "published",
-        published_exam_id: session.id
-      })
-      .eq("id", draftId);
-
-    if (draftUpdateError) throw draftUpdateError;
+    currentDraft.status = "published";
+    currentDraft.published_exam_id = examId;
 
     setStatus("Published ✅");
 
@@ -2208,19 +2409,133 @@ async function publishDraft() {
       linkBox.classList.remove("hidden");
       linkBox.innerHTML = `
         <b>Exam Published</b><br>
-        <a href="exam.html?id=${session.id}" target="_blank">
+        <a href="exam.html?id=${examId}" target="_blank">
           Open Exam
-        </a>
+        </a><br>
+        <button type="button" class="primary-btn mt-10" onclick="openAssignModal('${examId}')">
+          Assign to Students
+        </button>
       `;
     }
 
   } catch (err) {
     console.error(err);
+
+    alert(err.message || "Publish failed");
     setStatus("Publish failed", true);
+  } finally {
+    isPublishing = false;
+
+    if (publishBtn) {
+      publishBtn.disabled = false;
+      publishBtn.innerText = originalPublishText || "Publish";
+    }
+  }
+}
+
+function renderStudentList(students = []) {
+  const list = document.getElementById("studentList");
+  if (!list) return;
+
+  if (!students.length) {
+    list.innerHTML = `<div class="empty-state">No students found</div>`;
+    return;
+  }
+
+  list.innerHTML = students.map(student => {
+    const checked = selectedStudents.includes(student.id) ? "checked" : "";
+    const label = student.name || student.email || "Unnamed student";
+
+    return `
+      <label class="radio-row">
+        <input
+          type="checkbox"
+          value="${escapeHTML(student.id)}"
+          ${checked}
+        >
+        ${escapeHTML(label)}
+      </label>
+    `;
+  }).join("");
+}
+
+async function loadStudents(search = "") {
+  const list = document.getElementById("studentList");
+  if (list) list.innerHTML = "Loading students...";
+
+  try {
+    const result = await invokeEdgeFunction("list-students", {
+      search: search.trim()
+    });
+
+    renderStudentList(result.students || []);
+  } catch (error) {
+    console.error(error);
+    if (list) list.innerHTML = `<div class="empty-state">Unable to load students</div>`;
+  }
+}
+
+function openAssignModal(examId) {
+  currentExamId = examId;
+  selectedStudents = [];
+
+  const modal = document.getElementById("assignModal");
+  const search = document.getElementById("studentSearch");
+
+  if (search) search.value = "";
+  modal?.classList.remove("hidden");
+  document.body.style.overflow = "hidden";
+
+  loadStudents();
+}
+
+function closeAssignModal() {
+  document.getElementById("assignModal")?.classList.add("hidden");
+  document.body.style.overflow = "";
+  currentExamId = null;
+  selectedStudents = [];
+}
+
+async function assignSelected() {
+  if (!currentExamId) {
+    alert("No exam selected");
+    return;
+  }
+
+  if (!selectedStudents.length) {
+    alert("Select at least one student");
+    return;
+  }
+
+  const assignBtn = document.getElementById("assignSelectedBtn");
+  const originalText = assignBtn?.innerText;
+
+  try {
+    if (assignBtn) {
+      assignBtn.disabled = true;
+      assignBtn.innerText = "Assigning...";
+    }
+
+    await invokeEdgeFunction("assign-exam", {
+      examId: currentExamId,
+      studentIds: selectedStudents
+    });
+
+    alert("Assigned successfully");
+    closeAssignModal();
+  } catch (error) {
+    console.error(error);
+    alert("Assignment failed");
+  } finally {
+    if (assignBtn) {
+      assignBtn.disabled = false;
+      assignBtn.innerText = originalText || "Assign";
+    }
   }
 }
 
 async function uploadLogo(file) {
+  const sb = await getClient()
 
   const fileExt = file.name.split(".").pop();
   const fileName = `logo-${Date.now()}.${fileExt}`;
@@ -2264,7 +2579,7 @@ document.getElementById("metadataContent")
   }
 
   try {
-    await replaceQuestionMetadata(q.question_id, q);
+    await saveQuestionToBank(q);
 
     document.getElementById("metadataPanel").classList.add("hidden");
     document.body.style.overflow = "";
@@ -2277,6 +2592,15 @@ document.getElementById("metadataContent")
   }
 });
  
+// --------------------------------
+// SAVE / PUBLISH BUTTONS
+// --------------------------------
+document.getElementById("saveDraftBtn")
+  ?.addEventListener("click", () => saveDraft());
+
+document.getElementById("publishDraftBtn")
+  ?.addEventListener("click", publishDraft);
+
    // --------------------------------
 // CLOSE META PANEL
 // --------------------------------
@@ -2340,16 +2664,16 @@ const exactMatch = topics.some(
 
     // Existing topics
     html += topics.map(t => `
-  <div class="topic-tag topic-option" data-id="${t.id}">
-    ${t.name}
+  <div class="topic-tag topic-option" data-id="${escapeHTML(t.id)}">
+    ${escapeHTML(t.name)}
   </div>
 `).join("");
 
     // 🔥 Add "Create New" only if NO exact match
     if (!exactMatch && query.trim()) {
       html += `
-    <div class="topic-tag create-new" data-value="${query}">
-      + Create "${formatTopicName(query)}"
+    <div class="topic-tag create-new" data-value="${escapeHTML(query)}">
+      + Create "${escapeHTML(formatTopicName(query))}"
     </div>
   `;
     }
@@ -2359,6 +2683,8 @@ const exactMatch = topics.some(
 
 document.getElementById("topicDropdown")
   ?.addEventListener("click", async (e) => {
+
+  const sb = await getClient()
 
   if (!e.target.classList.contains("topic-option")) return;
 
@@ -2383,106 +2709,12 @@ document.getElementById("topicDropdown")
   document.getElementById("topicDropdown").classList.add("hidden");
 });
 
-document.getElementById("createNewBtn")
-  ?.addEventListener("click", async () => {
-
-  const q = currentDraft.schema_json.sections[0].questions[selectedQuestionIndex];
-
-  try {
-    // ✅ Match the same duplicate logic used by the standard bank save flow
-    syncDifficultyToMeta(q);
-
-    const hashInput = (
-      q.text +
-      (q.options || []).map(o =>
-        typeof o === "string" ? o : o.text
-      ).join("")
-    ).trim().toLowerCase();
-    const hash = await generateHash(hashInput);
-
-    // ✅ Insert cleanly
-    const { data, error } = await sb
-      .from("questions")
-      .insert({
-        question_text: q.text,
-        option_a: q.options[0]?.text || "",
-        option_b: q.options[1]?.text || "",
-        option_c: q.options[2]?.text || "",
-        option_d: q.options[3]?.text || "",
-        correct_option: q.correct,
-        explanation: q.explanation,
-        question_hash: hash,
-        difficulty_score_cached: q.meta_structured?.difficulty_score,
-        difficulty_label_cached: q.meta_structured?.difficulty_label
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    // ✅ Attach topics AFTER insert
-    await attachTopics(data.id, q.topics);
-    await replacePatternMetadata(
-  data.id,
-  q.primary_pattern || null
-);
-// 🔥 SAVE DIFFICULTY METADATA
-if (q.meta_structured?.difficulty_score !== null) {
-
-syncDifficultyToMeta(q);
-  const meta = q.meta_structured || {};
-const metadata = [
-  { key: "cognitive_level", value: meta.cognitive_level },
-  { key: "complexity_level", value: meta.complexity },
-  { key: "depth_level", value: meta.depth },
-  { key: "difficulty_score", value: meta.difficulty_score },
-  { key: "difficulty_label", value: meta.difficulty_label },
-  { key: "question_type", value: meta.question_type || "mcq_single" }
-];
-
-  const rows = metadata.map(m => ({
-    question_id: data.id,
-    key: m.key,
-    value: m.value
-  }));
-
-  await sb
-  .from("question_metadata")
-  .upsert(rows, { onConflict: "question_id,key" });
-}
-
-// 🔥 ADD THIS (MISSING LINK)
-q.question_id = data.id;
-
-q.bank_status = "saved";
-
-    renderDraft(currentDraft);
-
-    document.getElementById("addToBankPanel").classList.add("hidden");
-    document.getElementById("duplicateBox").classList.add("hidden");
-
-    setStatus("New question created ✅");
-
-  } catch (err) {
-    console.error(err);
-    alert(err.message);
-  }
-
-});
-
   document.getElementById("useExistingBtn")
   ?.addEventListener("click", async () => {
 
   const q = currentDraft.schema_json.sections[0].questions[selectedQuestionIndex];
 
     try {
-      // attach topics only (no new question)
-      await attachTopics(window.duplicateQuestionId, q.topics);
-
-      await replacePatternMetadata(
-        window.duplicateQuestionId,
-        q.primary_pattern || null
-      );
       q.question_id = window.duplicateQuestionId;
       q.bank_status = "duplicate";
 
@@ -2490,6 +2722,7 @@ q.bank_status = "saved";
 
     document.getElementById("addToBankPanel").classList.add("hidden");
     document.getElementById("duplicateBox").classList.add("hidden");
+    document.body.style.overflow = "";
 
     setStatus("Linked to existing question ✅");
 
@@ -2541,16 +2774,16 @@ function setupTopicInput(inputId, tagsId, warningsId) {
 
     // existing topics
     html += topics.map(t => `
-      <div class="topic-option" data-value="${t.name}">
-        ${t.name}
+      <div class="topic-option" data-value="${escapeHTML(t.name)}">
+        ${escapeHTML(t.name)}
       </div>
     `).join("");
 
     // create new
     if (!exactMatch) {
       html += `
-        <div class="topic-option create-new" data-value="${query}">
-          + Create "${formatTopicName(query)}"
+        <div class="topic-option create-new" data-value="${escapeHTML(query)}">
+          + Create "${escapeHTML(formatTopicName(query))}"
         </div>
       `;
     }
@@ -2764,40 +2997,64 @@ renderTopicWarnings([], "bulkTopicWarnings");
 document.getElementById("confirmAddToBank")
   ?.addEventListener("click", async () => {
 
-  if (selectedQuestionIndex === null) return;
+  if (isSavingToBank) return;
 
-  const q = currentDraft.schema_json.sections[0].questions[selectedQuestionIndex];
+  isSavingToBank = true;
 
-  // --------------------------------
-  // EXTRACT TOPICS FROM TAGS
-  // --------------------------------
-  const topics = Array.from(
-    document.querySelectorAll("#bankTopicTags .topic-tag")
-  ).map(el => formatTopicName(el.dataset.value));
+  const btn = document.getElementById("confirmAddToBank");
+  const originalText = btn?.innerText;
 
-  q.topics = topics;
-  q.generator = {
-    ...q.generator,
-    topics_auto: false
-  };
-
-
-  // =====================================
-  // CAPTURE CURRENT AFFAIRS (ADD HERE)
-  // =====================================
-  const isCA = document.getElementById("caToggle")?.checked;
-
-  if (isCA) {
-    q.ca_event = {
-      type: document.getElementById("caEventInput")?.value?.trim() || null,
-      date: document.getElementById("caDateInput")?.value?.trim() || null
-    };
-  } else {
-    q.ca_event = null;
+  if (btn) {
+    btn.disabled = true;
+    btn.innerText = "Saving...";
   }
 
-
   try {
+
+    if (selectedQuestionIndex === null) return;
+
+    const q =
+      currentDraft.schema_json.sections[0]
+        .questions[selectedQuestionIndex];
+
+    // --------------------------------
+    // EXTRACT TOPICS FROM TAGS
+    // --------------------------------
+    const topics = Array.from(
+      document.querySelectorAll("#bankTopicTags .topic-tag")
+    ).map(el => formatTopicName(el.dataset.value));
+
+    q.topics = topics;
+
+    q.generator = {
+      ...q.generator,
+      topics_auto: false
+    };
+
+    // =====================================
+    // CAPTURE CURRENT AFFAIRS
+    // =====================================
+    const isCA =
+      document.getElementById("caToggle")?.checked;
+
+    if (isCA) {
+
+      q.ca_event = {
+        type:
+          document.getElementById("caEventInput")
+            ?.value?.trim() || null,
+
+        date:
+          document.getElementById("caDateInput")
+            ?.value?.trim() || null
+      };
+
+    } else {
+
+      q.ca_event = null;
+
+    }
+
     const res = await saveQuestionToBank(q);
 
     // --------------------------------
@@ -2805,10 +3062,15 @@ document.getElementById("confirmAddToBank")
     // --------------------------------
     if (res.isDuplicate) {
 
-      document.getElementById("duplicateBox").classList.remove("hidden");
-      window.duplicateQuestionId = res.questionId;
+      document.getElementById("duplicateBox")
+        ?.classList.remove("hidden");
 
-      setStatus("Duplicate detected. Choose an action.");
+      window.duplicateQuestionId =
+        res.existingQuestionId;
+
+      setStatus(
+        "This question already exists in the bank."
+      );
 
       return;
     }
@@ -2820,14 +3082,31 @@ document.getElementById("confirmAddToBank")
 
     renderDraft(currentDraft);
 
-    document.getElementById("addToBankPanel").classList.add("hidden");
+    document.getElementById("addToBankPanel")
+      ?.classList.add("hidden");
+
     document.body.style.overflow = "";
 
     setStatus("Question saved to bank ✅");
 
   } catch (err) {
+
     console.error(err);
-    alert("Failed to save question");
+
+    alert(
+      err?.message ||
+      "Failed to save question"
+    );
+
+  } finally {
+
+    isSavingToBank = false;
+
+    if (btn) {
+      btn.disabled = false;
+      btn.innerText = originalText || "Save";
+    }
+
   }
 
 });
@@ -2885,6 +3164,8 @@ document.addEventListener("click", (e) => {
 // ===============================
 async function saveAsQuestionSetDeprecated() {
 
+  const sb = await getClient()
+
   if (!draftId) {
     await saveDraft(true);
   }
@@ -2909,6 +3190,8 @@ async function saveAsQuestionSetDeprecated() {
 // LOAD QUESTION SETS
 // ===============================
 async function loadQuestionSets() {
+
+  const sb = await getClient()
 
   const panel = document.getElementById("questionSetPanel");
   const list = document.getElementById("questionSetList");
@@ -2964,12 +3247,17 @@ async function clearDraftMemory() {
   if (!confirm("Clear all non-question-set drafts?"))
     return;
 
-  await sb
-    .from("draft_exams")
-    .delete()
-    .neq("status","question_set");
+  try {
+    await invokeEdgeFunction("manage-drafts", {
+      action: "clear-non-question-sets"
+    });
 
-  setStatus("Memory cleared ✅");
+    setStatus("Memory cleared ✅");
+  } catch (error) {
+    console.error(error);
+    alert(error.message || "Memory clear failed");
+    setStatus("Memory clear failed", true);
+  }
 }
 
 document.addEventListener("click", async (e)=>{
@@ -2992,10 +3280,16 @@ if (e.target.classList.contains("load-set")) {
     if (!confirm("Delete this question set?"))
       return;
 
-    await sb
-      .from("draft_exams")
-      .delete()
-      .eq("id", id);
+    try {
+      await invokeEdgeFunction("manage-drafts", {
+        action: "delete",
+        draftId: id
+      });
+    } catch (error) {
+      console.error(error);
+      alert(error.message || "Delete failed");
+      return;
+    }
 
     loadQuestionSets();
   }
@@ -3005,6 +3299,8 @@ if (e.target.classList.contains("load-set")) {
 document
 .getElementById("confirmLoadSet")
 ?.addEventListener("click", async () => {
+
+  const sb = await getClient()
 
   if (!pendingSetLoadId) return;
 
@@ -3071,6 +3367,7 @@ document
 });
 
 async function saveAsQuestionSetSafe() {
+  const sb = await getClient()
   const name = prompt("Question Set Name:");
   if (!name?.trim()) return;
 
@@ -3123,9 +3420,57 @@ document.addEventListener("DOMContentLoaded", () => {
         ?.classList.add("hidden");
     });
 
+  document.getElementById("assignSelectedBtn")
+    ?.addEventListener("click", assignSelected);
+
+  document.getElementById("closeAssignModal")
+    ?.addEventListener("click", closeAssignModal);
+
+  document.getElementById("studentSearch")
+    ?.addEventListener("input", e => {
+      clearTimeout(studentSearchTimer);
+      studentSearchTimer = setTimeout(() => {
+        loadStudents(e.target.value);
+      }, 250);
+    });
+
+  document.getElementById("studentList")
+    ?.addEventListener("change", e => {
+      if (e.target.type !== "checkbox") return;
+
+      const studentId = e.target.value;
+
+      if (e.target.checked) {
+        if (!selectedStudents.includes(studentId)) {
+          selectedStudents.push(studentId);
+        }
+      } else {
+        selectedStudents = selectedStudents.filter(id => id !== studentId);
+      }
+    });
+
 });
 
-init();
+(async () => {
+
+  await requireAuth();
+
+  const sb = await getClient();
+
+  const {
+    data: { session }
+  } = await sb.auth.getSession();
+
+  console.log("AUTH READY:", !!session);
+
+  if (!session) {
+    window.location.href = "login.html";
+    return;
+  }
+
+  await init();
+
+})();
 
 // ========================================
 // GLOBAL DROPDOWN CLOSE HANDLER (SINGLE SOURCE)
@@ -3155,3 +3500,5 @@ window.deleteQuestion = deleteQuestion;
 window.duplicateQuestion = duplicateQuestion;
 window.moveQuestionUp = moveQuestionUp;
 window.moveQuestionDown = moveQuestionDown;
+window.openAssignModal = openAssignModal;
+window.assignSelected = assignSelected;

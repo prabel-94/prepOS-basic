@@ -8,8 +8,9 @@ PrepOS Generator Core
 Entry point for ALL generators
 ========================================= */
 
-import { MalayalamGenerator } from "./generators/malayalam.js"
-// English + Maths added later
+import { MalayalamGenerator } from "./generators/malayalam.js";
+import { runEnglishGenerator } from "./generators/english.js";
+// Maths added later
 
 
 /* ================================
@@ -33,6 +34,10 @@ Main Entry Point
 export async function runGenerator(config) {
 
   const { subject } = config;
+
+  if (subject === "english") {
+    return runEnglishGenerator(config);
+  }
 
   const generator = Generators[subject];
 

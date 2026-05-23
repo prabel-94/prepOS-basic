@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+    <link rel="icon" type="image/png" href="assets/prepos-icon.png">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>PrepOS Login</title>
+
+<link rel="stylesheet" href="css/style.css">
+
+</head>
+
+<body>
+
+<div class="container">
+
+  <div class="card mt-30">
+
+    <div class="h2">Login to PrepOS</div>
+    <div class="text-muted mt-5">Use credentials provided by your teacher</div>
+
+    <input id="email" placeholder="Email" class="mt-20">
+    <input id="password" type="password" placeholder="Password">
+
+    <button onclick="login()" class="primary-btn w-full mt-20">
+      Login
+    </button>
+
+    <div id="errorBox" class="mt-10 text-muted"></div>
+
+  </div>
+
+</div>
+
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js?v=20260520"></script>
+
+<script>
+
+/* =========================
+LOGIN
+========================= */
+
+async function login(){
+
+  const email = document.getElementById("email").value.trim()
+  const password = document.getElementById("password").value.trim()
+  const errorBox = document.getElementById("errorBox")
+
+  errorBox.innerText = ""
+
+  if(!email || !password){
+    errorBox.innerText = "Enter email and password"
+    return
+  }
+
+  const sb = await (await import("./js/core/get-client.js")).getClient()
+
+  const { data, error } = await sb.auth.signInWithPassword({
+    email,
+    password
+  })
+
+  if(error){
+    errorBox.innerText = error.message
+    return
+  }
+
+  await routeUser(data.user.id)
+
+}
+
+/* =========================
+insert into users (id, role)
+values ('USER_UUID_HERE', 'student'); -- or teacher
+========================= */
+/* =========================
+ROLE ROUTING
+========================= */
+
+async function routeUser(userId){
+
+  const sb = await (await import("./js/core/get-client.js")).getClient()
+
+  const { data, error } = await sb
+    .from("users")
+    .select("role")
+    .eq("id", userId)
+    .single()
+
+  if(error || !data){
+    alert("User role not found")
+    return
+  }
+
+  const role = data.role  
+
+  if(role === "teacher" || role === "admin"){
+    location.href = "index.html"
+  }
+  else if(role === "student"){
+    location.href = "student-dashboard.html"
+  }
+  else{
+    alert("Invalid role")
+  }
+
+}
+
+</script>
+
+</body>
+</html>

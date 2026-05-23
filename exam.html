@@ -3,6 +3,7 @@
 
 <head>
 
+  <link rel="icon" type="image/png" href="assets/prepos-icon.png">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 
@@ -19,9 +20,9 @@
   <!-- Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-  <!-- Config + Logic -->
-  <script src="js/config.js" defer></script>
-  <script src="js/exam.js" defer></script>
+  <!-- Config + Logic (config before exam module for getClient) -->
+  <script src="js/config.js?v=20260520"></script>
+  <script type="module" src="js/exam.js" defer></script>
 
 </head>
 
@@ -45,6 +46,7 @@
       <div class="exam-header-right">
         <h2 id="examTitle">PrepOS Exam</h2>
         <div id="examSubtitle" class="exam-subtitle"></div>
+        <div class="timer-box" id="examTimer">00:00</div>
       </div>
 
     </header>
@@ -52,7 +54,7 @@
 
     <!-- ================= STUDENT INFO ================= -->
 
-    <section class="student-info">
+    <section class="student-info" id="studentInfoSection">
 
       <label for="studentName">Enter your name</label>
 
@@ -63,6 +65,8 @@
         autocomplete="off"
         required
       >
+
+      <button id="startExamBtn">Start Exam</button>
 
     </section>
 

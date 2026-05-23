@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+  <link rel="icon" type="image/png" href="assets/prepos-icon.png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>PrepOS Student</title>
+
+  <link rel="stylesheet" href="css/style.css">
+
+</head>
+
+<body>
+
+  <div class="container">
+
+    <!-- =========================
+  HEADER
+  ========================= -->
+
+    <div class="mt-10 flex" style="justify-content:space-between; align-items:center;">
+
+      <div>
+        <div class="h1">PrepOS</div>
+        <div class="text-muted mt-5">Student Dashboard</div>
+      </div>
+
+      <button onclick="logout()">Logout</button>
+
+    </div>
+
+
+    <!-- =========================
+  START EXAM
+  ========================= -->
+
+    <div class="card mt-30">
+
+      <div class="h2">Start Exam</div>
+      <div class="section-sub mt-5">
+        Enter exam ID provided by your teacher.
+      </div>
+
+      <input id="examId" placeholder="Enter exam id" class="w-full mt-20">
+
+      <button onclick="startExam()" class="primary-btn w-full mt-10">
+        Start Exam
+      </button>
+
+    </div>
+
+
+    <!-- =========================
+AVAILABLE EXAMS
+========================= -->
+
+    <div class="card mt-20">
+
+      <div class="h2">Available Exams</div>
+
+      <div id="availableExams" class="mt-10">
+        Loading exams...
+      </div>
+
+    </div>
+
+
+    <!-- =========================
+PRACTICE
+========================= -->
+
+    <div class="card mt-20">
+
+      <div class="h2">Practice</div>
+
+      <div class="section-sub mt-5">
+        Practice with smart generators or saved question bank questions.
+      </div>
+
+      <button onclick="goToPractice()" class="primary-btn w-full mt-20">
+        Start Practice
+      </button>
+
+    </div>
+
+
+    <!-- =========================
+  RECENT ATTEMPTS
+  ========================= -->
+
+    <div class="card">
+
+      <div class="h3">Recent Attempts</div>
+
+      <div id="recentAttempts" class="mt-10">
+        Loading attempts...
+      </div>
+
+    </div>
+
+
+    <!-- =========================
+  PERFORMANCE
+  ========================= -->
+
+    <div class="card">
+
+      <div class="h3">Performance</div>
+
+      <div id="performanceBox" class="mt-10 text-muted">
+        Loading performance...
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <!-- =========================
+SCRIPTS
+========================= -->
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/config.js?v=20260520"></script>
+  <script type="module" src="js/auth.js"></script>
+
+  <script type="module" src="js/student-dashboard.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", initStudent)
+  </script>
+
+</body>
+
+</html>

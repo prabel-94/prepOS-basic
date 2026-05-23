@@ -2,10 +2,11 @@
 // PrepOS QB Manager (v3 - Viewer Mode)
 // ===============================
 
+import { getClient } from "./core/get-client.js";
+
 // --------------------------------
 // INIT
 // --------------------------------
-const sb = window.supabaseClient;
 let selectedQuestionId = null;
 
 // --------------------------------
@@ -40,6 +41,7 @@ let patternDefinitions = [];
 let caDefinitions = [];
 
 async function loadPatternDefinitions() {
+  const sb = await getClient()
   const { data, error } = await sb
     .from("metadata_definitions")
     .select("key, description")
@@ -60,6 +62,7 @@ async function fetchPatterns() {
 
 async function loadCADefinitions() {
 
+  const sb = await getClient()
   const { data, error } = await sb
     .from("metadata_definitions")
     .select("key, description")
@@ -127,6 +130,7 @@ function renderCAManager() {
 
 async function createCA() {
 
+  const sb = await getClient()
   const key = document
     .getElementById("newCAKey")
     .value
@@ -159,6 +163,7 @@ async function createCA() {
 
 async function createPattern() {
 
+  const sb = await getClient()
   const key = document
     .getElementById("newPatternKey")
     .value
@@ -253,6 +258,7 @@ function computeDifficulty(cognitive, complexity, depth) {
 
 async function updateTopicPatterns(questionId, patternKey) {
 
+  const sb = await getClient()
   if (!patternKey) return;
 
   const { data } = await sb
@@ -274,6 +280,7 @@ async function updateTopicPatterns(questionId, patternKey) {
 
 async function replacePatternMetadata(questionId, patternKey) {
 
+  const sb = await getClient()
   // remove existing pattern
   await sb
     .from("question_metadata")
@@ -303,6 +310,7 @@ async function replacePatternMetadata(questionId, patternKey) {
 }
 async function replaceQuestionMetadata(questionId, difficulty) {
 
+  const sb = await getClient()
   await sb
   .from("question_metadata")
   .delete()
@@ -332,6 +340,7 @@ async function replaceQuestionMetadata(questionId, difficulty) {
 
 async function getPatternsByTopics(topicIds, query = "") {
 
+  const sb = await getClient()
   if (!topicIds.length) return [];
 
   const { data, error } = await sb
@@ -362,6 +371,7 @@ async function getPatternsByTopics(topicIds, query = "") {
 // FETCH
 // --------------------------------
 async function fetchQuestions() {
+  const sb = await getClient()
   const { data, error } = await sb
     .from("questions")
 .select(`
@@ -387,6 +397,7 @@ async function fetchQuestions() {
 }
 
 async function fetchTopics() {
+  const sb = await getClient()
   const { data, error } = await sb
     .from("question_topics")
     .select(`
@@ -703,6 +714,7 @@ function renderTopics() {
 
 async function renameTopic(id, oldName) {
 
+  const sb = await getClient()
   const newName = prompt("Rename topic:", oldName);
 
   if (!newName || newName === oldName) return;
@@ -723,6 +735,7 @@ async function renameTopic(id, oldName) {
 
 async function mergeTopic(sourceId) {
 
+  const sb = await getClient()
   const targetName = prompt(
     "Merge this topic into:\n(Type existing topic name)"
   );
@@ -780,6 +793,7 @@ async function mergeTopic(sourceId) {
 
 async function deleteTopic(id) {
 
+  const sb = await getClient()
   // --------------------------------
   // CHECK IF QUESTIONS EXIST
   // --------------------------------
@@ -851,6 +865,7 @@ function renderTopicFilter() {
 // --------------------------------
 async function deleteQuestion(id) {
 
+  const sb = await getClient()
   const ok = confirm(
     "Delete this question?\n\nThis cannot be undone."
   );
@@ -895,6 +910,7 @@ function handleEdit(id) {
 
 async function replaceCAMetadata(questionId, event, date) {
 
+  const sb = await getClient()
   await sb
     .from("question_metadata")
     .delete()
@@ -934,6 +950,8 @@ function bindEvents() {
 document.getElementById("patternList")
 ?.addEventListener("input", async (e) => {
 
+  const sb = await getClient()
+
   if (!e.target.classList.contains("pattern-desc-input")) return;
 
   const key = e.target.dataset.key;
@@ -950,6 +968,8 @@ document.getElementById("patternList")
 
 document.getElementById("patternList")
 ?.addEventListener("click", async (e) => {
+
+  const sb = await getClient()
 
   if (!e.target.classList.contains("delete-pattern-btn")) return;
 
@@ -1024,6 +1044,8 @@ document.getElementById("addCABtn")
 document.getElementById("caList")
 ?.addEventListener("click", async (e) => {
 
+  const sb = await getClient()
+
   if (!e.target.classList.contains("delete-ca-btn")) return;
 
   const key = e.target.dataset.key;
@@ -1089,6 +1111,8 @@ document.getElementById("caList")
 });
 // CLICK DIFFICULTY BADGE
 el.questionsView.addEventListener("click", async (e) => {
+
+  const sb = await getClient()
 
   // 🔥 CA CLICK
 const caBadge = e.target.closest(".ca-badge");

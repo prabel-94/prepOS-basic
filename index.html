@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
 
+<link rel="icon" type="image/png" href="assets/prepos-icon.png">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
@@ -14,121 +14,252 @@
 
 <body>
 
-<h1>PrepOS</h1>
-<div class="small">Teacher Console</div>
+<div class="container">
+
+  <!-- =========================
+  HEADER
+  ========================= -->
+
+  <div class="mt-10 flex" style="justify-content:space-between; align-items:center;">
+
+  <!-- LEFT SIDE -->
+  <div>
+    <div class="h1">PrepOS</div>
+    <div class="text-muted mt-5">Teacher Console</div>
+  </div>
+
+  <!-- RIGHT SIDE -->
+  <button onclick="logout()">Logout</button>
+
+</div>
+
 
 
 <!-- =========================
-Create Exam (PRIMARY ENTRY)
+PRACTICE MODE (NEW)
 ========================= -->
 
-<div class="card">
+<div class="card mt-30">
 
-<h3>Create Exam</h3>
+  <div class="h2">Practice</div>
+  <div class="section-sub mt-5">
+    Practice questions instantly using smart generators.
+  </div>
 
-<p>Start a new exam using parser or manual entry.</p>
+  <button onclick="location.href='practice.html'" class="primary-btn w-full mt-20">
+    🎯 Start Practice
+  </button>
 
-<button onclick="goToCreatorMode()" class="primary-btn">
-Create Exam
-</button>
+</div>
+
+<!-- =========================
+STUDENT MODE
+========================= -->
+
+<div class="card mt-20">
+
+  <div class="h2">Student Mode</div>
+
+  <div class="section-sub mt-5">
+    Switch to student dashboard and practice as a learner.
+  </div>
+
+  <button 
+    onclick="goToStudent()" 
+    class="primary-btn w-full mt-20"
+  >
+    🎓 Go to Student Dashboard
+  </button>
+
+</div>
+
+
+  <!-- =========================
+  PRIMARY ACTION
+  ========================= -->
+  <div class="card mt-30">
+
+    <div class="h2">Start Creating</div>
+    <div class="section-sub mt-5">
+      Create a new exam draft using manual entry or parser.
+    </div>
+
+    <button onclick="goToCreatorMode()" class="primary-btn w-full mt-20">
+      + Create New Exam
+    </button>
+
+  </div>
+
+
+  <!-- =========================
+  CONTINUE WORK
+  ========================= -->
+
+  <div class="card">
+
+    <div class="h3">Continue Work</div>
+
+    <div id="recentDraft" class="mt-10 text-muted">
+      Loading draft...
+    </div>
+
+  </div>
+
+
+  <!-- =========================
+  KNOWLEDGE LAYER
+  ========================= -->
+
+  <div class="card">
+
+    <div class="h3">Knowledge Base</div>
+    <div class="section-sub mt-5">
+      Build and manage your topic-based question bank.
+    </div>
+
+    <div class="flex gap-10 mt-20">
+
+      <button onclick="location.href='qb-manager.html'">
+        📚 Question Bank
+      </button>
+
+      <button onclick="location.href='topics.html'">
+        🧠 Topics
+      </button>
+
+    </div>
+
+  </div>
+
+
+  <!-- =========================
+  EXAM LAYER
+  ========================= -->
+
+  <div class="card">
+
+    <div class="h3">Exam Management</div>
+
+    <div class="flex gap-10 mt-20">
+
+      <button onclick="location.href='draft.html'">
+        📄 Drafts
+      </button>
+
+      <button onclick="location.href='published-exams.html'">
+        Published Exams
+      </button>
+
+      <button onclick="location.href='teacher-results.html'">
+        📊 Results
+      </button>
+
+    </div>
+
+  </div>
+
+
+  <!-- =========================
+  RECENT EXAMS
+  ========================= -->
+
+  <div class="card">
+
+    <div class="h3">Recent Exams</div>
+
+    <div id="recentExams" class="mt-10">
+      Loading recent exams...
+    </div>
+
+  </div>
+
+
+  <!-- =========================
+  QUICK OPEN (DEV TOOL)
+  ========================= -->
+
+  <div class="card">
+
+    <div class="h3">Quick Open</div>
+    <div class="section-sub mt-5">
+      Preview exam using ID.
+    </div>
+
+    <input
+      id="examId2"
+      placeholder="Paste exam id"
+      class="w-full mt-20"
+    >
+
+    <button onclick="openExam()" class="mt-10">
+      Open Exam
+    </button>
+
+  </div>
 
 </div>
 
 
 <!-- =========================
-Knowledge & Management (NEW)
+SCRIPTS
 ========================= -->
-
-<div class="card">
-
-<h3>Knowledge & Management</h3>
-
-<p>Manage your question bank and drafts.</p>
-
-<div class="flex gap-10 mt-10">
-
-<button onclick="location.href='qb-manager.html'">
-📚 Question Bank
-</button>
-
-<button onclick="location.href='draft.html'">
-📄 Drafts
-</button>
-
-</div>
-
-</div>
-
-
-<!-- =========================
-Recent Exams
-========================= -->
-
-<div class="card">
-
-<h3>Recent Exams</h3>
-
-<div id="recentExams">
-Loading recent exams...
-</div>
-
-</div>
-
-
-<!-- =========================
-Results Viewer
-========================= -->
-
-<div class="card">
-
-<h3>Results Viewer</h3>
-
-<p>Browse submissions by exam.</p>
-
-<button onclick="location.href='teacher-results.html'">
-Open Viewer
-</button>
-
-</div>
-
-
-<!-- =========================
-Open Exam
-========================= -->
-
-<div class="card">
-
-<h3>Open Exam</h3>
-
-<p>Preview exam using id.</p>
-
-<input
-id="examId2"
-placeholder="Paste exam id"
-class="w-full p-8 mt-10"
->
-
-<button onclick="openExam()">
-Open Exam
-</button>
-
-</div>
-
-
-<!-- =========================
-Scripts
-========================= -->
-<script src="js/auth.js"></script>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/config.js"></script>
-
+<script src="js/config.js?v=20260520"></script>
+<script type="module" src="js/auth.js"></script>
 
 <script>
 
+(async () => {
+  await requireAuth()
+  await requireTeacherAccess()  // 🔥 NEW
+})()
+
+async function logout(){
+  const sb = await (await import("./js/core/get-client.js")).getClient()
+  await sb.auth.signOut()
+  location.href = "login.html"
+}
+
+async function requireTeacherAccess(){
+
+  const sb = await (await import("./js/core/get-client.js")).getClient()
+  const { data: userData } = await sb.auth.getUser()
+  const user = userData?.user
+
+  if(!user){
+    window.location.href = "login.html"
+    return
+  }
+
+  const { data, error } = await sb
+    .from("users")
+    .select("role")
+    .eq("id", user.id)
+    .single()
+
+  if(error || !data){
+    window.location.href = "login.html"
+    return
+  }
+
+  const role = data.role
+
+  // 🔥 CORE LOGIC
+  if(role !== "teacher" && role !== "admin"){
+    window.location.href = "login.html"
+  }
+
+}
+
+
 /* =========================
-Navigation: Creator Mode
+NAVIGATION
 ========================= */
+
+function goToStudent(){
+  location.href = "student-dashboard.html"
+}
 
 function goToCreatorMode(){
   location.href = "creator-mode.html"
@@ -136,126 +267,141 @@ function goToCreatorMode(){
 
 
 /* =========================
-Open Exam
+OPEN EXAM
 ========================= */
 
 window.openExam = function(){
 
-const id = document.getElementById("examId2").value.trim()
+  const id = document.getElementById("examId2").value.trim()
 
-if(!id){
-alert("Enter exam id")
-return
-}
+  if(!id){
+    alert("Enter exam id")
+    return
+  }
 
-location.href = `exam.html?id=${id}`
-
+  location.href = `exam.html?id=${id}`
 }
 
 
 /* =========================
-Recent Exams Loader
+RECENT EXAMS
 ========================= */
 
 async function loadRecentExams(){
 
-const container = document.getElementById("recentExams")
+  const container = document.getElementById("recentExams")
 
-try{
+  try{
 
-const res = await fetch(
+    const sb = await (await import("./js/core/get-client.js")).getClient()
 
-`${SUPABASE_URL}/rest/v1/exam_sessions?select=id,title,created_at&order=created_at.desc&limit=5`,
+    const { data, error } = await sb
+      .from("exam_sessions")
+      .select("id, title, created_at")
+      .order("created_at", { ascending: false })
+      .limit(5)
 
-{
-headers:{
-apikey: SUPABASE_ANON_KEY,
-Authorization:`Bearer ${SUPABASE_ANON_KEY}`
-}
-}
+    if (error) throw error
 
-)
+    container.innerHTML=""
 
-if(!res.ok){
-throw new Error("Failed to load exams")
-}
+    if(!data?.length){
+      container.innerHTML="<div class='empty-state'>No exams yet</div>"
+      return
+    }
 
-const data = await res.json()
+    data.forEach(e=>{
 
-container.innerHTML=""
+      const div=document.createElement("div")
+      div.className="recent-item mt-10"
 
-if(!data.length){
+      div.innerHTML=`
+        <b>${e.title}</b><br>
+        <div class="mt-5">
+          <button onclick="location.href='exam.html?id=${e.id}'">
+            Open
+          </button>
+          <button onclick="viewResults('${e.id}')">
+            Results
+          </button>
+        </div>
+      `
 
-container.innerHTML="No exams yet"
+      container.appendChild(div)
 
-return
+    })
 
-}
-
-data.forEach(e=>{
-
-const div=document.createElement("div")
-
-div.className="recent-item"
-
-div.innerHTML=`
-
-<b>${e.title}</b><br>
-
-<button onclick="location.href='exam.html?id=${e.id}'">
-Open
-</button>
-
-<button onclick="viewResults('${e.id}')">
-Results
-</button>
-
-`
-
-container.appendChild(div)
-
-})
-
-}catch(err){
-
-console.error(err)
-
-container.innerHTML="Unable to load exams"
-
-}
-
+  }catch(err){
+    console.error(err)
+    container.innerHTML="<div class='empty-state'>Unable to load exams</div>"
+  }
 }
 
 
 /* =========================
-View Results
+RECENT DRAFT
+========================= */
+
+async function loadRecentDraft(){
+
+  const container = document.getElementById("recentDraft")
+
+  try{
+
+    const sb = await (await import("./js/core/get-client.js")).getClient()
+
+    const { data, error } = await sb
+      .from("draft_exams")
+      .select("id, title, updated_at")
+      .order("updated_at", { ascending: false })
+      .limit(1)
+
+    if (error) throw error
+
+    if(!data?.length){
+      container.innerHTML="<div class='empty-state'>No drafts yet</div>"
+      return
+    }
+
+    const d = data[0]
+
+    container.innerHTML = `
+      <div class="recent-item">
+        <b>${d.title}</b><br>
+        <button class="mt-5" onclick="location.href='draft.html?id=${d.id}'">
+          Resume Draft
+        </button>
+      </div>
+    `
+
+  }catch(err){
+    container.innerHTML="<div class='empty-state'>Unable to load draft</div>"
+  }
+}
+
+
+/* =========================
+VIEW RESULTS
 ========================= */
 
 window.viewResults = function(examId){
 
-localStorage.setItem("results_exam",examId)
-
-location.href="teacher-results.html"
+  localStorage.setItem("results_exam",examId)
+  location.href="teacher-results.html"
 
 }
 
 
 /* =========================
-Dashboard Init
+INIT
 ========================= */
 
 function initDashboard(){
 
-setTimeout(()=>{
-loadRecentExams()
-},100)
+  loadRecentExams()
+  loadRecentDraft()
 
 }
-
-
-/* =========================
-Init
-========================= */
 
 initDashboard()
 
@@ -263,16 +409,13 @@ initDashboard()
 
 
 <!-- =========================
-Eruda Debug Console
-(remove in production)
+ERUDA (REMOVE LATER)
 ========================= -->
 
 <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
-
 <script>
 eruda.init()
 </script>
-
 
 </body>
 </html>

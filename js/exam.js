@@ -1,4 +1,10 @@
+import { TimerEngine } from "./timer.js";
+import { PREPOS_ANALYTICS_ENABLED } from "./analytics/analytics-config.js";
+import { getClient } from "./core/get-client.js";
+
 console.log("SCRIPT STARTED");
+
+let timer; // global timer instance
 
 /* ---------- watermark image ---------- */
 
@@ -109,7 +115,7 @@ function normalizeQuestion(q){
   correct = String(correct || "").toUpperCase();
 
   return {
-    question_id: q.question_id || null,
+    question_id: q.question_id || q.id || null,
     text: q.text || q.question || q.question_text || "",
     options: (q.options || []).map(o =>
       typeof o === "string"
@@ -117,7 +123,9 @@ function normalizeQuestion(q){
         : o
     ),
     correct,
-    explanation: q.explanation || q.explanation_text || ""
+    explanation: q.explanation || q.explanation_text || "",
+    topics: Array.isArray(q.topics) ? q.topics : [],
+    bank_status: q.bank_status || null
   };
 
 }
@@ -158,6 +166,7 @@ if(!examId){
 
 const ATTEMPT_KEY = `prepos-attempt-${examId}`;
 const ATTEMPT_ID_KEY = `prepos-attempt-id-${examId}`;
+const TIMER_KEY = `timer-${examId}`;
 
 function createAttemptId(examId){
   const rand = Math.random().toString(36).slice(2,7);
@@ -171,6 +180,17 @@ if(!attemptId){
   localStorage.setItem(ATTEMPT_ID_KEY, attemptId);
 }
 
+function getDeviceId(){
+
+  let id = localStorage.getItem("prepos_device_id")
+
+  if(!id){
+    id = crypto.randomUUID()
+    localStorage.setItem("prepos_device_id", id)
+  }
+
+  return id
+}
 /* ---------- attempt state ---------- */
 let attemptState = JSON.parse(localStorage.getItem(ATTEMPT_KEY) || "null");
 
@@ -184,8 +204,45 @@ if(!attemptState || attemptState.attemptId !== attemptId){
   localStorage.setItem(ATTEMPT_KEY, JSON.stringify(attemptState));
 }
 /* ======================================================
-   FETCH EXAM (Clean + Scalable)
+   FETCH EXAM (session-aware + public link fallback)
 ====================================================== */
+
+async function fetchExamSession(examId) {
+
+  const sb = await getClient();
+
+  const { data: sessionData } = await sb.auth.getSession();
+  const hasUserSession = Boolean(sessionData?.session?.access_token);
+
+  console.log("Exam fetch auth:", {
+    examId,
+    hasUserSession,
+    userId: sessionData?.session?.user?.id ?? null
+  });
+
+  const { data: exam, error } = await sb
+    .from("exam_sessions")
+    .select("*")
+    .eq("id", examId)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Exam fetch error:", error);
+    throw new Error(
+      error.message || `Server error loading exam`
+    );
+  }
+
+  if (!exam) {
+    const hint = hasUserSession
+      ? "This exam does not exist, or your account is not allowed to view it."
+      : "This exam does not exist, or the link requires you to sign in first.";
+
+    throw new Error(`Exam not found. ${hint}`);
+  }
+
+  return exam;
+}
 
 async function loadExam(){
 
@@ -194,30 +251,9 @@ async function loadExam(){
 
   try{
 
-    /* ---------- FETCH FROM SUPABASE ---------- */
+    const exam = await fetchExamSession(examId);
 
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/exam_sessions?id=eq.${examId}`,
-      {
-        headers:{
-          apikey: SUPABASE_ANON_KEY,
-          Authorization: `Bearer ${SUPABASE_ANON_KEY}`
-        }
-      }
-    );
-
-    if(!res.ok){
-      throw new Error(`Server error (${res.status})`);
-    }
-
-    const data = await res.json();
-    console.log("Exam fetch result:", data);
-
-    if(!data || !data.length){
-      throw new Error("Exam not found");
-    }
-
-    const exam = data[0];
+    console.log("Exam fetch result:", exam);
 
     /* ---------- BASIC EXAM INFO ---------- */
 
@@ -234,6 +270,21 @@ async function loadExam(){
     if(titleEl){
       titleEl.textContent = window.examTitle;
     }
+
+    /* ---------- EXTEND ATTEMPT STATE ---------- */
+
+    if (!attemptState.startedAt) {
+      attemptState.startedAt = Date.now();
+      attemptState.duration = exam.duration || 1800; // default 30 min
+      localStorage.setItem(ATTEMPT_KEY, JSON.stringify(attemptState));
+    }
+
+    /* ---------- INITIALIZE TIMER (NOT STARTED YET) ---------- */
+
+    timer = new TimerEngine({
+      duration: attemptState.duration,
+      startedAt: attemptState.startedAt
+    });
 
     /* ---------- EXTRACT QUESTIONS ---------- */
 
@@ -266,7 +317,36 @@ async function loadExam(){
     /* ---------- RENDER ---------- */
 
     renderQuiz(window.examQuestionsRaw);
-    showExam();
+
+    /* ---------- START EXAM BUTTON ---------- */
+
+    document.getElementById("startExamBtn").addEventListener("click", () => {
+      const studentName = document.getElementById("studentName").value.trim();
+      if (!studentName) {
+        alert("Please enter your name");
+        return;
+      }
+
+      // Store student name
+      localStorage.setItem("studentName", studentName);
+
+      // Hide student info
+      document.getElementById("studentInfoSection").style.display = "none";
+
+      // Show exam
+      showExam();
+
+      // Start timer
+      timer.start({
+        onTick: ({ formatted }) => {
+          document.getElementById("examTimer").innerText = formatted;
+        },
+        onEnd: () => {
+          alert("Time up! Auto submitting...");
+          submitExam();
+        }
+      });
+    });
 
   }
   catch(err){
@@ -276,7 +356,7 @@ async function loadExam(){
 
   }
 
-}
+  }
 
 /* ---------- COMPONENT: OPTION ROW ---------- */
 function createOptionRow(qIndex, optionText, optionIndex){
@@ -387,11 +467,33 @@ function renderQuiz(questions){
 }
 
 /* ======================================================
+   SUBMISSION MODE (canonical vs public)
+====================================================== */
+
+async function canSubmitCanonicalAttempt(sb, examId, userId) {
+
+  if (!userId) {
+    return false;
+  }
+
+  const { data, error } = await sb
+    .from("exam_assignments")
+    .select("id")
+    .eq("exam_id", examId)
+    .eq("student_id", userId)
+    .maybeSingle();
+
+  return !!data && !error;
+}
+
+/* ======================================================
    SUBMIT
 ====================================================== */
 async function submitExam(){
 
   if(attemptState.status==="submitted") return;
+
+  if (timer) timer.stop(); // stop timer if exists
 
   if(!window.examQuestionsRaw){
     console.error("Raw questions missing");
@@ -399,10 +501,7 @@ async function submitExam(){
     return;
   }
 
-  const studentInput =
-    document.getElementById("studentName");
-
-  const studentName = studentInput.value.trim();
+  const studentName = localStorage.getItem("studentName") || "";
 
   if(!studentName){
     alert("Please enter your name");
@@ -431,43 +530,125 @@ const selected =
     if(chosen === q.correct) score++;
   });
 
-const bankAnswers = answers.filter(a => a.question_id); // 🔥filter bank Qs
+  /* ---------- CALCULATE TIME TAKEN ---------- */
 
-  try{
+  const elapsed = Math.floor((Date.now() - attemptState.startedAt) / 1000);
+  const time_taken = Math.min(elapsed, attemptState.duration);
 
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/exam_attempts`, {
-      method: "POST",
-      headers: {
-        apikey: SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-        "Content-Type": "application/json",
-        Prefer: "return=minimal"
-      },
-      body: JSON.stringify({
-        exam_id: examId,
-        device_id: attemptId,
-        student_name: studentName,
-        answers,
-        score,
-        question_count: answers.length,
-        submitted_at: new Date().toISOString()
-      })
+  const bankAnswers = answers.filter(a => a.question_id);
+
+try{
+
+  const sb = await getClient();
+  const { data: userData } = await sb.auth.getUser()
+  const user = userData?.user
+
+  const useCanonical =
+    user &&
+    await canSubmitCanonicalAttempt(sb, examId, user.id);
+
+  let attemptError = null;
+
+  if (useCanonical) {
+
+    console.log("[PrepOS Exam Submission]", {
+      mode: "canonical"
     });
 
-    if (!res.ok) {
-      console.error("Failed to save attempt", res.status)
-      alert("Submission failed. Please try again.")
-      return
-    }
+    const result = await sb
+      .from("exam_attempts")
+      .insert([
+        {
+          exam_id: examId,
+          device_id: getDeviceId(),
+          attempt_id: attemptId,
+          student_name: studentName,
+          student_id: user.id,
+          answers,
+          score,
+          question_count: answers.length,
+          time_taken,
+          submitted_at: new Date().toISOString()
+        }
+      ]);
+
+    attemptError = result.error;
+
+  } else {
+
+    console.log("[PrepOS Exam Submission]", {
+      mode: "public"
+    });
+
+    const result = await sb
+      .from("public_exam_attempts")
+      .insert([
+        {
+          exam_id: examId,
+          guest_name: studentName,
+          device_id: getDeviceId(),
+          attempt_id: attemptId,
+          answers,
+          score,
+          question_count: answers.length,
+          time_taken,
+          submitted_at: new Date().toISOString()
+        }
+      ]);
+
+    attemptError = result.error;
+
+  }
+
+  if (attemptError) {
+    console.error("Failed to save attempt", attemptError)
+    alert("Submission failed. Please try again.")
+    return
+  }
+
+  const submissionMode = useCanonical ? "canonical" : "public";
 
     /* ---------- lock ---------- */
     attemptState.status="submitted";
     localStorage.setItem(ATTEMPT_KEY, JSON.stringify(attemptState));
 
+    /* ---------- analytics (disabled via analytics-config.js) ---------- */
+    if (PREPOS_ANALYTICS_ENABLED) {
+      const { runExamSubmissionAnalyticsWithHistory, buildAttemptRecord } =
+        await import("./analytics/analytics-submission.js");
+
+      const attemptRecord = buildAttemptRecord({
+        examId,
+        attemptId,
+        studentName,
+        studentId: useCanonical ? user.id : null,
+        answers,
+        score,
+        timeTaken: time_taken,
+        submissionMode
+      });
+
+      runExamSubmissionAnalyticsWithHistory({
+        examId,
+        examTitle: window.examTitle || "Exam",
+        attempt: attemptRecord,
+        rawQuestions: window.examQuestionsRaw,
+        sourceQuestions: window.examQuestions || [],
+        submissionMode,
+        sb
+      }).catch(err => {
+        console.warn(
+          "[PrepOS Analytics] Submission analytics failed (non-fatal):",
+          err
+        );
+      });
+    }
+
+    /* ---------- clean up timer ---------- */
+    localStorage.removeItem(TIMER_KEY);
+
     document.querySelectorAll('input[type="radio"]')
       .forEach(el=>el.disabled=true);
-
-    studentInput.disabled = true; // ⭐ polish
 
     /* ---------- build review ---------- */
    window.reviewData =
@@ -542,8 +723,8 @@ function createReviewOption(opt, idx, correct, student){
     <div class="${className}">
       <span class="option-letter">${letter}</span>
       <span class="option-text prepos-text">
-  ${letter}. ${escapeHTML(optionText)}
-</span>
+        ${letter}. ${escapeHTML(opt?.text || "")}
+      </span>
     </div>
   `;
 }

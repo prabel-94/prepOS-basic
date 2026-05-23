@@ -1,9 +1,13 @@
 /* =========================================
-PrepOS Malayalam Generator (Final Clean)
+PrepOS Malayalam Generator
 ========================================= */
 
-const sb = window.supabaseClient;
-const ADAPTIVE_MODE = true;
+import {
+  fetchGroups,
+  buildQuestion
+} from "./shared/lexicon-engine.js";
+import { getClient } from "../core/get-client.js";
+const DEFAULT_ADAPTIVE_MODE = true;
 
 /* =========================================
 Pattern Registry
@@ -19,9 +23,8 @@ Main Export
 ========================================= */
 
 export const MalayalamGenerator = {
-  async generate(config) {
+  async generate(config = {}) {
     const { pattern } = config;
-
     const fn = PatternRegistry[pattern];
 
     if (!fn) {
@@ -33,45 +36,64 @@ export const MalayalamGenerator = {
 };
 
 /* =========================================
-Fetch Groups (NO MAPPING LAYER)
+Errors
 ========================================= */
 
-async function fetchGroups() {
-  const { data, error } = await sb
-    .from("lexicon_entries")
-    .select("word, group_id");
-
-  if (error) {
-    console.error("Fetch error:", error);
-    return {};
-  }
-
-  const groups = {};
-
-  (data || []).forEach(row => {
-    if (!row.group_id || !row.word) return;
-
-    if (!groups[row.group_id]) {
-      groups[row.group_id] = [];
-    }
-
-    groups[row.group_id].push(row.word);
-  });
-
-  return groups;
+function createGeneratorError(code, message) {
+  const error = new Error(message);
+  error.code = code;
+  return error;
 }
 
 /* =========================================
-Adaptive Stats (word-level)
+Data Fetching
+========================================= */
+
+async function fetchOppositeRelations() {
+  const sb = await getClient();
+  const { data, error } = await sb
+    .from("lexicon_group_relations")
+    .select("group_id_1, group_id_2, relation_type");
+
+  if (error) {
+    console.error("Relation fetch error:", error);
+    throw createGeneratorError(
+      "RELATION_FETCH_FAILED",
+      "Unable to load opposite-word links right now."
+    );
+  }
+
+  const antonymRelations = (data || []).filter(row => {
+    return !row.relation_type || row.relation_type === "ANTONYM";
+  });
+
+  if (!antonymRelations.length) {
+    throw createGeneratorError(
+      "OPPOSITE_RELATIONS_MISSING",
+      "Opposite-word practice needs linked opposite groups in the lexicon manager."
+    );
+  }
+
+  return antonymRelations;
+}
+
+/* =========================================
+Adaptive Stats
 ========================================= */
 
 async function getUserWordStatsMap() {
   const userId = window.currentUser?.id;
   if (!userId) return {};
 
+  const sb = await getClient();
   const { data } = await sb
     .from("user_lexicon_word_stats")
-    .select("seen_count, wrong_count, lexicon_entries(word)")
+    .select(`
+  word_id,
+  seen_count,
+  wrong_count,
+  lexicon_entries!user_lexicon_word_stats_word_id_fkey(word)
+`)
     .eq("user_id", userId);
 
   const map = {};
@@ -79,10 +101,12 @@ async function getUserWordStatsMap() {
   (data || []).forEach(row => {
     const seen = row.seen_count || 0;
     const wrong = row.wrong_count || 0;
-
     const weakness = seen === 0 ? 1 : wrong / seen;
+    const word =
+      Array.isArray(row.lexicon_entries)
+        ? row.lexicon_entries[0]?.word
+        : row.lexicon_entries?.word;
 
-    const word = row.lexicon_entries?.word;
     if (word) {
       map[word] = weakness;
     }
@@ -103,25 +127,124 @@ function pickRandom(arr, count) {
   return shuffle([...arr]).slice(0, count);
 }
 
+function getAdaptiveMode(config = {}) {
+  if (typeof config.adaptive === "boolean") {
+    return config.adaptive;
+  }
+
+  return DEFAULT_ADAPTIVE_MODE;
+}
+
+function getGroupWords(groups, groupId) {
+  return (groups[groupId] || []).map(entry => entry.word);
+}
+
+function uniqueEntriesByWord(entries, excludedWords = []) {
+  const seen = new Set(excludedWords);
+  const unique = [];
+
+  shuffle([...entries]).forEach(entry => {
+    if (!entry?.word || seen.has(entry.word)) return;
+    seen.add(entry.word);
+    unique.push(entry);
+  });
+
+  return unique;
+}
+
+function buildDistractors({
+  groups,
+  excludedGroupIds = [],
+  excludedWords = [],
+  preferredLexicalClass = null,
+  count = 3
+}) {
+
+  // ========================================
+  // 1. BASE POOL
+  // ========================================
+
+  const basePool = Object.keys(groups)
+    .filter(groupId => !excludedGroupIds.includes(groupId))
+    .flatMap(groupId => groups[groupId]);
+
+  // ========================================
+  // 2. SAME LEXICAL CLASS POOL
+  // ========================================
+
+  let filteredPool = basePool;
+
+  if (preferredLexicalClass) {
+
+    const sameClassPool = basePool.filter(entry => {
+      return entry.lexical_class === preferredLexicalClass;
+    });
+
+    // Use same-class pool ONLY if enough entries exist
+    if (sameClassPool.length >= count) {
+      filteredPool = sameClassPool;
+    }
+  }
+
+  // ========================================
+  // 3. BUILD DISTRACTORS
+  // ========================================
+
+  let distractors = uniqueEntriesByWord(
+    filteredPool,
+    excludedWords
+  ).slice(0, count);
+
+  // ========================================
+  // 4. FALLBACK TO GLOBAL POOL
+  // ========================================
+
+  if (distractors.length < count) {
+
+    const fallbackPool = Object.values(groups).flat();
+
+    distractors = uniqueEntriesByWord(
+      fallbackPool,
+      excludedWords
+    ).slice(0, count);
+  }
+
+  // ========================================
+  // 5. FINAL VALIDATION
+  // ========================================
+
+  if (distractors.length < count) {
+
+    throw createGeneratorError(
+      "INSUFFICIENT_DISTRACTORS",
+      "Not enough distinct words are available to build this practice question."
+    );
+  }
+
+  return distractors;
+}
+
 /* =========================================
 Group Selection
 ========================================= */
 
-async function selectGroup(groups) {
+async function selectGroup(groups, adaptiveMode) {
   const keys = Object.keys(groups);
 
-  const valid = keys.filter(k => {
-    const own = groups[k];
+  const valid = keys.filter(groupId => {
+    const own = groups[groupId] || [];
     const others = keys
-      .filter(x => x !== k)
-      .flatMap(x => groups[x]);
+      .filter(id => id !== groupId)
+      .flatMap(id => groups[id] || []);
 
-    return own.length >= 2 && others.length >= 3;
+    return own.length >= 2 && uniqueEntriesByWord(others).length >= 3;
   });
 
-  if (!valid.length) return null;
+  if (!valid.length) {
+    return null;
+  }
 
-  if (!ADAPTIVE_MODE) {
+  if (!adaptiveMode) {
     return pickRandom(valid, 1)[0];
   }
 
@@ -131,262 +254,160 @@ async function selectGroup(groups) {
     return pickRandom(valid, 1)[0];
   }
 
-  const scored = valid.map(k => {
-    const words = groups[k];
-
+  const scored = valid.map(groupId => {
+    const words = getGroupWords(groups, groupId);
     const avg =
-      words.reduce((sum, w) => sum + (stats[w] ?? 1), 0) /
+      words.reduce((sum, word) => sum + (stats[word] ?? 1), 0) /
       words.length;
 
-    return { k, score: avg };
+    return { groupId, score: avg };
   });
 
   scored.sort((a, b) => b.score - a.score);
 
-  return pickRandom(scored.slice(0, 5), 1)[0].k;
+  return pickRandom(scored.slice(0, 5), 1)[0].groupId;
 }
 
 /* =========================================
 SYNONYM GENERATOR
 ========================================= */
 
-async function generateSynonymQuestion() {
-  const groups = await fetchGroups();
+async function generateSynonymQuestion(config = {}) {
+  const groups = await fetchGroups("ml");
+  const groupId = await selectGroup(groups, getAdaptiveMode(config));
 
-  const group_id = await selectGroup(groups);
-  if (!group_id) return null;
+  if (!groupId) {
+    throw createGeneratorError(
+      "INSUFFICIENT_LEXICON_DATA",
+      "Add at least two related words in one group and three distractor words in other groups."
+    );
+  }
 
-  const words = groups[group_id];
-
-  if (words.length < 2) return null;
-
-  const questionWord = pickRandom(words, 1)[0];
-
-  const correct = pickRandom(
-    words.filter(w => w !== questionWord),
+  const words = groups[groupId];
+  const questionEntry = pickRandom(words, 1)[0];
+  const correctEntry = pickRandom(
+    words.filter(entry => entry.id !== questionEntry.id),
     1
   )[0];
 
-  const distractors = pickRandom(
-    Object.keys(groups)
-      .filter(k => k !== group_id)
-      .flatMap(k => groups[k]),
-    3
-  );
-
-  const options = shuffle([correct, ...distractors]);
-  const correctIndex = options.indexOf(correct);
-
-  return [buildQuestion({
-    text: `${questionWord} എന്ന വാക്കിന്റെ പര്യായം ഏത്?`,
-    options,
-    correctIndex,
-    pattern: "SYNONYM",
-    difficulty: { score: 2, label: "easy" },
-    topics: ["MALAYALAM", "VOCABULARY", "SYNONYM"]
-  })];
-}
-
-/* =========================================
-OPPOSITE GENERATOR (TEMP LOGIC)
-========================================= */
-async function generateOppositeWordQuestion(config = {}) {
-
-  // ========================================
-  // 1. FETCH ALL WORDS
-  // ========================================
-
-  const { data: rows, error } = await sb
-    .from("lexicon_entries")
-    .select("group_id, word");
-
-  if (error || !rows || rows.length < 4) {
-    console.error("Lexicon fetch failed", error);
-    return null;
-  }
-
-  // ========================================
-  // 2. GROUP WORDS
-  // ========================================
-
-  const groups = {};
-
-  rows.forEach(r => {
-    if (!groups[r.group_id]) {
-      groups[r.group_id] = [];
-    }
-    groups[r.group_id].push(r.word);
-  });
-
-  const groupIds = Object.keys(groups);
-
-  if (groupIds.length < 2) return null;
-
-// ========================================
-// 3. PICK BASE GROUP (ONLY LINKED GROUPS)
-// ========================================
-
-// fetch all relations
-const { data: relations } = await sb
-  .from("lexicon_group_relations")
-  .select("group_id_1, group_id_2");
-
-if (!relations || relations.length === 0) {
-  console.warn("No relations found");
-  return null;
-}
-
-// collect linked group ids
-const linkedGroupIds = new Set();
-
-relations.forEach(r => {
-  linkedGroupIds.add(r.group_id_1);
-  linkedGroupIds.add(r.group_id_2);
+  const distractors = buildDistractors({
+  groups,
+  excludedGroupIds: [groupId],
+  excludedWords: [
+    questionEntry.word,
+    correctEntry.word
+  ],
+  preferredLexicalClass:
+    questionEntry.lexical_class,
+  count: 3
 });
 
-const validGroupIds = [...linkedGroupIds];
+  const options = shuffle([
+    correctEntry.word,
+    ...distractors.map(entry => entry.word)
+  ]);
 
-if (!validGroupIds.length) return null;
-
-// pick base group ONLY from linked ones
-const baseGroupId =
-  validGroupIds[Math.floor(Math.random() * validGroupIds.length)];
-
-const baseWords = groups[baseGroupId];
-
-if (!baseWords || baseWords.length === 0) return null;
-
-const stem =
-  baseWords[Math.floor(Math.random() * baseWords.length)];
-
-
-  // ========================================
-  // 4. FETCH RELATIONS (CORE UPGRADE)
-  // ========================================
-
-  let oppositeGroupId = null;
-
-  if (relations && relations.length > 0) {
-
-    const possible = relations.map(r =>
-      r.group_id_1 === baseGroupId
-        ? r.group_id_2
-        : r.group_id_1
-    );
-
-    if (possible.length > 0) {
-      oppositeGroupId =
-        possible[Math.floor(Math.random() * possible.length)];
-    }
-  }
-
-  // ========================================
-  // 5. FALLBACK (IMPORTANT)
-  // ========================================
-
-
-// ========================================
-// 5. STRICT MODE (NO FALLBACK)
-// ========================================
-if (!oppositeGroupId) {
-  console.warn("No opposite group linked for:", baseGroupId);
-  return null;
-}
-
-
-  const correctWords = groups[oppositeGroupId];
-
-  if (!correctWords || correctWords.length === 0) return null;
-
-  const correct =
-    correctWords[Math.floor(Math.random() * correctWords.length)];
-
-  // ========================================
-  // 6. DISTRACTORS
-  // ========================================
-
-  const distractors = [];
-
-  const otherGroups = groupIds.filter(
-    id => id !== baseGroupId && id !== oppositeGroupId
-  );
-
-  while (distractors.length < 3 && otherGroups.length > 0) {
-
-    const g =
-      otherGroups[Math.floor(Math.random() * otherGroups.length)];
-
-    const words = groups[g];
-
-    if (words && words.length) {
-      const w =
-        words[Math.floor(Math.random() * words.length)];
-
-      if (!distractors.includes(w) && w !== correct) {
-        distractors.push(w);
+  return [
+    buildQuestion({
+      text: `${questionEntry.word} എന്ന വാക്കിന്റെ പര്യായം ഏത്?`,
+      options,
+      correctIndex: options.indexOf(correctEntry.word),
+      pattern: "SYNONYM",
+      difficulty: { score: 2, label: "easy" },
+      topics: ["MALAYALAM", "VOCABULARY", "SYNONYM"],
+      tracking: {
+        promptEntryIds: [questionEntry.id],
+        correctEntryIds: [correctEntry.id]
       }
-    }
-  }
-
-  // fallback fill
-  while (distractors.length < 3) {
-    distractors.push(correctWords[0]);
-  }
-
-  // ========================================
-  // 7. SHUFFLE OPTIONS
-  // ========================================
-
-  const options = [correct, ...distractors]
-    .sort(() => Math.random() - 0.5);
-
-  const correctIndex = options.indexOf(correct);
-
-  const correctOption =
-    ["A", "B", "C", "D"][correctIndex];
-
-  // ========================================
-  // 8. RETURN FINAL STRUCTURE
-  // ========================================
-return [
-  buildQuestion({
-    text: `${stem} എന്ന വാക്കിന്റെ വിരുദ്ധം ഏത്?`,
-    options,
-    correctIndex,
-    pattern: "OPPOSITE_WORD",
-    difficulty: { score: 2, label: "easy" },
-    topics: ["MALAYALAM", "VOCABULARY", "ANTONYM"]
-  }) ]; // ✅ CLOSE FUNCTION HERE 
+    })
+  ];
 }
-
-
 
 /* =========================================
-Question Builder (STANDARD CONTRACT)
+OPPOSITE GENERATOR
 ========================================= */
 
-function buildQuestion({
-  text,
-  options,
-  correctIndex,
-  pattern,
-  difficulty,
-  topics
-}) {
-  return {
-    id: crypto.randomUUID(),
-    question_id: null,
-    text,
-    options: options.map((o, i) => ({
-      id: ["A", "B", "C", "D"][i],
-      text: o
-    })),
-    correct: ["A", "B", "C", "D"][correctIndex],
-    explanation: "",
-    topics,
-    primary_pattern: pattern,
-    bank_status: "draft",
-    difficulty
-  };
-}
+async function generateOppositeWordQuestion() {
+  const groups = await fetchGroups("ml");
+  const relations = await fetchOppositeRelations();
 
+  const adjacency = {};
+
+  relations.forEach(row => {
+    if (!groups[row.group_id_1] || !groups[row.group_id_2]) return;
+
+    adjacency[row.group_id_1] ||= [];
+    adjacency[row.group_id_2] ||= [];
+
+    adjacency[row.group_id_1].push(row.group_id_2);
+    adjacency[row.group_id_2].push(row.group_id_1);
+  });
+
+  const linkedGroupIds = Object.keys(adjacency).filter(groupId => {
+    return (
+      (groups[groupId] || []).length > 0 &&
+      (adjacency[groupId] || []).some(linkedId => (groups[linkedId] || []).length > 0)
+    );
+  });
+
+  if (!linkedGroupIds.length) {
+    throw createGeneratorError(
+      "OPPOSITE_RELATIONS_INVALID",
+      "Opposite-word links exist, but they do not connect to usable word groups yet."
+    );
+  }
+
+  const baseGroupId = pickRandom(linkedGroupIds, 1)[0];
+  const oppositeCandidates = (adjacency[baseGroupId] || []).filter(groupId => {
+    return (groups[groupId] || []).length > 0;
+  });
+
+  if (!oppositeCandidates.length) {
+    throw createGeneratorError(
+      "OPPOSITE_RELATIONS_INVALID",
+      "The selected word group does not have a usable opposite group yet."
+    );
+  }
+
+  const oppositeGroupId = pickRandom(oppositeCandidates, 1)[0];
+  const baseWords = groups[baseGroupId];
+  const oppositeWords = groups[oppositeGroupId];
+
+  const stemEntry = pickRandom(baseWords, 1)[0];
+  const correctEntry = pickRandom(oppositeWords, 1)[0];
+
+  const distractors = buildDistractors({
+  groups,
+  excludedGroupIds: [
+    baseGroupId,
+    oppositeGroupId
+  ],
+  excludedWords: [
+    stemEntry.word,
+    correctEntry.word
+  ],
+  preferredLexicalClass:
+    stemEntry.lexical_class,
+  count: 3
+});
+
+  const options = shuffle([
+    correctEntry.word,
+    ...distractors.map(entry => entry.word)
+  ]);
+
+  return [
+    buildQuestion({
+      text: `${stemEntry.word} എന്ന വാക്കിന്റെ വിരുദ്ധം ഏത്?`,
+      options,
+      correctIndex: options.indexOf(correctEntry.word),
+      pattern: "OPPOSITE_WORD",
+      difficulty: { score: 2, label: "easy" },
+      topics: ["MALAYALAM", "VOCABULARY", "ANTONYM"],
+      tracking: {
+        promptEntryIds: [stemEntry.id],
+        correctEntryIds: [correctEntry.id]
+      }
+    })
+  ];
+}

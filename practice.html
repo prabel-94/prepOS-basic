@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="icon" type="image/png" href="assets/prepos-icon.png">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Practice</title>
+
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+
+<body>
+
+<div class="container">
+
+  <!-- HEADER -->
+  <div class="exam-header">
+    <h2>Practice</h2>
+  </div>
+
+  <div class="practice-mode-grid mt-20" role="group" aria-label="Practice mode">
+    <button
+      id="generatorModeBtn"
+      class="practice-mode-card active"
+      type="button"
+      data-mode="generator"
+    >
+      <span class="practice-mode-title">Generator Practice</span>
+      <span class="practice-mode-sub">Practice with smart generated questions.</span>
+    </button>
+
+    <button
+      id="bankModeBtn"
+      class="practice-mode-card"
+      type="button"
+      data-mode="bank"
+    >
+      <span class="practice-mode-title">Question Bank Practice</span>
+      <span class="practice-mode-sub">Practice saved questions from the bank.</span>
+    </button>
+  </div>
+
+  <!-- CONTROLS -->
+  <div class="control-bar mt-20">
+
+    <div id="generatorControls" class="practice-control-group">
+      <select id="subjectSelect">
+        <option value="malayalam">Malayalam</option>
+        <option value="english">English</option>
+      </select>
+
+      <select id="patternSelect">
+        <option value="SYNONYM">Synonym</option>
+        <option value="OPPOSITE_WORD">Opposite</option>
+      </select>
+
+      <label class="toggle-row">
+        <input id="adaptiveToggle" type="checkbox" checked>
+        <span>Adaptive Mode</span>
+      </label>
+    </div>
+
+    <div id="bankControls" class="practice-control-group hidden">
+      <select id="bankTopicSelect">
+        <option value="">All Topics</option>
+      </select>
+
+      <select id="bankOrderSelect">
+        <option value="random" selected>Random Bank Questions</option>
+        <option value="latest">Latest Bank Questions</option>
+      </select>
+    </div>
+
+    <select id="sessionLimitSelect">
+      <option value="0">Unlimited</option>
+      <option value="5">5 Questions</option>
+      <option value="10" selected>10 Questions</option>
+      <option value="20">20 Questions</option>
+    </select>
+
+    <button id="startBtn" class="primary-btn">
+      Start Practice
+    </button>
+
+  </div>
+
+  <div id="practiceStatus" class="practice-status hidden"></div>
+  <div id="practiceProgress" class="practice-progress hidden"></div>
+
+  <!-- QUESTION AREA -->
+  <div id="practiceArea" class="mt-30 hidden">
+
+    <div id="questionCard" class="question-card"></div>
+
+    <div id="optionsContainer" class="options mt-20"></div>
+
+    <div id="feedback" class="mt-20"></div>
+
+    <div id="sessionSummary" class="question-card hidden"></div>
+
+    <button id="nextBtn" class="primary-btn mt-20 hidden">
+      Next Question
+    </button>
+
+  </div>
+
+</div>
+
+<!-- Supabase -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script src="js/config.js?v=20260520"></script>
+<script type="module" src="js/auth.js"></script>
+<script type="module" src="js/practice.js"></script>
+
+</body>
+</html>

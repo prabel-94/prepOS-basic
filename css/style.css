@@ -25,6 +25,22 @@ DESIGN SYSTEM
 }
 
 /* ======================================================
+ELEVATION SYSTEM
+====================================================== */
+
+.shadow-sm{
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.shadow-md{
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.shadow-lg{
+  box-shadow: 0 10px 24px rgba(0,0,0,0.12);
+}
+
+/* ======================================================
 BASE
 ====================================================== */
 
@@ -43,6 +59,30 @@ h1,h2,h3{
 }
 
 .small{
+  color:var(--muted);
+  font-size:14px;
+}
+
+/* ======================================================
+TYPOGRAPHY SCALE
+====================================================== */
+
+.h1{
+  font-size:28px;
+  font-weight:700;
+}
+
+.h2{
+  font-size:22px;
+  font-weight:600;
+}
+
+.h3{
+  font-size:18px;
+  font-weight:600;
+}
+
+.text-muted{
   color:var(--muted);
   font-size:14px;
 }
@@ -115,8 +155,13 @@ button{
   border-radius:8px;
   background:#eee;
   cursor:pointer;
-  transition:all 0.2s ease;
+  transition:all 0.15s ease;
   font-size:14px;
+
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
 }
 
 button:hover{
@@ -128,10 +173,15 @@ button:disabled{
   cursor:not-allowed;
 }
 
+button:active{
+  transform:scale(0.97);
+}
+
 .primary-btn{
   background:var(--primary);
   color:#fff;
   font-weight:600;
+  box-shadow:0 4px 10px rgba(37,99,235,0.2);
 }
 
 .primary-btn:hover{
@@ -143,11 +193,21 @@ button:disabled{
   color:#333;
 }
 
+.danger-btn{
+  background:var(--danger);
+  color:#fff;
+  font-weight:600;
+}
+
 /* ======================================================
 FORM ELEMENTS
 ====================================================== */
 
 input[type="text"],
+input[type="date"],
+input[type="number"],
+input:not([type]),
+select,
 textarea{
   width:100%;
   padding:10px;
@@ -155,6 +215,7 @@ textarea{
   margin-bottom:12px;
   border:1px solid var(--border);
   border-radius:6px;
+  box-sizing:border-box;
 }
 
 .logo-preview {
@@ -233,6 +294,22 @@ QB MANAGER LAYOUT
   min-width:140px;
 }
 
+.toggle-row{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:10px 12px;
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:8px;
+  min-height:42px;
+  box-sizing:border-box;
+}
+
+.toggle-row input{
+  margin:0;
+}
+
 /* WORKSPACE SPLIT */
 .manager-workspace{
   display:block;
@@ -254,6 +331,15 @@ QB MANAGER LAYOUT
   }
 
   .control-bar{
+    flex-direction:column;
+    align-items:stretch;
+  }
+
+  .practice-mode-grid{
+    grid-template-columns:1fr;
+  }
+
+  .practice-control-group{
     flex-direction:column;
     align-items:stretch;
   }
@@ -310,6 +396,7 @@ QUESTION CARD (BUILDER)
   border-radius:8px;
   padding:16px;
   box-shadow:var(--shadow);
+  overflow:hidden;
 }
 
 .group-card .stem-input{
@@ -324,10 +411,42 @@ QUESTION CARD (BUILDER)
 }
 
 .value-row{
-  display:grid;
-  grid-template-columns:1fr auto;
-  gap:8px;
+  display:flex;
+  gap:10px;
   align-items:center;
+  width:100%;
+}
+
+.word-input{
+  flex:1;
+  min-width:0;
+}
+
+.lexical-class-wrapper{
+  display:flex;
+  align-items:center;
+}
+
+.lexical-class-select{
+  min-width:180px;
+  margin-bottom:0;
+}
+
+.tag{
+  padding:4px 10px;
+  border-radius:999px;
+  background:#f3f4f6;
+  border:1px solid var(--border);
+  font-size:12px;
+  color:var(--muted);
+}
+
+.wrap{
+  flex-wrap:wrap;
+}
+
+.delete-word{
+  flex-shrink:0;
 }
 
 /* HEADER */
@@ -388,6 +507,34 @@ QUESTION CARD (BUILDER)
 }
 
 /* ======================================================
+CARD SYSTEM
+====================================================== */
+
+.card{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:18px;
+  box-shadow:var(--shadow);
+  transition:all 0.2s ease;
+}
+
+.card:hover{
+  transform:translateY(-2px);
+  box-shadow:0 6px 16px rgba(0,0,0,0.08);
+}
+
+.card + .card{
+  margin-top:20px;
+}
+
+.recent-item{
+  padding:10px;
+  border-radius:6px;
+  background:#fafafa;
+  border:1px solid var(--border);
+}
+/* ======================================================
 DIFFICULTY SYSTEM
 ====================================================== */
 
@@ -443,6 +590,70 @@ DIFFICULTY SYSTEM
 .qtext {
   margin-top: 10px;
   line-height: 1.5;
+}
+
+.practice-status,
+.practice-progress{
+  font-size:14px;
+  margin-top:10px;
+}
+
+.practice-mode-grid{
+  display:grid;
+  grid-template-columns:repeat(2, minmax(0, 1fr));
+  gap:12px;
+}
+
+.practice-mode-card{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  justify-content:flex-start;
+  gap:4px;
+  min-height:92px;
+  padding:16px;
+  text-align:left;
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:8px;
+  color:var(--text);
+  box-shadow:var(--shadow);
+}
+
+.practice-mode-card.active{
+  border-color:var(--primary);
+  background:#f8fbff;
+  box-shadow:0 4px 12px rgba(37,99,235,0.14);
+}
+
+.practice-mode-title{
+  font-size:16px;
+  font-weight:700;
+}
+
+.practice-mode-sub{
+  color:var(--muted);
+  font-size:13px;
+  line-height:1.35;
+}
+
+.practice-control-group{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  align-items:center;
+}
+
+.practice-status{
+  color:var(--muted);
+}
+
+.practice-status.error{
+  color:var(--danger);
+}
+
+.practice-progress{
+  color:var(--muted);
 }
 
 /* OPTIONS */
@@ -506,6 +717,33 @@ DIFFICULTY SYSTEM
 .option-row.correct{
   background: var(--success-bg);
   border-color: var(--success);
+}
+
+.option-btn{
+  width:100%;
+  justify-content:flex-start;
+  text-align:left;
+  background:var(--card);
+  border:1px solid var(--border);
+  color:var(--text);
+  padding:12px 14px;
+}
+
+.option-btn:hover{
+  border-color:var(--primary);
+  background:#f8fbff;
+}
+
+.option-btn.correct{
+  background:var(--success-bg);
+  border-color:var(--success);
+  color:var(--success);
+}
+
+.option-btn.wrong{
+  background:var(--danger-bg);
+  border-color:var(--danger);
+  color:var(--danger);
 }
 /* ======================================================
 PATTERN SYSTEM
@@ -912,12 +1150,29 @@ TOPIC NOTE EDITOR
   display:inline;
 }
 
+.section-title{
+  font-size:16px;
+  font-weight:600;
+  margin-bottom:6px;
+}
+
+.section-sub{
+  font-size:13px;
+  color:var(--muted);
+}
 /* ======================================================
 UTILITIES
 ====================================================== */
 
+/* ======================================================
+SPACING SCALE
+====================================================== */
+
+.mt-5{ margin-top:5px; }
 .mt-10{ margin-top:10px; }
+.mt-15{ margin-top:15px; }
 .mt-20{ margin-top:20px; }
+.mt-30{ margin-top:30px; }
 
 .flex{ display:flex; }
 .gap-10{ gap:10px; }
@@ -1024,6 +1279,15 @@ MOBILE
   transform:translateX(0);
 }
 
+  .value-row{
+    flex-direction:column;
+    align-items:stretch;
+  }
+
+  .lexical-class-select{
+    width:100%;
+    min-width:0;
+  }
 }
 
 /* ======================================================
