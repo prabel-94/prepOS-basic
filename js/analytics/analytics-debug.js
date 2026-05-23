@@ -9,6 +9,20 @@
 
 import { getAnalyticsRuntimeStore } from "./analytics-runtime-store.js";
 
+import { renderAllScopePanels } from "./scope-viewer.js";
+
+import { renderAllMasteryPanels } from "./mastery-inspector.js";
+
+import { renderSnapshotsPanel } from "./analytics-snapshots.js";
+
+import { renderMasteryTimeline } from "./mastery-timeline.js";
+
+import { renderReplayDiagnostics } from "./analytics-replay.js";
+
+import { renderAnalyticsVersions } from "./analytics-version.js";
+
+import { renderAllValidationPanels } from "./analytics-validation-debug.js";
+
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -196,6 +210,13 @@ export function renderAllDebugPanels() {
   renderEventPanel();
   renderTracePanel();
   renderWarningPanel();
+  renderAllScopePanels();
+  renderAllMasteryPanels();
+  renderSnapshotsPanel();
+  renderMasteryTimeline();
+  renderReplayDiagnostics();
+  renderAnalyticsVersions();
+  renderAllValidationPanels();
 }
 
 

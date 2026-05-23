@@ -27,7 +27,8 @@ import {
 import { getClient } from "../core/get-client.js";
 
 import {
-  classifySubmissionAnalyticsScope
+  classifySubmissionAnalyticsScope,
+  classifyAnalyticsScope
 } from "./analytics-scope.js";
 
 import {
@@ -205,7 +206,10 @@ export function buildAttemptRecord({
 } = {}) {
 
   const submissionScope =
-    classifySubmissionAnalyticsScope({ submissionMode });
+    classifySubmissionAnalyticsScope(
+      { submissionMode },
+      { examId, attemptId, submissionMode }
+    );
 
   return {
 
@@ -288,15 +292,36 @@ export async function runExamSubmissionAnalytics({
     /* observability must not block analytics */
   }
 
+  const resolvedSubmissionMode =
+    attempt.submissionMode ?? submissionMode;
+
+  const scopeContext = {
+    submissionMode: resolvedSubmissionMode,
+    examId,
+    attemptId: attempt.id ?? null,
+    source: "runExamSubmissionAnalytics"
+  };
+
   const submissionScope =
     attempt.submissionScope ??
-    classifySubmissionAnalyticsScope({ submissionMode });
+    classifySubmissionAnalyticsScope(
+      { submissionMode: resolvedSubmissionMode },
+      scopeContext
+    );
 
   const questions =
     prepareExamQuestionsForAnalytics(
       rawQuestions,
       sourceQuestions
     );
+
+  try {
+    for (const question of questions) {
+      classifyAnalyticsScope(question, scopeContext);
+    }
+  } catch {
+    /* observability must not block analytics */
+  }
 
   const exam = {
 
@@ -378,6 +403,8 @@ export async function runExamSubmissionAnalytics({
 
   };
 
+  let completedTrace = null;
+
   try {
     recordAnalyticsStep(trace, {
       step: "submission_pipeline_complete",
@@ -386,8 +413,21 @@ export async function runExamSubmissionAnalytics({
         knowledgeRan: Boolean(knowledgeResult)
       }
     });
-    endAnalyticsTrace(trace);
+    completedTrace = endAnalyticsTrace(trace);
     observeSubmissionAnalytics(combined);
+
+    import("./analytics-snapshots.js")
+      .then(({ triggerSubmissionSnapshot }) => {
+        triggerSubmissionSnapshot({
+          combined,
+          trace: completedTrace,
+          runtime:
+            typeof window !== "undefined"
+              ? window.__PREPOS_RUNTIME__
+              : null
+        });
+      })
+      .catch(() => {});
   } catch {
     /* observability must not block analytics */
   }

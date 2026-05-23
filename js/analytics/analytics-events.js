@@ -112,7 +112,7 @@ export async function emit(
  */
 export function classifyAttemptScopes(
   attempts = [],
-  { questions = [] } = {}
+  { questions = [], observationContext = {} } = {}
 ) {
 
   const questionLookup =
@@ -127,6 +127,18 @@ export function classifyAttemptScopes(
         ? attempt.answers
         : [];
 
+    const attemptContext = {
+      ...observationContext,
+      submissionMode:
+        attempt.submissionMode ??
+        observationContext.submissionMode ??
+        "canonical",
+      attemptId:
+        attempt.id ??
+        observationContext.attemptId ??
+        null
+    };
+
     for (const answer of answers) {
 
       const questionId =
@@ -138,7 +150,7 @@ export function classifyAttemptScopes(
         { question_id: questionId, id: questionId };
 
       const scope =
-        classifyAnalyticsScope(question);
+        classifyAnalyticsScope(question, attemptContext);
 
       scopes.push({
 
@@ -401,7 +413,16 @@ export async function onExamSubmitted({
 
   const scopeClassifications = classifyAttemptScopes(
     allAttempts,
-    { questions }
+    {
+      questions,
+      observationContext: {
+        submissionMode:
+          attempt.submissionMode ?? "canonical",
+        examId: exam.id ?? null,
+        attemptId: attempt.id ?? null,
+        source: "onExamSubmitted"
+      }
+    }
   );
 
   try {
