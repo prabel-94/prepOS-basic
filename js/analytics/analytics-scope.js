@@ -78,6 +78,90 @@ export const ANALYTICS_SCOPE_ARCHIVED =
   "archived";
 
 
+/**
+ * Public/open practice attempts (public_exam_attempts).
+ *
+ * Participates in:
+ * - assessment analytics
+ *
+ * Does NOT participate in:
+ * - topic mastery
+ * - adaptive learning
+ * - canonical difficulty calibration
+ */
+export const ANALYTICS_SCOPE_PUBLIC =
+  "public";
+
+
+
+/* =========================================================
+   SUBMISSION SCOPE (ATTEMPT-LEVEL)
+========================================================= */
+
+/**
+ * Classify submission channel for analytics policy.
+ *
+ * Canonical learning intelligence uses exam_attempts only.
+ * Public attempts use public_exam_attempts only.
+ */
+export function classifySubmissionAnalyticsScope({
+  submissionMode = "canonical"
+} = {}) {
+
+  const isPublic =
+    submissionMode === "public";
+
+  if (isPublic) {
+
+    return {
+
+      scope: ANALYTICS_SCOPE_PUBLIC,
+
+      public: true,
+
+      canonical: false,
+
+      knowledgeEligible: false,
+
+      assessmentEligible: true,
+
+      adaptiveEligible: false,
+
+      experimental: false,
+
+      ephemeral: false,
+
+      archived: false
+
+    };
+
+  }
+
+  return {
+
+    scope: ANALYTICS_SCOPE_CANONICAL,
+
+    public: false,
+
+    canonical: true,
+
+    knowledgeEligible: true,
+
+    assessmentEligible: true,
+
+    adaptiveEligible: true,
+
+    experimental: false,
+
+    ephemeral: false,
+
+    archived: false
+
+  };
+
+}
+
+
 
 /* =========================================================
    CORE HELPERS
@@ -749,6 +833,12 @@ export const PREPOS_ANALYTICS_SCOPE_POLICY = {
 
   topicMasteryRequiresTopicLinkage: true,
 
-  experimentalQuestionSetsSupported: true
+  experimentalQuestionSetsSupported: true,
+
+  publicAttemptsTable: "public_exam_attempts",
+
+  canonicalAttemptsTable: "exam_attempts",
+
+  publicAttemptsExcludedFromKnowledgeAnalytics: true
 
 };

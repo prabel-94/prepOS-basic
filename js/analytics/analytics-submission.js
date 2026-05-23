@@ -26,9 +26,44 @@ import {
 
 import { getClient } from "../core/get-client.js";
 
+import {
+  classifySubmissionAnalyticsScope
+} from "./analytics-scope.js";
+
+import {
+  startAnalyticsTrace,
+  recordAnalyticsStep,
+  endAnalyticsTrace
+} from "./analytics-trace.js";
+
+import {
+  initAnalyticsObservability,
+  observeSubmissionAnalytics
+} from "./analytics-observability.js";
+
 
 
 const KNOWLEDGE_CACHE_KEY = "prepos_knowledge_analytics";
+
+let observabilityBootstrapped = false;
+
+
+
+function ensureObservability() {
+  if (observabilityBootstrapped) {
+    return;
+  }
+
+  try {
+    initAnalyticsObservability();
+    observabilityBootstrapped = true;
+  } catch (error) {
+    console.warn(
+      "[PrepOS Observability] Init failed (non-fatal):",
+      error
+    );
+  }
+}
 
 
 
@@ -165,8 +200,12 @@ export function buildAttemptRecord({
   answers = [],
   score = 0,
   timeTaken = 0,
-  submittedAt = null
+  submittedAt = null,
+  submissionMode = "canonical"
 } = {}) {
+
+  const submissionScope =
+    classifySubmissionAnalyticsScope({ submissionMode });
 
   return {
 
@@ -190,7 +229,11 @@ export function buildAttemptRecord({
 
     submitted_at:
       submittedAt ??
-      new Date().toISOString()
+      new Date().toISOString(),
+
+    submissionMode,
+
+    submissionScope
 
   };
 
@@ -218,7 +261,9 @@ export async function runExamSubmissionAnalytics({
 
   sourceQuestions = [],
 
-  priorAttempts = []
+  priorAttempts = [],
+
+  submissionMode = "canonical"
 
 } = {}) {
 
@@ -228,6 +273,24 @@ export async function runExamSubmissionAnalytics({
       attempt?.id ?? null
     );
   }
+
+  ensureObservability();
+
+  let trace = null;
+
+  try {
+    trace = startAnalyticsTrace("exam_submission_analytics");
+    recordAnalyticsStep(trace, {
+      step: "submission_pipeline_started",
+      payloadSummary: { examId, submissionMode }
+    });
+  } catch {
+    /* observability must not block analytics */
+  }
+
+  const submissionScope =
+    attempt.submissionScope ??
+    classifySubmissionAnalyticsScope({ submissionMode });
 
   const questions =
     prepareExamQuestionsForAnalytics(
@@ -259,34 +322,52 @@ export async function runExamSubmissionAnalytics({
 
       allAttempts,
 
-      questions
+      questions,
+
+      includeKnowledge: submissionScope.knowledgeEligible
 
     });
 
-  const knowledgeResult =
-    assessmentResult.knowledgeAnalytics ??
-    buildKnowledgeAnalytics({
+  let knowledgeResult = null;
 
-      exam,
+  if (submissionScope.knowledgeEligible) {
 
-      attempt,
+    knowledgeResult =
+      assessmentResult.knowledgeAnalytics ??
+      buildKnowledgeAnalytics({
 
-      allAttempts,
+        exam,
 
-      questions
+        attempt,
 
-    });
+        allAttempts,
 
-  await emit(
-    "knowledge_analytics_snapshot",
-    knowledgeResult
-  );
+        questions
+
+      });
+
+    await emit(
+      "knowledge_analytics_snapshot",
+      knowledgeResult
+    );
+
+    cacheKnowledgeAnalytics(
+      examId,
+      knowledgeResult
+    );
+
+  }
 
   const combined = {
 
     examId,
 
     attemptId: attempt.id ?? null,
+
+    submissionMode:
+      attempt.submissionMode ?? submissionMode,
+
+    submissionScope,
 
     assessment: assessmentResult,
 
@@ -297,10 +378,23 @@ export async function runExamSubmissionAnalytics({
 
   };
 
-  cacheKnowledgeAnalytics(
-    examId,
-    knowledgeResult
-  );
+  try {
+    recordAnalyticsStep(trace, {
+      step: "submission_pipeline_complete",
+      payloadSummary: {
+        knowledgeEligible: submissionScope.knowledgeEligible,
+        knowledgeRan: Boolean(knowledgeResult)
+      }
+    });
+    endAnalyticsTrace(trace);
+    observeSubmissionAnalytics(combined);
+  } catch {
+    /* observability must not block analytics */
+  }
+
+  if (typeof window !== "undefined") {
+    window.__preposLastAnalytics = combined;
+  }
 
   return combined;
 
@@ -317,12 +411,10 @@ export function triggerExamSubmissionAnalytics(options = {}) {
     return;
   }
 
+  ensureObservability();
+
   runExamSubmissionAnalytics(options)
     .then(result => {
-
-      if (typeof window !== "undefined") {
-        window.__preposLastAnalytics = result;
-      }
 
       console.log(
         "[PrepOS Analytics] Submission analytics complete",
@@ -357,7 +449,8 @@ export function triggerExamSubmissionAnalytics(options = {}) {
 export async function fetchPriorExamAttempts({
   examId,
   limit = 100,
-  sb: client = null
+  sb: client = null,
+  submissionMode = "canonical"
 } = {}) {
 
   if (!examId) {
@@ -366,11 +459,19 @@ export async function fetchPriorExamAttempts({
 
   const sb = client ?? await getClient();
 
+  const table =
+    submissionMode === "public"
+      ? "public_exam_attempts"
+      : "exam_attempts";
+
+  const select =
+    submissionMode === "public"
+      ? "id, exam_id, guest_name, device_id, answers, score, time_taken, submitted_at, attempt_id"
+      : "id, exam_id, student_name, student_id, answers, score, time_taken, submitted_at, attempt_id";
+
   const { data, error } = await sb
-    .from("exam_attempts")
-    .select(
-      "id, exam_id, student_name, student_id, answers, score, time_taken, submitted_at"
-    )
+    .from(table)
+    .select(select)
     .eq("exam_id", examId)
     .order("submitted_at", { ascending: false })
     .limit(limit);
@@ -380,7 +481,23 @@ export async function fetchPriorExamAttempts({
     return [];
   }
 
-  return data ?? [];
+  return (data ?? []).map(row => {
+
+    if (submissionMode === "public") {
+      return {
+        ...row,
+        student_name: row.guest_name ?? null,
+        student_id: null,
+        submissionMode: "public"
+      };
+    }
+
+    return {
+      ...row,
+      submissionMode: "canonical"
+    };
+
+  });
 
 }
 
@@ -401,7 +518,9 @@ export async function runExamSubmissionAnalyticsWithHistory({
 
   sourceQuestions,
 
-  sb: client = null
+  sb: client = null,
+
+  submissionMode = "canonical"
 
 } = {}) {
 
@@ -412,7 +531,10 @@ export async function runExamSubmissionAnalyticsWithHistory({
     priorAttempts =
       await fetchPriorExamAttempts({
         examId,
-        sb: client
+        sb: client,
+        submissionMode:
+          attempt?.submissionMode ??
+          submissionMode
       });
 
     priorAttempts =
@@ -436,7 +558,11 @@ export async function runExamSubmissionAnalyticsWithHistory({
 
     sourceQuestions,
 
-    priorAttempts
+    priorAttempts,
+
+    submissionMode:
+      attempt?.submissionMode ??
+      submissionMode
 
   });
 
@@ -522,6 +648,8 @@ export function registerDefaultAnalyticsListeners({
   if (!PREPOS_ANALYTICS_ENABLED) {
     return;
   }
+
+  ensureObservability();
 
   if (onAssessment) {
     on("assessment_analytics_updated", onAssessment);

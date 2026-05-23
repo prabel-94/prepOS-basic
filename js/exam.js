@@ -467,6 +467,26 @@ function renderQuiz(questions){
 }
 
 /* ======================================================
+   SUBMISSION MODE (canonical vs public)
+====================================================== */
+
+async function canSubmitCanonicalAttempt(sb, examId, userId) {
+
+  if (!userId) {
+    return false;
+  }
+
+  const { data, error } = await sb
+    .from("exam_assignments")
+    .select("id")
+    .eq("exam_id", examId)
+    .eq("student_id", userId)
+    .maybeSingle();
+
+  return !!data && !error;
+}
+
+/* ======================================================
    SUBMIT
 ====================================================== */
 async function submitExam(){
@@ -523,30 +543,70 @@ try{
   const { data: userData } = await sb.auth.getUser()
   const user = userData?.user
 
-  const {
-    error: attemptError
-  } = await sb
-    .from("exam_attempts")
-    .insert([
-      {
-        exam_id: examId,
-        device_id: getDeviceId(),
-        attempt_id: attemptId,
-        student_name: studentName,
-        student_id: user ? user.id : null,
-        answers,
-        score,
-        question_count: answers.length,
-        time_taken,
-        submitted_at: new Date().toISOString()
-      }
-    ])
+  const useCanonical =
+    user &&
+    await canSubmitCanonicalAttempt(sb, examId, user.id);
+
+  let attemptError = null;
+
+  if (useCanonical) {
+
+    console.log("[PrepOS Exam Submission]", {
+      mode: "canonical"
+    });
+
+    const result = await sb
+      .from("exam_attempts")
+      .insert([
+        {
+          exam_id: examId,
+          device_id: getDeviceId(),
+          attempt_id: attemptId,
+          student_name: studentName,
+          student_id: user.id,
+          answers,
+          score,
+          question_count: answers.length,
+          time_taken,
+          submitted_at: new Date().toISOString()
+        }
+      ]);
+
+    attemptError = result.error;
+
+  } else {
+
+    console.log("[PrepOS Exam Submission]", {
+      mode: "public"
+    });
+
+    const result = await sb
+      .from("public_exam_attempts")
+      .insert([
+        {
+          exam_id: examId,
+          guest_name: studentName,
+          device_id: getDeviceId(),
+          attempt_id: attemptId,
+          answers,
+          score,
+          question_count: answers.length,
+          time_taken,
+          submitted_at: new Date().toISOString()
+        }
+      ]);
+
+    attemptError = result.error;
+
+  }
 
   if (attemptError) {
     console.error("Failed to save attempt", attemptError)
     alert("Submission failed. Please try again.")
     return
   }
+
+  const submissionMode = useCanonical ? "canonical" : "public";
 
     /* ---------- lock ---------- */
     attemptState.status="submitted";
@@ -561,10 +621,11 @@ try{
         examId,
         attemptId,
         studentName,
-        studentId: user ? user.id : null,
+        studentId: useCanonical ? user.id : null,
         answers,
         score,
-        timeTaken: time_taken
+        timeTaken: time_taken,
+        submissionMode
       });
 
       runExamSubmissionAnalyticsWithHistory({
@@ -572,7 +633,9 @@ try{
         examTitle: window.examTitle || "Exam",
         attempt: attemptRecord,
         rawQuestions: window.examQuestionsRaw,
-        sourceQuestions: window.examQuestions || []
+        sourceQuestions: window.examQuestions || [],
+        submissionMode,
+        sb
       }).catch(err => {
         console.warn(
           "[PrepOS Analytics] Submission analytics failed (non-fatal):",
