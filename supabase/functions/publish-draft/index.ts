@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
+import { authenticateTeacherRequest } from "../_shared/edge-auth.ts"
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -24,58 +24,21 @@ Deno.serve(async (req) => {
 
   try {
 
+    const auth = await authenticateTeacherRequest(
+      req,
+      "Only teachers and admins can publish drafts"
+    )
+
+    if (!auth.ok) {
+      return jsonResponse({ error: auth.error }, auth.status)
+    }
+
+    const { user, role, adminClient } = auth
+
     const { draftId } = await req.json()
 
     if (!draftId) {
       return jsonResponse({ error: "Missing draftId" }, 400)
-    }
-
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")
-
-    if (!supabaseUrl || !anonKey || !serviceRoleKey) {
-      return jsonResponse({ error: "Server misconfiguration" }, 500)
-    }
-
-    const authHeader = req.headers.get("Authorization") || ""
-
-    if (!authHeader.startsWith("Bearer ")) {
-      return jsonResponse({ error: "Missing authorization token" }, 401)
-    }
-
-    const userClient = createClient(supabaseUrl, anonKey, {
-      global: {
-        headers: {
-          Authorization: authHeader,
-        },
-      },
-    })
-
-    const {
-      data: { user },
-      error: userError,
-    } = await userClient.auth.getUser()
-
-    if (userError || !user) {
-      console.error("publish-draft auth failed:", userError?.message)
-      return jsonResponse({ error: "Invalid session" }, 401)
-    }
-
-    const adminClient = createClient(supabaseUrl, serviceRoleKey)
-
-    const { data: profile, error: profileError } = await adminClient
-      .from("users")
-      .select("role")
-      .eq("id", user.id)
-      .single()
-
-    if (profileError || !profile) {
-      return jsonResponse({ error: "User profile not found" }, 403)
-    }
-
-    if (profile.role !== "teacher" && profile.role !== "admin") {
-      return jsonResponse({ error: "Only teachers and admins can publish drafts" }, 403)
     }
 
     const { data: draft, error: fetchError } = await adminClient
@@ -88,7 +51,7 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Draft not found" }, 404)
     }
 
-    if (profile.role !== "admin" && draft.created_by !== user.id) {
+    if (role !== "admin" && draft.created_by !== user.id) {
       return jsonResponse({ error: "You can publish only drafts you created" }, 403)
     }
 

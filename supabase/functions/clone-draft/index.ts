@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
+import { authenticateTeacherRequest } from "../_shared/edge-auth.ts"
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -24,51 +24,24 @@ Deno.serve(async (req) => {
 
   try {
 
+    const auth = await authenticateTeacherRequest(
+      req,
+      "Only teachers and admins can clone drafts"
+    )
+
+    if (!auth.ok) {
+      return jsonResponse({ error: auth.error }, auth.status)
+    }
+
+    const { user, role, adminClient } = auth
+
     const { draftId } = await req.json()
 
     if (!draftId) {
       return jsonResponse({ error: "Missing draftId" }, 400)
     }
 
-    const authHeader = req.headers.get("Authorization") || ""
-    const token = authHeader.replace(/^Bearer\s+/i, "")
-
-    if (!token) {
-      return jsonResponse({ error: "Missing authorization token" }, 401)
-    }
-
-    const projectUrl = Deno.env.get("PROJECT_URL") || Deno.env.get("SUPABASE_URL")
-    const serviceRoleKey = Deno.env.get("SERVICE_ROLE_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")
-
-    if (!projectUrl || !serviceRoleKey) {
-      return jsonResponse({ error: "Server misconfiguration" }, 500)
-    }
-
-    const supabase = createClient(projectUrl, serviceRoleKey)
-
-    const { data: userData, error: userError } = await supabase.auth.getUser(token)
-    const user = userData?.user
-
-    if (userError || !user) {
-      return jsonResponse({ error: "Invalid session" }, 401)
-    }
-
-    const { data: profile, error: profileError } = await supabase
-      .from("users")
-      .select("role")
-      .eq("id", user.id)
-      .single()
-
-    if (profileError || !profile) {
-      return jsonResponse({ error: "User profile not found" }, 403)
-    }
-
-    if (profile.role !== "teacher" && profile.role !== "admin") {
-      return jsonResponse({ error: "Only teachers and admins can clone drafts" }, 403)
-    }
-
-    // 1️⃣ Fetch source draft
-    const { data: draft, error } = await supabase
+    const { data: draft, error } = await adminClient
       .from("draft_exams")
       .select("*")
       .eq("id", draftId)
@@ -78,12 +51,18 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Draft not found" }, 404)
     }
 
-    if (profile.role !== "admin" && draft.created_by !== user.id && draft.status !== "question_set") {
-      return jsonResponse({ error: "You can clone only your drafts or shared question sets" }, 403)
+    if (
+      role !== "admin" &&
+      draft.created_by !== user.id &&
+      draft.status !== "question_set"
+    ) {
+      return jsonResponse(
+        { error: "You can clone only your drafts or shared question sets" },
+        403
+      )
     }
 
-    // 2️⃣ Create clone
-    const { data: clone, error: cloneError } = await supabase
+    const { data: clone, error: cloneError } = await adminClient
       .from("draft_exams")
       .insert({
         title: draft.title + " (Copy)",
@@ -92,7 +71,7 @@ Deno.serve(async (req) => {
         schema_json: draft.schema_json,
         status: "draft",
         published_exam_id: null,
-        created_by: user.id
+        created_by: user.id,
       })
       .select()
       .single()
@@ -101,13 +80,15 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: cloneError.message }, 400)
     }
 
-    const base = Deno.env.get("SITE_URL")!.replace(/\/$/,"")
-    const draftLink = `${base}/draft.html?id=${clone.id}`
+    const siteUrl = Deno.env.get("SITE_URL")?.replace(/\/$/, "") ?? ""
+    const draftLink = siteUrl
+      ? `${siteUrl}/draft.html?id=${clone.id}`
+      : `/draft.html?id=${clone.id}`
 
     return jsonResponse({
       success: true,
       draftId: clone.id,
-      draftLink
+      draftLink,
     })
 
   } catch (e) {
