@@ -27,6 +27,12 @@
  */
 
 
+import {
+  observeQuestionScopeClassification,
+  observeSubmissionScopeClassification
+} from "./scope-viewer.js";
+
+
 
 /* =========================================================
    ANALYTICS SCOPE CONSTANTS
@@ -104,16 +110,19 @@ export const ANALYTICS_SCOPE_PUBLIC =
  * Canonical learning intelligence uses exam_attempts only.
  * Public attempts use public_exam_attempts only.
  */
-export function classifySubmissionAnalyticsScope({
-  submissionMode = "canonical"
-} = {}) {
+export function classifySubmissionAnalyticsScope(
+  { submissionMode = "canonical" } = {},
+  observationContext = {}
+) {
 
   const isPublic =
     submissionMode === "public";
 
+  let result;
+
   if (isPublic) {
 
-    return {
+    result = {
 
       scope: ANALYTICS_SCOPE_PUBLIC,
 
@@ -135,29 +144,43 @@ export function classifySubmissionAnalyticsScope({
 
     };
 
+  } else {
+
+    result = {
+
+      scope: ANALYTICS_SCOPE_CANONICAL,
+
+      public: false,
+
+      canonical: true,
+
+      knowledgeEligible: true,
+
+      assessmentEligible: true,
+
+      adaptiveEligible: true,
+
+      experimental: false,
+
+      ephemeral: false,
+
+      archived: false
+
+    };
+
   }
 
-  return {
+  try {
+    observeSubmissionScopeClassification(
+      submissionMode,
+      result,
+      observationContext
+    );
+  } catch {
+    /* observability must not block classification */
+  }
 
-    scope: ANALYTICS_SCOPE_CANONICAL,
-
-    public: false,
-
-    canonical: true,
-
-    knowledgeEligible: true,
-
-    assessmentEligible: true,
-
-    adaptiveEligible: true,
-
-    experimental: false,
-
-    ephemeral: false,
-
-    archived: false
-
-  };
+  return result;
 
 }
 
@@ -429,9 +452,7 @@ export function isAdaptiveEligible(
  * This becomes the canonical
  * scope authority for PrepOS.
  */
-export function classifyAnalyticsScope(
-  question = {}
-) {
+function computeAnalyticsScope(question = {}) {
 
   const archived =
     isArchivedQuestion(question);
@@ -580,6 +601,32 @@ export function classifyAnalyticsScope(
     ephemeral: true
 
   };
+
+}
+
+
+
+/**
+ * Main analytics classifier (with passive scope observability).
+ */
+export function classifyAnalyticsScope(
+  question = {},
+  observationContext = {}
+) {
+
+  const result = computeAnalyticsScope(question);
+
+  try {
+    observeQuestionScopeClassification(
+      question,
+      result,
+      observationContext
+    );
+  } catch {
+    /* observability must not block classification */
+  }
+
+  return result;
 
 }
 

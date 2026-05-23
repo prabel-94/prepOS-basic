@@ -18,6 +18,20 @@ import {
   updateDiagnosticsPatch
 } from "./analytics-runtime-store.js";
 
+import { registerScopeViewerDebugGlobals } from "./scope-viewer.js";
+
+import { registerMasteryInspectorDebugGlobals } from "./mastery-inspector.js";
+
+import { registerAnalyticsSnapshotsDebugGlobals } from "./analytics-snapshots.js";
+
+import { registerMasteryTimelineDebugGlobals } from "./mastery-timeline.js";
+
+import { registerAnalyticsReplayDebugGlobals } from "./analytics-replay.js";
+
+import { registerAnalyticsSimulationGlobals } from "./analytics-simulation.js";
+
+import { getVersionMetadata } from "./analytics-version.js";
+
 
 const OBSERVED_EVENTS = [
   "assessment_analytics_updated",
@@ -72,7 +86,8 @@ function captureRuntimeSnapshot() {
     listenersRegistered: runtime.listenersRegistered ?? false,
     bootedAt: runtime.bootedAt ?? null,
     version: runtime.version ?? null,
-    bootDurationMs: runtime.bootDurationMs ?? null
+    bootDurationMs: runtime.bootDurationMs ?? null,
+    ...getVersionMetadata()
   });
 }
 
@@ -134,7 +149,8 @@ function handleAnalyticsEvent(eventName, payload = {}) {
     timestamp: new Date().toISOString(),
     durationMs: Math.round(performance.now() - started),
     payloadSize: estimatePayloadSize(payload),
-    payloadSummary: summarizePayload(payload)
+    payloadSummary: summarizePayload(payload),
+    ...getVersionMetadata()
   });
 
   if (eventName === "assessment_analytics_updated") {
@@ -215,6 +231,12 @@ export function initAnalyticsObservability() {
   observabilityInitialized = true;
 
   captureRuntimeSnapshot();
+  registerScopeViewerDebugGlobals();
+  registerMasteryInspectorDebugGlobals();
+  registerAnalyticsSnapshotsDebugGlobals();
+  registerMasteryTimelineDebugGlobals();
+  registerAnalyticsReplayDebugGlobals();
+  registerAnalyticsSimulationGlobals();
 
   for (const eventName of OBSERVED_EVENTS) {
     on(eventName, payload => {

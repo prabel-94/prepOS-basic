@@ -473,7 +473,7 @@ export function buildKnowledgeAnalytics({
 
   };
 
-  return {
+  const result = {
 
     examId:
       exam.id ?? null,
@@ -506,6 +506,24 @@ export function buildKnowledgeAnalytics({
       new Date().toISOString()
 
   };
+
+  import("./mastery-inspector.js")
+    .then(({ observeKnowledgeMasteryProvenance }) => {
+      observeKnowledgeMasteryProvenance({
+        exam,
+        attempt,
+        allAttempts,
+        questions,
+        topicMastery,
+        weakTopics,
+        adaptiveSignals
+      });
+    })
+    .catch(() => {
+      /* observability must not block analytics */
+    });
+
+  return result;
 
 }
 

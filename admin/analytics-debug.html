@@ -82,6 +82,32 @@
       font-size: 12px;
       font-weight: 600;
     }
+
+    .scope-row-critical {
+      background: #fef2f2;
+    }
+
+    .scope-row-critical td {
+      border-color: #fecaca;
+    }
+
+    .scope-row-warn {
+      background: #fffbeb;
+    }
+
+    .scope-row-warn td {
+      border-color: #fde68a;
+    }
+
+    .scope-exclusion-list {
+      margin: 0;
+      padding-left: 20px;
+      font-size: 14px;
+    }
+
+    .scope-exclusion-list li {
+      margin: 6px 0;
+    }
   </style>
 </head>
 <body>
@@ -130,6 +156,90 @@
     <div id="warnings-panel">Loading…</div>
   </div>
 
+  <div class="card debug-section">
+    <h3>Scope Summary</h3>
+    <div id="scope-summary-panel">Loading…</div>
+  </div>
+
+  <div class="card debug-section">
+    <h3>Scope Classifications</h3>
+    <p class="small">Red = contamination risk. Yellow = missing ID or topics.</p>
+    <div id="scope-classifications-panel">Loading…</div>
+  </div>
+
+  <div class="card debug-section">
+    <h3>Exclusions</h3>
+    <div id="scope-exclusions-panel">Loading…</div>
+  </div>
+
+  <div class="card debug-section">
+    <h3>Classification Confidence</h3>
+    <p class="small">Yellow = low confidence with knowledge eligibility.</p>
+    <div id="classification-confidence-panel">Loading…</div>
+  </div>
+
+  <div class="card debug-section">
+    <h3>Classification Sources</h3>
+    <div id="classification-sources-panel">Loading…</div>
+  </div>
+
+  <div class="card debug-section">
+    <h3>Mastery Summary</h3>
+    <div id="mastery-summary-panel">Loading…</div>
+  </div>
+
+  <div class="card debug-section">
+    <h3>Mastery Inspector</h3>
+    <p class="small">Red = insufficient canonical attempts. Yellow = low confidence or high exclusions.</p>
+    <div id="mastery-inspector-panel">Loading…</div>
+  </div>
+
+  <div class="card debug-section">
+    <h3>Mastery Warnings</h3>
+    <div id="mastery-warnings-panel">Loading…</div>
+  </div>
+
+  <div class="card debug-section">
+    <h3>Analytics Versions</h3>
+    <div id="analytics-versions-panel">Loading…</div>
+  </div>
+
+  <div class="card debug-section">
+    <h3>Snapshots</h3>
+    <p class="small">Lightweight analytics state checkpoints (max 200).</p>
+    <div id="snapshots-panel">Loading…</div>
+  </div>
+
+  <div class="card debug-section">
+    <h3>Mastery Timeline</h3>
+    <div id="mastery-timeline-panel">Loading…</div>
+  </div>
+
+  <div class="card debug-section">
+    <h3>Replay Diagnostics</h3>
+    <div id="replay-diagnostics-panel">Loading…</div>
+  </div>
+
+  <div class="card debug-section">
+    <h3>Analytics Anomalies</h3>
+    <div id="anomalies-panel">Loading…</div>
+  </div>
+
+  <div class="card debug-section">
+    <h3>Replay Validation</h3>
+    <div id="replay-validation-panel">Loading…</div>
+  </div>
+
+  <div class="card debug-section">
+    <h3>Confidence Validation</h3>
+    <div id="confidence-validation-panel">Loading…</div>
+  </div>
+
+  <div class="card debug-section">
+    <h3>Simulation Console</h3>
+    <div id="simulation-console-panel">Loading…</div>
+  </div>
+
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -142,6 +252,12 @@
     renderAllDebugPanels,
     startDebugPanelRefresh
   } from "../js/analytics/analytics-debug.js";
+  import { registerScopeViewerDebugGlobals } from "../js/analytics/scope-viewer.js";
+  import { registerMasteryInspectorDebugGlobals } from "../js/analytics/mastery-inspector.js";
+  import { registerAnalyticsSnapshotsDebugGlobals } from "../js/analytics/analytics-snapshots.js";
+  import { registerMasteryTimelineDebugGlobals } from "../js/analytics/mastery-timeline.js";
+  import { registerAnalyticsReplayDebugGlobals } from "../js/analytics/analytics-replay.js";
+  import { registerAnalyticsSimulationGlobals } from "../js/analytics/analytics-simulation.js";
 
   async function requireTeacherOrAdmin() {
     const { getClient } = await import("../js/core/get-client.js");
@@ -185,6 +301,12 @@
     });
 
     initAnalyticsObservability();
+    registerScopeViewerDebugGlobals();
+    registerMasteryInspectorDebugGlobals();
+    registerAnalyticsSnapshotsDebugGlobals();
+    registerMasteryTimelineDebugGlobals();
+    registerAnalyticsReplayDebugGlobals();
+    registerAnalyticsSimulationGlobals();
 
     renderAllDebugPanels();
     startDebugPanelRefresh(2000);

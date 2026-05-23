@@ -9,6 +9,8 @@
 
 import { recordAnalyticsTrace } from "./analytics-runtime-store.js";
 
+import { getVersionMetadata } from "./analytics-version.js";
+
 
 let traceCounter = 0;
 
@@ -23,13 +25,16 @@ function nextTraceId() {
  * Start a new analytics trace.
  */
 export function startAnalyticsTrace(name = "analytics") {
+  const versions = getVersionMetadata();
+
   return {
     id: nextTraceId(),
     name,
     startedAt: new Date().toISOString(),
     startedAtMs: performance.now(),
     steps: [],
-    warnings: []
+    warnings: [],
+    ...versions
   };
 }
 
@@ -105,6 +110,8 @@ export function endAnalyticsTrace(trace) {
     Math.round(performance.now() - trace.startedAtMs)
   );
 
+  const versions = getVersionMetadata();
+
   const completed = {
     id: trace.id,
     name: trace.name,
@@ -112,7 +119,9 @@ export function endAnalyticsTrace(trace) {
     completedAt,
     duration,
     steps: trace.steps.map(step => ({ ...step })),
-    warnings: trace.warnings.map(w => ({ ...w }))
+    warnings: trace.warnings.map(w => ({ ...w })),
+    snapshotId: trace.snapshotId ?? null,
+    ...versions
   };
 
   recordAnalyticsTrace(completed);
