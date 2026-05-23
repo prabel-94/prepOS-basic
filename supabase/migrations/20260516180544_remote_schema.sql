@@ -1,0 +1,15 @@
+-- PrepOS remote schema baseline (intentionally not a full dump).
+--
+-- Canonical DDL lives in timestamped migrations under supabase/migrations/.
+-- This file exists as the first migration anchor from `supabase db pull`.
+-- Do NOT treat an empty or minimal file here as "no schema" — apply migrations instead.
+--
+-- Core identity + authorization (see 20260524100000_auth_user_provisioning.sql):
+--   auth.users          → Supabase Auth identity
+--   public.users        → PrepOS authorization (role: student | teacher | admin)
+--   on_auth_user_created → auto-provision public.users on auth signup
+--
+-- RLS + role helpers (see 20260517120000_enable_rls_backend_authority.sql):
+--   public.current_user_role()
+--   public.is_admin()
+--   public.is_teacher_or_admin()
