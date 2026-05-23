@@ -74,8 +74,8 @@ async function login(){
 }
 
 /* =========================
-insert into users (id, role)
-values ('USER_UUID_HERE', 'student'); -- or teacher
+Profiles are auto-created in public.users on auth signup (default role: student).
+Admins promote teachers via public.users.role (not JWT metadata).
 ========================= */
 /* =========================
 ROLE ROUTING
