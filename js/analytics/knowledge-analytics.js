@@ -385,12 +385,20 @@ export function buildKnowledgeAnalytics({
   questions = []
 } = {}) {
 
+  const canonicalAttempts =
+    (allAttempts || []).filter(row => {
+      return (
+        row.submissionMode !== "public" &&
+        row.submissionScope?.knowledgeEligible !== false
+      );
+    });
+
   const questionLookup =
     buildQuestionLookup(questions);
 
   const questionStats =
     buildKnowledgeQuestionStats(
-      allAttempts,
+      canonicalAttempts,
       { questions }
     );
 
@@ -431,20 +439,20 @@ export function buildKnowledgeAnalytics({
 
   const topicMastery =
     buildTopicMastery({
-      attempts: allAttempts,
+      attempts: canonicalAttempts,
       questions
     });
 
   const weakTopics =
     buildWeakTopics({
-      attempts: allAttempts,
+      attempts: canonicalAttempts,
       questions,
       limit: 5
     });
 
   const adaptiveSignals =
     buildAdaptiveSignals({
-      attempts: allAttempts,
+      attempts: canonicalAttempts,
       questions
     });
 

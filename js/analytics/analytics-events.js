@@ -34,6 +34,12 @@ import {
   buildKnowledgeAnalytics
 } from "./knowledge-analytics.js";
 
+import {
+  startAnalyticsTrace,
+  recordAnalyticsStep,
+  endAnalyticsTrace
+} from "./analytics-trace.js";
+
 
 
 /* =========================================================
@@ -174,6 +180,22 @@ export async function runAssessmentAnalytics({
 
 } = {}) {
 
+  let trace = null;
+
+  try {
+    trace = startAnalyticsTrace("assessment_analytics");
+    recordAnalyticsStep(trace, {
+      step: "assessment_pipeline_started",
+      payloadSummary: {
+        examId: exam.id ?? null,
+        attemptCount: allAttempts.length,
+        questionCount: questions.length
+      }
+    });
+  } catch {
+    /* observability must not block analytics */
+  }
+
   const identityHealth =
     detectMissingQuestionIds(allAttempts);
 
@@ -217,6 +239,19 @@ export async function runAssessmentAnalytics({
     calculateExamDifficulty(
       questionDifficulties
     );
+
+  try {
+    recordAnalyticsStep(trace, {
+      step: "assessment_analytics_built",
+      payloadSummary: {
+        questionStatsCount: questionStats.length,
+        identityHealthy: identityHealth.healthy
+      }
+    });
+    endAnalyticsTrace(trace);
+  } catch {
+    /* observability must not block analytics */
+  }
 
   return {
 
@@ -267,7 +302,22 @@ export async function runKnowledgeAnalytics({
 
 } = {}) {
 
-  return buildKnowledgeAnalytics({
+  let trace = null;
+
+  try {
+    trace = startAnalyticsTrace("knowledge_analytics");
+    recordAnalyticsStep(trace, {
+      step: "knowledge_pipeline_started",
+      payloadSummary: {
+        examId: exam.id ?? null,
+        attemptCount: allAttempts.length
+      }
+    });
+  } catch {
+    /* observability must not block analytics */
+  }
+
+  const result = buildKnowledgeAnalytics({
 
     exam,
 
@@ -278,6 +328,21 @@ export async function runKnowledgeAnalytics({
     questions
 
   });
+
+  try {
+    recordAnalyticsStep(trace, {
+      step: "knowledge_analytics_built",
+      payloadSummary: {
+        topicMasteryCount: result.topicMastery?.length ?? 0,
+        questionStatsCount: result.questionStats?.length ?? 0
+      }
+    });
+    endAnalyticsTrace(trace);
+  } catch {
+    /* observability must not block analytics */
+  }
+
+  return result;
 
 }
 
@@ -303,7 +368,9 @@ export async function onExamSubmitted({
 
   allAttempts = [],
 
-  questions = []
+  questions = [],
+
+  includeKnowledge = true
 
 } = {}) {
 
@@ -316,10 +383,37 @@ export async function onExamSubmitted({
     };
   }
 
-  classifyAttemptScopes(
+  let trace = null;
+
+  try {
+    trace = startAnalyticsTrace("exam_submitted");
+    recordAnalyticsStep(trace, {
+      step: "submission_received",
+      payloadSummary: {
+        examId: exam.id ?? null,
+        attemptId: attempt.id ?? null,
+        includeKnowledge
+      }
+    });
+  } catch {
+    /* observability must not block analytics */
+  }
+
+  const scopeClassifications = classifyAttemptScopes(
     allAttempts,
     { questions }
   );
+
+  try {
+    recordAnalyticsStep(trace, {
+      step: "scope_classified",
+      payloadSummary: {
+        classifiedAnswers: scopeClassifications.length
+      }
+    });
+  } catch {
+    /* observability must not block analytics */
+  }
 
   const assessmentResult =
     await runAssessmentAnalytics({
@@ -334,35 +428,78 @@ export async function onExamSubmitted({
 
     });
 
-  const knowledgeResult =
-    await runKnowledgeAnalytics({
-
-      exam,
-
-      attempt,
-
-      allAttempts,
-
-      questions
-
+  try {
+    recordAnalyticsStep(trace, {
+      step: "assessment_analytics_built",
+      payloadSummary: {
+        questionStatsCount: assessmentResult.questionStats?.length ?? 0
+      }
     });
+  } catch {
+    /* observability must not block analytics */
+  }
 
   await emit(
     "assessment_analytics_updated",
     assessmentResult
   );
 
-  await emit(
-    "knowledge_analytics_updated",
-    knowledgeResult
-  );
+  let knowledgeResult = null;
+
+  if (includeKnowledge) {
+
+    try {
+      recordAnalyticsStep(trace, {
+        step: "knowledge_eligibility_checked",
+        payloadSummary: { knowledgeEligible: true }
+      });
+    } catch {
+      /* observability must not block analytics */
+    }
+
+    knowledgeResult =
+      await runKnowledgeAnalytics({
+
+        exam,
+
+        attempt,
+
+        allAttempts,
+
+        questions
+
+      });
+
+    await emit(
+      "knowledge_analytics_updated",
+      knowledgeResult
+    );
+
+  } else {
+
+    try {
+      recordAnalyticsStep(trace, {
+        step: "knowledge_analytics_skipped",
+        payloadSummary: {
+          reason: "knowledge_not_eligible",
+          submissionMode: attempt.submissionMode ?? "canonical"
+        }
+      });
+    } catch {
+      /* observability must not block analytics */
+    }
+
+  }
 
   const analyticsResult = {
 
     ...assessmentResult,
 
     knowledgeAnalytics:
-      knowledgeResult
+      knowledgeResult,
+
+    submissionMode:
+      attempt.submissionMode ?? "canonical"
 
   };
 
@@ -370,6 +507,19 @@ export async function onExamSubmitted({
     "analytics_updated",
     analyticsResult
   );
+
+  try {
+    recordAnalyticsStep(trace, {
+      step: "events_emitted",
+      payloadSummary: {
+        assessment: true,
+        knowledge: Boolean(knowledgeResult)
+      }
+    });
+    endAnalyticsTrace(trace);
+  } catch {
+    /* observability must not block analytics */
+  }
 
   return analyticsResult;
 
