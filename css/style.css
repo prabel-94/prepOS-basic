@@ -111,6 +111,25 @@ LAYOUT
 
 .exam-header-left{
   flex-shrink:0;
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  gap:8px;
+}
+
+.exam-home-btn{
+  font-size:0.9rem;
+  font-weight:600;
+  text-decoration:none;
+  color:#2563eb;
+}
+
+.exam-home-btn:hover{
+  text-decoration:underline;
+}
+
+.exam-home-btn.hidden{
+  display:none;
 }
 
 .exam-logo{

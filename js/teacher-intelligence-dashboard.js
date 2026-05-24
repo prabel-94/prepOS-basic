@@ -24,9 +24,9 @@ async function initTeacherIntelligence() {
   const runtime = await bootPage({
     roles: ["teacher", "admin"],
     nav: {
-      variant: "home",
       title: "Classroom Intelligence",
       subtitle: "Intervention-oriented classroom analytics",
+      preset: "teacherExam",
     },
   });
 

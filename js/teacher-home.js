@@ -100,6 +100,7 @@ async function initTeacherHome() {
     roles: ["teacher", "admin"],
     nav: {
       variant: "home",
+      showHome: false,
       title: "Teacher Console",
       subtitle: "Manage exams, question bank, and results",
       links: [

@@ -52,8 +52,10 @@ async function initStudent() {
     roles: ["student", "admin"],
     nav: {
       variant: "home",
+      showHome: false,
       title: "Student Dashboard",
       subtitle: "Exams, practice, and learning intelligence",
+      preset: "studentHome",
     },
   });
 
