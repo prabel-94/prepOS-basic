@@ -316,9 +316,16 @@ export function aggregateQuestionDifficulty({
   const lookup = buildQuestionLookup(questions);
   const hardest = hardestQuestions(stats, { limit, mode: "knowledge" });
 
-  return hardest.map((stat) => {
-    const question = lookup.get(String(stat.questionId)) ?? {};
-    const difficulty = buildKnowledgeQuestionDifficulty(stat);
+  return hardest
+    .map((stat) => {
+    const question =
+      lookup.get(String(stat.questionId)) ?? {
+        question_id: stat.questionId,
+        id: stat.questionId,
+      };
+    const difficulty = buildKnowledgeQuestionDifficulty(stat, question);
+    if (!difficulty) return null;
+
     const topics = extractQuestionTopics(question);
 
     const ambiguousSignal =
@@ -347,7 +354,8 @@ export function aggregateQuestionDifficulty({
       },
       knowledgeEligible: stat.knowledgeEligible === true,
     };
-  });
+  })
+    .filter(Boolean);
 }
 
 export function aggregateTopicDifficulty({
