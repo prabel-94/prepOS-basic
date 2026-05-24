@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="icon" type="image/png" href="assets/prepos-icon.png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PrepOS Classroom Intelligence</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <div id="app-nav-root"></div>
+
+  <div class="container">
+
+    <div class="card mt-30">
+      <div class="h2">Classroom Snapshot</div>
+      <div class="section-sub mt-5">
+        What is happening across students, topics, exams, and concepts?
+      </div>
+      <div id="classroomSnapshot" class="mt-20">Loading classroom snapshot...</div>
+    </div>
+
+    <div class="card mt-20 teacher-intel-card--featured">
+      <div class="h2">Intervention Priorities</div>
+      <div class="section-sub mt-5">
+        Where should you intervene? Ranked by classroom struggle signals.
+      </div>
+      <div id="interventionPriorities" class="mt-10">Loading intervention priorities...</div>
+    </div>
+
+    <div class="card mt-20">
+      <div class="h2">Weak Topic Distribution</div>
+      <div class="section-sub mt-5">
+        Classroom-wide weak topics with affected student counts.
+      </div>
+      <div id="weakTopicDistribution" class="mt-10">Loading weak topics...</div>
+    </div>
+
+    <div class="card mt-20">
+      <div class="h2">Difficult Concepts</div>
+      <div class="section-sub mt-5">
+        Concepts with low mastery and elevated question difficulty.
+      </div>
+      <div id="difficultConcepts" class="mt-10">Loading difficult concepts...</div>
+    </div>
+
+    <div class="card mt-20">
+      <div class="h2">Question Quality Insights</div>
+      <div class="section-sub mt-5">
+        Hardest, skipped, and potentially problematic canonical questions.
+      </div>
+      <div id="questionInsights" class="mt-10">Loading question insights...</div>
+    </div>
+
+    <div class="card mt-20">
+      <div class="h2">Classroom Confidence</div>
+      <div class="section-sub mt-5">
+        Coverage and stability warnings for classroom intelligence.
+      </div>
+      <div id="confidenceWarnings" class="mt-10">Loading confidence warnings...</div>
+    </div>
+
+    <div class="card mt-20">
+      <div class="h2">Recent Exam Insights</div>
+      <div class="section-sub mt-5">
+        Compact exam performance, spread, and classroom signals.
+      </div>
+      <div id="examInsights" class="mt-10">Loading exam insights...</div>
+    </div>
+
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/config.js?v=20260520"></script>
+  <script type="module" src="js/auth.js"></script>
+  <script type="module" src="js/teacher-intelligence-dashboard.js"></script>
+
+</body>
+</html>

@@ -1491,6 +1491,200 @@ STUDENT LEARNING INTELLIGENCE (minimal)
 }
 
 /* ======================================================
+TEACHER INTELLIGENCE
+====================================================== */
+
+.teacher-intel-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.teacher-intel-stat {
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #fafafa;
+}
+
+.teacher-intel-stat-value {
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.teacher-intel-stat-value--compact {
+  font-size: 1rem;
+}
+
+.teacher-intel-stat-label {
+  margin-top: 6px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.teacher-intel-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  background: var(--card);
+}
+
+.teacher-intel-card--featured {
+  border-color: #fbbf24;
+  background: #fffbeb;
+}
+
+.teacher-intel-card--intervention.teacher-intel-priority--high {
+  border-left: 4px solid #ef4444;
+}
+
+.teacher-intel-card--intervention.teacher-intel-priority--medium {
+  border-left: 4px solid #f59e0b;
+}
+
+.teacher-intel-card--intervention.teacher-intel-priority--low {
+  border-left: 4px solid #94a3b8;
+}
+
+.teacher-intel-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.teacher-intel-badge {
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.teacher-intel-empty {
+  padding: 16px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  color: var(--muted);
+  background: #fafafa;
+}
+
+.teacher-intel-confidence {
+  padding: 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+}
+
+.teacher-intel-confidence-label {
+  font-weight: 600;
+}
+
+.teacher-intel-confidence--low {
+  border-color: #fca5a5;
+  background: #fef2f2;
+}
+
+.teacher-intel-confidence--medium {
+  border-color: #fcd34d;
+  background: #fffbeb;
+}
+
+.teacher-intel-confidence--high {
+  border-color: #86efac;
+  background: #f0fdf4;
+}
+
+.teacher-intel-meta {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.teacher-intel-trend--up {
+  color: #15803d;
+}
+
+.teacher-intel-trend--down {
+  color: #b91c1c;
+}
+
+.teacher-intel-trend--stable {
+  color: var(--muted);
+}
+
+.teacher-intel-heat-row {
+  display: grid;
+  grid-template-columns: 1fr minmax(80px, 120px) auto auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.teacher-intel-heat-bar-wrap {
+  height: 8px;
+  background: #e5e7eb;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.teacher-intel-heat-bar {
+  height: 100%;
+  background: #f97316;
+  border-radius: 999px;
+}
+
+.teacher-intel-flag {
+  display: inline-block;
+  font-size: 0.72rem;
+  padding: 2px 6px;
+  margin-left: 6px;
+  border-radius: 4px;
+  background: #fee2e2;
+  color: #991b1b;
+  text-transform: capitalize;
+}
+
+.teacher-intel-distribution-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 0.9rem;
+}
+
+.teacher-intel-inspect-btn {
+  margin-top: 10px;
+  font-size: 0.85rem;
+}
+
+.teacher-intel-inspector-modal {
+  max-width: 520px;
+  width: min(92vw, 520px);
+}
+
+.teacher-intel-inspector-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.teacher-intel-inspector-pre {
+  max-height: 240px;
+  overflow: auto;
+  padding: 12px;
+  background: #f8fafc;
+  border-radius: var(--radius);
+  font-size: 0.8rem;
+}
+
+@media (max-width: 640px) {
+  .teacher-intel-heat-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ======================================================
 APP NAV
 ====================================================== */
 
