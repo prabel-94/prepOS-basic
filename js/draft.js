@@ -4,6 +4,11 @@
 import { getClient } from "./core/get-client.js";
 import { runGenerator } from "./generator-core.js";
 import { openModal, closeModal, isModalOpen } from "./ui/modal-system.js";
+import {
+  openAssignExamModal,
+  closeAssignExamModal,
+  initAssignExamModal,
+} from "./ui/assign-exam-modal.js";
 
 const SIDE_PANEL_OPTIONS = {
   overlayType: "side-panel",
@@ -27,10 +32,6 @@ let isPublishing = false;
 
 let currentDraft = null;
 let logoURL = null;
-
-let selectedStudents = [];
-let currentExamId = null;
-let studentSearchTimer = null;
 
 async function debugSessionContext(label, { sessionData, sessionError, userData, userError } = {}) {
   const sb = await getClient();
@@ -2432,7 +2433,7 @@ async function publishDraft() {
         <a href="exam.html?id=${examId}" target="_blank">
           Open Exam
         </a><br>
-        <button type="button" class="primary-btn mt-10" onclick="openAssignModal('${examId}')">
+        <button type="button" class="primary-btn mt-10" onclick="openAssignExamModal('${examId}', { examTitle: ${JSON.stringify(currentDraft?.title || "Untitled Exam")} })">
           Assign to Students
         </button>
       `;
@@ -2449,114 +2450,6 @@ async function publishDraft() {
     if (publishBtn) {
       publishBtn.disabled = false;
       publishBtn.innerText = originalPublishText || "Publish";
-    }
-  }
-}
-
-function renderStudentList(students = []) {
-  const list = document.getElementById("studentList");
-  if (!list) return;
-
-  if (!students.length) {
-    list.innerHTML = `<div class="empty-state">No students found</div>`;
-    return;
-  }
-
-  list.innerHTML = students.map(student => {
-    const checked = selectedStudents.includes(student.id) ? "checked" : "";
-    const label = student.name || student.email || "Unnamed student";
-
-    return `
-      <label class="radio-row">
-        <input
-          type="checkbox"
-          value="${escapeHTML(student.id)}"
-          ${checked}
-        >
-        ${escapeHTML(label)}
-      </label>
-    `;
-  }).join("");
-}
-
-async function loadStudents(search = "") {
-  const list = document.getElementById("studentList");
-  if (list) list.innerHTML = "Loading students...";
-
-  try {
-    const result = await invokeEdgeFunction("list-students", {
-      search: search.trim()
-    });
-
-    renderStudentList(result.students || []);
-  } catch (error) {
-    console.error(error);
-    if (list) list.innerHTML = `<div class="empty-state">Unable to load students</div>`;
-  }
-}
-
-function resetAssignModalState() {
-  currentExamId = null;
-  selectedStudents = [];
-}
-
-function openAssignModal(examId) {
-  currentExamId = examId;
-  selectedStudents = [];
-
-  const search = document.getElementById("studentSearch");
-  if (search) search.value = "";
-
-  openModal("assignModal", {
-    overlayType: "modal",
-    onClose: resetAssignModalState,
-  });
-
-  loadStudents();
-}
-
-function closeAssignModal() {
-  closeModal("assignModal");
-}
-
-async function assignSelected() {
-  if (!currentExamId) {
-    alert("No exam selected");
-    return;
-  }
-
-  if (!selectedStudents.length) {
-    alert("Select at least one student");
-    return;
-  }
-
-  const assignBtn = document.getElementById("assignSelectedBtn");
-  const originalText = assignBtn?.innerText;
-
-  try {
-    if (assignBtn) {
-      assignBtn.disabled = true;
-      assignBtn.innerText = "Assigning...";
-    }
-
-    await invokeEdgeFunction("assign-exam", {
-      examId: currentExamId,
-      studentIds: selectedStudents
-    });
-
-    alert("Assigned successfully");
-    closeAssignModal();
-  } catch (error) {
-    console.error(error);
-    alert("Assignment failed");
-  } finally {
-    if (assignBtn) {
-      assignBtn.disabled = false;
-      assignBtn.innerText = originalText || "Assign";
-    }
-
-    if (!isModalOpen("assignModal") && currentExamId) {
-      resetAssignModalState();
     }
   }
 }
@@ -3417,38 +3310,11 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("clearDraftBtn")
     ?.addEventListener("click", clearDraftQuestions);
 
+  initAssignExamModal();
+
   document.getElementById("closeQuestionSet")
     ?.addEventListener("click", () => {
       closeModal("questionSetPanel");
-    });
-
-  document.getElementById("assignSelectedBtn")
-    ?.addEventListener("click", assignSelected);
-
-  document.getElementById("closeAssignModal")
-    ?.addEventListener("click", closeAssignModal);
-
-  document.getElementById("studentSearch")
-    ?.addEventListener("input", e => {
-      clearTimeout(studentSearchTimer);
-      studentSearchTimer = setTimeout(() => {
-        loadStudents(e.target.value);
-      }, 250);
-    });
-
-  document.getElementById("studentList")
-    ?.addEventListener("change", e => {
-      if (e.target.type !== "checkbox") return;
-
-      const studentId = e.target.value;
-
-      if (e.target.checked) {
-        if (!selectedStudents.includes(studentId)) {
-          selectedStudents.push(studentId);
-        }
-      } else {
-        selectedStudents = selectedStudents.filter(id => id !== studentId);
-      }
     });
 
 });
@@ -3505,6 +3371,6 @@ window.deleteQuestion = deleteQuestion;
 window.duplicateQuestion = duplicateQuestion;
 window.moveQuestionUp = moveQuestionUp;
 window.moveQuestionDown = moveQuestionDown;
-window.openAssignModal = openAssignModal;
-window.closeAssignModal = closeAssignModal;
-window.assignSelected = assignSelected;
+window.openAssignExamModal = openAssignExamModal;
+window.openAssignModal = openAssignExamModal;
+window.closeAssignModal = closeAssignExamModal;

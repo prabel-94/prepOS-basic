@@ -3,6 +3,10 @@
 // =========================
 
 import { getClient } from "./core/get-client.js";
+import {
+  openAssignExamModal,
+  initAssignExamModal,
+} from "./ui/assign-exam-modal.js";
 
 let currentUser = null;
 let currentRole = null;
@@ -15,6 +19,10 @@ function escapeHTML(value){
     .replace(/>/g,"&gt;")
     .replace(/"/g,"&quot;")
     .replace(/'/g,"&#039;");
+}
+
+function getAssignedCount(exam) {
+  return Number(exam.exam_assignments?.[0]?.count ?? 0);
 }
 
 async function requireTeacherAccess(){
@@ -106,7 +114,7 @@ async function loadPublishedExams(){
 
     let query = sb
       .from("exam_sessions")
-      .select("id,title,created_at,duration,created_by")
+      .select("id,title,created_at,duration,created_by, exam_assignments(count)")
       .order("created_at", { ascending:false });
 
     if(currentRole !== "admin"){
@@ -129,7 +137,7 @@ async function loadPublishedExams(){
     renderExams(currentExams);
   }catch(error){
     console.error(error);
-    if(list) list.innerHTML = "<div class='empty-state'>Unable to load exams</div>";
+    if(list) list.innerHTML = "<p class='empty-state'>Unable to load exams</p>";
     if(count) count.textContent = "Load failed";
   }
 }
@@ -159,6 +167,11 @@ function renderExams(exams){
       ? new Date(exam.created_at).toLocaleString()
       : "-";
 
+    const assignedCount = getAssignedCount(exam);
+    const assignmentLabel = assignedCount === 1
+      ? "1 student assigned"
+      : `${assignedCount} students assigned`;
+
     item.innerHTML = `
       <div class="flex" style="justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap;">
         <div>
@@ -169,9 +182,15 @@ function renderExams(exams){
           <div class="text-muted mt-5">
             Duration: ${Number(exam.duration || 0)} minutes
           </div>
+          <div class="text-muted mt-5">
+            ${escapeHTML(assignmentLabel)}
+          </div>
         </div>
 
         <div class="flex gap-10" style="flex-wrap:wrap;">
+          <button class="primary-btn" data-action="assign" data-exam-id="${escapeHTML(exam.id)}" data-exam-title="${escapeHTML(exam.title || "Untitled Exam")}">
+            Assign
+          </button>
           <button class="secondary-btn" onclick="location.href='exam.html?id=${escapeHTML(exam.id)}'">
             Open
           </button>
@@ -186,6 +205,13 @@ function renderExams(exams){
     `;
 
     list.appendChild(item);
+  });
+}
+
+function openAssignForExam(examId, examTitle) {
+  openAssignExamModal(examId, {
+    examTitle,
+    onAssigned: loadPublishedExams,
   });
 }
 
@@ -254,6 +280,8 @@ async function initPublishedExams(){
   const allowed = await requireTeacherAccess();
   if(!allowed) return;
 
+  initAssignExamModal();
+
   document.getElementById("dateFilter")
     ?.addEventListener("change", toggleCustomDateInputs);
 
@@ -265,6 +293,17 @@ async function initPublishedExams(){
 
   document.getElementById("refreshExamsBtn")
     ?.addEventListener("click", loadPublishedExams);
+
+  document.getElementById("publishedExamList")
+    ?.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-action='assign']");
+      if (!button) return;
+
+      openAssignForExam(
+        button.dataset.examId,
+        button.dataset.examTitle || "Untitled Exam"
+      );
+    });
 
   toggleCustomDateInputs();
   await loadPublishedExams();

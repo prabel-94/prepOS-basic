@@ -186,6 +186,28 @@ function getFriendlyError(error) {
   return "No question could be generated right now.";
 }
 
+function getEmptyBankMessage() {
+  const topicLabel =
+    bankTopicSelect.options[bankTopicSelect.selectedIndex]?.text?.replace(
+      /\s+\(\d+\)$/,
+      ""
+    ) || "";
+
+  if (bankTopicSelect.value && topicLabel) {
+    return `No saved questions are available for "${topicLabel}" yet. Try All Topics or switch to Generator mode.`;
+  }
+
+  return "No saved question bank questions are available yet. Try Generator mode, or ask your teacher to add bank questions.";
+}
+
+function showBankUnavailable(message) {
+  questionCard.innerHTML = `<div class="empty-state">${escapeHTML(message)}</div>`;
+  optionsContainer.innerHTML = "";
+  nextBtn.classList.add("hidden");
+  setStatus(message, true);
+  updateProgress();
+}
+
 function resetSession() {
   state.currentQuestion = null;
   state.loading = false;
@@ -443,11 +465,8 @@ async function loadQuestion() {
           return;
         }
 
-        throw new Error(
-          bankTopicSelect.value
-            ? "No saved question bank questions are available for this topic yet."
-            : "No saved question bank questions are available yet."
-        );
+        showBankUnavailable(getEmptyBankMessage());
+        return;
       }
 
       state.currentQuestion = bankQuestion;

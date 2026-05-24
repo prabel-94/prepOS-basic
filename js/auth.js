@@ -230,6 +230,22 @@ async function requireRole(allowedRoles = []) {
 
 
 /* ====================================
+   LOGOUT
+==================================== */
+
+async function logout() {
+
+  const sb = await getClient()
+
+  await sb.auth.signOut()
+
+  window.location.href = "login.html"
+
+}
+
+
+
+/* ====================================
    AUTH DEBUG HELPERS
 ==================================== */
 
@@ -274,5 +290,7 @@ window.isStudent = isStudent
 window.isAdmin = isAdmin
 
 window.requireRole = requireRole
+
+window.logout = logout
 
 window.debugAuthState = debugAuthState
