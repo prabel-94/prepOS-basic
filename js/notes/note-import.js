@@ -4,6 +4,7 @@
 
 import { parseMapMarkdown, summarizeDetectedSections } from "./map-parser.js";
 import { saveCanonicalNote } from "./note-storage.js";
+import { getTopicIdFromUrl } from "./note-import-params.js";
 
 const SECTION_LABELS = Object.freeze({
   metadata: "Metadata",
@@ -24,6 +25,7 @@ export function initNoteImportPage({
   titleEl,
   languageEl,
   publishOnSaveEl,
+  topicIdInput,
 }) {
   let lastParsed = null;
 
@@ -85,10 +87,15 @@ export function initNoteImportPage({
   }
 
   async function handleSave() {
-    if (!topicId) {
+    const resolvedTopicId =
+      getTopicIdFromUrl() ||
+      topicIdInput?.value?.trim() ||
+      topicId;
+
+    if (!resolvedTopicId) {
       setStatus(
-        "Add a real topic UUID to the URL: notes-import.html?id=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx " +
-          "(copy it from Question Bank → open a topic note).",
+        "No topic attached. Use Question Bank → Import canonical note, or open " +
+          "notes-import.html?id=<your-topic-uuid>.",
         true
       );
       return;
@@ -106,7 +113,7 @@ export function initNoteImportPage({
       setStatus("Saving canonical note…");
 
       const result = await saveCanonicalNote({
-        topicId,
+        topicId: resolvedTopicId,
         title,
         language,
         status: publishOnSave ? "published" : "draft",

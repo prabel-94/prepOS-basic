@@ -1,21 +1,10 @@
 import { bootPage } from "../core/page-boot.js";
 import { initNoteImportPage } from "./note-import.js";
 import { getClient } from "../core/get-client.js";
-
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-function isValidTopicId(value) {
-  return typeof value === "string" && UUID_PATTERN.test(value.trim());
-}
-
-/** Accept ?topic= or ?id= (same param as topic-note.html). */
-function getTopicId() {
-  const params = new URLSearchParams(window.location.search);
-  const raw = params.get("topic") || params.get("id");
-  const trimmed = raw?.trim() ?? "";
-  return isValidTopicId(trimmed) ? trimmed : null;
-}
+import {
+  getTopicIdFromUrl,
+  isValidTopicId,
+} from "./note-import-params.js";
 
 function showTopicGuidance(invalidValue) {
   const topicLabel = document.getElementById("importTopicLabel");
@@ -98,8 +87,13 @@ async function bootNoteImport() {
 
   const params = new URLSearchParams(window.location.search);
   const rawTopicParam = params.get("topic") || params.get("id");
-  const topicId = getTopicId();
+  const topicId = getTopicIdFromUrl();
   const titleEl = document.getElementById("noteTitle");
+
+  const topicIdInput = document.getElementById("importTopicId");
+  if (topicIdInput && topicId) {
+    topicIdInput.value = topicId;
+  }
 
   if (!topicId) {
     showTopicGuidance(rawTopicParam);
@@ -116,6 +110,7 @@ async function bootNoteImport() {
     titleEl,
     languageEl: document.getElementById("noteLanguage"),
     publishOnSaveEl: document.getElementById("publishOnSave"),
+    topicIdInput: document.getElementById("importTopicId"),
   });
 
   document.getElementById("parseBtn")?.addEventListener("click", handlers.parse);
