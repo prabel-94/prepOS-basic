@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="icon" type="image/png" href="assets/prepos-icon.png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Import Canonical Note</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .import-panel {
+      border: 1px solid var(--border, #e2e8f0);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 20px;
+      background: var(--surface, #fff);
+    }
+    .import-panel h3 {
+      margin: 0 0 12px;
+      font-size: 1rem;
+      font-weight: 600;
+    }
+    #mapMarkdown {
+      width: 100%;
+      min-height: 280px;
+      font-family: ui-monospace, monospace;
+      font-size: 14px;
+      line-height: 1.5;
+      resize: vertical;
+    }
+    .detected-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .detected-item {
+      padding: 6px 0;
+    }
+    .detected-ok { color: #166534; }
+    .detected-miss { color: #6b7280; }
+    #importStatus { margin-top: 16px; }
+    #importStatus.error { color: #b91c1c; }
+    .import-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    .import-controls label { display: flex; align-items: center; gap: 8px; }
+  </style>
+</head>
+<body>
+
+<div id="app-nav-root"></div>
+
+<div class="container">
+
+  <div class="exam-header">
+    <div>
+      <h2>Import Canonical Note</h2>
+      <div class="exam-subtitle" id="importTopicLabel">Paste MAP semantic markdown</div>
+    </div>
+  </div>
+
+  <div class="import-controls mt-20">
+    <input id="noteTitle" class="w-full" type="text" placeholder="Note title" style="max-width: 320px;">
+    <select id="noteLanguage">
+      <option value="english">English</option>
+      <option value="malayalam">Malayalam</option>
+      <option value="bilingual">Bilingual</option>
+    </select>
+    <label>
+      <input type="checkbox" id="publishOnSave">
+      Publish on save
+    </label>
+  </div>
+
+  <div class="import-panel">
+    <h3>Paste MAP Semantic Markdown</h3>
+    <textarea id="mapMarkdown" placeholder="# [METADATA]&#10;title: English Revolution&#10;&#10;# [NARRATIVE]&#10;..."></textarea>
+    <div class="mt-16">
+      <button id="parseBtn" type="button" class="primary-btn">Parse</button>
+    </div>
+  </div>
+
+  <div class="import-panel">
+    <h3>Detected Sections</h3>
+    <ul id="detectedSections" class="detected-list">
+      <li class="detected-item detected-miss">Run Parse to detect sections</li>
+    </ul>
+  </div>
+
+  <div class="import-panel">
+    <h3>Detected Topic Links</h3>
+    <ul id="detectedTopicLinks" class="detected-list">
+      <li class="detected-item detected-miss">Run Parse to detect [[topic]] links</li>
+    </ul>
+  </div>
+
+  <button id="saveBtn" type="button" class="primary-btn w-full">Save Note</button>
+
+  <div id="importStatus"></div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js?v=20260520"></script>
+<script type="module" src="js/auth.js"></script>
+<script type="module" src="js/notes/note-import-boot.js"></script>
+
+</body>
+</html>
