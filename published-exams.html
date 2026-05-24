@@ -15,7 +15,7 @@
   <div class="mt-10 flex" style="justify-content:space-between; align-items:center;">
     <div>
       <div class="h1">Published Exams</div>
-      <div class="text-muted mt-5">View, filter, and permanently delete published exams.</div>
+      <div class="text-muted mt-5">View, filter, assign students, and permanently delete published exams.</div>
     </div>
 
     <button onclick="location.href='index.html'" class="secondary-btn">
@@ -65,6 +65,36 @@
     </div>
   </div>
 
+</div>
+
+<div id="assignModal" class="prepos-modal hidden">
+  <div class="prepos-modal-backdrop"></div>
+  <div class="prepos-modal-content">
+
+    <div class="prepos-modal-header">
+      <div id="assignModalTitle" class="h2">Assign Exam</div>
+      <div id="assignModalSubtitle" class="text-muted mt-5 hidden"></div>
+    </div>
+
+    <div class="prepos-modal-body">
+      <input id="studentSearch" placeholder="Search student..." class="w-full">
+
+      <div id="studentList" class="mt-20">
+        Loading students...
+      </div>
+    </div>
+
+    <div class="prepos-modal-footer">
+      <button id="assignSelectedBtn" class="primary-btn">
+        Assign
+      </button>
+
+      <button id="closeAssignModal" class="secondary-btn">
+        Cancel
+      </button>
+    </div>
+
+  </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
