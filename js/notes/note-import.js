@@ -86,7 +86,11 @@ export function initNoteImportPage({
 
   async function handleSave() {
     if (!topicId) {
-      setStatus("Open this page with ?topic=<topic-id> to attach the note.", true);
+      setStatus(
+        "Add a real topic UUID to the URL: notes-import.html?id=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx " +
+          "(copy it from Question Bank → open a topic note).",
+        true
+      );
       return;
     }
 

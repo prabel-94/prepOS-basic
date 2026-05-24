@@ -717,6 +717,12 @@ function renderTopics() {
     Master Note
   </button>
 
+  <button
+    class="secondary-btn import-canonical-note-btn"
+    data-id="${t.id}">
+    Import canonical note
+  </button>
+
 </div>
 
       </div>
@@ -1294,6 +1300,14 @@ if (noteBtn) {
   window.location.href = resolveAppPath(`topic-note.html?id=${topicId}`);
   return;
 }
+
+  const importNoteBtn = e.target.closest(".import-canonical-note-btn");
+  if (importNoteBtn) {
+    const topicId = importNoteBtn.dataset.id;
+    window.location.href = resolveAppPath(`notes-import.html?id=${topicId}`);
+    return;
+  }
+
   // ---------------------------
   // RENAME
   // ---------------------------

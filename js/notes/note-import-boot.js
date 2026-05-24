@@ -2,32 +2,84 @@ import { bootPage } from "../core/page-boot.js";
 import { initNoteImportPage } from "./note-import.js";
 import { getClient } from "../core/get-client.js";
 
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function isValidTopicId(value) {
+  return typeof value === "string" && UUID_PATTERN.test(value.trim());
+}
+
+/** Accept ?topic= or ?id= (same param as topic-note.html). */
 function getTopicId() {
-  return new URLSearchParams(window.location.search).get("topic");
+  const params = new URLSearchParams(window.location.search);
+  const raw = params.get("topic") || params.get("id");
+  const trimmed = raw?.trim() ?? "";
+  return isValidTopicId(trimmed) ? trimmed : null;
+}
+
+function showTopicGuidance(invalidValue) {
+  const topicLabel = document.getElementById("importTopicLabel");
+  const statusEl = document.getElementById("importStatus");
+
+  if (topicLabel) {
+    topicLabel.textContent = "No valid topic selected";
+  }
+
+  const hint =
+    "Open Question Bank, click a topic’s legacy note, then use the same id in the URL: " +
+    "notes-import.html?id=PASTE_UUID_HERE (not the literal text &lt;topic-uuid&gt;).";
+
+  if (invalidValue && !isValidTopicId(invalidValue)) {
+    if (statusEl) {
+      statusEl.classList.add("error");
+      statusEl.textContent = `Invalid topic id "${invalidValue}". ${hint}`;
+    }
+    return;
+  }
+
+  if (statusEl) {
+    statusEl.classList.add("error");
+    statusEl.textContent = hint;
+  }
 }
 
 async function loadTopicContext(topicId, titleEl) {
   if (!topicId) {
-    return;
+    return null;
   }
 
   const sb = await getClient();
-  const { data } = await sb
+  const { data, error } = await sb
     .from("topics")
     .select("id, name")
     .eq("id", topicId)
     .maybeSingle();
 
-  if (data && titleEl && !titleEl.value) {
+  const topicLabel = document.getElementById("importTopicLabel");
+
+  if (error) {
+    if (topicLabel) {
+      topicLabel.textContent = "Could not load topic";
+    }
+    return null;
+  }
+
+  if (!data) {
+    if (topicLabel) {
+      topicLabel.textContent = "Topic not found";
+    }
+    return null;
+  }
+
+  if (titleEl && !titleEl.value) {
     titleEl.value = data.name;
   }
 
-  const topicLabel = document.getElementById("importTopicLabel");
   if (topicLabel) {
-    topicLabel.textContent = data?.name
-      ? `Topic: ${data.name}`
-      : `Topic ID: ${topicId}`;
+    topicLabel.textContent = `Topic: ${data.name}`;
   }
+
+  return data;
 }
 
 async function bootNoteImport() {
@@ -44,9 +96,16 @@ async function bootNoteImport() {
     return;
   }
 
+  const params = new URLSearchParams(window.location.search);
+  const rawTopicParam = params.get("topic") || params.get("id");
   const topicId = getTopicId();
   const titleEl = document.getElementById("noteTitle");
-  await loadTopicContext(topicId, titleEl);
+
+  if (!topicId) {
+    showTopicGuidance(rawTopicParam);
+  } else {
+    await loadTopicContext(topicId, titleEl);
+  }
 
   const handlers = initNoteImportPage({
     markdownEl: document.getElementById("mapMarkdown"),
