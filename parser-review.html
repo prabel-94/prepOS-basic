@@ -43,7 +43,11 @@ textarea{
 
 <body>
 
-<h2>Review & Edit Questions</h2>
+<div id="app-nav-root"></div>
+
+<div class="container">
+
+<h2 class="hidden">Review & Edit Questions</h2>
 
 <div class="flex gap-10 mb-16">
 
@@ -539,32 +543,13 @@ async function createFromSelection(){
 
 // ======================================
 
-// ======================================
-// AUTH CHECK
-// ======================================
-
-(async () => {
-
-  const sb = await (await import("./js/core/get-client.js")).getClient()
-  const { data } = await sb.auth.getSession();
-
-  console.log("Parser Review Session:", data.session);
-
-  if (!data.session) {
-
-    alert("Please login again");
-
-    window.location.href = "login.html";
-
-    return;
-
-  }
-
-  render();
-
-})();
+window.renderParserReview = render;
 
 </script>
+
+<script src="js/config.js?v=20260520"></script>
+<script type="module" src="js/auth.js"></script>
+<script type="module" src="js/parser-review-boot.js"></script>
 
 </body>
 </html>

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="icon" type="image/png" href="assets/prepos-icon.png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PrepOS — Access Denied</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div id="app-nav-root"></div>
+
+<div class="container">
+  <div class="card mt-30">
+    <div class="h2">Access denied</div>
+    <p class="text-muted mt-10">
+      Your account does not have permission to view this page.
+    </p>
+    <div class="flex gap-10 mt-20">
+      <a id="roleHomeLink" class="primary-btn" href="login.html">Go to login</a>
+      <button type="button" class="secondary-btn" onclick="logout()">Logout</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js?v=20260520"></script>
+<script type="module" src="js/auth.js"></script>
+<script type="module">
+  import { bootPage } from "./js/core/page-boot.js";
+  import { getHomePathForRole, resolveAppPath } from "./js/core/access.js";
+
+  const runtime = await bootPage({
+    requireAuth: true,
+    nav: {
+      title: "Access Denied",
+      showHome: false,
+    },
+  });
+
+  if (!runtime) {
+    document.getElementById("app-nav-root")?.remove();
+  }
+
+  const homeLink = document.getElementById("roleHomeLink");
+  if (homeLink && runtime?.role) {
+    homeLink.href = resolveAppPath(getHomePathForRole(runtime.role));
+    homeLink.textContent = runtime.role === "student" ? "Go to dashboard" : "Go to home";
+  }
+</script>
+
+</body>
+</html>

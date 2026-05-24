@@ -1,4 +1,5 @@
 import { getClient } from "./core/get-client.js";
+import { bootPage } from "./core/page-boot.js";
 
 const editor = document.getElementById("noteEditor");
 const suggestBox = document.getElementById("topicSuggest");
@@ -414,7 +415,22 @@ document.getElementById("printNote")
   window.print();
 });
 
-loadTopic();
+async function initTopicNotePage() {
+  const runtime = await bootPage({
+    roles: ["teacher", "admin"],
+    nav: {
+      title: "Topic Note",
+      preset: "teacherKnowledge",
+      back: "qb-manager.html",
+    },
+  });
+
+  if (!runtime) return;
+
+  await loadTopic();
+}
+
+initTopicNotePage();
 
 // --------------------------------
 // CLICKABLE TOPIC LINKS

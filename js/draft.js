@@ -4,6 +4,7 @@
 import { getClient } from "./core/get-client.js";
 import { runGenerator } from "./generator-core.js";
 import { openModal, closeModal, isModalOpen } from "./ui/modal-system.js";
+import { bootPage } from "./core/page-boot.js";
 import {
   openAssignExamModal,
   closeAssignExamModal,
@@ -3320,8 +3321,15 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 (async () => {
+  const runtime = await bootPage({
+    roles: ["teacher", "admin"],
+    nav: {
+      title: "Draft Editor",
+      preset: "teacherExam",
+    },
+  });
 
-  await requireAuth();
+  if (!runtime) return;
 
   const sb = await getClient();
 
@@ -3333,11 +3341,6 @@ document.addEventListener("DOMContentLoaded", () => {
     hasUser: !!userData?.user,
     userError: userError?.message ?? null
   });
-
-  if (!session?.access_token || !userData?.user) {
-    window.location.href = "login.html";
-    return;
-  }
 
   await init();
 

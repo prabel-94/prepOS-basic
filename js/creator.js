@@ -4,6 +4,7 @@
 // ==============================================
 
 import { getClient } from "./core/get-client.js";
+import { bootPage } from "./core/page-boot.js";
 
 // ==============================================
 // CLEAN QUESTION TEXT
@@ -815,3 +816,12 @@ async function generate(){
 window.createDraft = createDraft;
 window.cleanQCP = cleanQCP;
 window.generate = generate;
+
+bootPage({
+  roles: ["teacher", "admin"],
+  nav: {
+    title: "Paste Quiz",
+    preset: "teacherCreate",
+    back: "creator-mode.html",
+  },
+});

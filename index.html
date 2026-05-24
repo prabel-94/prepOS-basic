@@ -14,30 +14,9 @@
 
 <body>
 
+<div id="app-nav-root"></div>
+
 <div class="container">
-
-  <!-- =========================
-  HEADER
-  ========================= -->
-
-  <div class="mt-10 flex" style="justify-content:space-between; align-items:center;">
-
-  <!-- LEFT SIDE -->
-  <div>
-    <div class="h1">PrepOS</div>
-    <div class="text-muted mt-5">Teacher Console</div>
-  </div>
-
-  <!-- RIGHT SIDE -->
-  <button onclick="logout()">Logout</button>
-
-</div>
-
-
-
-<!-- =========================
-PRACTICE MODE (NEW)
-========================= -->
 
 <div class="card mt-30">
 
@@ -52,10 +31,6 @@ PRACTICE MODE (NEW)
 
 </div>
 
-<!-- =========================
-STUDENT MODE
-========================= -->
-
 <div class="card mt-20">
 
   <div class="h2">Student Mode</div>
@@ -64,8 +39,8 @@ STUDENT MODE
     Switch to student dashboard and practice as a learner.
   </div>
 
-  <button 
-    onclick="goToStudent()" 
+  <button
+    onclick="goToStudent()"
     class="primary-btn w-full mt-20"
   >
     🎓 Go to Student Dashboard
@@ -73,10 +48,6 @@ STUDENT MODE
 
 </div>
 
-
-  <!-- =========================
-  PRIMARY ACTION
-  ========================= -->
   <div class="card mt-30">
 
     <div class="h2">Start Creating</div>
@@ -91,10 +62,6 @@ STUDENT MODE
   </div>
 
 
-  <!-- =========================
-  CONTINUE WORK
-  ========================= -->
-
   <div class="card">
 
     <div class="h3">Continue Work</div>
@@ -105,10 +72,6 @@ STUDENT MODE
 
   </div>
 
-
-  <!-- =========================
-  KNOWLEDGE LAYER
-  ========================= -->
 
   <div class="card">
 
@@ -131,10 +94,6 @@ STUDENT MODE
 
   </div>
 
-
-  <!-- =========================
-  EXAM LAYER
-  ========================= -->
 
   <div class="card">
 
@@ -159,10 +118,6 @@ STUDENT MODE
   </div>
 
 
-  <!-- =========================
-  RECENT EXAMS
-  ========================= -->
-
   <div class="card">
 
     <div class="h3">Recent Exams</div>
@@ -173,10 +128,6 @@ STUDENT MODE
 
   </div>
 
-
-  <!-- =========================
-  QUICK OPEN (DEV TOOL)
-  ========================= -->
 
   <div class="card">
 
@@ -199,218 +150,10 @@ STUDENT MODE
 
 </div>
 
-
-<!-- =========================
-SCRIPTS
-========================= -->
-
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/config.js?v=20260520"></script>
 <script type="module" src="js/auth.js"></script>
-
-<script>
-
-(async () => {
-  await requireAuth()
-  await requireTeacherAccess()  // 🔥 NEW
-})()
-
-async function logout(){
-  const sb = await (await import("./js/core/get-client.js")).getClient()
-  await sb.auth.signOut()
-  location.href = "login.html"
-}
-
-async function requireTeacherAccess(){
-
-  const sb = await (await import("./js/core/get-client.js")).getClient()
-  const { data: userData } = await sb.auth.getUser()
-  const user = userData?.user
-
-  if(!user){
-    window.location.href = "login.html"
-    return
-  }
-
-  const { data, error } = await sb
-    .from("users")
-    .select("role")
-    .eq("id", user.id)
-    .single()
-
-  if(error || !data){
-    window.location.href = "login.html"
-    return
-  }
-
-  const role = data.role
-
-  // 🔥 CORE LOGIC
-  if(role !== "teacher" && role !== "admin"){
-    window.location.href = "login.html"
-  }
-
-}
-
-
-/* =========================
-NAVIGATION
-========================= */
-
-function goToStudent(){
-  location.href = "student-dashboard.html"
-}
-
-function goToCreatorMode(){
-  location.href = "creator-mode.html"
-}
-
-
-/* =========================
-OPEN EXAM
-========================= */
-
-window.openExam = function(){
-
-  const id = document.getElementById("examId2").value.trim()
-
-  if(!id){
-    alert("Enter exam id")
-    return
-  }
-
-  location.href = `exam.html?id=${id}`
-}
-
-
-/* =========================
-RECENT EXAMS
-========================= */
-
-async function loadRecentExams(){
-
-  const container = document.getElementById("recentExams")
-
-  try{
-
-    const sb = await (await import("./js/core/get-client.js")).getClient()
-
-    const { data, error } = await sb
-      .from("exam_sessions")
-      .select("id, title, created_at")
-      .order("created_at", { ascending: false })
-      .limit(5)
-
-    if (error) throw error
-
-    container.innerHTML=""
-
-    if(!data?.length){
-      container.innerHTML="<div class='empty-state'>No exams yet</div>"
-      return
-    }
-
-    data.forEach(e=>{
-
-      const div=document.createElement("div")
-      div.className="recent-item mt-10"
-
-      div.innerHTML=`
-        <b>${e.title}</b><br>
-        <div class="mt-5">
-          <button onclick="location.href='exam.html?id=${e.id}'">
-            Open
-          </button>
-          <button onclick="viewResults('${e.id}')">
-            Results
-          </button>
-        </div>
-      `
-
-      container.appendChild(div)
-
-    })
-
-  }catch(err){
-    console.error(err)
-    container.innerHTML="<div class='empty-state'>Unable to load exams</div>"
-  }
-}
-
-
-/* =========================
-RECENT DRAFT
-========================= */
-
-async function loadRecentDraft(){
-
-  const container = document.getElementById("recentDraft")
-
-  try{
-
-    const sb = await (await import("./js/core/get-client.js")).getClient()
-
-    const { data, error } = await sb
-      .from("draft_exams")
-      .select("id, title, updated_at")
-      .order("updated_at", { ascending: false })
-      .limit(1)
-
-    if (error) throw error
-
-    if(!data?.length){
-      container.innerHTML="<div class='empty-state'>No drafts yet</div>"
-      return
-    }
-
-    const d = data[0]
-
-    container.innerHTML = `
-      <div class="recent-item">
-        <b>${d.title}</b><br>
-        <button class="mt-5" onclick="location.href='draft.html?id=${d.id}'">
-          Resume Draft
-        </button>
-      </div>
-    `
-
-  }catch(err){
-    container.innerHTML="<div class='empty-state'>Unable to load draft</div>"
-  }
-}
-
-
-/* =========================
-VIEW RESULTS
-========================= */
-
-window.viewResults = function(examId){
-
-  localStorage.setItem("results_exam",examId)
-  location.href="teacher-results.html"
-
-}
-
-
-/* =========================
-INIT
-========================= */
-
-function initDashboard(){
-
-  loadRecentExams()
-  loadRecentDraft()
-
-}
-
-initDashboard()
-
-</script>
-
-
-<!-- =========================
-ERUDA (REMOVE LATER)
-========================= -->
+<script type="module" src="js/teacher-home.js"></script>
 
 <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
 <script>

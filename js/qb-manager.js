@@ -3,6 +3,7 @@
 // ===============================
 
 import { getClient } from "./core/get-client.js";
+import { bootPage } from "./core/page-boot.js";
 import { openModal, closeModal } from "./ui/modal-system.js";
 
 const SIDE_PANEL_OPTIONS = {
@@ -1437,6 +1438,16 @@ document.addEventListener("click", (e) => {
 // INIT
 // --------------------------------
 async function init() {
+  const runtime = await bootPage({
+    roles: ["teacher", "admin"],
+    nav: {
+      title: "Question Bank Manager",
+      preset: "teacherKnowledge",
+    },
+  });
+
+  if (!runtime) return;
+
   await loadPatternDefinitions();
   bindEvents();
   await fetchTopics();
