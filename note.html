@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="icon" type="image/png" href="assets/prepos-icon.png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Topic Note</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .canonical-meta {
+      font-size: 0.875rem;
+      color: #64748b;
+      margin-top: 4px;
+    }
+    #representationTabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 20px 0;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 12px;
+    }
+    .canonical-tab {
+      padding: 8px 16px;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      background: #f8fafc;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+    .canonical-tab.active {
+      background: #1e293b;
+      color: #fff;
+      border-color: #1e293b;
+    }
+    #noteContent {
+      line-height: 1.65;
+      font-size: 1rem;
+    }
+    .canonical-representation {
+      max-width: 720px;
+    }
+    .canonical-block,
+    .canonical-block.collapsible {
+      margin-bottom: 16px;
+    }
+    .canonical-block-heading {
+      margin: 0 0 8px;
+      font-weight: 600;
+    }
+    .canonical-paragraph {
+      margin: 0 0 12px;
+    }
+    .canonical-list {
+      margin: 0 0 16px 1.25rem;
+    }
+    .canonical-topic-link {
+      color: #2563eb;
+      text-decoration: underline;
+    }
+    .canonical-topic-link.unresolved {
+      color: #64748b;
+      text-decoration: dotted underline;
+    }
+    details.collapsible summary {
+      cursor: pointer;
+      font-weight: 600;
+      padding: 8px 0;
+    }
+    .canonical-block-body {
+      padding-left: 8px;
+      border-left: 3px solid #e2e8f0;
+      margin-top: 8px;
+    }
+    .canonical-empty {
+      color: #64748b;
+      font-style: italic;
+    }
+    #readerStatus {
+      margin-top: 12px;
+      color: #64748b;
+    }
+  </style>
+</head>
+<body>
+
+<div id="app-nav-root"></div>
+
+<div class="container">
+
+  <div class="exam-header" id="noteHeader">
+    <h2>Topic Note</h2>
+    <div class="exam-subtitle">Canonical knowledge reader</div>
+  </div>
+
+  <div id="representationTabs" role="tablist" aria-label="Representations"></div>
+
+  <div id="noteContent"></div>
+
+  <div id="readerStatus">Loading…</div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js?v=20260520"></script>
+<script type="module" src="js/auth.js"></script>
+<script type="module" src="js/notes/note-reader.js"></script>
+
+</body>
+</html>
