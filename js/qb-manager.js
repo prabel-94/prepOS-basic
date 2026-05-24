@@ -4,6 +4,7 @@
 
 import { getClient } from "./core/get-client.js";
 import { bootPage } from "./core/page-boot.js";
+import { resolveAppPath } from "./core/access.js";
 import { openModal, closeModal } from "./ui/modal-system.js";
 
 const SIDE_PANEL_OPTIONS = {
@@ -1290,7 +1291,7 @@ el.topicsView.addEventListener("click", async (e) => {
 const noteBtn = e.target.closest(".open-note-btn");
 if (noteBtn) {
   const topicId = noteBtn.dataset.id;
-  window.location.href = `topic-note.html?id=${topicId}`;
+  window.location.href = resolveAppPath(`topic-note.html?id=${topicId}`);
   return;
 }
   // ---------------------------

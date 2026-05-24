@@ -3,6 +3,7 @@
  */
 
 import { bootPage } from "./core/page-boot.js";
+import { resolveAppPath } from "./core/access.js";
 import {
   loadStudentIntelligence,
   buildStudentLearningState,
@@ -31,20 +32,20 @@ function startExam() {
     alert("Enter exam id");
     return;
   }
-  location.href = `exam.html?id=${id}`;
+  location.href = resolveAppPath(`exam.html?id=${id}`);
 }
 
 function startExamById(id) {
-  location.href = `exam.html?id=${id}`;
+  location.href = resolveAppPath(`exam.html?id=${id}`);
 }
 
 function goToPractice() {
-  location.href = "practice.html";
+  location.href = resolveAppPath("practice.html");
 }
 
 function goToPracticeTopic(topic) {
   const key = normalizeTopicKey(topic);
-  location.href = `practice.html?topic=${encodeURIComponent(key)}`;
+  location.href = resolveAppPath(`practice.html?topic=${encodeURIComponent(key)}`);
 }
 
 async function initStudent() {

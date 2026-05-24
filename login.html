@@ -98,15 +98,8 @@ async function routeUser(userId){
 
   const role = data.role  
 
-  if(role === "teacher" || role === "admin"){
-    location.href = "index.html"
-  }
-  else if(role === "student"){
-    location.href = "student-dashboard.html"
-  }
-  else{
-    alert("Invalid role")
-  }
+  const { redirectToRoleHome } = await import("./js/core/access.js")
+  redirectToRoleHome(role)
 
 }
 
