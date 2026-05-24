@@ -1,11 +1,12 @@
 import { bootPage } from "./core/page-boot.js";
+import { resolveAppPath } from "./core/access.js";
 
 function goParser() {
-  window.location.href = "exam-creator.html";
+  window.location.href = resolveAppPath("exam-creator.html");
 }
 
 function goManual() {
-  window.location.href = "draft.html?mode=new";
+  window.location.href = resolveAppPath("draft.html?mode=new");
 }
 
 async function initCreatorMode() {

@@ -1,5 +1,6 @@
 import { bootRuntime } from "./runtime.js";
 import { mountAppNav, NAV_PRESETS } from "../ui/app-nav.js";
+import { initPrepOSLinkRouting, upgradeLegacyOnclickNav } from "./navigate.js";
 
 function normalizeRoles(options = {}) {
   if (Array.isArray(options.roles) && options.roles.length) {
@@ -53,6 +54,9 @@ export async function bootPage(options = {}) {
   if (!runtime) {
     return null;
   }
+
+  initPrepOSLinkRouting();
+  upgradeLegacyOnclickNav(document);
 
   const navOptions = resolveNavOptions(options.nav, runtime);
   if (navOptions) {

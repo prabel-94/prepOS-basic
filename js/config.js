@@ -4,6 +4,13 @@ Singleton-safe for multi-page apps
 v20260520 — never uses bare `supabase` global
 ======================================== */
 
+/**
+ * GitHub Pages project site base path (no trailing slash).
+ * Auto-detected from js/config.js URL when null; set explicitly if needed.
+ * Example: "/prepos-basic" for https://user.github.io/prepos-basic/
+ */
+window.PREPOS_BASE_PATH = window.PREPOS_BASE_PATH ?? null
+
 const SUPABASE_URL = "https://bcqjfosxneuyoyuzhdiq.supabase.co"
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJjcWpmb3N4bmV1eW95dXpoZGlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE5NDI2OTIsImV4cCI6MjA4NzUxODY5Mn0.mPvlN_JEov6cxCXjMlARrzd5zyFHPH131whlB1cQClA"
 

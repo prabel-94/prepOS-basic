@@ -4,6 +4,7 @@
 
 import { bootPage } from "./core/page-boot.js";
 import { getClient } from "./core/get-client.js";
+import { resolveAppPath } from "./core/access.js";
 import {
   openAssignExamModal,
   initAssignExamModal,
@@ -151,7 +152,7 @@ function renderExams(exams) {
         </div>
         <div class="flex gap-10" style="flex-wrap:wrap;">
           <button class="primary-btn" data-action="assign" data-exam-id="${escapeHTML(exam.id)}" data-exam-title="${escapeHTML(exam.title || "Untitled Exam")}">Assign</button>
-          <button class="secondary-btn" onclick="location.href='exam.html?id=${escapeHTML(exam.id)}'">Open</button>
+          <button type="button" class="secondary-btn" data-prepos-href="exam.html?id=${escapeHTML(exam.id)}">Open</button>
           <button class="secondary-btn" onclick="viewResults('${escapeHTML(exam.id)}')">Results</button>
           <button class="danger-btn" onclick="deletePublishedExam('${escapeHTML(exam.id)}')">Delete</button>
         </div>
@@ -224,7 +225,9 @@ function clearFilters() {
 
 function viewResults(examId) {
   localStorage.setItem("results_exam", examId);
-  location.href = `teacher-results.html?examId=${encodeURIComponent(examId)}`;
+  location.href = resolveAppPath(
+    `teacher-results.html?examId=${encodeURIComponent(examId)}`
+  );
 }
 
 async function initPublishedExams() {
@@ -269,6 +272,9 @@ async function initPublishedExams() {
 
   toggleCustomDateInputs();
   await loadPublishedExams();
+
+  const { upgradeLegacyOnclickNav } = await import("./core/navigate.js");
+  upgradeLegacyOnclickNav(document.getElementById("publishedExamList") ?? document);
 }
 
 window.deletePublishedExam = deletePublishedExam;

@@ -1,12 +1,13 @@
 import { bootPage } from "./core/page-boot.js";
+import { resolveAppPath } from "./core/access.js";
 import { getClient } from "./core/get-client.js";
 
 function goToStudent() {
-  location.href = "student-dashboard.html";
+  location.href = resolveAppPath("student-dashboard.html");
 }
 
 function goToCreatorMode() {
-  location.href = "creator-mode.html";
+  location.href = resolveAppPath("creator-mode.html");
 }
 
 function openExam() {
@@ -15,12 +16,14 @@ function openExam() {
     alert("Enter exam id");
     return;
   }
-  location.href = `exam.html?id=${id}`;
+  location.href = resolveAppPath(`exam.html?id=${id}`);
 }
 
 function viewResults(examId) {
   localStorage.setItem("results_exam", examId);
-  location.href = `teacher-results.html?examId=${encodeURIComponent(examId)}`;
+  location.href = resolveAppPath(
+    `teacher-results.html?examId=${encodeURIComponent(examId)}`
+  );
 }
 
 async function loadRecentExams() {
@@ -50,7 +53,7 @@ async function loadRecentExams() {
       div.innerHTML = `
         <b>${exam.title}</b><br>
         <div class="mt-5">
-          <button onclick="location.href='exam.html?id=${exam.id}'">Open</button>
+          <button type="button" data-prepos-href="exam.html?id=${exam.id}">Open</button>
           <button onclick="viewResults('${exam.id}')">Results</button>
         </div>
       `;
@@ -85,7 +88,7 @@ async function loadRecentDraft() {
     container.innerHTML = `
       <div class="recent-item">
         <b>${draft.title}</b><br>
-        <button class="mt-5" onclick="location.href='draft.html?id=${draft.id}'">
+        <button type="button" class="mt-5" data-prepos-href="draft.html?id=${draft.id}">
           Resume Draft
         </button>
       </div>
@@ -113,8 +116,12 @@ async function initTeacherHome() {
 
   if (!runtime) return;
 
+  const { upgradeLegacyOnclickNav } = await import("./core/navigate.js");
+  upgradeLegacyOnclickNav(document);
+
   await loadRecentExams();
   await loadRecentDraft();
+  upgradeLegacyOnclickNav(document);
 }
 
 window.goToStudent = goToStudent;
