@@ -1413,3 +1413,70 @@ RELATION BUILDER
   background: var(--primary);
   color: white;
 }
+
+/* ======================================================
+PREPOS PLATFORM MODAL SYSTEM
+Analytics/debug overlays may use z-index 4000+ later.
+All modals must use .prepos-modal (see js/ui/modal-system.js).
+====================================================== */
+
+.prepos-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+.prepos-modal.hidden {
+  display: none;
+}
+
+.prepos-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.prepos-modal-content {
+  position: relative;
+  z-index: 1;
+  width: min(480px, 100%);
+  max-height: min(85vh, 720px);
+  display: flex;
+  flex-direction: column;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 20px 48px rgba(15, 23, 42, 0.18);
+  overflow: hidden;
+}
+
+.prepos-modal-scroll {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.prepos-modal-header {
+  flex-shrink: 0;
+  padding: 20px 20px 0;
+}
+
+.prepos-modal-body {
+  flex: 1;
+  min-height: 0;
+  padding: 16px 20px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.prepos-modal-footer {
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 0 20px 20px;
+}
