@@ -4,6 +4,15 @@
 import { getClient } from "./core/get-client.js";
 import { runGenerator } from "./generator-core.js";
 import { openModal, closeModal, isModalOpen } from "./ui/modal-system.js";
+
+const SIDE_PANEL_OPTIONS = {
+  overlayType: "side-panel",
+  closeOnBackdrop: false,
+};
+
+function openSidePanel(id, options = {}) {
+  return openModal(id, { ...SIDE_PANEL_OPTIONS, ...options });
+}
 // --------------------------------
 // GLOBAL STATE
 // --------------------------------
@@ -2074,8 +2083,7 @@ if (e.target.classList.contains("edit-metadata-btn")) {
 
   renderMetadataPanel(i);
 
-  document.getElementById("metadataPanel").classList.remove("hidden");
-  document.body.style.overflow = "hidden";
+  openSidePanel("metadataPanel");
 }
 
   // --------------------------------
@@ -2088,8 +2096,7 @@ if (e.target.classList.contains("edit-metadata-btn")) {
     const q = currentDraft.schema_json.sections[0].questions[selectedQuestionIndex];
 
     // OPEN PANEL
-    document.getElementById("addToBankPanel")?.classList.remove("hidden");
-    document.body.style.overflow = "hidden"; // 🔥 ADD
+    openSidePanel("addToBankPanel");
 
     // SHOW QUESTION PREVIEW
     const preview = document.getElementById("bankQuestionPreview");
@@ -2501,6 +2508,7 @@ function openAssignModal(examId) {
   if (search) search.value = "";
 
   openModal("assignModal", {
+    overlayType: "modal",
     onClose: resetAssignModalState,
   });
 
@@ -2600,8 +2608,7 @@ document.getElementById("metadataContent")
   try {
     await saveQuestionToBank(q);
 
-    document.getElementById("metadataPanel").classList.add("hidden");
-    document.body.style.overflow = "";
+    closeModal("metadataPanel");
 
     setStatus("Metadata updated ✅");
 
@@ -2625,8 +2632,7 @@ document.getElementById("publishDraftBtn")
 // --------------------------------
 document.getElementById("closeMetadata")
   ?.addEventListener("click", () => {
-    document.getElementById("metadataPanel").classList.add("hidden");
-    document.body.style.overflow = "";
+    closeModal("metadataPanel");
 });
 
   // --------------------------------
@@ -2739,9 +2745,8 @@ document.getElementById("topicDropdown")
 
     renderDraft(currentDraft);
 
-    document.getElementById("addToBankPanel").classList.add("hidden");
+    closeModal("addToBankPanel");
     document.getElementById("duplicateBox").classList.add("hidden");
-    document.body.style.overflow = "";
 
     setStatus("Linked to existing question ✅");
 
@@ -2907,8 +2912,7 @@ document.getElementById("caEventInput")
 
   document.getElementById("closeAddToBank")
   ?.addEventListener("click", () => {
-    document.getElementById("addToBankPanel").classList.add("hidden");
-    document.body.style.overflow = ""; // 🔥 ADD
+    closeModal("addToBankPanel");
   });
 
 // --------------------------------
@@ -2916,10 +2920,7 @@ document.getElementById("caEventInput")
 // --------------------------------
 document.getElementById("closeSaveAll")
   ?.addEventListener("click", () => {
-
-    document.getElementById("saveAllPanel")?.classList.add("hidden");
-    document.body.style.overflow = "";
-
+    closeModal("saveAllPanel");
   });
 
    // 🔥 FORCE RESET UI STATE
@@ -2960,8 +2961,7 @@ document.getElementById("saveAllToBankBtn")
     // --------------------------------
     // OPEN PANEL
     // --------------------------------
-    document.getElementById("saveAllPanel")?.classList.remove("hidden");
-    document.body.style.overflow = "hidden";
+    openSidePanel("saveAllPanel");
 
     // --------------------------------
     // RESET TOPIC SYSTEM
@@ -2975,14 +2975,12 @@ renderTopicWarnings([], "bulkTopicWarnings");
 
   document.getElementById("openQuestionBankBtn")
     ?.addEventListener("click", () => {
-      document.getElementById("questionBankPanel").classList.remove("hidden");
-      document.body.style.overflow = "hidden";
+      openSidePanel("questionBankPanel");
     });
 
   document.getElementById("closeQB")
     ?.addEventListener("click", () => {
-      document.getElementById("questionBankPanel").classList.add("hidden");
-      document.body.style.overflow = ""; // 🔥 ADD
+      closeModal("questionBankPanel");
     });
 
   document.getElementById("logoUpload")
@@ -3101,10 +3099,7 @@ document.getElementById("confirmAddToBank")
 
     renderDraft(currentDraft);
 
-    document.getElementById("addToBankPanel")
-      ?.classList.add("hidden");
-
-    document.body.style.overflow = "";
+    closeModal("addToBankPanel");
 
     setStatus("Question saved to bank ✅");
 
@@ -3144,7 +3139,7 @@ document.getElementById("confirmSaveAll")
 
     await saveAllQuestionsToBank(topics);
 
-    document.body.style.overflow = "";
+    closeModal("saveAllPanel");
 
   });
 
@@ -3212,10 +3207,9 @@ async function loadQuestionSets() {
 
   const sb = await getClient()
 
-  const panel = document.getElementById("questionSetPanel");
   const list = document.getElementById("questionSetList");
 
-  panel.classList.remove("hidden");
+  openSidePanel("questionSetPanel");
 
   const { data, error } = await sb
     .from("draft_exams")
@@ -3286,9 +3280,7 @@ if (e.target.classList.contains("load-set")) {
 
   pendingSetLoadId = e.target.dataset.id;
 
-  document
-    .getElementById("loadSetDialog")
-    .classList.remove("hidden");
+  openModal("loadSetDialog", { overlayType: "modal" });
 }
 
   // DELETE QUESTION SET
@@ -3355,13 +3347,9 @@ document
   }
 
   renderDraft(currentDraft);
-  document
-.getElementById("questionSetPanel")
-.classList.add("hidden");
+  closeModal("questionSetPanel");
 
-  document
-    .getElementById("loadSetDialog")
-    .classList.add("hidden");
+  closeModal("loadSetDialog");
 
   pendingSetLoadId = null;
 
@@ -3379,10 +3367,7 @@ document
 
   pendingSetLoadId = null;
 
-  document
-    .getElementById("loadSetDialog")
-    .classList.add("hidden");
-
+  closeModal("loadSetDialog");
 });
 
 async function saveAsQuestionSetSafe() {
@@ -3434,9 +3419,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   document.getElementById("closeQuestionSet")
     ?.addEventListener("click", () => {
-      document
-        .getElementById("questionSetPanel")
-        ?.classList.add("hidden");
+      closeModal("questionSetPanel");
     });
 
   document.getElementById("assignSelectedBtn")
