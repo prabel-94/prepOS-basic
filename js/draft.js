@@ -3,6 +3,7 @@
 // ===============================
 import { getClient } from "./core/get-client.js";
 import { runGenerator } from "./generator-core.js";
+import { openModal, closeModal, isModalOpen } from "./ui/modal-system.js";
 // --------------------------------
 // GLOBAL STATE
 // --------------------------------
@@ -2487,25 +2488,27 @@ async function loadStudents(search = "") {
   }
 }
 
+function resetAssignModalState() {
+  currentExamId = null;
+  selectedStudents = [];
+}
+
 function openAssignModal(examId) {
   currentExamId = examId;
   selectedStudents = [];
 
-  const modal = document.getElementById("assignModal");
   const search = document.getElementById("studentSearch");
-
   if (search) search.value = "";
-  modal?.classList.remove("hidden");
-  document.body.style.overflow = "hidden";
+
+  openModal("assignModal", {
+    onClose: resetAssignModalState,
+  });
 
   loadStudents();
 }
 
 function closeAssignModal() {
-  document.getElementById("assignModal")?.classList.add("hidden");
-  document.body.style.overflow = "";
-  currentExamId = null;
-  selectedStudents = [];
+  closeModal("assignModal");
 }
 
 async function assignSelected() {
@@ -2542,6 +2545,10 @@ async function assignSelected() {
     if (assignBtn) {
       assignBtn.disabled = false;
       assignBtn.innerText = originalText || "Assign";
+    }
+
+    if (!isModalOpen("assignModal") && currentExamId) {
+      resetAssignModalState();
     }
   }
 }
@@ -3516,4 +3523,5 @@ window.duplicateQuestion = duplicateQuestion;
 window.moveQuestionUp = moveQuestionUp;
 window.moveQuestionDown = moveQuestionDown;
 window.openAssignModal = openAssignModal;
+window.closeAssignModal = closeAssignModal;
 window.assignSelected = assignSelected;

@@ -4,7 +4,7 @@
 -- This file exists as the first migration anchor from `supabase db pull`.
 -- Do NOT treat an empty or minimal file here as "no schema" — apply migrations instead.
 --
--- Core identity + authorization (see 20260524100000_auth_user_provisioning.sql):
+-- Core identity + authorization (see 20260523190008_auth_user_provisioning.sql):
 --   auth.users          → Supabase Auth identity
 --   public.users        → PrepOS authorization (role: student | teacher | admin)
 --   on_auth_user_created → auto-provision public.users on auth signup

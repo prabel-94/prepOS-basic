@@ -404,18 +404,23 @@ DEV DEBUG
   </div>
 </div>
 
-<div id="assignModal" class="modal hidden">
-  <div class="modal-content">
+<div id="assignModal" class="prepos-modal hidden">
+  <div class="prepos-modal-backdrop"></div>
+  <div class="prepos-modal-content">
 
-    <div class="h2">Assign Exam</div>
-
-    <input id="studentSearch" placeholder="Search student..." class="w-full mt-20">
-
-    <div id="studentList" class="mt-20">
-      Loading students...
+    <div class="prepos-modal-header">
+      <div class="h2">Assign Exam</div>
     </div>
 
-    <div class="flex gap-10 mt-20">
+    <div class="prepos-modal-body">
+      <input id="studentSearch" placeholder="Search student..." class="w-full">
+
+      <div id="studentList" class="mt-20">
+        Loading students...
+      </div>
+    </div>
+
+    <div class="prepos-modal-footer">
       <button id="assignSelectedBtn" class="primary-btn">
         Assign
       </button>
