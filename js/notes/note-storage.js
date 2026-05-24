@@ -4,7 +4,10 @@
  */
 
 import { getClient } from "../core/get-client.js";
-import { buildTopicLinkRows, resolveTopicLinks } from "./note-topic-links.js";
+import {
+  buildTopicLinkRows,
+  resolveTopicNamesForStorage,
+} from "./note-topic-links.js";
 
 const REPRESENTATION_TYPES = [
   "narrative",
@@ -115,7 +118,7 @@ export async function saveCanonicalNote({
   }
 
   const topicNames = (parsed?.topic_links ?? []).map((l) => l.name);
-  const resolvedTopics = await resolveTopicLinks(sb, topicNames, {
+  const resolvedTopics = await resolveTopicNamesForStorage(sb, topicNames, {
     createMissing: true,
   });
 

@@ -3,6 +3,7 @@
  */
 
 import { getClient } from "../core/get-client.js";
+import { buildTopicMap } from "./note-topic-links.js";
 
 export async function fetchNoteById(noteId) {
   if (!noteId) {
@@ -76,6 +77,25 @@ export async function fetchNoteTopicLinks(noteId) {
   return data ?? [];
 }
 
+export async function fetchTopicById(topicId) {
+  if (!topicId) {
+    return null;
+  }
+
+  const sb = await getClient();
+  const { data, error } = await sb
+    .from("topics")
+    .select("id, name")
+    .eq("id", topicId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+}
+
 export async function fetchPublishedNoteForTopic(topicId) {
   const sb = await getClient();
 
@@ -131,10 +151,13 @@ export async function loadCanonicalNoteBundle(noteId) {
     return null;
   }
 
+  const topicMap = buildTopicMap(topicLinks);
+
   return {
     note,
     blocks,
     representations: groupBlocksByRepresentation(blocks),
     topicLinks,
+    topicMap,
   };
 }

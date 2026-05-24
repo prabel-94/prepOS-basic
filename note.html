@@ -54,13 +54,22 @@
     .canonical-list {
       margin: 0 0 16px 1.25rem;
     }
-    .canonical-topic-link {
-      color: #2563eb;
+    .topic-link {
+      color: var(--primary);
+      text-decoration: none;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .topic-link:hover {
       text-decoration: underline;
     }
-    .canonical-topic-link.unresolved {
-      color: #64748b;
-      text-decoration: dotted underline;
+    .topic-link.unresolved {
+      opacity: 0.65;
+      cursor: default;
+      text-decoration: none;
+    }
+    .topic-link.unresolved:hover {
+      text-decoration: none;
     }
     details.collapsible summary {
       cursor: pointer;
@@ -80,6 +89,99 @@
       margin-top: 12px;
       color: #64748b;
     }
+    .referenced-in {
+      max-width: 720px;
+      margin-top: 32px;
+      padding-top: 20px;
+      border-top: 1px solid #e2e8f0;
+    }
+    .referenced-in-heading {
+      margin: 0 0 12px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #475569;
+      letter-spacing: 0.02em;
+    }
+    .referenced-in-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+    .referenced-in-list li {
+      margin: 0 0 6px;
+      padding-left: 0.75rem;
+      position: relative;
+    }
+    .referenced-in-list li::before {
+      content: "•";
+      position: absolute;
+      left: 0;
+      color: #94a3b8;
+    }
+    .referenced-in-link {
+      font-weight: 500;
+    }
+    .structural-hierarchy {
+      max-width: 720px;
+    }
+    .structural-group {
+      margin-bottom: 0.35rem;
+      padding-left: calc(var(--structural-depth, 0) * 0.85rem);
+    }
+    .structural-toggle {
+      width: 100%;
+      text-align: left;
+      border: none;
+      background: transparent;
+      font-weight: 600;
+      cursor: pointer;
+      padding: 0.5rem 0;
+      font-size: 1rem;
+      line-height: 1.4;
+      color: #1e293b;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.35rem;
+      min-height: 44px;
+    }
+    .structural-toggle:focus-visible {
+      outline: 2px solid var(--primary);
+      outline-offset: 2px;
+      border-radius: 4px;
+    }
+    .structural-indicator {
+      flex-shrink: 0;
+      width: 1.1rem;
+      color: #64748b;
+      font-size: 0.85rem;
+      line-height: 1.5;
+    }
+    .structural-heading {
+      flex: 1;
+    }
+    .structural-content {
+      padding: 0 0 0.75rem 1.25rem;
+      border-left: 2px solid #e2e8f0;
+      margin-left: 0.55rem;
+    }
+    .structural-content.collapsed {
+      display: none;
+    }
+    .structural-content .canonical-list {
+      margin-top: 0.25rem;
+      margin-bottom: 0.5rem;
+    }
+    .structural-orphan-content {
+      margin-bottom: 1rem;
+    }
+    @media (max-width: 640px) {
+      .structural-toggle {
+        padding: 0.6rem 0;
+      }
+      .structural-content {
+        padding-left: 0.85rem;
+      }
+    }
   </style>
 </head>
 <body>
@@ -97,6 +199,8 @@
 
   <div id="noteContent"></div>
 
+  <div id="noteBacklinks"></div>
+
   <div id="readerStatus">Loading…</div>
 
 </div>
@@ -104,7 +208,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/config.js?v=20260520"></script>
 <script type="module" src="js/auth.js"></script>
-<script type="module" src="js/notes/note-reader.js"></script>
+<script type="module" src="js/notes/note-reader.js?v=20260604"></script>
 
 </body>
 </html>

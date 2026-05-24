@@ -1,15 +1,131 @@
 /**
  * Topic link resolution for canonical notes ([[Topic Name]]).
+ * DB persistence helpers + safe wiki-style traversal rendering.
  */
+
+import { resolveAppPath } from "../core/access.js";
 
 export function normalizeTopicName(name = "") {
   return String(name).trim().toLowerCase();
 }
 
+function escapeHTML(value = "") {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function lookupTopicEntry(topicMap, label) {
+  if (!topicMap || !label) {
+    return null;
+  }
+
+  const trimmed = String(label).trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  if (topicMap[trimmed]?.id) {
+    return topicMap[trimmed];
+  }
+
+  const normalized = normalizeTopicName(trimmed);
+
+  for (const key of Object.keys(topicMap)) {
+    const entry = topicMap[key];
+    if (!entry) {
+      continue;
+    }
+
+    if (normalizeTopicName(key) === normalized && entry.id) {
+      return entry;
+    }
+
+    if (entry.title && normalizeTopicName(entry.title) === normalized && entry.id) {
+      return entry;
+    }
+  }
+
+  return null;
+}
+
 /**
- * Resolve topic names to topic IDs (create missing topics when allowed).
+ * Convert [[Topic Name]] markers into navigable knowledge links (HTML-safe).
+ * @param {string} text
+ * @param {Record<string, { id?: string, title?: string }>} topicMap
+ * @returns {string}
  */
-export async function resolveTopicLinks(sb, topicNames = [], { createMissing = true } = {}) {
+export function resolveTopicLinks(text, topicMap = {}) {
+  if (!text) {
+    return "";
+  }
+
+  const parts = [];
+  let lastIndex = 0;
+  const pattern = /\[\[([^\]]+)\]\]/g;
+  let match;
+
+  while ((match = pattern.exec(text)) !== null) {
+    parts.push(escapeHTML(text.slice(lastIndex, match.index)));
+
+    const label = match[1].trim();
+    const entry = lookupTopicEntry(topicMap, label);
+    const display = entry?.title ?? label;
+
+    if (entry?.id) {
+      const href = resolveAppPath(
+        `note.html?topic=${encodeURIComponent(entry.id)}`
+      );
+      parts.push(
+        `<a href="${escapeHTML(href)}" class="topic-link" data-topic-id="${escapeHTML(entry.id)}">${escapeHTML(display)}</a>`
+      );
+    } else {
+      parts.push(
+        `<span class="topic-link unresolved">${escapeHTML(label)}</span>`
+      );
+    }
+
+    lastIndex = pattern.lastIndex;
+  }
+
+  parts.push(escapeHTML(text.slice(lastIndex)));
+  return parts.join("");
+}
+
+/**
+ * Build traversal map from note_topic_links rows (+ joined topics).
+ * @param {Array} topicLinks
+ * @returns {Record<string, { id: string|null, title: string }>}
+ */
+export function buildTopicMap(topicLinks = []) {
+  const map = {};
+
+  for (const link of topicLinks) {
+    const displayName = (link.linked_topic_name ?? link.topics?.name ?? "").trim();
+    if (!displayName) {
+      continue;
+    }
+
+    const id = link.linked_topic_id ?? link.topics?.id ?? null;
+    const title = link.topics?.name ?? displayName;
+
+    map[displayName] = { id, title };
+  }
+
+  return map;
+}
+
+/**
+ * Resolve topic names to topic IDs for storage (import pipeline).
+ */
+export async function resolveTopicNamesForStorage(
+  sb,
+  topicNames = [],
+  { createMissing = true } = {}
+) {
   const unique = [];
   const seen = new Set();
 
