@@ -17,10 +17,6 @@
 
   <div class="container">
 
-    <!-- =========================
-  HEADER
-  ========================= -->
-
     <div class="mt-10 flex" style="justify-content:space-between; align-items:center;">
 
       <div>
@@ -31,11 +27,6 @@
       <button onclick="logout()">Logout</button>
 
     </div>
-
-
-    <!-- =========================
-  START EXAM
-  ========================= -->
 
     <div class="card mt-30">
 
@@ -52,11 +43,6 @@
 
     </div>
 
-
-    <!-- =========================
-AVAILABLE EXAMS
-========================= -->
-
     <div class="card mt-20">
 
       <div class="h2">Available Exams</div>
@@ -66,11 +52,6 @@ AVAILABLE EXAMS
       </div>
 
     </div>
-
-
-    <!-- =========================
-PRACTICE
-========================= -->
 
     <div class="card mt-20">
 
@@ -86,12 +67,50 @@ PRACTICE
 
     </div>
 
+    <div class="card mt-20">
+      <div class="h2">Learning Intelligence</div>
+      <div class="section-sub mt-5">
+        Topic mastery and revision guidance from verified practice.
+      </div>
 
-    <!-- =========================
-  RECENT ATTEMPTS
-  ========================= -->
+      <div id="learningSnapshot" class="mt-20">
+        Loading learning snapshot...
+      </div>
 
-    <div class="card">
+      <div id="confidenceState" class="mt-20"></div>
+    </div>
+
+    <div class="card mt-20">
+      <div class="h2">Weak Topics</div>
+      <div class="section-sub mt-5">
+        Focus here first for the biggest learning gains.
+      </div>
+      <div id="weakTopicsList" class="mt-10">
+        Loading weak topics...
+      </div>
+    </div>
+
+    <div class="card mt-20">
+      <div class="h2">Strong Topics</div>
+      <div class="section-sub mt-5">
+        Topics where your verified mastery is solid.
+      </div>
+      <div id="strongTopicsList" class="mt-10">
+        Loading strong topics...
+      </div>
+    </div>
+
+    <div class="card mt-20">
+      <div class="h2">Recommended Revision</div>
+      <div class="section-sub mt-5">
+        Suggested next practice based on your learning profile.
+      </div>
+      <div id="revisionRecommendations" class="mt-10">
+        Loading recommendations...
+      </div>
+    </div>
+
+    <div class="card mt-20">
 
       <div class="h3">Recent Attempts</div>
 
@@ -101,27 +120,7 @@ PRACTICE
 
     </div>
 
-
-    <!-- =========================
-  PERFORMANCE
-  ========================= -->
-
-    <div class="card">
-
-      <div class="h3">Performance</div>
-
-      <div id="performanceBox" class="mt-10 text-muted">
-        Loading performance...
-      </div>
-
-    </div>
-
   </div>
-
-
-  <!-- =========================
-SCRIPTS
-========================= -->
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/config.js?v=20260520"></script>

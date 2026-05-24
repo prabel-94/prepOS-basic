@@ -1,5 +1,6 @@
 import { runGenerator } from "./generator-core.js";
 import { getClient } from "./core/get-client.js";
+import { normalizeTopicKey } from "./student/student-intelligence.js";
 
 const subjectSelect = document.getElementById("subjectSelect");
 const patternSelect = document.getElementById("patternSelect");
@@ -39,6 +40,37 @@ const state = {
 Init
 ========================================= */
 
+async function applyPracticeTopicFromUrl() {
+  const topicParam = new URLSearchParams(window.location.search).get("topic");
+  if (!topicParam) {
+    return;
+  }
+
+  const key = normalizeTopicKey(topicParam);
+  const match = [...bankTopicSelect.options].find(option => {
+    if (!option.value) {
+      return false;
+    }
+
+    const label = option.text.replace(/\s+\(\d+\)$/, "");
+    return normalizeTopicKey(label) === key;
+  });
+
+  if (!match) {
+    setStatus(
+      `Topic "${topicParam}" was not found. Choose a topic from the bank list.`,
+      true
+    );
+    return;
+  }
+
+  setPracticeMode("bank");
+  bankTopicSelect.value = match.value;
+  setStatus(
+    `Practice focus: ${match.text.replace(/\s+\(\d+\)$/, "")}`
+  );
+}
+
 async function init() {
   const sb = await getClient();
 
@@ -49,6 +81,7 @@ async function init() {
   const { data } = await sb.auth.getUser();
   window.currentUser = data?.user || null;
   await loadBankTopics();
+  await applyPracticeTopicFromUrl();
   startBtn.disabled = false;
 }
 

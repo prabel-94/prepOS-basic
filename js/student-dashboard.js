@@ -1,259 +1,129 @@
-// =========================
-// STUDENT DASHBOARD
-// =========================
+/**
+ * PrepOS Student Dashboard — orchestration bootstrap only.
+ */
 
-import { getClient } from "./core/get-client.js";
+import {
+  loadStudentIntelligence,
+  buildStudentLearningState,
+  normalizeTopicKey,
+} from "./student/student-intelligence.js";
 
-function escapeHTML(value){
-  return String(value ?? "")
-    .replace(/&/g,"&amp;")
-    .replace(/</g,"&lt;")
-    .replace(/>/g,"&gt;")
-    .replace(/"/g,"&quot;")
-    .replace(/'/g,"&#039;");
-}
+import {
+  selectLearningSnapshot,
+  selectWeakTopicCards,
+  selectStrongTopicCards,
+  selectRevisionRecommendations,
+  selectKnowledgeConfidence,
+  selectRecentProgress,
+} from "./student/student-selectors.js";
 
+import {
+  renderStudentDashboard,
+  bindPracticeActions,
+  bindExamStartActions,
+  renderEmptyState,
+} from "./student/student-dashboard-renderer.js";
 
-async function requireStudentAccess(){
+async function requireStudentAccess() {
+  const { getClient } = await import("./core/get-client.js");
+  const sb = await getClient();
+  const { data: userData } = await sb.auth.getUser();
+  const user = userData?.user;
 
-  const sb = await getClient()
-  const { data: userData } = await sb.auth.getUser()
-  const user = userData?.user
-
-  if(!user){
-    window.location.href = "login.html"
-    return
+  if (!user) {
+    window.location.href = "login.html";
+    return false;
   }
 
   const { data, error } = await sb
     .from("users")
     .select("role")
     .eq("id", user.id)
-    .single()
+    .single();
 
-  if(error || !data){
-    window.location.href = "login.html"
-    return
+  if (error || !data) {
+    window.location.href = "login.html";
+    return false;
   }
 
-  const role = data.role
-
-  if(role !== "student" && role !== "admin"){
-    window.location.href = "login.html"
-  }
-}
-/* =========================
-START EXAM
-========================= */
-
-function startExam(){
-  const id = document.getElementById("examId").value.trim()
-
-  if(!id){
-    alert("Enter exam id")
-    return
+  if (data.role !== "student" && data.role !== "admin") {
+    window.location.href = "login.html";
+    return false;
   }
 
-  location.href = `exam.html?id=${id}`
+  return true;
 }
 
-function startExamById(id){
-  location.href = `exam.html?id=${id}`
+function startExam() {
+  const id = document.getElementById("examId")?.value.trim();
+  if (!id) {
+    alert("Enter exam id");
+    return;
+  }
+  location.href = `exam.html?id=${id}`;
 }
 
-function goToPractice(){
-  location.href = "practice.html"
+function startExamById(id) {
+  location.href = `exam.html?id=${id}`;
 }
 
-/* =========================
-AVAILABLE EXAMS
-========================= */
-
-async function loadAvailableExams(){
-
-  const sb = await getClient()
-  const container = document.getElementById("availableExams")
-  if (!container) {
-  console.error("availableExams container missing");
-  return;
+function goToPractice() {
+  location.href = "practice.html";
 }
 
-  try{
+function goToPracticeTopic(topic) {
+  const key = normalizeTopicKey(topic);
+  location.href = `practice.html?topic=${encodeURIComponent(key)}`;
+}
 
-    const { data: userData } = await sb.auth.getUser()
-    const user = userData?.user
+async function initStudent() {
+  await requireAuth();
+  const allowed = await requireStudentAccess();
+  if (!allowed) return;
 
-    if(!user){
-      throw new Error("User not authenticated")
-    }
+  try {
+    const intelligence = await loadStudentIntelligence();
+    const learningState = buildStudentLearningState(intelligence);
+    window.__PREPOS_STUDENT_LEARNING_STATE__ = learningState;
 
-    const { data, error } = await sb
-      .from("exam_assignments")
-      .select(`
-        exam_sessions ( id, title, created_at )
-      `)
-      .eq("student_id", user.id)
+    const snapshotView = selectLearningSnapshot(learningState);
+    const confidenceView = selectKnowledgeConfidence(learningState);
+    const weakTopicCards = selectWeakTopicCards(learningState);
+    const strongTopicCards = selectStrongTopicCards(learningState);
+    const recommendations = selectRevisionRecommendations(learningState);
+    const recentAttempts = selectRecentProgress(learningState);
 
-    if (error) {
-      throw error
-    }
+    renderStudentDashboard({
+      snapshotView,
+      confidenceView,
+      weakTopicCards,
+      strongTopicCards,
+      recommendations,
+      exams: intelligence.exams ?? [],
+      recentAttempts,
+    });
 
-    const exams = (data || [])
-      .map(assignment => assignment.exam_sessions)
-      .filter(Boolean)
+    bindPracticeActions(goToPracticeTopic);
+    bindExamStartActions(startExamById);
+  } catch (error) {
+    console.error("[Student Dashboard]", error);
 
-    container.innerHTML = ""
+    renderEmptyState(
+      document.getElementById("learningSnapshot"),
+      "Unable to load learning intelligence right now.",
+      { variant: "error" }
+    );
 
-    if(!exams.length){
-      container.innerHTML = "<div class='empty-state'>No exams available</div>"
-      return
-    }
-
-    exams.forEach(exam => {
-
-      const div = document.createElement("div")
-      div.className = "recent-item mt-10"
-
-      div.innerHTML = `
-        <b>${escapeHTML(exam.title || "Untitled Exam")}</b><br>
-        <div class="text-muted mt-5">
-          ${new Date(exam.created_at).toLocaleString()}
-        </div>
-        <button 
-          class="primary-btn mt-10"
-          onclick="startExamById('${exam.id}')"
-        >
-          Start
-        </button>
-      `
-
-      container.appendChild(div)
-
-    })
-
-  }catch(err){
-    console.error(err)
-    container.innerHTML = "<div class='empty-state'>Unable to load exams</div>"
+    renderEmptyState(
+      document.getElementById("weakTopicsList"),
+      "Weak topic insights are unavailable.",
+      { variant: "error" }
+    );
   }
 }
 
-/* =========================
-RECENT ATTEMPTS
-========================= */
-
-async function loadRecentAttempts(){
-
-  const sb = await getClient()
-  const container = document.getElementById("recentAttempts")
-
-  try{
-
-    const { data: userData } = await sb.auth.getUser()
-    const user = userData.user
-
-    const { data, error } = await sb
-      .from("exam_attempts")
-      .select("id, score, exam_id, submitted_at")
-      .eq("student_id", user.id)
-      .order("submitted_at", { ascending: false })
-      .limit(5)
-
-    if (error) {
-      throw error
-    }
-
-    container.innerHTML=""
-
-    if(!data?.length){
-      container.innerHTML="<div class='empty-state'>No attempts yet</div>"
-      return
-    }
-
-    data.forEach(a=>{
-
-      const div=document.createElement("div")
-      div.className="recent-item mt-10"
-
-      div.innerHTML=`
-        <b>Exam ID: ${a.exam_id}</b><br>
-        Score: ${a.score}<br>
-        <div class="text-muted mt-5">
-          ${new Date(a.submitted_at).toLocaleString()}
-        </div>
-      `
-
-      container.appendChild(div)
-
-    })
-
-  }catch(err){
-    console.error(err)
-    container.innerHTML="<div class='empty-state'>Unable to load attempts</div>"
-  }
-}
-
-/* =========================
-PERFORMANCE
-========================= */
-
-async function loadPerformance(){
-
-  const sb = await getClient()
-  const container = document.getElementById("performanceBox")
-
-  try{
-
-    const { data: userData } = await sb.auth.getUser()
-    const user = userData.user
-
-    const { data, error } = await sb
-      .from("exam_attempts")
-      .select("score")
-      .eq("student_id", user.id)
-
-    if (error) {
-      throw error
-    }
-
-    if(!data?.length){
-      container.innerHTML="No data yet"
-      return
-    }
-
-    const scores = data.map(x=>x.score)
-    const avg = Math.round(scores.reduce((a,b)=>a+b,0)/scores.length)
-
-    container.innerHTML = `
-      Average Score: <b>${avg}%</b><br>
-      Attempts: ${scores.length}
-    `
-
-  }catch(err){
-    console.error(err)
-    container.innerHTML="Unable to load performance"
-  }
-}
-
-/* =========================
-INIT
-========================= */
-
-async function initStudent(){
-
-  await requireAuth()
-  await requireStudentAccess()
-
-  await loadAvailableExams()
-  await loadRecentAttempts()
-  await loadPerformance()
-
-}
-
-/* =========================
-EXPORT TO WINDOW
-========================= */
-
-window.startExam = startExam
-window.startExamById = startExamById
-window.goToPractice = goToPractice
-window.initStudent = initStudent
+window.startExam = startExam;
+window.startExamById = startExamById;
+window.goToPractice = goToPractice;
+window.goToPracticeTopic = goToPracticeTopic;
+window.initStudent = initStudent;
