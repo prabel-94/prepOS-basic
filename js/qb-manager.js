@@ -3,6 +3,16 @@
 // ===============================
 
 import { getClient } from "./core/get-client.js";
+import { openModal, closeModal } from "./ui/modal-system.js";
+
+const SIDE_PANEL_OPTIONS = {
+  overlayType: "side-panel",
+  closeOnBackdrop: false,
+};
+
+function openSidePanel(id, options = {}) {
+  return openModal(id, { ...SIDE_PANEL_OPTIONS, ...options });
+}
 
 // --------------------------------
 // INIT
@@ -989,11 +999,7 @@ document.getElementById("patternList")
 document.getElementById("openPatternManager")
 ?.addEventListener("click", async () => {
 
-  document
-    .getElementById("patternManagerPanel")
-    .classList.remove("hidden");
-
-  document.body.style.overflow = "hidden";
+  openSidePanel("patternManagerPanel");
 
   await fetchPatterns();
 
@@ -1002,11 +1008,7 @@ document.getElementById("openPatternManager")
 document.getElementById("closePatternManager")
 ?.addEventListener("click", () => {
 
-  document
-    .getElementById("patternManagerPanel")
-    .classList.add("hidden");
-
-  document.body.style.overflow = "";
+  closeModal("patternManagerPanel");
 
 });
 
@@ -1016,11 +1018,7 @@ document.getElementById("addPatternBtn")
 document.getElementById("openCAManager")
 ?.addEventListener("click", async () => {
 
-  document
-    .getElementById("caManagerPanel")
-    .classList.remove("hidden");
-
-  document.body.style.overflow = "hidden";
+  openSidePanel("caManagerPanel");
 
   await loadCADefinitions();
   renderCAManager();
@@ -1030,11 +1028,7 @@ document.getElementById("openCAManager")
 document.getElementById("closeCAManager")
 ?.addEventListener("click", () => {
 
-  document
-    .getElementById("caManagerPanel")
-    .classList.add("hidden");
-
-  document.body.style.overflow = "";
+  closeModal("caManagerPanel");
 
 });
 
@@ -1128,10 +1122,7 @@ if (caBadge) {
     meta[m.key] = m.value;
   });
 
-  document.getElementById("caPanel")
-    .classList.remove("hidden");
-
-  document.body.style.overflow = "hidden";
+  openSidePanel("caPanel");
 
   document.getElementById("caQuestionPreview").innerText =
     q.question_text;
@@ -1153,10 +1144,7 @@ if (badge) {
 
   const q = state.questions.find(q => q.id === id);
 
-  document.getElementById("metadataPanel")
-    .classList.remove("hidden");
-
-  document.body.style.overflow = "hidden";
+  openSidePanel("metadataPanel");
 
   document.getElementById("metaQuestionPreview").innerText =
     q.question_text;
@@ -1176,8 +1164,7 @@ if (patternBadge) {
   const topicIds = (q.question_topics || [])
     .map(t => t.topic_id);
 
-  document.getElementById("patternPanel").classList.remove("hidden");
-  document.body.style.overflow = "hidden";
+  openSidePanel("patternPanel");
 
   document.getElementById("patternQuestionPreview").innerText =
     q.question_text;
@@ -1340,16 +1327,12 @@ if (noteBtn) {
   // 🔥CLOSE METADATA PANEL (EXACT PLACEMENT)
   document.getElementById("closeMetadata")
     ?.addEventListener("click", () => {
-      document.getElementById("metadataPanel").classList.add("hidden");
-      document.body.style.overflow = "";
+      closeModal("metadataPanel");
     });
   document.getElementById("closePattern")
     ?.addEventListener("click", () => {
 
-      document.getElementById("patternPanel")
-        .classList.add("hidden");
-
-      document.body.style.overflow = "";
+      closeModal("patternPanel");
 
     });
 document.getElementById("saveMetadataBtn")
@@ -1379,8 +1362,7 @@ if (!selectedQuestionId) {
   });
 
   // CLOSE PANEL
-  document.getElementById("metadataPanel").classList.add("hidden");
-  document.body.style.overflow = "";
+  closeModal("metadataPanel");
 
   // REFRESH
   await fetchQuestions();
@@ -1404,10 +1386,7 @@ document.getElementById("saveCABtn")
     date
   );
 
-  document.getElementById("caPanel")
-    .classList.add("hidden");
-
-  document.body.style.overflow = "";
+  closeModal("caPanel");
 
   await fetchQuestions();
 
@@ -1416,10 +1395,7 @@ document.getElementById("saveCABtn")
 document.getElementById("closeCA")
 ?.addEventListener("click", () => {
 
-  document.getElementById("caPanel")
-    .classList.add("hidden");
-
-  document.body.style.overflow = "";
+  closeModal("caPanel");
 
 });
 
@@ -1436,8 +1412,7 @@ document.getElementById("savePatternBtn")
 
   await replacePatternMetadata(selectedQuestionId, selectedPattern);
 
-  document.getElementById("patternPanel").classList.add("hidden");
-  document.body.style.overflow = "";
+  closeModal("patternPanel");
 
   await fetchQuestions();
 });

@@ -1,39 +1,123 @@
 /**
- * PrepOS Platform Modal System
+ * PrepOS Overlay Infrastructure
  * ---------------------------------------------------------------------------
+ * PrepOS overlay infrastructure owns:
+ * - modal lifecycle
+ * - side-panel lifecycle
+ * - overlay stacking
+ * - scroll locking
+ * - ESC orchestration
+ * - future focus management
+ *
  * All PrepOS modal/overlay systems must use modal-system.js.
  * Direct body overflow mutation is forbidden outside modal-system.js.
  *
- * Owns: modal stack, scroll-lock refcount, ESC/backdrop handling, z-index
- * layering, and guaranteed cleanup on close.
+ * Future overlay contract (planned consumers):
+ * - mastery inspector
+ * - analytics inspector
+ * - recommendation dialog
+ * - topic explorer
+ * - question preview
+ * - adaptive session dialog
  */
 
-const modalStack = [];
+/** @typedef {"modal"|"side-panel"|"inspector"|"critical-dialog"} OverlayType */
+
+export const OVERLAY_TYPES = Object.freeze({
+  MODAL: "modal",
+  SIDE_PANEL: "side-panel",
+  INSPECTOR: "inspector",
+  CRITICAL_DIALOG: "critical-dialog",
+});
+
+const OVERLAY_LAYER_BOOST = Object.freeze({
+  modal: 0,
+  "side-panel": 0,
+  inspector: 1000,
+  "critical-dialog": 2000,
+});
+
+const overlayStack = [];
 let scrollLockCount = 0;
 let savedBodyOverflow = "";
 let escListenerAttached = false;
 
-/** @type {Map<HTMLElement, { options: object, clickHandler: (e: Event) => void }>} */
-const modalRegistry = new Map();
+/** @type {Map<HTMLElement, { options: object, clickHandler: ((e: Event) => void) | null, previousFocus: Element | null }>} */
+const overlayRegistry = new Map();
 
-function resolveModal(modalOrId) {
-  if (typeof modalOrId === "string") {
-    return document.getElementById(modalOrId);
+function resolveOverlay(overlayOrId) {
+  if (typeof overlayOrId === "string") {
+    return document.getElementById(overlayOrId);
   }
 
-  if (modalOrId instanceof HTMLElement) {
-    return modalOrId;
+  if (overlayOrId instanceof HTMLElement) {
+    return overlayOrId;
   }
 
   return null;
 }
 
-function getModalId(modal) {
-  return modal?.id || null;
+function resolveFocusTarget(target) {
+  if (!target) {
+    return null;
+  }
+
+  if (target instanceof HTMLElement) {
+    return target;
+  }
+
+  if (typeof target === "string") {
+    return document.querySelector(target);
+  }
+
+  return null;
+}
+
+function getOverlayId(overlay) {
+  return overlay?.id || null;
+}
+
+export function getOverlayZIndex(overlayType, stackIndex) {
+  const boost = OVERLAY_LAYER_BOOST[overlayType] ?? 0;
+  return 3000 + stackIndex * 100 + boost;
+}
+
+function normalizeOverlayType(type) {
+  if (type === OVERLAY_TYPES.SIDE_PANEL) return "side-panel";
+  if (type === OVERLAY_TYPES.INSPECTOR) return "inspector";
+  if (type === OVERLAY_TYPES.CRITICAL_DIALOG) return "critical-dialog";
+  return "modal";
+}
+
+function applyStackZIndex(overlay, stackIndex, overlayType) {
+  overlay.style.zIndex = String(getOverlayZIndex(overlayType, stackIndex));
+}
+
+function refreshStackZIndexes() {
+  overlayStack.forEach((overlay, index) => {
+    const entry = overlayRegistry.get(overlay);
+    const overlayType = entry?.options?.overlayType ?? "modal";
+    applyStackZIndex(overlay, index, overlayType);
+  });
 }
 
 function updateDebugGlobals() {
-  window.__PREPOS_MODAL_STACK__ = modalStack.map(getModalId).filter(Boolean);
+  const stackSnapshot = overlayStack.map((overlay, index) => {
+    const entry = overlayRegistry.get(overlay);
+    const overlayType = entry?.options?.overlayType ?? "modal";
+
+    return {
+      id: getOverlayId(overlay),
+      overlayType,
+      zIndex: getOverlayZIndex(overlayType, index),
+      closeOnEscape: entry?.options?.closeOnEscape !== false,
+      closeOnBackdrop: entry?.options?.closeOnBackdrop !== false,
+      hasClickListener: Boolean(entry?.clickHandler),
+    };
+  });
+
+  window.__PREPOS_OVERLAY_STACK__ = stackSnapshot;
+  window.__PREPOS_MODAL_STACK__ = stackSnapshot.map((item) => item.id).filter(Boolean);
 
   if (typeof window.debugPrepOSModals === "function") {
     window.__PREPOS_MODAL_DEBUG__ = window.debugPrepOSModals();
@@ -72,7 +156,7 @@ function attachEscListener() {
 }
 
 function detachEscListenerIfIdle() {
-  if (modalStack.length === 0 && escListenerAttached) {
+  if (overlayStack.length === 0 && escListenerAttached) {
     document.removeEventListener("keydown", handleEscKey);
     escListenerAttached = false;
   }
@@ -83,20 +167,24 @@ function handleEscKey(event) {
     return;
   }
 
-  const topModal = modalStack[modalStack.length - 1];
-  if (!topModal) {
+  const topOverlay = overlayStack[overlayStack.length - 1];
+  if (!topOverlay) {
     return;
   }
 
-  const entry = modalRegistry.get(topModal);
+  const entry = overlayRegistry.get(topOverlay);
   if (entry?.options?.closeOnEscape === false) {
     return;
   }
 
-  closeModal(topModal);
+  closeModal(topOverlay);
 }
 
-function createBackdropClickHandler(modal, options) {
+function createBackdropClickHandler(overlay, options) {
+  if (options.overlayType !== "modal" && options.overlayType !== "inspector" && options.overlayType !== "critical-dialog") {
+    return null;
+  }
+
   return (event) => {
     if (options.closeOnBackdrop === false) {
       return;
@@ -104,93 +192,143 @@ function createBackdropClickHandler(modal, options) {
 
     const target = event.target;
     if (
-      target === modal ||
+      target === overlay ||
       target.classList?.contains("prepos-modal-backdrop")
     ) {
-      closeModal(modal);
+      closeModal(overlay);
     }
   };
 }
 
-function cleanupModalEntry(modal) {
-  const entry = modalRegistry.get(modal);
+function cleanupOverlayEntry(overlay) {
+  const entry = overlayRegistry.get(overlay);
   if (!entry) {
     return;
   }
 
   if (entry.clickHandler) {
-    modal.removeEventListener("click", entry.clickHandler);
+    overlay.removeEventListener("click", entry.clickHandler);
   }
 
-  modalRegistry.delete(modal);
+  overlayRegistry.delete(overlay);
 }
 
-export function openModal(modalOrId, options = {}) {
-  const modal = resolveModal(modalOrId);
-  if (!modal) {
-    console.warn("[PrepOS Modal] openModal: element not found", modalOrId);
+function applyInitialFocus(options) {
+  const target = resolveFocusTarget(options.initialFocus);
+  if (target?.focus) {
+    try {
+      target.focus({ preventScroll: true });
+    } catch {
+      target.focus();
+    }
+  }
+}
+
+function restoreFocus(entry) {
+  const explicit = resolveFocusTarget(entry?.options?.restoreFocusTo);
+  const target = explicit || entry?.previousFocus;
+
+  if (target?.focus) {
+    try {
+      target.focus({ preventScroll: true });
+    } catch {
+      target.focus();
+    }
+  }
+}
+
+export function openModal(overlayOrId, options = {}) {
+  const overlay = resolveOverlay(overlayOrId);
+  if (!overlay) {
+    console.warn("[PrepOS Overlay] openModal: element not found", overlayOrId);
     return false;
   }
 
-  if (modalStack.includes(modal)) {
+  if (overlayStack.includes(overlay)) {
     return true;
   }
 
+  const overlayType = normalizeOverlayType(options.overlayType ?? "modal");
+  const defaults =
+    overlayType === "side-panel"
+      ? { closeOnBackdrop: false }
+      : { closeOnBackdrop: true };
+
   const normalizedOptions = {
+    overlayType,
     closeOnEscape: options.closeOnEscape !== false,
-    closeOnBackdrop: options.closeOnBackdrop !== false,
+    closeOnBackdrop:
+      options.closeOnBackdrop !== undefined
+        ? options.closeOnBackdrop
+        : defaults.closeOnBackdrop,
+    initialFocus: options.initialFocus ?? null,
+    restoreFocusTo: options.restoreFocusTo ?? null,
     onOpen: options.onOpen,
     onClose: options.onClose,
   };
 
-  modalStack.push(modal);
-  modal.classList.remove("hidden");
-  lockBodyScroll();
+  const previousFocus = document.activeElement instanceof Element
+    ? document.activeElement
+    : null;
 
-  const clickHandler = createBackdropClickHandler(modal, normalizedOptions);
-  modal.addEventListener("click", clickHandler);
-  modalRegistry.set(modal, {
+  overlayStack.push(overlay);
+  overlay.classList.remove("hidden");
+  overlay.classList.add("prepos-overlay-active");
+  lockBodyScroll();
+  refreshStackZIndexes();
+
+  const clickHandler = createBackdropClickHandler(overlay, normalizedOptions);
+  if (clickHandler) {
+    overlay.addEventListener("click", clickHandler);
+  }
+
+  overlayRegistry.set(overlay, {
     options: normalizedOptions,
     clickHandler,
+    previousFocus,
   });
 
   attachEscListener();
 
   try {
-    normalizedOptions.onOpen?.(modal);
+    normalizedOptions.onOpen?.(overlay);
   } catch (error) {
-    console.error("[PrepOS Modal] onOpen failed", error);
+    console.error("[PrepOS Overlay] onOpen failed", error);
   }
 
+  applyInitialFocus(normalizedOptions);
   updateDebugGlobals();
   return true;
 }
 
-export function closeModal(modalOrId) {
-  const modal = resolveModal(modalOrId);
-  if (!modal) {
+export function closeModal(overlayOrId) {
+  const overlay = resolveOverlay(overlayOrId);
+  if (!overlay) {
     return false;
   }
 
-  const stackIndex = modalStack.indexOf(modal);
+  const stackIndex = overlayStack.indexOf(overlay);
   if (stackIndex === -1) {
     return false;
   }
 
-  const entry = modalRegistry.get(modal);
+  const entry = overlayRegistry.get(overlay);
 
   try {
-    modal.classList.add("hidden");
+    overlay.classList.add("hidden");
+    overlay.classList.remove("prepos-overlay-active");
 
     try {
-      entry?.options?.onClose?.(modal);
+      entry?.options?.onClose?.(overlay);
     } catch (error) {
-      console.error("[PrepOS Modal] onClose failed", error);
+      console.error("[PrepOS Overlay] onClose failed", error);
     }
   } finally {
-    cleanupModalEntry(modal);
-    modalStack.splice(stackIndex, 1);
+    restoreFocus(entry);
+    cleanupOverlayEntry(overlay);
+    overlayStack.splice(stackIndex, 1);
     unlockBodyScroll();
+    refreshStackZIndexes();
     detachEscListenerIfIdle();
     updateDebugGlobals();
   }
@@ -199,40 +337,51 @@ export function closeModal(modalOrId) {
 }
 
 export function closeTopModal() {
-  const topModal = modalStack[modalStack.length - 1];
-  if (!topModal) {
+  const topOverlay = overlayStack[overlayStack.length - 1];
+  if (!topOverlay) {
     return false;
   }
 
-  return closeModal(topModal);
+  return closeModal(topOverlay);
 }
 
-export function isModalOpen(modalOrId) {
-  const modal = resolveModal(modalOrId);
-  if (!modal) {
+export function isModalOpen(overlayOrId) {
+  const overlay = resolveOverlay(overlayOrId);
+  if (!overlay) {
     return false;
   }
 
-  return modalStack.includes(modal);
+  return overlayStack.includes(overlay);
 }
 
 export function getOpenModalStack() {
-  return [...modalStack];
+  return [...overlayStack];
 }
 
 export function debugPrepOSModals() {
   return {
-    openModals: modalStack.map((modal) => ({
-      id: getModalId(modal),
-      closeOnEscape: modalRegistry.get(modal)?.options?.closeOnEscape !== false,
-      closeOnBackdrop:
-        modalRegistry.get(modal)?.options?.closeOnBackdrop !== false,
-    })),
+    overlayStack: overlayStack.map((overlay, index) => {
+      const entry = overlayRegistry.get(overlay);
+      const overlayType = entry?.options?.overlayType ?? "modal";
+
+      return {
+        id: getOverlayId(overlay),
+        overlayType,
+        zIndex: getOverlayZIndex(overlayType, index),
+        stackOrder: index,
+        closeOnEscape: entry?.options?.closeOnEscape !== false,
+        closeOnBackdrop: entry?.options?.closeOnBackdrop !== false,
+        hasClickListener: Boolean(entry?.clickHandler),
+      };
+    }),
+    openModals: overlayStack.map((overlay) => getOverlayId(overlay)).filter(Boolean),
     scrollLockCount,
+    activeListeners: overlayRegistry.size,
     bodyOverflow: document.body.style.overflow,
     savedBodyOverflow,
   };
 }
 
 window.debugPrepOSModals = debugPrepOSModals;
+window.debugPrepOSOverlays = debugPrepOSModals;
 updateDebugGlobals();

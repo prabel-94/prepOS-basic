@@ -106,7 +106,7 @@ WORKSPACE
   <!-- ======================
   QUESTION BANK PANEL
   ====================== -->
-  <aside class="question-bank-panel hidden" id="questionBankPanel">
+  <aside class="question-bank-panel prepos-side-panel prepos-side-panel-right hidden" id="questionBankPanel">
 
     <div class="qb-header">
       <button type="button" id="closeQB">← Back</button>
@@ -144,7 +144,7 @@ WORKSPACE
 <!-- ======================
 ADD TO BANK PANEL
 ====================== -->
-<aside class="question-bank-panel hidden" id="addToBankPanel">
+<aside class="question-bank-panel prepos-side-panel prepos-side-panel-right hidden" id="addToBankPanel">
 
   <div class="qb-header">
     <button type="button" id="closeAddToBank">← Back</button>
@@ -238,7 +238,7 @@ ADD TO BANK PANEL
 <!-- ======================
 SAVE ALL PANEL (FIXED)
 ====================== -->
-<aside class="question-bank-panel hidden" id="saveAllPanel">
+<aside class="question-bank-panel prepos-side-panel prepos-side-panel-right hidden" id="saveAllPanel">
 
   <div class="qb-header">
     <button type="button" id="closeSaveAll">← Back</button>
@@ -293,7 +293,7 @@ SAVE ALL PANEL (FIXED)
 <!-- ======================
 METADATA PANEL
 ====================== -->
-<aside class="question-bank-panel hidden" id="metadataPanel">
+<aside class="question-bank-panel prepos-side-panel prepos-side-panel-right hidden" id="metadataPanel">
 
   <div class="qb-header">
     <button type="button" id="closeMetadata">← Back</button>
@@ -338,7 +338,7 @@ DRAFT ACTIONS
 </div>
 
 </section>
-<aside class="question-bank-panel hidden" id="questionSetPanel">
+<aside class="question-bank-panel prepos-side-panel prepos-side-panel-right hidden" id="questionSetPanel">
 
   <div class="qb-header">
     <button type="button" id="closeQuestionSet">← Back</button>
@@ -376,22 +376,27 @@ DEV DEBUG
 })();
 </script>
 
-<div id="loadSetDialog" class="modal hidden">
-  <div class="modal-content">
+<div id="loadSetDialog" class="prepos-modal hidden">
+  <div class="prepos-modal-backdrop"></div>
+  <div class="prepos-modal-content">
 
-    <h3>Load Question Set</h3>
+    <div class="prepos-modal-header">
+      <h3>Load Question Set</h3>
+    </div>
 
-    <label class="radio-row">
-      <input type="radio" name="loadMode" value="replace" checked>
-      Replace draft
-    </label>
+    <div class="prepos-modal-body">
+      <label class="radio-row">
+        <input type="radio" name="loadMode" value="replace" checked>
+        Replace draft
+      </label>
 
-    <label class="radio-row">
-      <input type="radio" name="loadMode" value="append">
-      Add to draft
-    </label>
+      <label class="radio-row">
+        <input type="radio" name="loadMode" value="append">
+        Add to draft
+      </label>
+    </div>
 
-    <div class="flex gap-10 mt-20">
+    <div class="prepos-modal-footer">
       <button id="confirmLoadSet" class="primary-btn">
         Load
       </button>
