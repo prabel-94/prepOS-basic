@@ -3,6 +3,7 @@ PrepOS Lexicon Manager (v2 - Correct Architecture)
 ========================================= */
 
 import { getClient } from "./core/get-client.js";
+import { bootPage } from "./core/page-boot.js";
 
 /* =========================================
 STATE
@@ -701,6 +702,17 @@ async function linkOpposite() {
 INIT
 ========================================= */
 async function init() {
+  const runtime = await bootPage({
+    roles: ["teacher", "admin"],
+    nav: {
+      title: "Lexicon Manager",
+      preset: "teacherKnowledge",
+      back: "qb-manager.html",
+    },
+  });
+
+  if (!runtime) return;
+
   state.sessionGroups = [];
   renderGroups();
   setStatus("Start adding new word groups");

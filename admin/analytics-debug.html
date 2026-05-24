@@ -112,6 +112,8 @@
 </head>
 <body>
 
+<div id="app-nav-root"></div>
+
 <div class="container">
 
   <div class="debug-header mt-10">
@@ -125,9 +127,6 @@
     </div>
     <div class="flex gap-10">
       <button type="button" class="secondary-btn" id="refreshBtn">Refresh</button>
-      <button type="button" class="secondary-btn" onclick="location.href='../index.html'">
-        ← Home
-      </button>
     </div>
   </div>
 
@@ -246,7 +245,7 @@
 <script src="../js/config.js?v=20260520"></script>
 
 <script type="module">
-  import { bootRuntime } from "../js/core/runtime.js";
+  import { bootPage } from "../js/core/page-boot.js";
   import { initAnalyticsObservability } from "../js/analytics/analytics-observability.js";
   import {
     renderAllDebugPanels,
@@ -259,46 +258,18 @@
   import { registerAnalyticsReplayDebugGlobals } from "../js/analytics/analytics-replay.js";
   import { registerAnalyticsSimulationGlobals } from "../js/analytics/analytics-simulation.js";
 
-  async function requireTeacherOrAdmin() {
-    const { getClient } = await import("../js/core/get-client.js");
-    const sb = await getClient();
-
-    const { data: userData } = await sb.auth.getUser();
-    const user = userData?.user;
-
-    if (!user) {
-      window.location.href = "../login.html";
-      return false;
-    }
-
-    const { data, error } = await sb
-      .from("users")
-      .select("role")
-      .eq("id", user.id)
-      .single();
-
-    if (error || !data) {
-      window.location.href = "../login.html";
-      return false;
-    }
-
-    if (data.role !== "teacher" && data.role !== "admin") {
-      console.warn("[PrepOS Analytics Debug] Access denied.", data.role);
-      window.location.href = "../index.html";
-      return false;
-    }
-
-    return true;
-  }
-
   async function main() {
-    const allowed = await requireTeacherOrAdmin();
-    if (!allowed) return;
-
-    await bootRuntime({
-      requireAuth: true,
-      analytics: true
+    const runtime = await bootPage({
+      roles: ["teacher", "admin"],
+      analytics: true,
+      nav: {
+        title: "Analytics Debug",
+        subtitle: "Internal diagnostics",
+        back: "../index.html",
+      },
     });
+
+    if (!runtime) return;
 
     initAnalyticsObservability();
     registerScopeViewerDebugGlobals();

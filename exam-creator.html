@@ -1,4 +1,3 @@
-```html
 <!DOCTYPE html>
 <html lang="en">
 
@@ -13,40 +12,27 @@
 
 <body class="creator">
 
-<h2>PrepOS</h2>
-<p class="small">Paste questions and extract automatically</p>
+<div id="app-nav-root"></div>
 
-<div id="creator">
-<h3>Paste Quiz</h3>
+<div class="container card mt-20">
+  <h3>Paste Quiz</h3>
 
-<label for="input">Quiz Content</label>
-<textarea id="input" placeholder="Paste your quiz questions here"></textarea>
+  <label for="input">Quiz Content</label>
+  <textarea id="input" placeholder="Paste your quiz questions here"></textarea>
 
-<label for="duration">Duration (minutes)</label>
-<input id="duration" type="number" value="10" min="1">
+  <label for="duration">Duration (minutes)</label>
+  <input id="duration" type="number" value="10" min="1">
 
-<div class="mt-12">
-<button onclick="cleanQCP()">Clean (QCP)</button>
-<button onclick="generate()">Generate Exam</button>
-</div>
+  <div class="mt-12">
+    <button onclick="cleanQCP()">Clean (QCP)</button>
+    <button onclick="generate()">Generate Exam</button>
+  </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/config.js?v=20260520"></script>
+<script type="module" src="js/auth.js"></script>
 <script type="module" src="js/creator.js"></script>
-
-<script>
-(function () {
-  var script = document.createElement('script');
-  script.src = "https://cdn.jsdelivr.net/npm/eruda";
-  script.onload = function () {
-    eruda.init();
-  };
-  document.body.appendChild(script);
-})();
-</script>
 
 </body>
 </html>
-
-```

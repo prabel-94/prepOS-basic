@@ -1,5 +1,6 @@
 import { runGenerator } from "./generator-core.js";
 import { getClient } from "./core/get-client.js";
+import { bootPage } from "./core/page-boot.js";
 import { normalizeTopicKey } from "./student/student-intelligence.js";
 
 const subjectSelect = document.getElementById("subjectSelect");
@@ -72,11 +73,17 @@ async function applyPracticeTopicFromUrl() {
 }
 
 async function init() {
-  const sb = await getClient();
+  const runtime = await bootPage({
+    roles: ["teacher", "admin", "student"],
+    nav: {
+      title: "Practice",
+      subtitle: "Generator and question bank modes",
+    },
+  });
 
-  if (typeof requireAuth === "function") {
-    await requireAuth();
-  }
+  if (!runtime) return;
+
+  const sb = await getClient();
 
   const { data } = await sb.auth.getUser();
   window.currentUser = data?.user || null;

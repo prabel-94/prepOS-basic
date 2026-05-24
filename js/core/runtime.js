@@ -3,85 +3,85 @@
 // Lightweight boot layer — not a framework.
 // ========================================
 
-import { getClient } from "./get-client.js"
+import { getClient } from "./get-client.js";
+import {
+  fetchUserRole,
+  redirectToLogin,
+  redirectToUnauthorized,
+  roleAllowed,
+} from "./access.js";
 
-let runtimePromise = null
-let listenersRegistered = false
+let runtimePromise = null;
+let listenersRegistered = false;
 
-async function executeBoot({
-  requireAuth = false,
-  role = null,
-  analytics = false
-} = {}) {
+function normalizeRoles(options = {}) {
+  if (Array.isArray(options.roles) && options.roles.length) {
+    return options.roles;
+  }
 
-  const bootedAt = new Date().toISOString()
+  if (options.role) {
+    return [options.role];
+  }
 
-  const sb = await getClient()
+  return null;
+}
+
+async function executeBoot(options = {}) {
+  const bootedAt = new Date().toISOString();
+  const requiredRoles = normalizeRoles(options);
+  const sb = await getClient();
 
   const {
     data: { session },
-    error: sessionError
-  } = await sb.auth.getSession()
+    error: sessionError,
+  } = await sb.auth.getSession();
 
   if (sessionError) {
-    console.warn(
-      "[PrepOS Runtime] Session hydration failed.",
-      sessionError
-    )
+    console.warn("[PrepOS Runtime] Session hydration failed.", sessionError);
   }
 
-  const user = session?.user ?? null
+  const user = session?.user ?? null;
 
-  if (requireAuth && !user) {
-    window.location.href = "login.html"
-    return null
+  if (options.requireAuth && !user) {
+    redirectToLogin();
+    return null;
   }
 
-  let userRole = null
+  let userRole = null;
 
-  if (role) {
+  if (user) {
+    userRole = await fetchUserRole(sb, user.id);
+
+    if (!userRole && options.requireAuth) {
+      redirectToLogin();
+      return null;
+    }
+  }
+
+  if (requiredRoles?.length) {
     if (!user) {
-      console.warn(
-        "[PrepOS Runtime] Role required but no authenticated user.",
-        { required: role }
-      )
-      window.location.href = "login.html"
-      return null
+      redirectToLogin();
+      return null;
     }
 
-    const { data, error: roleError } = await sb
-      .from("users")
-      .select("role")
-      .eq("id", user.id)
-      .single()
-
-    if (roleError) {
-      console.warn(
-        "[PrepOS Runtime] Role fetch failed.",
-        roleError
-      )
-    } else {
-      userRole = data?.role ?? null
-    }
-
-    if (userRole !== role) {
-      console.warn(
-        "[PrepOS Runtime] Access denied.",
-        { required: role, actual: userRole }
-      )
-      window.location.href = "unauthorized.html"
-      return null
+    if (!roleAllowed(userRole, requiredRoles)) {
+      console.warn("[PrepOS Runtime] Access denied.", {
+        required: requiredRoles,
+        actual: userRole,
+      });
+      redirectToUnauthorized();
+      return null;
     }
   }
 
-  const analyticsEnabled = analytics === true
+  const analyticsEnabled = options.analytics === true;
 
   if (analyticsEnabled && !listenersRegistered) {
     const { registerDefaultAnalyticsListeners } = await import(
       "../analytics/analytics-submission.js"
-    )
-    registerDefaultAnalyticsListeners()
-    listenersRegistered = true
+    );
+    registerDefaultAnalyticsListeners();
+    listenersRegistered = true;
   }
 
   window.__PREPOS_RUNTIME__ = {
@@ -91,48 +91,41 @@ async function executeBoot({
     user,
     role: userRole,
     analyticsEnabled,
-    listenersRegistered
-  }
+    listenersRegistered,
+  };
 
   return {
     sb,
     session,
     user,
     role: userRole,
-    analyticsEnabled
-  }
+    analyticsEnabled,
+  };
 }
 
-export async function bootRuntime({
-  requireAuth = false,
-  role = null,
-  analytics = false
-} = {}) {
-
+export async function bootRuntime(options = {}) {
   if (runtimePromise) {
-    return runtimePromise
+    return runtimePromise;
   }
-
-  const options = { requireAuth, role, analytics }
 
   runtimePromise = (async () => {
     try {
-      return await executeBoot(options)
+      return await executeBoot(options);
     } catch (err) {
-      runtimePromise = null
-      throw err
+      runtimePromise = null;
+      throw err;
     }
-  })()
+  })();
 
-  return runtimePromise
+  return runtimePromise;
 }
 
 export function getRuntimeState() {
-  return window.__PREPOS_RUNTIME__ ?? null
+  return window.__PREPOS_RUNTIME__ ?? null;
 }
 
 export function resetRuntimeForDebug() {
-  runtimePromise = null
-  listenersRegistered = false
-  delete window.__PREPOS_RUNTIME__
+  runtimePromise = null;
+  listenersRegistered = false;
+  delete window.__PREPOS_RUNTIME__;
 }

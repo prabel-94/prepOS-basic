@@ -2,6 +2,7 @@
  * PrepOS Student Dashboard — orchestration bootstrap only.
  */
 
+import { bootPage } from "./core/page-boot.js";
 import {
   loadStudentIntelligence,
   buildStudentLearningState,
@@ -23,36 +24,6 @@ import {
   bindExamStartActions,
   renderEmptyState,
 } from "./student/student-dashboard-renderer.js";
-
-async function requireStudentAccess() {
-  const { getClient } = await import("./core/get-client.js");
-  const sb = await getClient();
-  const { data: userData } = await sb.auth.getUser();
-  const user = userData?.user;
-
-  if (!user) {
-    window.location.href = "login.html";
-    return false;
-  }
-
-  const { data, error } = await sb
-    .from("users")
-    .select("role")
-    .eq("id", user.id)
-    .single();
-
-  if (error || !data) {
-    window.location.href = "login.html";
-    return false;
-  }
-
-  if (data.role !== "student" && data.role !== "admin") {
-    window.location.href = "login.html";
-    return false;
-  }
-
-  return true;
-}
 
 function startExam() {
   const id = document.getElementById("examId")?.value.trim();
@@ -77,13 +48,16 @@ function goToPracticeTopic(topic) {
 }
 
 async function initStudent() {
-  if (typeof window.requireAuth === "function") {
-    const authed = await window.requireAuth();
-    if (!authed) return;
-  }
+  const runtime = await bootPage({
+    roles: ["student", "admin"],
+    nav: {
+      variant: "home",
+      title: "Student Dashboard",
+      subtitle: "Exams, practice, and learning intelligence",
+    },
+  });
 
-  const allowed = await requireStudentAccess();
-  if (!allowed) return;
+  if (!runtime) return;
 
   try {
     const intelligence = await loadStudentIntelligence();

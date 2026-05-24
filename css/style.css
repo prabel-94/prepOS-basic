@@ -1491,6 +1491,112 @@ STUDENT LEARNING INTELLIGENCE (minimal)
 }
 
 /* ======================================================
+APP NAV
+====================================================== */
+
+.prepos-app-nav {
+  margin-bottom: 24px;
+}
+
+.prepos-app-nav-inner {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 12px 16px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.prepos-app-nav-start {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.prepos-app-nav-back {
+  flex-shrink: 0;
+}
+
+.prepos-app-nav-brand {
+  min-width: 0;
+}
+
+.prepos-app-nav-kicker {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--primary);
+}
+
+.prepos-app-nav-title {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.prepos-app-nav-subtitle {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.prepos-app-nav-links {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.prepos-app-nav-link {
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  color: var(--text);
+  text-decoration: none;
+  border: 1px solid transparent;
+}
+
+.prepos-app-nav-link:hover {
+  background: #eef2ff;
+  color: var(--primary-dark);
+}
+
+.prepos-app-nav-link.is-active {
+  background: #eef2ff;
+  border-color: #c7d2fe;
+  color: var(--primary-dark);
+  font-weight: 600;
+}
+
+.prepos-app-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
+@media (max-width: 720px) {
+  .prepos-app-nav-inner {
+    align-items: flex-start;
+  }
+
+  .prepos-app-nav-actions {
+    width: 100%;
+    margin-left: 0;
+  }
+}
+
+/* ======================================================
 PREPOS PLATFORM MODAL SYSTEM
 Analytics/debug overlays may use z-index 4000+ later.
 All modals must use .prepos-modal (see js/ui/modal-system.js).
@@ -1604,80 +1710,4 @@ PREPOS SIDE PANEL OVERLAYS
   .prepos-side-panel-left {
     width: min(100%, 360px);
   }
-}
-
-/* ======================================================
-STUDENT LEARNING INTELLIGENCE (minimal)
-====================================================== */
-
-.student-intel-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 12px;
-}
-
-.student-intel-stat {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 12px;
-  text-align: center;
-}
-
-.student-intel-stat-value {
-  font-size: 22px;
-  font-weight: 600;
-}
-
-.student-intel-stat-label {
-  font-size: 13px;
-  color: var(--muted);
-  margin-top: 4px;
-}
-
-.student-intel-card {
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 14px;
-  background: var(--card);
-}
-
-.student-intel-card--strong {
-  border-color: #86efac;
-  background: #f0fdf4;
-}
-
-.student-intel-empty {
-  padding: 14px;
-  border-radius: var(--radius);
-  background: #f8fafc;
-  border: 1px dashed var(--border);
-  color: var(--muted);
-  font-size: 14px;
-}
-
-.student-intel-confidence {
-  padding: 12px;
-  border-radius: var(--radius);
-  border: 1px solid var(--border);
-  background: #f8fafc;
-}
-
-.student-intel-confidence-label {
-  font-weight: 600;
-}
-
-.student-intel-confidence--low {
-  border-color: #fcd34d;
-  background: #fffbeb;
-}
-
-.student-intel-confidence--medium {
-  border-color: #93c5fd;
-  background: #eff6ff;
-}
-
-.student-intel-confidence--high {
-  border-color: #86efac;
-  background: #f0fdf4;
 }
