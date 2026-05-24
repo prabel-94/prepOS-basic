@@ -77,7 +77,11 @@ function goToPracticeTopic(topic) {
 }
 
 async function initStudent() {
-  await requireAuth();
+  if (typeof window.requireAuth === "function") {
+    const authed = await window.requireAuth();
+    if (!authed) return;
+  }
+
   const allowed = await requireStudentAccess();
   if (!allowed) return;
 
@@ -127,3 +131,13 @@ window.startExamById = startExamById;
 window.goToPractice = goToPractice;
 window.goToPracticeTopic = goToPracticeTopic;
 window.initStudent = initStudent;
+
+function bootStudentDashboard() {
+  initStudent();
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", bootStudentDashboard);
+} else {
+  bootStudentDashboard();
+}
