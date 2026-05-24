@@ -9,6 +9,12 @@ export const NAV_PRESETS = Object.freeze({
       { label: "Drafts", href: "draft.html" },
       { label: "Published", href: "published-exams.html" },
       { label: "Results", href: "teacher-results.html" },
+      { label: "Intelligence", href: "teacher-intelligence.html" },
+    ],
+  },
+  studentHome: {
+    links: [
+      { label: "Practice", href: "practice.html" },
     ],
   },
   teacherKnowledge: {
@@ -95,7 +101,7 @@ export function mountAppNav(options = {}) {
   const role = options.role ?? window.__PREPOS_RUNTIME__?.role ?? null;
   const variant = options.variant ?? "page";
   const showLogout = options.showLogout !== false;
-  const showHome = options.showHome ?? variant !== "home";
+  const showHome = options.showHome !== false;
   const title = options.title ?? "";
   const subtitle = options.subtitle ?? "";
   const backHref = options.back ?? null;

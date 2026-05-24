@@ -1,6 +1,11 @@
 import { TimerEngine } from "./timer.js";
 import { PREPOS_ANALYTICS_ENABLED } from "./analytics/analytics-config.js";
 import { getClient } from "./core/get-client.js";
+import {
+  fetchUserRole,
+  getHomePathForRole,
+  resolveAppPath,
+} from "./core/access.js";
 
 console.log("SCRIPT STARTED");
 
@@ -249,6 +254,27 @@ async function fetchExamSession(examId) {
   return exam;
 }
 
+async function setupExamHomeLink() {
+  const btn = document.getElementById("examHomeBtn");
+  if (!btn) return;
+
+  try {
+    const sb = await getClient();
+    const { data: userData } = await sb.auth.getUser();
+    const user = userData?.user;
+    if (!user) return;
+
+    const role = await fetchUserRole(sb, user.id);
+    if (!role) return;
+
+    btn.href = resolveAppPath(getHomePathForRole(role));
+    btn.textContent = role === "student" ? "← Dashboard" : "← Home";
+    btn.classList.remove("hidden");
+  } catch (error) {
+    console.warn("[Exam] Home link not available", error);
+  }
+}
+
 async function loadExam(){
 
   console.log("Exam loading started");
@@ -257,6 +283,7 @@ async function loadExam(){
   try{
 
     const exam = await fetchExamSession(examId);
+    await setupExamHomeLink();
 
     console.log("Exam fetch result:", exam);
 
