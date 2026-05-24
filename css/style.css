@@ -1415,6 +1415,82 @@ RELATION BUILDER
 }
 
 /* ======================================================
+STUDENT LEARNING INTELLIGENCE (minimal)
+====================================================== */
+
+.student-intel-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+}
+
+.student-intel-stat {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+  text-align: center;
+}
+
+.student-intel-stat-value {
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.student-intel-stat-label {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.student-intel-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  background: var(--card);
+}
+
+.student-intel-card--strong {
+  border-color: #86efac;
+  background: #f0fdf4;
+}
+
+.student-intel-empty {
+  padding: 14px;
+  border-radius: var(--radius);
+  background: #f8fafc;
+  border: 1px dashed var(--border);
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.student-intel-confidence {
+  padding: 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: #f8fafc;
+}
+
+.student-intel-confidence-label {
+  font-weight: 600;
+}
+
+.student-intel-confidence--low {
+  border-color: #fcd34d;
+  background: #fffbeb;
+}
+
+.student-intel-confidence--medium {
+  border-color: #93c5fd;
+  background: #eff6ff;
+}
+
+.student-intel-confidence--high {
+  border-color: #86efac;
+  background: #f0fdf4;
+}
+
+/* ======================================================
 PREPOS PLATFORM MODAL SYSTEM
 Analytics/debug overlays may use z-index 4000+ later.
 All modals must use .prepos-modal (see js/ui/modal-system.js).
@@ -1528,4 +1604,80 @@ PREPOS SIDE PANEL OVERLAYS
   .prepos-side-panel-left {
     width: min(100%, 360px);
   }
+}
+
+/* ======================================================
+STUDENT LEARNING INTELLIGENCE (minimal)
+====================================================== */
+
+.student-intel-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+}
+
+.student-intel-stat {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+  text-align: center;
+}
+
+.student-intel-stat-value {
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.student-intel-stat-label {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.student-intel-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  background: var(--card);
+}
+
+.student-intel-card--strong {
+  border-color: #86efac;
+  background: #f0fdf4;
+}
+
+.student-intel-empty {
+  padding: 14px;
+  border-radius: var(--radius);
+  background: #f8fafc;
+  border: 1px dashed var(--border);
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.student-intel-confidence {
+  padding: 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: #f8fafc;
+}
+
+.student-intel-confidence-label {
+  font-weight: 600;
+}
+
+.student-intel-confidence--low {
+  border-color: #fcd34d;
+  background: #fffbeb;
+}
+
+.student-intel-confidence--medium {
+  border-color: #93c5fd;
+  background: #eff6ff;
+}
+
+.student-intel-confidence--high {
+  border-color: #86efac;
+  background: #f0fdf4;
 }
