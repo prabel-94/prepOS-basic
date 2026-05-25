@@ -431,11 +431,38 @@ to authenticated
 using (public.can_read_variant(id));
 
 drop policy if exists "note_variants_insert_via_note" on public.note_variants;
-create policy "note_variants_insert_via_note"
+drop policy if exists "note_variants_insert_staff" on public.note_variants;
+create policy "note_variants_insert_staff"
 on public.note_variants
 for insert
 to authenticated
-with check (public.can_write_canonical_note(note_id));
+with check (
+  exists (
+    select 1
+    from public.users u
+    where u.id = auth.uid()
+      and u.role in ('teacher', 'admin')
+  )
+  and exists (
+    select 1
+    from public.notes n
+    where n.id = note_id
+  )
+);
+
+drop policy if exists "note_variants_select_staff" on public.note_variants;
+create policy "note_variants_select_staff"
+on public.note_variants
+for select
+to authenticated
+using (
+  exists (
+    select 1
+    from public.users u
+    where u.id = auth.uid()
+      and u.role in ('teacher', 'admin')
+  )
+);
 
 drop policy if exists "note_variants_update_via_note" on public.note_variants;
 create policy "note_variants_update_via_note"
