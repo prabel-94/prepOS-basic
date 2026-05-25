@@ -107,7 +107,7 @@ export function initNoteImportPage({
     } else {
       const lines = [];
 
-      for (const lang of [...SUPPORTED_LANGUAGES, "bilingual"]) {
+      for (const lang of SUPPORTED_LANGUAGES) {
         const stream = streams[lang];
         if (!stream?.published && !stream?.draft) {
           continue;
@@ -126,6 +126,26 @@ export function initNoteImportPage({
         lines.push(
           `<li class="detected-item detected-ok">${mark} ${escapeHTML(label)} (${escapeHTML(parts.join(" · "))})</li>`
         );
+      }
+
+      const otherLangs = Object.keys(streams).filter(
+        (lang) => !SUPPORTED_LANGUAGES.includes(lang)
+      );
+      for (const lang of otherLangs) {
+        const stream = streams[lang];
+        const label = getLanguageLabel(lang);
+        const parts = [];
+        if (stream?.published) {
+          parts.push("Published");
+        }
+        if (stream?.draft) {
+          parts.push("Draft");
+        }
+        if (parts.length) {
+          lines.push(
+            `<li class="detected-item detected-ok">○ ${escapeHTML(label)} (${escapeHTML(parts.join(" · "))})</li>`
+          );
+        }
       }
 
       variantsEl.innerHTML =
