@@ -528,7 +528,11 @@ export async function saveNoteVariant({
     .single();
 
   if (variantError) {
-    throw new Error(variantError.message);
+    const hint =
+      variantError.code === "42501"
+        ? " Permission denied (RLS). Confirm you are logged in as teacher/admin and migrations through 20260610000000 are applied."
+        : "";
+    throw new Error((variantError.message || "Failed to create language variant.") + hint);
   }
 
   const { error: sourceError } = await sb.from("note_sources").insert({
