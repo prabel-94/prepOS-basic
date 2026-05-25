@@ -58,7 +58,8 @@ function lookupTopicEntry(topicMap, label) {
  * @param {Record<string, { id?: string, title?: string }>} topicMap
  * @returns {string}
  */
-export function resolveTopicLinks(text, topicMap = {}) {
+export function resolveTopicLinks(text, topicMap = {}, options = {}) {
+  const preferLanguage = options.preferLanguage ?? "english";
   if (!text) {
     return "";
   }
@@ -75,12 +76,13 @@ export function resolveTopicLinks(text, topicMap = {}) {
     const entry = lookupTopicEntry(topicMap, label);
     const display = entry?.title ?? label;
 
-    if (entry?.id) {
+    if (entry?.topic_id || entry?.id) {
+      const topicId = entry.topic_id ?? entry.id;
       const href = resolveAppPath(
-        `note.html?topic=${encodeURIComponent(entry.id)}`
+        `note.html?topic=${encodeURIComponent(topicId)}&lang=${encodeURIComponent(preferLanguage)}`
       );
       parts.push(
-        `<a href="${escapeHTML(href)}" class="topic-link" data-topic-id="${escapeHTML(entry.id)}">${escapeHTML(display)}</a>`
+        `<a href="${escapeHTML(href)}" class="topic-link" data-topic-id="${escapeHTML(topicId)}">${escapeHTML(display)}</a>`
       );
     } else {
       parts.push(
@@ -112,7 +114,7 @@ export function buildTopicMap(topicLinks = []) {
     const id = link.linked_topic_id ?? link.topics?.id ?? null;
     const title = link.topics?.name ?? displayName;
 
-    map[displayName] = { id, title };
+    map[displayName] = { id, topic_id: id, title };
   }
 
   return map;
@@ -200,7 +202,7 @@ export async function resolveTopicNamesForStorage(
   return resolved;
 }
 
-export function buildTopicLinkRows(noteId, parsedLinks = [], resolvedTopics = []) {
+export function buildTopicLinkRows(variantId, parsedLinks = [], resolvedTopics = []) {
   const byName = new Map(
     resolvedTopics.map((t) => [normalizeTopicName(t.name), t])
   );
@@ -208,7 +210,7 @@ export function buildTopicLinkRows(noteId, parsedLinks = [], resolvedTopics = []
   return parsedLinks.map((link) => {
     const resolved = byName.get(normalizeTopicName(link.name));
     return {
-      note_id: noteId,
+      variant_id: variantId,
       linked_topic_id: resolved?.topic_id ?? null,
       linked_topic_name: link.name,
       linked_from_block_id: null,

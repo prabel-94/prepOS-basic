@@ -1,6 +1,5 @@
 /**
- * Reverse semantic knowledge references ("Referenced In").
- * One-hop only; uses note_topic_links + canonical notes + topics.
+ * Reverse semantic knowledge references ("Referenced In") — canonical, not per-variant.
  */
 
 import { getClient } from "../core/get-client.js";
@@ -16,10 +15,8 @@ function escapeHTML(value = "") {
 }
 
 /**
- * All published canonical notes that reference this topic via [[...]] links.
+ * Notes (canonical) that reference this topic via any variant's [[links]].
  * @param {string} topicId — topic being viewed
- * @param {{ publishedOnly?: boolean }} [options]
- * @returns {Promise<Array<{ topic_id, topic_name, note_id, note_title }>>}
  */
 export async function getReferencedInTopics(topicId, { publishedOnly = true } = {}) {
   if (!topicId) {
@@ -32,15 +29,17 @@ export async function getReferencedInTopics(topicId, { publishedOnly = true } = 
     .from("note_topic_links")
     .select(
       `
-      note_id,
       linked_topic_id,
-      notes!inner (
+      note_variants!inner (
         id,
-        title,
         status,
-        topic_id,
-        updated_at,
-        topics ( id, name )
+        note_id,
+        notes!inner (
+          id,
+          title,
+          topic_id,
+          topics ( id, name )
+        )
       )
     `
     )
@@ -50,18 +49,18 @@ export async function getReferencedInTopics(topicId, { publishedOnly = true } = 
     throw new Error(error.message);
   }
 
-  const seenTopicIds = new Set();
+  const seenNoteIds = new Set();
   const results = [];
 
   for (const row of data ?? []) {
-    const note = row.notes;
-    const sourceTopic = note?.topics;
+    const variant = row.note_variants;
+    const note = variant?.notes;
 
-    if (!note?.id || !sourceTopic?.id || !sourceTopic?.name) {
+    if (!note?.id || !note.topics?.name) {
       continue;
     }
 
-    if (publishedOnly && note.status !== "published") {
+    if (publishedOnly && variant.status !== "published") {
       continue;
     }
 
@@ -69,16 +68,16 @@ export async function getReferencedInTopics(topicId, { publishedOnly = true } = 
       continue;
     }
 
-    if (seenTopicIds.has(sourceTopic.id)) {
+    if (seenNoteIds.has(note.id)) {
       continue;
     }
 
-    seenTopicIds.add(sourceTopic.id);
+    seenNoteIds.add(note.id);
     results.push({
-      topic_id: sourceTopic.id,
-      topic_name: sourceTopic.name,
+      topic_id: note.topics.id,
+      topic_name: note.topics.name,
       note_id: note.id,
-      note_title: note.title ?? sourceTopic.name,
+      note_title: note.title,
     });
   }
 
@@ -89,10 +88,7 @@ export async function getReferencedInTopics(topicId, { publishedOnly = true } = 
   return results;
 }
 
-/**
- * Lightweight "Referenced In" panel HTML. Returns empty string when no backlinks.
- */
-export function renderReferencedInPanel(backlinks = []) {
+export function renderReferencedInPanel(backlinks = [], { preferLanguage = "english" } = {}) {
   if (!backlinks.length) {
     return "";
   }
@@ -100,7 +96,7 @@ export function renderReferencedInPanel(backlinks = []) {
   const items = backlinks
     .map((entry) => {
       const href = resolveAppPath(
-        `note.html?topic=${encodeURIComponent(entry.topic_id)}`
+        `note.html?topic=${encodeURIComponent(entry.topic_id)}&lang=${encodeURIComponent(preferLanguage)}`
       );
       return `<li><a href="${escapeHTML(href)}" class="topic-link referenced-in-link" data-topic-id="${escapeHTML(entry.topic_id)}">${escapeHTML(entry.topic_name)}</a></li>`;
     })

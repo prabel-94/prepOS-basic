@@ -3,16 +3,16 @@
  */
 
 import { parseMapMarkdown } from "./map-parser.js";
-import { regenerateDraftFromMarkdown } from "./note-storage.js";
-import { confirmPublish, publishCanonicalNote } from "./note-publish.js";
-import { fetchNoteSource, loadCanonicalNoteBundle } from "./note-selectors.js";
+import { regenerateVariantFromMarkdown } from "./note-storage.js";
+import { confirmPublish, publishCanonicalVariant } from "./note-publish.js";
+import { fetchNoteSource, loadVariantBundle, buildTraversalTopicMap } from "./note-selectors.js";
 import {
   bindStructuralCollapse,
   getAvailableTabs,
   renderRepresentationTab,
 } from "./note-renderer.js";
-import { buildTopicMap } from "./note-topic-links.js";
 import { resolveAppPath } from "../core/access.js";
+import { getLanguageLabel, normalizeLanguage } from "./note-variants.js";
 
 function escapeHTML(value = "") {
   return String(value)
@@ -49,7 +49,7 @@ function parseForPreview(rawMarkdown) {
 
 /**
  * @param {object} options
- * @param {object} options.note — notes row with topics join
+ * @param {object} options.variant — note_variants row with notes join
  * @param {HTMLElement} options.toolbarEl
  * @param {HTMLElement} options.headerEl
  * @param {HTMLElement} options.tabsEl
@@ -60,7 +60,7 @@ function parseForPreview(rawMarkdown) {
  * @param {HTMLElement} [options.backlinksEl]
  */
 export function initDraftWorkspace({
-  note,
+  variant,
   toolbarEl,
   headerEl,
   tabsEl,
@@ -75,7 +75,10 @@ export function initDraftWorkspace({
   let previewParsed = null;
   let previewTopicMap = {};
 
-  const topicName = note.topics?.name ?? note.title ?? "Topic";
+  const note = variant?.notes ?? {};
+  const topicName = note?.topics?.name ?? note?.title ?? "Topic";
+  const preferLanguage = normalizeLanguage(variant?.language);
+  const renderOptions = { preferLanguage };
 
   function setStatus(message, isError = false) {
     if (!statusEl) {
@@ -92,11 +95,10 @@ export function initDraftWorkspace({
 
     headerEl.innerHTML = `
       <h2>${escapeHTML(topicName)}</h2>
-      <div class="exam-subtitle">${escapeHTML(note.title)}</div>
+      <div class="exam-subtitle">${escapeHTML(variant.title)}</div>
       <div class="draft-meta">
-        <span class="draft-badge">DRAFT</span>
-        <span class="draft-meta-item">Last updated: ${escapeHTML(formatDate(note.updated_at))}</span>
-        <span class="draft-meta-item">Language: ${escapeHTML(note.language || "english")}</span>
+        <span class="draft-badge">DRAFT · ${escapeHTML(getLanguageLabel(variant.language))}</span>
+        <span class="draft-meta-item">Last updated: ${escapeHTML(formatDate(variant.updated_at))}</span>
       </div>
     `;
   }
@@ -111,7 +113,7 @@ export function initDraftWorkspace({
       <button type="button" class="secondary-btn" data-draft-action="edit">Edit Source</button>
       <button type="button" class="secondary-btn" data-draft-action="preview">Preview</button>
       <button type="button" class="primary-btn" data-draft-action="save">Save Draft</button>
-      <button type="button" class="primary-btn" data-draft-action="publish">Publish</button>
+      <button type="button" class="primary-btn" data-draft-action="publish">Publish Language Variant</button>
     `;
 
     toolbarEl.querySelectorAll("[data-draft-action]").forEach((btn) => {
@@ -155,7 +157,7 @@ export function initDraftWorkspace({
     setStatus("Editing semantic markdown source.");
   }
 
-  function renderPreviewTabs(representations) {
+  function renderPreviewTabs(representations, options) {
     const tabs = getAvailableTabs(representations);
 
     if (!tabs.length) {
@@ -198,7 +200,8 @@ export function initDraftWorkspace({
     contentEl.innerHTML = renderRepresentationTab(
       activeTab,
       representations,
-      previewTopicMap
+      previewTopicMap,
+      renderOptions
     );
 
     if (activeTab === "structural") {
@@ -212,13 +215,7 @@ export function initDraftWorkspace({
 
     try {
       previewParsed = parseForPreview(sourceEditorEl?.value ?? "");
-      previewTopicMap = buildTopicMap(
-        (previewParsed.topic_links ?? []).map((link) => ({
-          linked_topic_name: link.name,
-          linked_topic_id: null,
-          topics: null,
-        }))
-      );
+      previewTopicMap = buildTraversalTopicMap(previewParsed.topic_links ?? []);
 
       if (sourcePanelEl) {
         sourcePanelEl.classList.add("hidden");
@@ -232,7 +229,7 @@ export function initDraftWorkspace({
         contentEl.classList.remove("hidden");
       }
 
-      renderPreviewTabs(previewParsed.representations);
+      renderPreviewTabs(previewParsed.representations, renderOptions);
       setStatus("Preview from current source (not saved).");
     } catch (err) {
       setStatus(err.message || "Preview failed.", true);
@@ -243,16 +240,17 @@ export function initDraftWorkspace({
     try {
       setStatus("Saving draft…");
 
-      await regenerateDraftFromMarkdown({
-        noteId: note.id,
+      await regenerateVariantFromMarkdown({
+        variantId: variant.id,
         rawMarkdown: sourceEditorEl?.value ?? "",
-        title: note.title,
-        language: note.language,
+        title: variant.title,
+        language: variant.language,
+        status: "draft",
       });
 
-      const bundle = await loadCanonicalNoteBundle(note.id);
-      if (bundle?.note) {
-        note.updated_at = bundle.note.updated_at;
+      const bundle = await loadVariantBundle(variant.id);
+      if (bundle?.variant) {
+        variant.updated_at = bundle.variant.updated_at;
         renderDraftHeader();
       }
 
@@ -273,14 +271,14 @@ export function initDraftWorkspace({
     try {
       setStatus("Publishing…");
 
-      await publishCanonicalNote(note.id, {
+      await publishCanonicalVariant(variant.id, {
         rawMarkdown: sourceEditorEl?.value ?? "",
-        title: note.title,
-        language: note.language,
+        title: variant.title,
+        language: variant.language,
       });
 
       window.location.href = resolveAppPath(
-        `note.html?id=${encodeURIComponent(note.id)}`
+        `note.html?variant=${encodeURIComponent(variant.id)}`
       );
     } catch (err) {
       setStatus(err.message || "Publish failed.", true);
@@ -288,7 +286,7 @@ export function initDraftWorkspace({
   }
 
   async function loadSource() {
-    const source = await fetchNoteSource(note.id);
+    const source = await fetchNoteSource(variant.id);
 
     if (!source?.raw_markdown) {
       throw new Error("No semantic markdown source found for this note.");

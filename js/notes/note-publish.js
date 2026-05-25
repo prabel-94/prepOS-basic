@@ -1,53 +1,96 @@
 /**
- * Canonical note publish workflow.
+ * Language variant publish workflow (replaces prior published variant in same language).
  */
 
 import { getClient } from "../core/get-client.js";
-import { regenerateDraftFromMarkdown } from "./note-storage.js";
+import { regenerateVariantFromMarkdown } from "./note-storage.js";
+import { ARCHIVE_RETENTION_DAYS } from "./note-variants.js";
 
 const PUBLISH_CONFIRM_MESSAGE =
-  "Publish this canonical note?\n\nStudents will now see this version.";
+  `Publish this language variant?\n\nThe previous published version in this language will be archived for ${ARCHIVE_RETENTION_DAYS} days, then removed automatically. Students will see this version.`;
+
+function archiveScheduledAt() {
+  const at = new Date();
+  at.setDate(at.getDate() + ARCHIVE_RETENTION_DAYS);
+  return at.toISOString();
+}
 
 /**
- * @param {string} noteId
- * @param {{ rawMarkdown?: string, title?: string, language?: string }} [options]
- * Save latest source (optional) then set status to published.
+ * Archive other published variants in the same language stream (client-side; DB trigger also enforces).
  */
-export async function publishCanonicalNote(noteId, options = {}) {
-  if (!noteId) {
-    throw new Error("noteId is required");
+async function archivePublishedSiblings(sb, { noteId, language, excludeVariantId }) {
+  const { error } = await sb
+    .from("note_variants")
+    .update({
+      status: "archived",
+      scheduled_delete_at: archiveScheduledAt(),
+    })
+    .eq("note_id", noteId)
+    .eq("language", language)
+    .eq("status", "published")
+    .neq("id", excludeVariantId);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
+/**
+ * Publish a language variant; archives any prior published variant in the same language.
+ * @param {string} variantId
+ * @param {{ rawMarkdown?: string, title?: string, language?: string }} [options]
+ */
+export async function publishCanonicalVariant(variantId, options = {}) {
+  if (!variantId) {
+    throw new Error("variantId is required");
   }
 
   if (options.rawMarkdown?.trim()) {
-    await regenerateDraftFromMarkdown({
-      noteId,
+    await regenerateVariantFromMarkdown({
+      variantId,
       rawMarkdown: options.rawMarkdown,
       title: options.title,
       language: options.language,
+      status: "draft",
     });
   }
 
   const sb = await getClient();
 
-  const { data: note, error: fetchError } = await sb
-    .from("notes")
-    .select("id, status")
-    .eq("id", noteId)
+  const { data: variant, error: fetchError } = await sb
+    .from("note_variants")
+    .select("id, status, language, note_id")
+    .eq("id", variantId)
     .single();
 
   if (fetchError) {
     throw new Error(fetchError.message);
   }
 
-  if (note.status === "published") {
-    return note;
+  if (variant.status === "published") {
+    return variant;
   }
 
+  if (variant.status === "archived") {
+    throw new Error(
+      "Archived variants cannot be published. Create a new draft revision."
+    );
+  }
+
+  await archivePublishedSiblings(sb, {
+    noteId: variant.note_id,
+    language: variant.language,
+    excludeVariantId: variantId,
+  });
+
   const { data, error } = await sb
-    .from("notes")
-    .update({ status: "published" })
-    .eq("id", noteId)
-    .select("id, status, topic_id")
+    .from("note_variants")
+    .update({
+      status: "published",
+      scheduled_delete_at: null,
+    })
+    .eq("id", variantId)
+    .select("id, status, language, note_id, scheduled_delete_at")
     .single();
 
   if (error) {
@@ -55,6 +98,11 @@ export async function publishCanonicalNote(noteId, options = {}) {
   }
 
   return data;
+}
+
+/** @deprecated Use publishCanonicalVariant */
+export async function publishCanonicalNote(variantId, options = {}) {
+  return publishCanonicalVariant(variantId, options);
 }
 
 export function confirmPublish() {

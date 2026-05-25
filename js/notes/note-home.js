@@ -1,9 +1,10 @@
 /**
- * Topic Notes section for teacher and student home pages.
+ * Topic Notes section for teacher and student home pages (variant-aware).
  */
 
 import { getClient } from "../core/get-client.js";
 import { resolveAppPath } from "../core/access.js";
+import { getLanguageLabel, normalizeLanguage } from "./note-variants.js";
 
 function escapeHTML(value = "") {
   return String(value ?? "")
@@ -30,41 +31,31 @@ function formatUpdatedAt(value) {
   }
 }
 
-function dedupePublishedByTopic(notes = []) {
-  const seen = new Set();
-  const result = [];
-
-  for (const note of notes) {
-    const key = note.topic_id;
-    if (!key || seen.has(key)) {
-      continue;
-    }
-    seen.add(key);
-    result.push(note);
-  }
-
-  return result;
-}
-
 /**
  * @param {"teacher"|"student"|"admin"} role
  */
-export async function fetchNotesForHome(role, limit = 20) {
+export async function fetchNotesForHome(role, limit = 30) {
   const sb = await getClient();
 
   let query = sb
-    .from("notes")
+    .from("note_variants")
     .select(
       `
       id,
+      language,
       title,
       status,
-      language,
       updated_at,
-      topic_id,
-      topics ( id, name )
+      note_id,
+      notes (
+        id,
+        topic_id,
+        title,
+        topics ( id, name )
+      )
     `
     )
+    .neq("status", "archived")
     .order("updated_at", { ascending: false })
     .limit(limit);
 
@@ -78,106 +69,119 @@ export async function fetchNotesForHome(role, limit = 20) {
     throw error;
   }
 
-  const rows = data ?? [];
-
-  if (role === "student") {
-    return dedupePublishedByTopic(rows);
-  }
-
-  return rows;
+  return data ?? [];
 }
 
-function resolveNoteHref(note, role) {
-  const topicId = note.topic_id;
-  const noteId = note.id;
+function groupByCanonicalNote(rows = []) {
+  const map = new Map();
 
-  if (role === "teacher" || role === "admin") {
-    if (note.status === "draft") {
-      return resolveAppPath(`note.html?id=${encodeURIComponent(noteId)}&mode=draft`);
+  for (const row of rows) {
+    const noteId = row.notes?.id ?? row.note_id;
+    if (!noteId) {
+      continue;
     }
-    if (topicId) {
-      return resolveAppPath(`note.html?topic=${encodeURIComponent(topicId)}`);
+
+    if (!map.has(noteId)) {
+      map.set(noteId, {
+        note: row.notes,
+        variants: [],
+      });
     }
-    return resolveAppPath(`note.html?id=${encodeURIComponent(noteId)}`);
+
+    map.get(noteId).variants.push(row);
   }
+
+  return [...map.values()];
+}
+
+function resolveVariantHref(variant, role) {
+  if (role === "teacher" || role === "admin") {
+    if (variant.status === "draft") {
+      return resolveAppPath(
+        `note.html?variant=${encodeURIComponent(variant.id)}&mode=draft`
+      );
+    }
+  }
+
+  const topicId = variant.notes?.topic_id;
+  const lang = normalizeLanguage(variant.language);
 
   if (topicId) {
-    return resolveAppPath(`note.html?topic=${encodeURIComponent(topicId)}`);
+    return resolveAppPath(
+      `note.html?topic=${encodeURIComponent(topicId)}&lang=${encodeURIComponent(lang)}`
+    );
   }
 
-  return resolveAppPath(`note.html?id=${encodeURIComponent(noteId)}`);
+  return resolveAppPath(`note.html?variant=${encodeURIComponent(variant.id)}`);
 }
 
-function resolveActionLabel(note, role) {
-  if (role === "student") {
-    return "Read note";
-  }
-
-  return note.status === "draft" ? "Refine draft" : "Read note";
-}
-
-export function renderTopicNotesList(container, notes = [], role = "student") {
+export function renderTopicNotesList(container, grouped = [], role = "student") {
   if (!container) {
     return;
   }
 
-  if (!notes.length) {
+  if (!grouped.length) {
     const hint =
       role === "student"
-        ? "No published topic notes yet. Your teacher will publish canonical notes when they are ready."
+        ? "No published topic notes yet."
         : "No canonical notes yet. Import from Question Bank → Import canonical note.";
 
     container.innerHTML = `<div class="empty-state">${escapeHTML(hint)}</div>`;
     return;
   }
 
-  container.innerHTML = notes
-    .map((note) => {
-      const topicName = note.topics?.name ?? "Topic";
-      const href = resolveNoteHref(note, role);
-      const action = resolveActionLabel(note, role);
-      const status =
-        role === "student"
-          ? ""
-          : `<span class="topic-note-status topic-note-status--${escapeHTML(note.status)}">${escapeHTML(note.status)}</span>`;
-      const updated = formatUpdatedAt(note.updated_at);
-      const meta = [note.language, updated].filter(Boolean).join(" · ");
+  container.innerHTML = grouped
+    .map(({ note, variants }) => {
+      const topicName = note?.topics?.name ?? note?.title ?? "Topic";
+      const variantLines = variants
+        .map((v) => {
+          const href = resolveVariantHref(v, role);
+          const lang = getLanguageLabel(v.language);
+          const status =
+            role === "student"
+              ? ""
+              : ` <span class="topic-note-status topic-note-status--${escapeHTML(v.status)}">${escapeHTML(v.status)}</span>`;
+          const updated = formatUpdatedAt(v.updated_at);
+
+          return `
+            <div class="topic-note-row recent-item mt-10">
+              <div class="topic-note-row-main">
+                <div><b>${escapeHTML(lang)}</b>${status}</div>
+                <div class="topic-note-meta text-muted">${escapeHTML(v.title)}${updated ? ` · ${escapeHTML(updated)}` : ""}</div>
+              </div>
+              <a class="secondary-btn" href="${escapeHTML(href)}">${role === "student" ? "Read" : v.status === "draft" ? "Refine" : "Read"}</a>
+            </div>
+          `;
+        })
+        .join("");
 
       return `
-        <div class="topic-note-row recent-item mt-10">
-          <div class="topic-note-row-main">
-            <div><b>${escapeHTML(topicName)}</b>${status}</div>
-            <div class="topic-note-meta text-muted">${escapeHTML(note.title)}${meta ? ` · ${escapeHTML(meta)}` : ""}</div>
-          </div>
-          <a class="secondary-btn" href="${escapeHTML(href)}">${escapeHTML(action)}</a>
+        <div class="topic-notes-canonical-group mt-10">
+          <div class="h3">${escapeHTML(topicName)}</div>
+          ${variantLines}
         </div>
       `;
     })
     .join("");
 }
 
-/**
- * Load and render Topic Notes into a home page container.
- * @param {HTMLElement|null} container
- * @param {{ role?: string, limit?: number }} [options]
- */
-export async function loadTopicNotesSection(container, { role = "student", limit = 20 } = {}) {
+export async function loadTopicNotesSection(container, { role = "student", limit = 30 } = {}) {
   if (!container) {
     return;
   }
 
-  container.innerHTML =
-    '<div class="text-muted">Loading topic notes…</div>';
+  container.innerHTML = '<div class="text-muted">Loading topic notes…</div>';
 
   try {
-    const notes = await fetchNotesForHome(role, limit);
-    renderTopicNotesList(container, notes, role);
+    const rows = await fetchNotesForHome(role, limit);
+    const grouped = groupByCanonicalNote(rows);
+    renderTopicNotesList(container, grouped, role);
   } catch (error) {
     console.error("[Topic Notes home]", error);
 
     const message =
-      error?.code === "42P01" || error?.message?.includes("notes")
-        ? "Topic notes are not available yet. Apply the latest database migrations."
+      error?.code === "42P01" || error?.message?.includes("note_variants")
+        ? "Topic notes require the latest database migrations."
         : "Unable to load topic notes right now.";
 
     container.innerHTML = `<div class="empty-state">${escapeHTML(message)}</div>`;

@@ -240,9 +240,10 @@ function splitSections(markdown) {
 /**
  * Parse MSMDF semantic markdown into a canonical object.
  * @param {string} rawMarkdown
+ * @param {{ language?: string, title?: string }} [options]
  * @returns {object}
  */
-export function parseMapMarkdown(rawMarkdown) {
+export function parseMapMarkdown(rawMarkdown, options = {}) {
   const markdown = normalizeNewlines(rawMarkdown);
   const sections = splitSections(markdown);
 
@@ -320,8 +321,21 @@ export function parseMapMarkdown(rawMarkdown) {
     topicLinks.push(link);
   }
 
+  const language =
+    options.language || metadata.language || "english";
+  const title = options.title || metadata.title || null;
+
   return {
     metadata,
+    canonical_note: {
+      title,
+      map_version: metadata.map_version || metadata.version || null,
+      canonical_version: metadata.canonical_version || null,
+    },
+    variant: {
+      language,
+      title,
+    },
     source: {
       raw_markdown: markdown,
       source_type: metadata.source_type || "map",
