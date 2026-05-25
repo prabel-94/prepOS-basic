@@ -89,6 +89,82 @@
       margin-top: 12px;
       color: #64748b;
     }
+    #readerStatus.error {
+      color: #b91c1c;
+    }
+    .hidden {
+      display: none !important;
+    }
+    .draft-badge {
+      display: inline-block;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #92400e;
+      background: #fef3c7;
+      border: 1px solid #fcd34d;
+      border-radius: 4px;
+      padding: 2px 8px;
+      margin-right: 10px;
+    }
+    .draft-meta {
+      margin-top: 8px;
+      font-size: 0.875rem;
+      color: #64748b;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 16px;
+      align-items: center;
+    }
+    #noteDraftToolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 16px 0 20px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    #noteDraftToolbar .secondary-btn.is-active,
+    #noteDraftToolbar .primary-btn.is-active {
+      outline: 2px solid var(--primary);
+      outline-offset: 2px;
+    }
+    #noteSourcePanel {
+      margin-bottom: 20px;
+      max-width: 720px;
+    }
+    #noteSourcePanel label {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: #475569;
+      margin-bottom: 8px;
+    }
+    #semanticSourceEditor {
+      width: 100%;
+      min-height: 360px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 14px;
+      line-height: 1.55;
+      padding: 12px;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      resize: vertical;
+      box-sizing: border-box;
+    }
+    @media (max-width: 640px) {
+      #semanticSourceEditor {
+        min-height: 280px;
+      }
+      #noteDraftToolbar {
+        gap: 8px;
+      }
+      #noteDraftToolbar button {
+        flex: 1 1 calc(50% - 8px);
+        min-width: 0;
+      }
+    }
     .referenced-in {
       max-width: 720px;
       margin-top: 32px;
@@ -195,7 +271,14 @@
     <div class="exam-subtitle">Canonical knowledge reader</div>
   </div>
 
+  <div id="noteDraftToolbar" class="hidden" aria-label="Draft workspace actions"></div>
+
   <div id="representationTabs" role="tablist" aria-label="Representations"></div>
+
+  <div id="noteSourcePanel" class="hidden">
+    <label for="semanticSourceEditor">Semantic markdown source</label>
+    <textarea id="semanticSourceEditor" spellcheck="false" aria-label="Semantic markdown source"></textarea>
+  </div>
 
   <div id="noteContent"></div>
 
@@ -208,7 +291,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/config.js?v=20260520"></script>
 <script type="module" src="js/auth.js"></script>
-<script type="module" src="js/notes/note-reader.js?v=20260604"></script>
+<script type="module" src="js/notes/note-reader.js?v=20260605"></script>
 
 </body>
 </html>

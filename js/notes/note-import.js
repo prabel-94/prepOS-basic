@@ -5,6 +5,7 @@
 import { parseMapMarkdown, summarizeDetectedSections } from "./map-parser.js";
 import { saveCanonicalNote } from "./note-storage.js";
 import { getTopicIdFromUrl } from "./note-import-params.js";
+import { resolveAppPath } from "../core/access.js";
 
 const SECTION_LABELS = Object.freeze({
   metadata: "Metadata",
@@ -110,7 +111,7 @@ export function initNoteImportPage({
     const publishOnSave = Boolean(publishOnSaveEl?.checked);
 
     try {
-      setStatus("Saving canonical note…");
+      setStatus("Saving draft…");
 
       const result = await saveCanonicalNote({
         topicId: resolvedTopicId,
@@ -121,12 +122,12 @@ export function initNoteImportPage({
         rawMarkdown: lastParsed.source.raw_markdown,
       });
 
-      if (statusEl) {
-        statusEl.classList.remove("error");
-        statusEl.innerHTML =
-          `Saved note (${result.blockCount} blocks, ${result.topicLinkCount} topic links). ` +
-          `<a href="note.html?id=${encodeURIComponent(result.note.id)}">Open reader</a>`;
-      }
+      const noteId = result.note.id;
+      const readerPath = publishOnSave
+        ? `note.html?id=${encodeURIComponent(noteId)}`
+        : `note.html?id=${encodeURIComponent(noteId)}&mode=draft`;
+
+      window.location.href = resolveAppPath(readerPath);
     } catch (err) {
       setStatus(err.message || "Save failed", true);
     }
