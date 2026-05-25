@@ -161,7 +161,7 @@ as $$
     where n.id = p_note_id
       and (
         public.is_admin()
-        or (public.is_teacher_or_admin() and n.created_by = auth.uid())
+        or public.is_teacher_or_admin()
         or (
           public.current_user_role() = 'student'
           and exists (
@@ -188,7 +188,7 @@ as $$
     where n.id = p_note_id
       and (
         public.is_admin()
-        or (public.is_teacher_or_admin() and n.created_by = auth.uid())
+        or public.is_teacher_or_admin()
       )
   )
 $$;
@@ -207,7 +207,7 @@ as $$
     where nv.id = p_variant_id
       and (
         public.is_admin()
-        or (public.is_teacher_or_admin() and n.created_by = auth.uid())
+        or public.is_teacher_or_admin()
         or (public.current_user_role() = 'student' and nv.status = 'published')
       )
   )
@@ -227,7 +227,7 @@ as $$
     where nv.id = p_variant_id
       and (
         public.is_admin()
-        or (public.is_teacher_or_admin() and n.created_by = auth.uid())
+        or public.is_teacher_or_admin()
       )
   )
 $$;
