@@ -1,14 +1,17 @@
 /**
- * Canonical note reader + draft knowledge workspace.
+ * Canonical note reader + draft workspace (variant-aware).
  */
 
-import { bootPage } from "../core/page-boot.js";
+import { bootPage } from "./core/page-boot.js";
 import { mountAppNav } from "../ui/app-nav.js";
 import { TEACHER_ROLES } from "../core/access.js";
+import { resolveAppPath } from "../core/access.js";
 import {
-  fetchPublishedNoteForTopic,
+  fetchPublishedVariantForTopic,
   fetchTopicById,
-  loadCanonicalNoteBundle,
+  fetchVariantById,
+  fetchVariantsForNote,
+  loadVariantBundle,
 } from "./note-selectors.js";
 import {
   bindStructuralCollapse,
@@ -20,6 +23,10 @@ import {
   renderReferencedInPanel,
 } from "./note-backlinks.js";
 import { initDraftWorkspace } from "./note-draft-editor.js";
+import {
+  getLanguageLabel,
+  normalizeLanguage,
+} from "./note-variants.js";
 
 function getQueryParam(key) {
   return new URLSearchParams(window.location.search).get(key);
@@ -29,9 +36,9 @@ function isDraftModeRequested() {
   return getQueryParam("mode") === "draft";
 }
 
-function canUseDraftWorkspace(runtime, note) {
+function canUseDraftWorkspace(runtime, variant) {
   return (
-    note?.status === "draft" &&
+    variant?.status === "draft" &&
     runtime?.role &&
     TEACHER_ROLES.includes(runtime.role)
   );
@@ -62,7 +69,35 @@ function escapeHTML(value = "") {
     .replaceAll("'", "&#039;");
 }
 
-async function renderBacklinksForTopic(topicId, backlinksEl) {
+function renderLanguageTabs(container, variants, activeVariantId, isTeacher) {
+  if (!container || variants.length < 2) {
+    container.innerHTML = "";
+    container.classList.add("hidden");
+    return normalizeLanguage(
+      variants.find((v) => v.id === activeVariantId)?.language
+    );
+  }
+
+  container.classList.remove("hidden");
+  container.innerHTML = variants
+    .map((v) => {
+      const label = getLanguageLabel(v.language);
+      const active = v.id === activeVariantId ? " active" : "";
+      const statusMark =
+        v.status === "published" ? "" : v.status === "draft" ? " ○" : "";
+      const href = resolveAppPath(
+        `note.html?variant=${encodeURIComponent(v.id)}${v.status === "draft" && isTeacher ? "&mode=draft" : ""}`
+      );
+      return `<a class="language-tab${active}" href="${escapeHTML(href)}">${escapeHTML(label)}${statusMark}</a>`;
+    })
+    .join("");
+
+  return normalizeLanguage(
+    variants.find((v) => v.id === activeVariantId)?.language
+  );
+}
+
+async function renderBacklinksForTopic(topicId, backlinksEl, preferLanguage) {
   if (!backlinksEl || !topicId) {
     return;
   }
@@ -71,66 +106,22 @@ async function renderBacklinksForTopic(topicId, backlinksEl) {
     publishedOnly: true,
   });
 
-  backlinksEl.innerHTML = renderReferencedInPanel(backlinks);
-}
-
-async function showMissingPublishedNote({
-  headerEl,
-  tabsEl,
-  contentEl,
-  backlinksEl,
-  toolbarEl,
-  sourcePanelEl,
-  statusEl,
-  topic,
-}) {
-  if (toolbarEl) {
-    toolbarEl.classList.add("hidden");
-    toolbarEl.innerHTML = "";
-  }
-
-  if (sourcePanelEl) {
-    sourcePanelEl.classList.add("hidden");
-  }
-
-  if (headerEl) {
-    headerEl.innerHTML = `
-      <h2>${escapeHTML(topic?.name ?? "Topic")}</h2>
-      <div class="exam-subtitle">Canonical knowledge</div>
-    `;
-  }
-
-  if (tabsEl) {
-    tabsEl.innerHTML = "";
-    tabsEl.classList.add("hidden");
-  }
-
-  if (contentEl) {
-    contentEl.classList.remove("hidden");
-    contentEl.innerHTML =
-      '<p class="canonical-empty">No published canonical note available yet.</p>';
-  }
-
-  if (statusEl) {
-    statusEl.textContent = "";
-  }
-
-  if (topic?.id) {
-    await renderBacklinksForTopic(topic.id, backlinksEl);
-  } else if (backlinksEl) {
-    backlinksEl.innerHTML = "";
-  }
+  backlinksEl.innerHTML = renderReferencedInPanel(backlinks, { preferLanguage });
 }
 
 async function bootPublishedReader({
   bundle,
+  variants,
+  activeVariantId,
   headerEl,
+  languageTabsEl,
   tabsEl,
   contentEl,
   backlinksEl,
   toolbarEl,
   sourcePanelEl,
   statusEl,
+  isTeacher,
 }) {
   if (toolbarEl) {
     toolbarEl.classList.add("hidden");
@@ -140,29 +131,35 @@ async function bootPublishedReader({
     sourcePanelEl.classList.add("hidden");
   }
 
-  const viewTopicId = bundle.note.topic_id;
-  const topicName =
-    bundle.note.topics?.name ?? bundle.note.title ?? "Topic";
-  const subtitle = bundle.note.language
-    ? `${bundle.note.language} · ${bundle.note.status}`
-    : bundle.note.status;
+  const note = bundle.note;
+  const variant = bundle.variant;
+  const topicName = note?.topics?.name ?? note?.title ?? "Topic";
+  const preferLanguage = renderLanguageTabs(
+    languageTabsEl,
+    variants,
+    activeVariantId,
+    isTeacher
+  );
+
+  const subtitle = `${getLanguageLabel(variant.language)} · ${variant.status}`;
 
   headerEl.innerHTML = `
     <h2>${escapeHTML(topicName)}</h2>
-    <div class="exam-subtitle">${escapeHTML(bundle.note.title)}</div>
+    <div class="exam-subtitle">${escapeHTML(variant.title)}</div>
     <div class="canonical-meta">${escapeHTML(subtitle)}</div>
   `;
 
   const tabs = getAvailableTabs(bundle.representations);
   let activeTab = tabs[0]?.key ?? "narrative";
-  const topicMap = bundle.topicMap ?? {};
+  const renderOptions = { preferLanguage };
 
   function renderActiveTab() {
     contentEl.classList.remove("hidden");
     contentEl.innerHTML = renderRepresentationTab(
       activeTab,
       bundle.representations,
-      topicMap
+      bundle.topicMap,
+      renderOptions
     );
 
     if (activeTab === "structural") {
@@ -170,12 +167,12 @@ async function bootPublishedReader({
     }
   }
 
-  function renderTabs() {
+  function renderRepTabs() {
     if (!tabs.length) {
       tabsEl.innerHTML = "";
       tabsEl.classList.remove("hidden");
       contentEl.innerHTML =
-        '<p class="canonical-empty">This note has no representation blocks yet.</p>';
+        '<p class="canonical-empty">No representation blocks yet.</p>';
       return;
     }
 
@@ -200,9 +197,57 @@ async function bootPublishedReader({
     renderActiveTab();
   }
 
-  renderTabs();
-  await renderBacklinksForTopic(viewTopicId, backlinksEl);
+  renderRepTabs();
+  await renderBacklinksForTopic(note?.topic_id, backlinksEl, preferLanguage);
   statusEl.textContent = "";
+}
+
+async function resolveVariantContext({ variantId, topicId, lang, runtime }) {
+  if (variantId) {
+    const variant = await fetchVariantById(variantId);
+    if (!variant) {
+      return null;
+    }
+
+    if (variant.status === "archived") {
+      return { error: "archived_unavailable" };
+    }
+
+    if (variant.status === "draft" && runtime?.role === "student") {
+      return { error: "draft_unavailable" };
+    }
+
+    const variants = await fetchVariantsForNote(variant.note_id, {
+      includeArchived: false,
+    });
+    return { variant, variants, note: variant.notes };
+  }
+
+  if (topicId) {
+    const preferLang = normalizeLanguage(lang);
+    const resolved = await fetchPublishedVariantForTopic(topicId, preferLang);
+
+    if (!resolved) {
+      const topic = await fetchTopicById(topicId);
+      return { error: "no_published", topic };
+    }
+
+    const variants = await fetchVariantsForNote(resolved.canonical.id, {
+      includeArchived: false,
+    });
+    const visibleVariants =
+      runtime?.role === "student"
+        ? variants.filter((v) => v.status === "published")
+        : variants;
+
+    return {
+      variant: resolved.variant,
+      variants: visibleVariants,
+      note: resolved.canonical,
+    };
+  }
+
+  return null;
 }
 
 export async function bootNoteReader() {
@@ -219,10 +264,12 @@ export async function bootNoteReader() {
     return null;
   }
 
-  const noteId = getQueryParam("id");
+  const variantId = getQueryParam("variant");
   const topicId = getQueryParam("topic");
+  const lang = getQueryParam("lang");
 
   const headerEl = document.getElementById("noteHeader");
+  const languageTabsEl = document.getElementById("languageTabs");
   const toolbarEl = document.getElementById("noteDraftToolbar");
   const tabsEl = document.getElementById("representationTabs");
   const contentEl = document.getElementById("noteContent");
@@ -236,61 +283,69 @@ export async function bootNoteReader() {
   }
 
   try {
-    let resolvedNoteId = noteId;
-    let viewTopicId = topicId;
+    const ctx = await resolveVariantContext({
+      variantId,
+      topicId,
+      lang,
+      runtime,
+    });
 
-    if (!resolvedNoteId && topicId) {
-      const published = await fetchPublishedNoteForTopic(topicId);
-
-      if (!published?.id) {
-        const topic = await fetchTopicById(topicId);
-        await showMissingPublishedNote({
-          headerEl,
-          tabsEl,
-          contentEl,
-          backlinksEl,
-          toolbarEl,
-          sourcePanelEl,
-          statusEl,
-          topic,
-        });
-        return runtime;
-      }
-
-      resolvedNoteId = published.id;
-      viewTopicId = topicId;
-    }
-
-    if (!resolvedNoteId) {
+    if (!ctx) {
       statusEl.textContent = "No note found. Import a canonical note first.";
-      if (backlinksEl) {
-        backlinksEl.innerHTML = "";
-      }
       return null;
     }
 
-    const bundle = await loadCanonicalNoteBundle(resolvedNoteId);
+    if (ctx.error === "no_published") {
+      headerEl.innerHTML = `
+        <h2>${escapeHTML(ctx.topic?.name ?? "Topic")}</h2>
+        <div class="exam-subtitle">Canonical knowledge</div>
+      `;
+      tabsEl.classList.add("hidden");
+      contentEl.innerHTML =
+        '<p class="canonical-empty">No published variant available in this language yet.</p>';
+      if (ctx.topic?.id) {
+        await renderBacklinksForTopic(ctx.topic.id, backlinksEl, lang || "english");
+      }
+      statusEl.textContent = "";
+      return runtime;
+    }
 
-    if (!bundle?.note) {
+    if (ctx.error === "draft_unavailable") {
+      statusEl.textContent = "This draft is not available.";
+      return null;
+    }
+
+    if (ctx.error === "archived_unavailable") {
+      statusEl.textContent =
+        "This language variant was archived and is no longer available.";
+      return null;
+    }
+
+    const bundle = await loadVariantBundle(ctx.variant.id);
+
+    if (!bundle) {
       statusEl.textContent = "Note not found or not accessible.";
-      if (backlinksEl) {
-        backlinksEl.innerHTML = "";
+      return null;
+    }
+
+    const useDraft =
+      canUseDraftWorkspace(runtime, bundle.variant) &&
+      (isDraftModeRequested() || bundle.variant.status === "draft");
+
+    if (useDraft) {
+      const isTeacher = TEACHER_ROLES.includes(runtime.role);
+      if (languageTabsEl && (ctx.variants?.length ?? 0) > 1) {
+        renderLanguageTabs(
+          languageTabsEl,
+          ctx.variants,
+          ctx.variant.id,
+          isTeacher
+        );
+      } else if (languageTabsEl) {
+        languageTabsEl.classList.add("hidden");
       }
-      return null;
-    }
-
-    const useDraftWorkspace =
-      canUseDraftWorkspace(runtime, bundle.note) &&
-      (isDraftModeRequested() || bundle.note.status === "draft");
-
-    if (bundle.note.status === "draft" && !canUseDraftWorkspace(runtime, bundle.note)) {
-      statusEl.textContent = "This draft note is not available.";
-      return null;
-    }
-
-    if (useDraftWorkspace) {
       await initDraftWorkspace({
-        note: bundle.note,
+        variant: bundle.variant,
         toolbarEl,
         headerEl,
         tabsEl,
@@ -305,13 +360,17 @@ export async function bootNoteReader() {
 
     await bootPublishedReader({
       bundle,
+      variants: ctx.variants ?? [],
+      activeVariantId: ctx.variant.id,
       headerEl,
+      languageTabsEl,
       tabsEl,
       contentEl,
       backlinksEl,
       toolbarEl,
       sourcePanelEl,
       statusEl,
+      isTeacher: TEACHER_ROLES.includes(runtime.role),
     });
   } catch (err) {
     statusEl.textContent = err.message || "Failed to load note.";

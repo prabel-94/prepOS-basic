@@ -13,7 +13,11 @@ function escapeHTML(value = "") {
     .replaceAll("'", "&#039;");
 }
 
-function renderListContent(content, topicMap) {
+function linkOptions(renderOptions = {}) {
+  return { preferLanguage: renderOptions.preferLanguage ?? "english" };
+}
+
+function renderListContent(content, topicMap, renderOptions) {
   const lines = String(content ?? "")
     .split("\n")
     .map((l) => l.trim())
@@ -26,22 +30,22 @@ function renderListContent(content, topicMap) {
   const items = lines
     .map((line) => {
       const text = line.replace(/^\s*([-*•]|\d+[\.)])\s+/, "");
-      return `<li>${resolveTopicLinks(text, topicMap)}</li>`;
+      return `<li>${resolveTopicLinks(text, topicMap, linkOptions(renderOptions))}</li>`;
     })
     .join("");
 
   return `<ul class="canonical-list">${items}</ul>`;
 }
 
-function renderBlock(block, topicMap) {
+function renderBlock(block, topicMap, renderOptions) {
   const heading = block.heading
-    ? `<h${Math.min(Math.max(block.hierarchy_level || 3, 2), 4)} class="canonical-block-heading">${resolveTopicLinks(block.heading, topicMap)}</h${Math.min(Math.max(block.hierarchy_level || 3, 2), 4)}>`
+    ? `<h${Math.min(Math.max(block.hierarchy_level || 3, 2), 4)} class="canonical-block-heading">${resolveTopicLinks(block.heading, topicMap, linkOptions(renderOptions))}</h${Math.min(Math.max(block.hierarchy_level || 3, 2), 4)}>`
     : "";
 
   let body = "";
 
   if (block.block_type === "list") {
-    body = renderListContent(block.content, topicMap);
+    body = renderListContent(block.content, topicMap, renderOptions);
   } else if (block.content) {
     const paragraphs = String(block.content)
       .split(/\n{2,}/)
@@ -51,7 +55,7 @@ function renderBlock(block, topicMap) {
     body = paragraphs
       .map(
         (p) =>
-          `<p class="canonical-paragraph">${resolveTopicLinks(p, topicMap)}</p>`
+          `<p class="canonical-paragraph">${resolveTopicLinks(p, topicMap, linkOptions(renderOptions))}</p>`
       )
       .join("");
   }
@@ -67,7 +71,7 @@ function renderBlock(block, topicMap) {
 
   const open = block.metadata_json?.default_open === true;
   const summaryLabel = block.heading
-    ? resolveTopicLinks(block.heading, topicMap)
+    ? resolveTopicLinks(block.heading, topicMap, linkOptions(renderOptions))
     : escapeHTML(block.block_type);
 
   return `
@@ -78,20 +82,20 @@ function renderBlock(block, topicMap) {
   `;
 }
 
-function renderRepresentation(blocks = [], topicMap = {}, className) {
+function renderRepresentation(blocks = [], topicMap = {}, className, renderOptions = {}) {
   if (!blocks.length) {
     return `<p class="canonical-empty">No content in this representation.</p>`;
   }
 
   return `
     <section class="canonical-representation ${className}">
-      ${blocks.map((b) => renderBlock(b, topicMap)).join("")}
+      ${blocks.map((b) => renderBlock(b, topicMap, renderOptions)).join("")}
     </section>
   `;
 }
 
-export function renderNarrative(blocks, topicMap) {
-  return renderRepresentation(blocks, topicMap, "representation-narrative");
+export function renderNarrative(blocks, topicMap, renderOptions) {
+  return renderRepresentation(blocks, topicMap, "representation-narrative", renderOptions);
 }
 
 // ---------------------------------------------------------------------------
@@ -157,9 +161,9 @@ export function buildStructuralTree(blocks = []) {
   return root;
 }
 
-function renderStructuralContentBlock(block, topicMap) {
+function renderStructuralContentBlock(block, topicMap, renderOptions) {
   if (block.block_type === "list") {
-    return renderListContent(block.content, topicMap);
+    return renderListContent(block.content, topicMap, renderOptions);
   }
 
   if (!block.content?.trim()) {
@@ -172,7 +176,7 @@ function renderStructuralContentBlock(block, topicMap) {
     .filter(Boolean)
     .map(
       (p) =>
-        `<p class="canonical-paragraph structural-leaf">${resolveTopicLinks(p, topicMap)}</p>`
+        `<p class="canonical-paragraph structural-leaf">${resolveTopicLinks(p, topicMap, linkOptions(renderOptions))}</p>`
     )
     .join("");
 }
@@ -185,14 +189,14 @@ function isStructuralExpanded(nodeId, depth) {
   return depth === 0;
 }
 
-function renderStructuralSectionNode(node, topicMap, depth) {
+function renderStructuralSectionNode(node, topicMap, depth, renderOptions) {
   const expanded = isStructuralExpanded(node.id, depth);
   const indicator = expanded ? "▼" : "▶";
 
   const bodyParts = [
-    ...node.blocks.map((b) => renderStructuralContentBlock(b, topicMap)),
+    ...node.blocks.map((b) => renderStructuralContentBlock(b, topicMap, renderOptions)),
     ...node.children.map((child) =>
-      renderStructuralSectionNode(child, topicMap, depth + 1)
+      renderStructuralSectionNode(child, topicMap, depth + 1, renderOptions)
     ),
   ].filter(Boolean);
 
@@ -208,7 +212,7 @@ function renderStructuralSectionNode(node, topicMap, depth) {
         data-structural-id="${escapeHTML(node.id)}"
       >
         <span class="structural-indicator" aria-hidden="true">${indicator}</span>
-        <span class="structural-heading">${resolveTopicLinks(node.heading, topicMap)}</span>
+        <span class="structural-heading">${resolveTopicLinks(node.heading, topicMap, linkOptions(renderOptions))}</span>
       </button>
       <div
         id="structural-panel-${node.id}"
@@ -222,11 +226,11 @@ function renderStructuralSectionNode(node, topicMap, depth) {
   `;
 }
 
-export function renderStructuralSection(node, topicMap, depth = 0) {
-  return renderStructuralSectionNode(node, topicMap, depth);
+export function renderStructuralSection(node, topicMap, depth = 0, renderOptions) {
+  return renderStructuralSectionNode(node, topicMap, depth, renderOptions);
 }
 
-export function renderStructural(blocks, topicMap) {
+export function renderStructural(blocks, topicMap, renderOptions) {
   const sorted = sortBlocks(blocks);
 
   if (!sorted.length) {
@@ -239,17 +243,17 @@ export function renderStructural(blocks, topicMap) {
   if (tree.blocks.length) {
     parts.push(
       `<div class="structural-orphan-content">${tree.blocks
-        .map((b) => renderStructuralContentBlock(b, topicMap))
+        .map((b) => renderStructuralContentBlock(b, topicMap, renderOptions))
         .join("")}</div>`
     );
   }
 
   for (const child of tree.children) {
-    parts.push(renderStructuralSectionNode(child, topicMap, 0));
+    parts.push(renderStructuralSectionNode(child, topicMap, 0, renderOptions));
   }
 
   if (!parts.length) {
-    return renderRepresentation(sorted, topicMap, "representation-structural");
+    return renderRepresentation(sorted, topicMap, "representation-structural", renderOptions);
   }
 
   return `
@@ -296,16 +300,16 @@ export function bindStructuralCollapse(container) {
   });
 }
 
-export function renderRevision(blocks, topicMap) {
-  return renderRepresentation(blocks, topicMap, "representation-revision");
+export function renderRevision(blocks, topicMap, renderOptions) {
+  return renderRepresentation(blocks, topicMap, "representation-revision", renderOptions);
 }
 
-export function renderTimeline(blocks, topicMap) {
-  return renderRepresentation(blocks, topicMap, "representation-timeline");
+export function renderTimeline(blocks, topicMap, renderOptions) {
+  return renderRepresentation(blocks, topicMap, "representation-timeline", renderOptions);
 }
 
-export function renderInterpretations(blocks, topicMap) {
-  return renderRepresentation(blocks, topicMap, "representation-interpretations");
+export function renderInterpretations(blocks, topicMap, renderOptions) {
+  return renderRepresentation(blocks, topicMap, "representation-interpretations", renderOptions);
 }
 
 const RENDERERS = Object.freeze({
@@ -316,13 +320,13 @@ const RENDERERS = Object.freeze({
   interpretations: renderInterpretations,
 });
 
-export function renderRepresentationTab(key, representations, topicMap) {
+export function renderRepresentationTab(key, representations, topicMap, renderOptions = {}) {
   const renderer = RENDERERS[key];
   if (!renderer) {
     return "";
   }
 
-  return renderer(representations[key] ?? [], topicMap);
+  return renderer(representations[key] ?? [], topicMap, renderOptions);
 }
 
 export function getAvailableTabs(representations = {}) {

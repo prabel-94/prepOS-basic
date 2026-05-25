@@ -105,6 +105,8 @@ async function bootNoteImport() {
     markdownEl: document.getElementById("mapMarkdown"),
     sectionsEl: document.getElementById("detectedSections"),
     topicLinksEl: document.getElementById("detectedTopicLinks"),
+    variantsEl: document.getElementById("existingVariants"),
+    variantActionsEl: document.getElementById("variantActions"),
     statusEl: document.getElementById("importStatus"),
     topicId,
     titleEl,

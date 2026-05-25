@@ -108,6 +108,27 @@
       padding: 2px 8px;
       margin-right: 10px;
     }
+    .language-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 12px 0 4px;
+    }
+    .language-tab {
+      padding: 6px 14px;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: #334155;
+      background: #f8fafc;
+    }
+    .language-tab.active {
+      background: #1e293b;
+      color: #fff;
+      border-color: #1e293b;
+    }
     .draft-meta {
       margin-top: 8px;
       font-size: 0.875rem;
@@ -271,6 +292,8 @@
     <div class="exam-subtitle">Canonical knowledge reader</div>
   </div>
 
+  <div id="languageTabs" class="language-tabs hidden" role="navigation" aria-label="Language variants"></div>
+
   <div id="noteDraftToolbar" class="hidden" aria-label="Draft workspace actions"></div>
 
   <div id="representationTabs" role="tablist" aria-label="Representations"></div>
@@ -291,7 +314,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/config.js?v=20260520"></script>
 <script type="module" src="js/auth.js"></script>
-<script type="module" src="js/notes/note-reader.js?v=20260605"></script>
+<script type="module" src="js/notes/note-reader.js?v=20260607"></script>
 
 </body>
 </html>
