@@ -38,6 +38,28 @@ export async function fetchNoteById(noteId) {
   return note;
 }
 
+export async function fetchNoteSource(noteId) {
+  if (!noteId) {
+    return null;
+  }
+
+  const sb = await getClient();
+
+  const { data, error } = await sb
+    .from("note_sources")
+    .select("id, note_id, raw_markdown, source_type, created_at")
+    .eq("note_id", noteId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+}
+
 export async function fetchNoteBlocks(noteId) {
   const sb = await getClient();
 
