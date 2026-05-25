@@ -74,7 +74,7 @@ async function renderBacklinksForTopic(topicId, backlinksEl) {
   backlinksEl.innerHTML = renderReferencedInPanel(backlinks);
 }
 
-function showMissingPublishedNote({
+async function showMissingPublishedNote({
   headerEl,
   tabsEl,
   contentEl,
