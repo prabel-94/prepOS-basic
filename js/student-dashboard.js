@@ -25,6 +25,7 @@ import {
   bindExamStartActions,
   renderEmptyState,
 } from "./student/student-dashboard-renderer.js";
+import { loadTopicNotesSection } from "./notes/note-home.js";
 
 function startExam() {
   const id = document.getElementById("examId")?.value.trim();
@@ -61,6 +62,16 @@ async function initStudent() {
   });
 
   if (!runtime) return;
+
+  const topicNotesEl = document.getElementById("studentTopicNotes");
+
+  async function loadStudentTopicNotes() {
+    await loadTopicNotesSection(topicNotesEl, { role: "student" });
+    const { upgradeLegacyOnclickNav } = await import("./core/navigate.js");
+    if (topicNotesEl) {
+      upgradeLegacyOnclickNav(topicNotesEl);
+    }
+  }
 
   try {
     const intelligence = await loadStudentIntelligence();
@@ -100,6 +111,8 @@ async function initStudent() {
       "Weak topic insights are unavailable.",
       { variant: "error" }
     );
+  } finally {
+    await loadStudentTopicNotes();
   }
 }
 
