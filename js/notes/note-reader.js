@@ -2,7 +2,7 @@
  * Canonical note reader + draft workspace (variant-aware).
  */
 
-import { bootPage } from "./core/page-boot.js";
+import { bootPage } from "../core/page-boot.js";
 import { mountAppNav } from "../ui/app-nav.js";
 import { TEACHER_ROLES } from "../core/access.js";
 import { resolveAppPath } from "../core/access.js";
