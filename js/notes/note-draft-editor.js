@@ -2,15 +2,23 @@
  * Draft knowledge workspace — semantic markdown refinement (not WYSIWYG).
  */
 
-import { parseMapMarkdown } from "./map-parser.js";
 import { regenerateVariantFromMarkdown } from "./note-storage.js";
 import { confirmPublish, publishCanonicalVariant } from "./note-publish.js";
-import { fetchNoteSource, loadVariantBundle, buildTraversalTopicMap } from "./note-selectors.js";
+import { fetchNoteSource, loadVariantBundle } from "./note-selectors.js";
 import {
   bindStructuralCollapse,
   getAvailableTabs,
   renderRepresentationTab,
 } from "./note-renderer.js";
+import {
+  bindSemanticPreviewInteractions,
+  buildSemanticPreviewRenderOptions,
+  prepareDraftSemanticPreview,
+} from "../anchors/anchor-preview.js";
+import { renderSemanticStateSummary } from "../anchors/anchor-summary.js";
+import { runSemanticGovernanceAction } from "../anchors/anchor-governance.js";
+import { getClient } from "../core/get-client.js";
+import { closeModal } from "../ui/modal-system.js";
 import { resolveAppPath } from "../core/access.js";
 import { getLanguageLabel, normalizeLanguage } from "./note-variants.js";
 
@@ -38,14 +46,6 @@ function formatDate(value) {
   }
 }
 
-function parseForPreview(rawMarkdown) {
-  const markdown = String(rawMarkdown ?? "").trim();
-  if (!markdown) {
-    throw new Error("Semantic markdown is empty.");
-  }
-
-  return parseMapMarkdown(markdown);
-}
 
 /**
  * @param {object} options
@@ -73,12 +73,64 @@ export function initDraftWorkspace({
   let viewMode = "preview";
   let activeTab = "narrative";
   let previewParsed = null;
-  let previewTopicMap = {};
+  let previewSemanticMap = {};
+  let previewSummary = null;
+  let previewRenderOptions = { preferLanguage: normalizeLanguage(variant?.language) };
 
   const note = variant?.notes ?? {};
   const topicName = note?.topics?.name ?? note?.title ?? "Topic";
   const preferLanguage = normalizeLanguage(variant?.language);
-  const renderOptions = { preferLanguage };
+
+  const governanceContext = {
+    variantId: variant.id,
+    language: preferLanguage,
+    async apply(action, entry, extra = {}) {
+      const sb = await getClient();
+      const { data: sessionData } = await sb.auth.getSession();
+      const userId = sessionData?.session?.user?.id ?? null;
+
+      await runSemanticGovernanceAction(action, {
+        sb,
+        variantId: variant.id,
+        anchorId: entry.anchor_id,
+        sourceText: entry.source_text,
+        displayName: entry.display_name ?? entry.source_text,
+        language: preferLanguage,
+        userId,
+        noteAnchorLinkId: entry.note_anchor_link_id,
+        canonicalTopicId: extra.canonicalTopicId,
+      });
+
+      const inspector = document.getElementById("teacher-inspector-overlay");
+      if (inspector) {
+        closeModal(inspector);
+      }
+
+      await refreshSemanticPreview();
+      setStatus("Semantic state updated.");
+    },
+  };
+
+  async function refreshSemanticPreview() {
+    if (viewMode !== "preview") {
+      return;
+    }
+
+    const preview = await prepareDraftSemanticPreview(sourceEditorEl?.value ?? "", {
+      language: preferLanguage,
+      title: variant.title,
+      variantId: variant.id,
+    });
+
+    previewParsed = preview.parsed;
+    previewSemanticMap = preview.semanticMap;
+    previewSummary = preview.summary ?? null;
+    previewRenderOptions = buildSemanticPreviewRenderOptions(previewSemanticMap, {
+      preferLanguage,
+    });
+
+    renderPreviewTabs(previewParsed.representations, previewRenderOptions);
+  }
 
   function setStatus(message, isError = false) {
     if (!statusEl) {
@@ -162,8 +214,10 @@ export function initDraftWorkspace({
 
     if (!tabs.length) {
       tabsEl.innerHTML = "";
-      contentEl.innerHTML =
-        '<p class="canonical-empty">No representation blocks in preview. Check section anchors.</p>';
+      const summaryHtml = previewSummary
+        ? renderSemanticStateSummary(previewSummary)
+        : "";
+      contentEl.innerHTML = `${summaryHtml}<p class="canonical-empty">No representation blocks in preview. Check section anchors.</p>`;
       return;
     }
 
@@ -197,25 +251,48 @@ export function initDraftWorkspace({
     }
 
     const representations = previewParsed.representations ?? {};
-    contentEl.innerHTML = renderRepresentationTab(
+    const summaryHtml = previewSummary
+      ? renderSemanticStateSummary(previewSummary)
+      : "";
+    const representationHtml = renderRepresentationTab(
       activeTab,
       representations,
-      previewTopicMap,
-      renderOptions
+      {},
+      previewRenderOptions
     );
+
+    contentEl.innerHTML = `${summaryHtml}${representationHtml}`;
 
     if (activeTab === "structural") {
       bindStructuralCollapse(contentEl);
     }
+
+    bindSemanticPreviewInteractions(contentEl, {
+      semanticMap: previewSemanticMap,
+      preferLanguage,
+      governanceContext,
+    });
   }
 
-  function showPreviewMode() {
+  async function showPreviewMode() {
     viewMode = "preview";
     setToolbarActive("preview");
 
     try {
-      previewParsed = parseForPreview(sourceEditorEl?.value ?? "");
-      previewTopicMap = buildTraversalTopicMap(previewParsed.topic_links ?? []);
+      setStatus("Building semantic preview…");
+
+      const preview = await prepareDraftSemanticPreview(sourceEditorEl?.value ?? "", {
+        language: preferLanguage,
+        title: variant.title,
+        variantId: variant.id,
+      });
+
+      previewParsed = preview.parsed;
+      previewSemanticMap = preview.semanticMap;
+      previewSummary = preview.summary ?? null;
+      previewRenderOptions = buildSemanticPreviewRenderOptions(previewSemanticMap, {
+        preferLanguage,
+      });
 
       if (sourcePanelEl) {
         sourcePanelEl.classList.add("hidden");
@@ -229,8 +306,8 @@ export function initDraftWorkspace({
         contentEl.classList.remove("hidden");
       }
 
-      renderPreviewTabs(previewParsed.representations, renderOptions);
-      setStatus("Preview from current source (not saved).");
+      renderPreviewTabs(previewParsed.representations, previewRenderOptions);
+      setStatus("Semantic preview (not saved). Click anchors to inspect.");
     } catch (err) {
       setStatus(err.message || "Preview failed.", true);
     }
@@ -254,10 +331,8 @@ export function initDraftWorkspace({
         renderDraftHeader();
       }
 
-      previewParsed = parseForPreview(sourceEditorEl?.value ?? "");
-      previewTopicMap = bundle?.topicMap ?? {};
       setStatus("Draft saved. Blocks and topic links regenerated.");
-      showPreviewMode();
+      await showPreviewMode();
     } catch (err) {
       setStatus(err.message || "Save failed. Source was not replaced.", true);
     }

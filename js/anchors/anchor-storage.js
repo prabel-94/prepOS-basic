@@ -237,6 +237,15 @@ export async function syncVariantAnchorLinks(
     language,
   });
 
+  const { data: existingLinks } = await sb
+    .from("note_anchor_links")
+    .select("id, anchor_id, state, source_text")
+    .eq("variant_id", variantId);
+
+  const existingByAnchor = new Map(
+    (existingLinks ?? []).map((link) => [link.anchor_id, link])
+  );
+
   const { error: deleteError } = await sb
     .from("note_anchor_links")
     .delete()
@@ -263,10 +272,19 @@ export async function syncVariantAnchorLinks(
       anchorId = anchor.id;
     }
 
+    const preserved = existingByAnchor.get(anchorId);
+    const state =
+      preserved?.state ??
+      (candidate.state === NOTE_ANCHOR_STATES.CANDIDATE
+        ? NOTE_ANCHOR_STATES.CANDIDATE
+        : candidate.state === NOTE_ANCHOR_STATES.DORMANT
+          ? NOTE_ANCHOR_STATES.DORMANT
+          : NOTE_ANCHOR_STATES.ACTIVE);
+
     rows.push({
       variant_id: variantId,
       anchor_id: anchorId,
-      state: candidate.state,
+      state,
       source_text: candidate.source_text,
       block_key: candidate.block_key,
     });
