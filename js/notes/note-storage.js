@@ -10,6 +10,11 @@ import {
   buildTopicLinkRows,
   resolveTopicNamesForStorage,
 } from "./note-topic-links.js";
+import { attachSemanticCandidates } from "../anchors/anchor-candidates.js";
+import {
+  clearVariantAnchorLinks,
+  syncVariantAnchorLinks,
+} from "../anchors/anchor-storage.js";
 
 const REPRESENTATION_TYPES = [
   "narrative",
@@ -320,13 +325,35 @@ async function insertBlocksAndLinks(sb, variantId, parsed) {
     }
   }
 
+  let anchorLinkCount = 0;
+
+  try {
+    const { data: sessionData } = await sb.auth.getSession();
+    const userId = sessionData?.session?.user?.id ?? null;
+    const language = parsed?.variant?.language ?? parsed?.metadata?.language ?? "english";
+    const anchorResult = await syncVariantAnchorLinks(sb, variantId, parsed, {
+      language,
+      userId,
+    });
+    anchorLinkCount = anchorResult.anchorLinkCount ?? 0;
+  } catch (anchorErr) {
+    console.warn("note_anchor_links sync:", anchorErr.message);
+  }
+
   return {
     blockCount,
     topicLinkCount: linkRows.length,
+    anchorLinkCount,
   };
 }
 
 async function clearDerivedStructures(sb, variantId) {
+  try {
+    await clearVariantAnchorLinks(sb, variantId);
+  } catch (anchorClearErr) {
+    console.warn("note_anchor_links clear:", anchorClearErr.message);
+  }
+
   const { error: linksError } = await sb
     .from("note_topic_links")
     .delete()
@@ -364,7 +391,9 @@ export async function regenerateVariantFromMarkdown({
   let parsed;
 
   try {
-    parsed = parseMapMarkdown(markdown, { language, title });
+    parsed = attachSemanticCandidates(
+      parseMapMarkdown(markdown, { language, title })
+    );
     validateParsed(parsed, markdown);
   } catch (err) {
     throw new Error(err.message || "Failed to parse semantic markdown.");
@@ -464,10 +493,12 @@ export async function saveNoteVariant({
   let parsedValidated;
 
   try {
-    parsedValidated = parseMapMarkdown(markdown, {
-      language: normalized,
-      title: meta.title,
-    });
+    parsedValidated = attachSemanticCandidates(
+      parseMapMarkdown(markdown, {
+        language: normalized,
+        title: meta.title,
+      })
+    );
     validateParsed(parsedValidated, markdown);
   } catch (err) {
     throw new Error(err.message || "Failed to parse semantic markdown.");
