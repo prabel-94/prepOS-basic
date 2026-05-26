@@ -3,7 +3,10 @@
  */
 
 import { regenerateVariantFromMarkdown } from "./note-storage.js";
-import { confirmPublish, publishCanonicalVariant } from "./note-publish.js";
+import {
+  beginSemanticPublishReview,
+  publishCanonicalVariant,
+} from "./note-publish.js";
 import { fetchNoteSource, loadVariantBundle } from "./note-selectors.js";
 import {
   bindStructuralCollapse,
@@ -339,24 +342,38 @@ export function initDraftWorkspace({
   }
 
   async function handlePublish() {
-    if (!confirmPublish()) {
-      return;
-    }
-
     try {
-      setStatus("Publishing…");
+      setStatus("Preparing semantic publish review…");
 
-      await publishCanonicalVariant(variant.id, {
+      await beginSemanticPublishReview({
+        variant,
         rawMarkdown: sourceEditorEl?.value ?? "",
         title: variant.title,
         language: variant.language,
-      });
+        onReturn: () => {
+          setStatus("Returned to draft. Publish when ready.");
+        },
+        onPublish: async () => {
+          const overlay = document.getElementById("semantic-publish-review-overlay");
+          if (overlay) {
+            closeModal(overlay);
+          }
 
-      window.location.href = resolveAppPath(
-        `note.html?variant=${encodeURIComponent(variant.id)}`
-      );
+          setStatus("Publishing…");
+
+          await publishCanonicalVariant(variant.id, {
+            rawMarkdown: sourceEditorEl?.value ?? "",
+            title: variant.title,
+            language: variant.language,
+          });
+
+          window.location.href = resolveAppPath(
+            `note.html?variant=${encodeURIComponent(variant.id)}`
+          );
+        },
+      });
     } catch (err) {
-      setStatus(err.message || "Publish failed.", true);
+      setStatus(err.message || "Publish review failed.", true);
     }
   }
 

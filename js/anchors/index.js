@@ -12,3 +12,7 @@ export * from "./anchor-renderer.js";
 export * from "./anchor-preview.js";
 export * from "./anchor-summary.js";
 export * from "./anchor-governance.js";
+export * from "./anchor-publish-review.js";
+export * from "./anchor-note-renderer.js";
+export * from "./anchor-note-editor.js";
+export * from "./anchor-student-reader.js";

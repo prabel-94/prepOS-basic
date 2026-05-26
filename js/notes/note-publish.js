@@ -5,6 +5,12 @@
 import { getClient } from "../core/get-client.js";
 import { regenerateVariantFromMarkdown } from "./note-storage.js";
 import { ARCHIVE_RETENTION_DAYS } from "./note-variants.js";
+import {
+  buildSemanticPublishReview,
+  openSemanticPublishReview,
+  openSemanticPublishReviewForDraft,
+} from "../anchors/anchor-publish-review.js";
+import { prepareDraftSemanticPreview } from "../anchors/anchor-preview.js";
 
 const PUBLISH_CONFIRM_MESSAGE =
   `Publish this language variant?\n\nThe previous published version in this language will be archived for ${ARCHIVE_RETENTION_DAYS} days, then removed automatically. Students will see this version.`;
@@ -108,3 +114,54 @@ export async function publishCanonicalNote(variantId, options = {}) {
 export function confirmPublish() {
   return window.confirm(PUBLISH_CONFIRM_MESSAGE);
 }
+
+/**
+ * Build advisory semantic publish review from draft markdown (no blocking).
+ */
+export async function buildPublishReviewFromDraft({
+  variant,
+  rawMarkdown,
+  title,
+  language,
+} = {}) {
+  const preview = await prepareDraftSemanticPreview(rawMarkdown, {
+    language,
+    title,
+    variantId: variant?.id,
+  });
+
+  return buildSemanticPublishReview({
+    resolvedCandidates: preview.resolvedCandidates,
+    summary: preview.summary,
+    variant,
+    semanticMap: preview.semanticMap,
+  });
+}
+
+/**
+ * Publish flow: semantic review modal → teacher confirms → publish.
+ * Publishing is never blocked by semantic state.
+ */
+export async function beginSemanticPublishReview({
+  variant,
+  rawMarkdown,
+  title,
+  language,
+  onReturn,
+  onPublish,
+} = {}) {
+  return openSemanticPublishReviewForDraft({
+    variant,
+    rawMarkdown,
+    title,
+    language,
+    onReturn,
+    onPublish,
+  });
+}
+
+export {
+  buildSemanticPublishReview,
+  openSemanticPublishReview,
+  openSemanticPublishReviewForDraft,
+};

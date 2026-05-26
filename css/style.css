@@ -2143,3 +2143,155 @@ PREPOS SIDE PANEL OVERLAYS
   background: #eef2ff;
   border-color: var(--primary);
 }
+
+/* Semantic publish review (advisory) */
+.semantic-publish-review {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.semantic-publish-review-modal {
+  max-width: min(560px, 100%);
+}
+
+.semantic-review-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.semantic-review-title {
+  font-weight: 600;
+}
+
+.semantic-review-list {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.semantic-review-list .semantic-review-more {
+  list-style: none;
+  margin-left: -18px;
+  padding-left: 18px;
+  opacity: 0.75;
+  font-size: 0.9rem;
+}
+
+.semantic-review-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.semantic-review-note {
+  opacity: 0.82;
+  font-size: 0.92rem;
+  margin: 0;
+}
+
+/* Anchor note cognition (inspector + editor) */
+.anchor-inspector-section {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.anchor-inspector-section:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+.anchor-inspector-section-title {
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.72;
+  margin: 0 0 10px;
+}
+
+.anchor-note-body {
+  line-height: 1.6;
+  font-size: 0.96rem;
+}
+
+.anchor-note-body .anchor-note-paragraph {
+  margin: 0 0 0.75em;
+}
+
+.anchor-note-body .anchor-note-list {
+  margin: 0 0 0.75em;
+  padding-left: 1.25em;
+}
+
+.anchor-note-empty {
+  opacity: 0.72;
+  font-style: italic;
+  margin: 0;
+}
+
+.anchor-note-unresolved {
+  opacity: 0.65;
+  font-style: italic;
+}
+
+.anchor-note-editor textarea,
+.anchor-note-editor-input {
+  min-height: 220px;
+  width: 100%;
+  font: inherit;
+  line-height: 1.5;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  padding: 10px 12px;
+  resize: vertical;
+}
+
+.anchor-note-editor-preview {
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-top: 8px;
+  min-height: 48px;
+}
+
+.anchor-inspector-canonical-hint {
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+/* Student semantic reading (published cognition layer) */
+.student-anchor-inspector .student-anchor-inspector-title {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.student-anchor-inspector + .anchor-inspector-section {
+  border-top: none;
+  margin-top: 8px;
+  padding-top: 0;
+}
+
+#teacher-inspector-overlay .teacher-intel-inspector-content {
+  max-width: min(480px, 100%);
+}
+
+@media (max-width: 640px) {
+  #teacher-inspector-overlay .prepos-modal-content {
+    margin: 12px;
+    max-height: calc(100vh - 24px);
+    overflow-y: auto;
+  }
+
+  #teacher-inspector-overlay .teacher-intel-inspector-body {
+    max-height: none;
+  }
+
+  .anchor-note-body {
+    font-size: 0.94rem;
+  }
+}

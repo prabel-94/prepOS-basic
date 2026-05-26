@@ -27,6 +27,11 @@ import {
   getLanguageLabel,
   normalizeLanguage,
 } from "./note-variants.js";
+import {
+  bindStudentSemanticReading,
+  buildStudentSemanticRenderOptions,
+  preparePublishedStudentSemanticMap,
+} from "../anchors/anchor-student-reader.js";
 
 function getQueryParam(key) {
   return new URLSearchParams(window.location.search).get(key);
@@ -122,6 +127,7 @@ async function bootPublishedReader({
   sourcePanelEl,
   statusEl,
   isTeacher,
+  isStudent,
 }) {
   if (toolbarEl) {
     toolbarEl.classList.add("hidden");
@@ -151,7 +157,19 @@ async function bootPublishedReader({
 
   const tabs = getAvailableTabs(bundle.representations);
   let activeTab = tabs[0]?.key ?? "narrative";
-  const renderOptions = { preferLanguage };
+
+  let renderOptions = { preferLanguage };
+  let studentSemanticMap = null;
+
+  if (isStudent) {
+    studentSemanticMap = await preparePublishedStudentSemanticMap(
+      bundle.variant.id,
+      preferLanguage
+    );
+    renderOptions = buildStudentSemanticRenderOptions(studentSemanticMap, {
+      preferLanguage,
+    });
+  }
 
   function renderActiveTab() {
     contentEl.classList.remove("hidden");
@@ -164,6 +182,13 @@ async function bootPublishedReader({
 
     if (activeTab === "structural") {
       bindStructuralCollapse(contentEl);
+    }
+
+    if (isStudent && studentSemanticMap) {
+      bindStudentSemanticReading(contentEl, {
+        semanticMap: studentSemanticMap,
+        preferLanguage,
+      });
     }
   }
 
@@ -371,6 +396,7 @@ export async function bootNoteReader() {
       sourcePanelEl,
       statusEl,
       isTeacher: TEACHER_ROLES.includes(runtime.role),
+      isStudent: runtime.role === "student",
     });
   } catch (err) {
     statusEl.textContent = err.message || "Failed to load note.";

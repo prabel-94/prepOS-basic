@@ -92,6 +92,101 @@ export async function createAnchorVariant(
   return data;
 }
 
+export async function ensureAnchorVariantForLanguage(
+  sb,
+  { anchorId, language = "english", displayName } = {}
+) {
+  if (!anchorId) {
+    throw new Error("anchorId is required.");
+  }
+
+  const lang = normalizeLanguage(language);
+
+  const { data: existing, error: fetchError } = await sb
+    .from("anchor_variants")
+    .select("id, anchor_id, language, display_name, normalized_name, status")
+    .eq("anchor_id", anchorId)
+    .eq("language", lang)
+    .eq("status", ANCHOR_VARIANT_STATUSES.ACTIVE)
+    .maybeSingle();
+
+  if (fetchError) {
+    throw new Error(fetchError.message);
+  }
+
+  if (existing?.id) {
+    return existing;
+  }
+
+  return createAnchorVariant(sb, {
+    anchorId,
+    language: lang,
+    displayName: displayName ?? "Anchor",
+  });
+}
+
+export async function fetchActiveAnchorNote(sb, anchorVariantId) {
+  if (!anchorVariantId) {
+    return null;
+  }
+
+  const { data, error } = await sb
+    .from("anchor_notes")
+    .select(
+      "id, anchor_variant_id, note_content, note_format, version, status, created_at, updated_at"
+    )
+    .eq("anchor_variant_id", anchorVariantId)
+    .eq("status", ANCHOR_NOTE_STATUSES.ACTIVE)
+    .order("version", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+}
+
+/**
+ * Archive prior active note and insert new version.
+ */
+export async function saveAnchorNoteWithVersion(
+  sb,
+  { anchorVariantId, noteContent, noteFormat = "markdown" } = {}
+) {
+  if (!anchorVariantId) {
+    throw new Error("anchorVariantId is required.");
+  }
+
+  const content = String(noteContent ?? "").trim();
+  if (!content) {
+    throw new Error("noteContent is required.");
+  }
+
+  const existing = await fetchActiveAnchorNote(sb, anchorVariantId);
+  const nextVersion = (existing?.version ?? 0) + 1;
+
+  if (existing?.id) {
+    const { error: archiveError } = await sb
+      .from("anchor_notes")
+      .update({ status: ANCHOR_NOTE_STATUSES.ARCHIVED })
+      .eq("id", existing.id);
+
+    if (archiveError) {
+      throw new Error(archiveError.message);
+    }
+  }
+
+  return createAnchorNote(sb, {
+    anchorVariantId,
+    noteContent: content,
+    noteFormat,
+    version: nextVersion,
+    status: ANCHOR_NOTE_STATUSES.ACTIVE,
+  });
+}
+
 export async function createAnchorNote(
   sb,
   {

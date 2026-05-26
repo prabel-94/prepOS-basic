@@ -66,6 +66,26 @@ export function lookupSemanticEntry(semanticMap, label) {
   return null;
 }
 
+/**
+ * Restrict anchor-note [[...]] map to student-visible anchors only.
+ */
+export function filterNoteLinkMapForStudent(noteLinkMap = {}, studentSemanticMap = {}) {
+  const filtered = {};
+
+  for (const [key, entry] of Object.entries(noteLinkMap)) {
+    if (!entry?.anchor_id) {
+      continue;
+    }
+
+    const visible = lookupSemanticEntry(studentSemanticMap, key);
+    if (visible?.anchor_id) {
+      filtered[key] = entry;
+    }
+  }
+
+  return filtered;
+}
+
 function anchorTag(options = {}) {
   return options.anchorElement === "span" ? "span" : "button";
 }
@@ -159,10 +179,22 @@ function renderDormantAnchor(entry, display) {
   return `<span ${attrs.join(" ")}>${escapeHTML(display)}</span>`;
 }
 
+function renderPlainSemanticLabel(entry, label) {
+  return escapeHTML(entry?.display_name ?? label);
+}
+
 function renderSemanticToken(entry, label, options) {
   const interactive = options.interactive !== false;
   const display = entry.display_name ?? label;
   const state = entry.state ?? "existing";
+
+  if (options.studentMode) {
+    if (state === "dormant" || state === "candidate") {
+      return renderPlainSemanticLabel(entry, label);
+    }
+
+    return renderExistingAnchor(entry, display, interactive, options);
+  }
 
   switch (state) {
     case "dormant":
@@ -182,7 +214,7 @@ function renderSemanticToken(entry, label, options) {
  *
  * @param {string} text
  * @param {Record<string, object>} semanticMap
- * @param {{ interactive?: boolean, previewMode?: boolean }} [options]
+ * @param {{ interactive?: boolean, previewMode?: boolean, studentMode?: boolean }} [options]
  * @returns {string}
  */
 export function renderSemanticAnchors(text, semanticMap = {}, options = {}) {

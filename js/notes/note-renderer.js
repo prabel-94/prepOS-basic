@@ -19,13 +19,23 @@ function linkOptions(renderOptions = {}) {
 }
 
 /**
- * Draft preview uses semantic anchors; published reader keeps topic links.
+ * Draft preview uses semantic anchors; published students use student semantic map.
+ * Teachers on published notes keep topic traversal links.
  */
 function resolveInlineSemantics(text, topicMap, renderOptions = {}) {
+  if (renderOptions.studentSemanticMode && renderOptions.semanticMap) {
+    return renderSemanticAnchors(text, renderOptions.semanticMap, {
+      interactive: renderOptions.semanticInteractive !== false,
+      studentMode: true,
+      anchorElement: renderOptions.semanticAnchorElement ?? "button",
+    });
+  }
+
   if (renderOptions.semanticPreview && renderOptions.semanticMap) {
     return renderSemanticAnchors(text, renderOptions.semanticMap, {
       interactive: renderOptions.semanticInteractive !== false,
       previewMode: renderOptions.previewMode !== false,
+      studentMode: renderOptions.studentMode === true,
       anchorElement: renderOptions.semanticAnchorElement ?? "button",
     });
   }

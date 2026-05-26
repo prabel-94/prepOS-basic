@@ -3,6 +3,7 @@
  */
 
 import { normalizeAnchorName } from "./anchor-normalization.js";
+import { extractWikiLinkNames } from "./anchor-note-renderer.js";
 
 function uniqueNormalized(names = []) {
   const seen = new Set();
@@ -267,6 +268,114 @@ export async function searchTopicsForCanonical(sb, query = "", limit = 20) {
   }
 
   return data ?? [];
+}
+
+/**
+ * Traversal map for [[...]] inside anchor notes (inspector gateway only).
+ */
+export async function buildAnchorNoteLinkMap(sb, markdown = "", language = "english") {
+  const names = extractWikiLinkNames(markdown);
+
+  if (!names.length) {
+    return {};
+  }
+
+  const normalizedList = names.map((n) => normalizeAnchorName(n));
+  const [anchors, variants] = await Promise.all([
+    fetchAnchorsByNormalizedNames(sb, normalizedList),
+    fetchAnchorVariantsByNormalizedNames(sb, normalizedList, language),
+  ]);
+
+  const map = {};
+
+  for (const anchor of anchors) {
+    const key = anchor.normalized_name;
+    map[key] = {
+      anchor_id: anchor.id,
+      display_name: key,
+      normalized_name: key,
+      anchor_type: anchor.anchor_type,
+      canonical_topic_id: anchor.canonical_topic_id,
+    };
+  }
+
+  for (const variant of variants) {
+    const key = variant.normalized_name;
+    const anchor = variant.anchors ?? {};
+
+    if (!map[key]) {
+      map[key] = {
+        anchor_id: variant.anchor_id,
+        display_name: variant.display_name,
+        normalized_name: key,
+        anchor_type: anchor.anchor_type ?? null,
+        canonical_topic_id: anchor.canonical_topic_id ?? null,
+      };
+    }
+  }
+
+  for (const name of names) {
+    const key = normalizeAnchorName(name);
+    if (!map[key]) {
+      continue;
+    }
+    map[name] = map[key];
+  }
+
+  return map;
+}
+
+/**
+ * Load anchor + variant + note for inspector rendering.
+ */
+export async function loadAnchorInspectorPayload(
+  sb,
+  semanticEntry = {},
+  { preferLanguage = "english" } = {}
+) {
+  const anchorId = semanticEntry.anchor_id;
+  if (!anchorId) {
+    return {
+      semanticEntry,
+      anchor: null,
+      variant: null,
+      note: null,
+      noteLinkMap: {},
+    };
+  }
+
+  const { ensureAnchorVariantForLanguage, fetchActiveAnchorNote } = await import(
+    "./anchor-storage.js"
+  );
+
+  const language = preferLanguage ?? "english";
+  const variant = await ensureAnchorVariantForLanguage(sb, {
+    anchorId,
+    language,
+    displayName: semanticEntry.display_name ?? semanticEntry.source_text,
+  });
+
+  const anchor = await fetchAnchorById(sb, anchorId);
+  const note = await fetchActiveAnchorNote(sb, variant.id);
+  const noteLinkMap = note?.note_content
+    ? await buildAnchorNoteLinkMap(sb, note.note_content, language)
+    : {};
+
+  return {
+    semanticEntry: {
+      ...semanticEntry,
+      anchor_id: anchorId,
+      anchor_variant_id: variant.id,
+      anchor_type: anchor?.anchor_type ?? semanticEntry.anchor_type,
+      canonical_topic_id:
+        anchor?.canonical_topic_id ?? semanticEntry.canonical_topic_id,
+      display_name: variant.display_name ?? semanticEntry.display_name,
+    },
+    anchor,
+    variant,
+    note,
+    noteLinkMap,
+  };
 }
 
 export async function fetchAnchorById(sb, anchorId) {
