@@ -7,8 +7,15 @@ import { openModal, closeModal } from "./modal-system.js";
 import { resolveAppPath } from "../core/access.js";
 import { getClient } from "../core/get-client.js";
 import { GOVERNANCE_ACTIONS } from "../anchors/anchor-governance.js";
-import { searchTopicsForCanonical } from "../anchors/anchor-selectors.js";
+import { openAnchorNoteEditor } from "../anchors/anchor-note-editor.js";
+import { renderAnchorNote } from "../anchors/anchor-note-renderer.js";
+import {
+  loadAnchorInspectorPayload,
+  searchTopicsForCanonical,
+} from "../anchors/anchor-selectors.js";
 import { ANCHOR_TYPES } from "../anchors/anchor-types.js";
+import { filterNoteLinkMapForStudent } from "../anchors/anchor-renderer.js";
+import { getLanguageLabel } from "../notes/note-variants.js";
 
 const INSPECTOR_LABELS = {
   "mastery-inspector": "Mastery Inspector",
@@ -423,29 +430,133 @@ function renderGovernanceActions(buttons = []) {
   `;
 }
 
+function resolveCanEditAnchorNote(options = {}) {
+  if (typeof options.canEditAnchorNote === "boolean") {
+    return options.canEditAnchorNote;
+  }
+
+  return Boolean(options.governanceContext);
+}
+
+function renderAnchorNoteSection(
+  note,
+  noteLinkMap = {},
+  { canEditAnchorNote = false } = {}
+) {
+  const content = String(note?.note_content ?? "").trim();
+
+  if (content) {
+    return `
+      <section class="anchor-inspector-section">
+        <h3 class="anchor-inspector-section-title">Anchor note</h3>
+        <div class="anchor-note-body">${renderAnchorNote(content, noteLinkMap)}</div>
+      </section>
+    `;
+  }
+
+  if (!canEditAnchorNote) {
+    return "";
+  }
+
+  return `
+    <section class="anchor-inspector-section">
+      <h3 class="anchor-inspector-section-title">Anchor note</h3>
+      <p class="anchor-note-empty">No anchor note written yet.</p>
+      <button type="button" class="primary-btn mt-10" data-anchor-note-edit>Create Anchor Note</button>
+    </section>
+  `;
+}
+
+function renderCanonicalTopicSection(topicId, preferLanguage) {
+  if (!topicId) {
+    return "";
+  }
+
+  const href = resolveAppPath(
+    `note.html?topic=${encodeURIComponent(topicId)}&lang=${encodeURIComponent(preferLanguage)}`
+  );
+
+  return `
+    <section class="anchor-inspector-section">
+      <h3 class="anchor-inspector-section-title">Canonical topic</h3>
+      <p class="text-muted anchor-inspector-canonical-hint">
+        Open the deep structured topic note after reviewing this anchor cognition layer.
+      </p>
+      <a class="primary-btn mt-10" href="${escapeHTML(href)}">Open canonical note</a>
+    </section>
+  `;
+}
+
 /**
- * Active / canonical anchor inspector (draft semantic preview).
+ * Student read-only anchor cognition inspector (no governance metadata).
  */
-export function renderAnchorInspector(semanticEntry = {}, { preferLanguage = "english" } = {}) {
+export function renderStudentAnchorInspector(
+  payload = {},
+  { preferLanguage = "english", studentSemanticMap = null } = {}
+) {
+  const semanticEntry = payload.semanticEntry ?? payload;
+  const note = payload.note ?? null;
+  let noteLinkMap = payload.noteLinkMap ?? {};
+
+  if (studentSemanticMap) {
+    noteLinkMap = filterNoteLinkMapForStudent(noteLinkMap, studentSemanticMap);
+  }
+
+  const displayName =
+    semanticEntry.display_name ?? semanticEntry.source_text ?? "Anchor";
+  const topicId = semanticEntry.canonical_topic_id;
+  const noteContent = String(note?.note_content ?? "").trim();
+
+  return `
+    <section class="anchor-inspector-section anchor-inspector-header student-anchor-inspector">
+      <p class="teacher-intel-inspector-lead student-anchor-inspector-title">${escapeHTML(displayName)}</p>
+    </section>
+    ${
+      noteContent
+        ? `
+      <section class="anchor-inspector-section">
+        <div class="anchor-note-body">${renderAnchorNote(noteContent, noteLinkMap)}</div>
+      </section>
+    `
+        : ""
+    }
+    ${renderCanonicalTopicSection(topicId, preferLanguage)}
+  `;
+}
+
+/**
+ * Active / canonical anchor inspector body (anchor note reading + governance).
+ */
+export function renderAnchorInspector(
+  payload = {},
+  {
+    preferLanguage = "english",
+    canEditAnchorNote = false,
+    studentMode = false,
+    studentSemanticMap = null,
+  } = {}
+) {
+  if (studentMode) {
+    return renderStudentAnchorInspector(payload, { preferLanguage, studentSemanticMap });
+  }
+  const semanticEntry = payload.semanticEntry ?? payload;
+  const note = payload.note ?? null;
+  const noteLinkMap = payload.noteLinkMap ?? {};
+
   const displayName =
     semanticEntry.display_name ?? semanticEntry.source_text ?? "Anchor";
   const anchorType = semanticEntry.anchor_type ?? "—";
-  const visualState = semanticEntry.state ?? semanticEntry.anchor_state ?? "existing";
-  const resolution = semanticEntry.resolution ?? "—";
   const topicId = semanticEntry.canonical_topic_id;
   const isMicro = anchorType !== ANCHOR_TYPES.CANONICAL;
+  const hasNote = Boolean(String(note?.note_content ?? "").trim());
 
-  const canonicalNoteButton = topicId
-    ? `<a class="primary-btn mt-10" href="${escapeHTML(
-        resolveAppPath(
-          `note.html?topic=${encodeURIComponent(topicId)}&lang=${encodeURIComponent(preferLanguage)}`
-        )
-      )}">Open canonical topic note</a>`
-    : "";
+  const governanceButtons = [];
 
-  const governanceButtons = [
-    `<button type="button" class="secondary-btn" data-governance-action="${GOVERNANCE_ACTIONS.DEACTIVATE}">De-anchor</button>`,
-  ];
+  if (hasNote && canEditAnchorNote) {
+    governanceButtons.push(
+      `<button type="button" class="secondary-btn" data-anchor-note-edit>Edit Anchor Note</button>`
+    );
+  }
 
   if (isMicro) {
     governanceButtons.push(
@@ -453,23 +564,25 @@ export function renderAnchorInspector(semanticEntry = {}, { preferLanguage = "en
     );
   }
 
+  governanceButtons.push(
+    `<button type="button" class="secondary-btn" data-governance-action="${GOVERNANCE_ACTIONS.DEACTIVATE}">De-anchor</button>`
+  );
+
   return `
-    <p class="teacher-intel-inspector-lead">${escapeHTML(displayName)}</p>
-    ${renderDetailRows([
-      { label: "Visual state", value: formatAnchorStateLabel(visualState) },
-      { label: "Anchor type", value: formatAnchorStateLabel(anchorType) },
-      { label: "Resolution", value: formatAnchorStateLabel(resolution) },
-      { label: "Note link state", value: semanticEntry.note_anchor_state },
-      { label: "Anchor ID", value: semanticEntry.anchor_id },
-      { label: "Canonical topic", value: topicId },
-      { label: "Source text", value: semanticEntry.source_text },
-      { label: "Block", value: semanticEntry.block_key },
-    ])}
-    ${renderGovernanceActions(governanceButtons)}
-    <p class="text-muted teacher-intel-inspector-note mt-10">
-      Anchor note editing and relationships arrive in a later phase.
-    </p>
-    ${canonicalNoteButton}
+    <section class="anchor-inspector-section anchor-inspector-header">
+      <h3 class="anchor-inspector-section-title">Anchor</h3>
+      <p class="teacher-intel-inspector-lead">${escapeHTML(displayName)}</p>
+      ${renderDetailRows([
+        { label: "Anchor type", value: formatAnchorStateLabel(anchorType) },
+        { label: "Language", value: getLanguageLabel(preferLanguage) },
+      ])}
+    </section>
+    ${renderAnchorNoteSection(note, noteLinkMap, { canEditAnchorNote })}
+    ${renderCanonicalTopicSection(topicId, preferLanguage)}
+    <section class="anchor-inspector-section">
+      <h3 class="anchor-inspector-section-title">Editorial actions</h3>
+      ${renderGovernanceActions(governanceButtons)}
+    </section>
   `;
 }
 
@@ -572,6 +685,7 @@ function openSemanticInspector({
   debugPayload,
   semanticEntry,
   governanceContext,
+  onBodyReady,
 }) {
   const overlay = ensureInspectorOverlay();
   const titleEl = document.getElementById("teacher-inspector-title");
@@ -589,6 +703,7 @@ function openSemanticInspector({
   if (bodyEl) {
     bodyEl.innerHTML = bodyHtml;
     bindSemanticGovernanceActions(bodyEl, semanticEntry, governanceContext);
+    onBodyReady?.(bodyEl);
   }
 
   window.__PREPOS_TEACHER_INSPECTOR__ = {
@@ -599,20 +714,123 @@ function openSemanticInspector({
   openModal(overlay, { overlayType: "inspector" });
 }
 
-export function openAnchorInspector(semanticEntry = {}, options = {}) {
-  const displayName =
-    semanticEntry.display_name ?? semanticEntry.source_text ?? "Anchor";
+/**
+ * [[...]] inside anchor notes reopen the anchor inspector (semantic gateway).
+ */
+export function bindAnchorNoteSemanticLinks(bodyEl, inspectorOptions = {}) {
+  if (!bodyEl) {
+    return;
+  }
+
+  bodyEl.querySelectorAll(".anchor-note-semantic-link").forEach((btn) => {
+    btn.addEventListener("click", (event) => {
+      event.preventDefault();
+
+      const entry = {
+        anchor_id: btn.dataset.anchorId ?? null,
+        source_text: btn.dataset.sourceText ?? btn.textContent?.trim(),
+        display_name: btn.textContent?.trim(),
+        normalized_name: btn.dataset.normalizedName ?? null,
+        state: "existing",
+      };
+
+      openAnchorInspector(entry, inspectorOptions);
+    });
+  });
+}
+
+function bindAnchorNoteEditorActions(
+  bodyEl,
+  { semanticEntry, variant, note, preferLanguage, inspectorOptions } = {}
+) {
+  if (!bodyEl || !semanticEntry?.anchor_id) {
+    return;
+  }
+
+  const canEdit = resolveCanEditAnchorNote(inspectorOptions);
+  if (!canEdit) {
+    return;
+  }
+
+  bodyEl.querySelectorAll("[data-anchor-note-edit]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      openAnchorNoteEditor({
+        anchorId: semanticEntry.anchor_id,
+        anchorVariantId: variant?.id ?? semanticEntry.anchor_variant_id,
+        displayName: semanticEntry.display_name ?? semanticEntry.source_text,
+        language: preferLanguage,
+        initialContent: note?.note_content ?? "",
+        onSave: async () => {
+          await openAnchorInspector(semanticEntry, inspectorOptions);
+        },
+      });
+    });
+  });
+}
+
+export async function openAnchorInspector(semanticEntry = {}, options = {}) {
+  const preferLanguage = options.preferLanguage ?? "english";
+  const studentMode = options.studentMode === true;
+  const canEditAnchorNote = studentMode ? false : resolveCanEditAnchorNote(options);
+
+  let payload = {
+    semanticEntry,
+    anchor: null,
+    variant: null,
+    note: null,
+    noteLinkMap: {},
+  };
+
+  if (semanticEntry.anchor_id) {
+    try {
+      const sb = await getClient();
+      payload = await loadAnchorInspectorPayload(sb, semanticEntry, { preferLanguage });
+    } catch (err) {
+      console.error("[Anchor inspector]", err);
+    }
+  }
+
+  const entry = payload.semanticEntry ?? semanticEntry;
+  const displayName = entry.display_name ?? entry.source_text ?? "Anchor";
+
+  const inspectorOptions = {
+    ...options,
+    preferLanguage,
+    canEditAnchorNote,
+    studentMode,
+  };
 
   openSemanticInspector({
     title: displayName,
-    subtitle: "Semantic anchor · draft preview",
-    bodyHtml: renderAnchorInspector(semanticEntry, options),
-    semanticEntry,
-    governanceContext: options.governanceContext,
+    subtitle: studentMode
+      ? "Concept · reading support"
+      : "Semantic anchor · cognition layer",
+    bodyHtml: renderAnchorInspector(payload, {
+      preferLanguage,
+      canEditAnchorNote,
+      studentMode,
+      studentSemanticMap: options.studentSemanticMap,
+    }),
+    semanticEntry: entry,
+    governanceContext: studentMode ? null : options.governanceContext,
+    onBodyReady: (bodyEl) => {
+      bindAnchorNoteSemanticLinks(bodyEl, inspectorOptions);
+
+      if (!studentMode) {
+        bindAnchorNoteEditorActions(bodyEl, {
+          semanticEntry: entry,
+          variant: payload.variant,
+          note: payload.note,
+          preferLanguage,
+          inspectorOptions,
+        });
+      }
+    },
     debugPayload: {
-      id: "anchor-inspector",
-      kind: "anchor",
-      data: semanticEntry,
+      id: studentMode ? "student-anchor-inspector" : "anchor-inspector",
+      kind: studentMode ? "student-anchor" : "anchor",
+      data: entry,
+      note: payload.note,
     },
   });
 }

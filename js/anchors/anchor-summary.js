@@ -133,7 +133,7 @@ function buildSummaryFooter(summary) {
  * @param {{ existing: number, canonical: number, candidate: number, dormant: number, total: number }} summary
  * @returns {string}
  */
-export function renderSemanticStateSummary(summary = {}) {
+export function renderSemanticStateSummary(summary = {}, options = {}) {
   const counts = {
     existing: summary.existing ?? 0,
     canonical: summary.canonical ?? 0,
@@ -141,11 +141,12 @@ export function renderSemanticStateSummary(summary = {}) {
     dormant: summary.dormant ?? 0,
   };
 
-  const footer = buildSummaryFooter(counts);
+  const footer = options.hideFooter ? "" : buildSummaryFooter(counts);
+  const heading = options.heading ?? "Semantic Summary";
 
   return `
     <section class="semantic-summary-panel" aria-label="Semantic summary">
-      <div class="semantic-summary-header">Semantic Summary</div>
+      <div class="semantic-summary-header">${escapeHTML(heading)}</div>
       <div class="semantic-summary-grid">
         <div class="semantic-summary-item">
           <span class="semantic-summary-label">Existing</span>
