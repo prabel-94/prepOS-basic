@@ -2,6 +2,7 @@
  * Representation-aware note renderer (not generic markdown).
  */
 
+import { renderSemanticAnchors } from "../anchors/anchor-renderer.js";
 import { resolveTopicLinks } from "./note-topic-links.js";
 
 function escapeHTML(value = "") {
@@ -17,6 +18,21 @@ function linkOptions(renderOptions = {}) {
   return { preferLanguage: renderOptions.preferLanguage ?? "english" };
 }
 
+/**
+ * Draft preview uses semantic anchors; published reader keeps topic links.
+ */
+function resolveInlineSemantics(text, topicMap, renderOptions = {}) {
+  if (renderOptions.semanticPreview && renderOptions.semanticMap) {
+    return renderSemanticAnchors(text, renderOptions.semanticMap, {
+      interactive: renderOptions.semanticInteractive !== false,
+      previewMode: renderOptions.previewMode !== false,
+      anchorElement: renderOptions.semanticAnchorElement ?? "button",
+    });
+  }
+
+  return resolveTopicLinks(text, topicMap, linkOptions(renderOptions));
+}
+
 function renderListContent(content, topicMap, renderOptions) {
   const lines = String(content ?? "")
     .split("\n")
@@ -30,7 +46,7 @@ function renderListContent(content, topicMap, renderOptions) {
   const items = lines
     .map((line) => {
       const text = line.replace(/^\s*([-*•]|\d+[\.)])\s+/, "");
-      return `<li>${resolveTopicLinks(text, topicMap, linkOptions(renderOptions))}</li>`;
+      return `<li>${resolveInlineSemantics(text, topicMap, renderOptions)}</li>`;
     })
     .join("");
 
@@ -39,7 +55,7 @@ function renderListContent(content, topicMap, renderOptions) {
 
 function renderBlock(block, topicMap, renderOptions) {
   const heading = block.heading
-    ? `<h${Math.min(Math.max(block.hierarchy_level || 3, 2), 4)} class="canonical-block-heading">${resolveTopicLinks(block.heading, topicMap, linkOptions(renderOptions))}</h${Math.min(Math.max(block.hierarchy_level || 3, 2), 4)}>`
+    ? `<h${Math.min(Math.max(block.hierarchy_level || 3, 2), 4)} class="canonical-block-heading">${resolveInlineSemantics(block.heading, topicMap, renderOptions)}</h${Math.min(Math.max(block.hierarchy_level || 3, 2), 4)}>`
     : "";
 
   let body = "";
@@ -55,7 +71,7 @@ function renderBlock(block, topicMap, renderOptions) {
     body = paragraphs
       .map(
         (p) =>
-          `<p class="canonical-paragraph">${resolveTopicLinks(p, topicMap, linkOptions(renderOptions))}</p>`
+          `<p class="canonical-paragraph">${resolveInlineSemantics(p, topicMap, renderOptions)}</p>`
       )
       .join("");
   }
@@ -71,7 +87,7 @@ function renderBlock(block, topicMap, renderOptions) {
 
   const open = block.metadata_json?.default_open === true;
   const summaryLabel = block.heading
-    ? resolveTopicLinks(block.heading, topicMap, linkOptions(renderOptions))
+    ? resolveInlineSemantics(block.heading, topicMap, renderOptions)
     : escapeHTML(block.block_type);
 
   return `
@@ -176,7 +192,7 @@ function renderStructuralContentBlock(block, topicMap, renderOptions) {
     .filter(Boolean)
     .map(
       (p) =>
-        `<p class="canonical-paragraph structural-leaf">${resolveTopicLinks(p, topicMap, linkOptions(renderOptions))}</p>`
+        `<p class="canonical-paragraph structural-leaf">${resolveInlineSemantics(p, topicMap, renderOptions)}</p>`
     )
     .join("");
 }
@@ -212,7 +228,10 @@ function renderStructuralSectionNode(node, topicMap, depth, renderOptions) {
         data-structural-id="${escapeHTML(node.id)}"
       >
         <span class="structural-indicator" aria-hidden="true">${indicator}</span>
-        <span class="structural-heading">${resolveTopicLinks(node.heading, topicMap, linkOptions(renderOptions))}</span>
+        <span class="structural-heading">${resolveInlineSemantics(node.heading, topicMap, {
+          ...renderOptions,
+          semanticAnchorElement: "span",
+        })}</span>
       </button>
       <div
         id="structural-panel-${node.id}"

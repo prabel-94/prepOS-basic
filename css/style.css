@@ -1987,3 +1987,159 @@ PREPOS SIDE PANEL OVERLAYS
     width: min(100%, 360px);
   }
 }
+
+/* ======================================================
+   SEMANTIC ANCHOR PREVIEW (draft governance layer)
+   ====================================================== */
+
+.semantic-anchor {
+  border: none;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  cursor: pointer;
+  transition: opacity 120ms ease;
+}
+
+.semantic-anchor:hover {
+  opacity: 0.85;
+}
+
+.existing-anchor {
+  color: var(--primary);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+}
+
+.canonical-anchor {
+  color: var(--primary);
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  position: relative;
+}
+
+.canonical-anchor-indicator {
+  font-size: 0.72em;
+  margin-left: 2px;
+  opacity: 0.75;
+}
+
+.candidate-anchor {
+  color: #7c3aed;
+  border-bottom: 1px dashed #7c3aed;
+  text-decoration: none;
+}
+
+.dormant-anchor {
+  color: #6b7280;
+  opacity: 0.7;
+  cursor: default;
+}
+
+.dormant-anchor:hover {
+  opacity: 0.7;
+}
+
+.semantic-anchor:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.teacher-intel-inspector-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* Semantic state summary (draft preview observability) */
+.semantic-summary-panel {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  background: var(--card);
+  max-width: 720px;
+}
+
+.semantic-summary-header {
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.semantic-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 10px;
+}
+
+.semantic-summary-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.semantic-summary-label {
+  font-size: 0.82rem;
+  opacity: 0.75;
+}
+
+.semantic-summary-value {
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+.semantic-summary-value.candidate-count {
+  color: #7c3aed;
+}
+
+.semantic-summary-value.dormant-count {
+  color: #6b7280;
+}
+
+.semantic-summary-footer {
+  margin-top: 12px;
+  font-size: 0.9rem;
+  opacity: 0.85;
+}
+
+.semantic-governance-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+
+.semantic-governance-actions button {
+  border-radius: 8px;
+}
+
+.canonical-topic-results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.canonical-topic-results li {
+  margin: 0 0 6px;
+}
+
+.canonical-topic-option {
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  background: var(--card);
+  cursor: pointer;
+  font: inherit;
+}
+
+.canonical-topic-option:hover,
+.canonical-topic-option.is-selected {
+  background: #eef2ff;
+  border-color: var(--primary);
+}

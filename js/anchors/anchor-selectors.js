@@ -177,6 +177,98 @@ export async function fetchNoteAnchorLinksForVariant(sb, variantId) {
   return data ?? [];
 }
 
+export async function fetchNoteAnchorLink(sb, linkId) {
+  if (!linkId) {
+    return null;
+  }
+
+  const { data, error } = await sb
+    .from("note_anchor_links")
+    .select(
+      `
+      id,
+      variant_id,
+      anchor_id,
+      state,
+      source_text,
+      block_key,
+      anchors (
+        id,
+        normalized_name,
+        anchor_type,
+        canonical_topic_id
+      )
+    `
+    )
+    .eq("id", linkId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+}
+
+export async function fetchAnchorVariantForLanguage(sb, anchorId, language) {
+  if (!anchorId) {
+    return null;
+  }
+
+  const { data, error } = await sb
+    .from("anchor_variants")
+    .select("id, anchor_id, language, display_name, normalized_name, status")
+    .eq("anchor_id", anchorId)
+    .eq("language", language)
+    .eq("status", "active")
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+}
+
+export async function updateNoteAnchorLinkState(sb, linkId, state) {
+  const { data, error } = await sb
+    .from("note_anchor_links")
+    .update({ state })
+    .eq("id", linkId)
+    .select("id, variant_id, anchor_id, state, source_text, block_key")
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+}
+
+/**
+ * Search existing topics for canonical promotion (no creation).
+ */
+export async function searchTopicsForCanonical(sb, query = "", limit = 20) {
+  const trimmed = String(query ?? "").trim();
+  let request = sb
+    .from("topics")
+    .select("id, name, normalized_name")
+    .order("name")
+    .limit(limit);
+
+  if (trimmed) {
+    request = request.ilike("name", `%${trimmed}%`);
+  }
+
+  const { data, error } = await request;
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data ?? [];
+}
+
 export async function fetchAnchorById(sb, anchorId) {
   if (!anchorId) {
     return null;

@@ -4,6 +4,11 @@
  */
 
 import { openModal, closeModal } from "./modal-system.js";
+import { resolveAppPath } from "../core/access.js";
+import { getClient } from "../core/get-client.js";
+import { GOVERNANCE_ACTIONS } from "../anchors/anchor-governance.js";
+import { searchTopicsForCanonical } from "../anchors/anchor-selectors.js";
+import { ANCHOR_TYPES } from "../anchors/anchor-types.js";
 
 const INSPECTOR_LABELS = {
   "mastery-inspector": "Mastery Inspector",
@@ -294,5 +299,359 @@ export function openInspector(inspectorId, data = {}) {
   return openTeacherInspector(inspectorId, data);
 }
 
+function formatAnchorStateLabel(state = "") {
+  return String(state ?? "")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+let topicPickerOverlay = null;
+
+function ensureTopicPickerOverlay() {
+  if (topicPickerOverlay) {
+    return topicPickerOverlay;
+  }
+
+  const overlay = document.createElement("div");
+  overlay.id = "canonical-topic-picker-overlay";
+  overlay.className = "prepos-modal hidden";
+  overlay.innerHTML = `
+    <div class="prepos-modal-backdrop"></div>
+    <div class="prepos-modal-content teacher-intel-inspector-content">
+      <div class="prepos-modal-header">
+        <div class="h2">Select Canonical Topic</div>
+        <p class="text-muted mt-5">Link this anchor to an existing topic note.</p>
+      </div>
+      <div class="prepos-modal-body">
+        <input type="search" id="canonical-topic-search" class="w-full" placeholder="Search topics…" autocomplete="off">
+        <ul id="canonical-topic-results" class="canonical-topic-results mt-10"></ul>
+      </div>
+      <div class="prepos-modal-footer semantic-governance-actions">
+        <button type="button" class="secondary-btn" data-topic-picker-cancel>Cancel</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+  topicPickerOverlay = overlay;
+  return overlay;
+}
+
+/**
+ * Lightweight topic picker for canonical promotion (existing topics only).
+ */
+export function openCanonicalTopicPicker({ onConfirm, onCancel } = {}) {
+  const overlay = ensureTopicPickerOverlay();
+  const searchEl = overlay.querySelector("#canonical-topic-search");
+  const resultsEl = overlay.querySelector("#canonical-topic-results");
+
+  let selectedTopicId = null;
+
+  async function renderResults(query = "") {
+    if (!resultsEl) {
+      return;
+    }
+
+    resultsEl.innerHTML = `<li class="text-muted">Searching…</li>`;
+
+    try {
+      const sb = await getClient();
+      const topics = await searchTopicsForCanonical(sb, query, 25);
+
+      if (!topics.length) {
+        resultsEl.innerHTML = `<li class="text-muted">No topics found.</li>`;
+        return;
+      }
+
+      resultsEl.innerHTML = topics
+        .map(
+          (topic) => `
+        <li>
+          <button type="button" class="canonical-topic-option" data-topic-id="${escapeHTML(topic.id)}">
+            ${escapeHTML(topic.name)}
+          </button>
+        </li>
+      `
+        )
+        .join("");
+
+      resultsEl.querySelectorAll(".canonical-topic-option").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          selectedTopicId = btn.dataset.topicId;
+          resultsEl.querySelectorAll(".canonical-topic-option").forEach((option) => {
+            option.classList.toggle("is-selected", option === btn);
+          });
+          onConfirm?.(selectedTopicId);
+          closeModal(overlay);
+        });
+      });
+    } catch (err) {
+      resultsEl.innerHTML = `<li class="text-muted">${escapeHTML(err.message || "Search failed.")}</li>`;
+    }
+  }
+
+  if (searchEl) {
+    searchEl.value = "";
+    searchEl.oninput = () => {
+      renderResults(searchEl.value);
+    };
+  }
+
+  overlay.querySelector("[data-topic-picker-cancel]")?.addEventListener(
+    "click",
+    () => {
+      onCancel?.();
+      closeModal(overlay);
+    },
+    { once: true }
+  );
+
+  openModal(overlay, { overlayType: "critical-dialog" });
+  renderResults("");
+  searchEl?.focus();
+}
+
+function renderGovernanceActions(buttons = []) {
+  if (!buttons.length) {
+    return "";
+  }
+
+  return `
+    <div class="semantic-governance-actions">
+      ${buttons.join("")}
+    </div>
+  `;
+}
+
+/**
+ * Active / canonical anchor inspector (draft semantic preview).
+ */
+export function renderAnchorInspector(semanticEntry = {}, { preferLanguage = "english" } = {}) {
+  const displayName =
+    semanticEntry.display_name ?? semanticEntry.source_text ?? "Anchor";
+  const anchorType = semanticEntry.anchor_type ?? "—";
+  const visualState = semanticEntry.state ?? semanticEntry.anchor_state ?? "existing";
+  const resolution = semanticEntry.resolution ?? "—";
+  const topicId = semanticEntry.canonical_topic_id;
+  const isMicro = anchorType !== ANCHOR_TYPES.CANONICAL;
+
+  const canonicalNoteButton = topicId
+    ? `<a class="primary-btn mt-10" href="${escapeHTML(
+        resolveAppPath(
+          `note.html?topic=${encodeURIComponent(topicId)}&lang=${encodeURIComponent(preferLanguage)}`
+        )
+      )}">Open canonical topic note</a>`
+    : "";
+
+  const governanceButtons = [
+    `<button type="button" class="secondary-btn" data-governance-action="${GOVERNANCE_ACTIONS.DEACTIVATE}">De-anchor</button>`,
+  ];
+
+  if (isMicro) {
+    governanceButtons.push(
+      `<button type="button" class="primary-btn" data-governance-action="${GOVERNANCE_ACTIONS.PROMOTE}">Promote to Canonical</button>`
+    );
+  }
+
+  return `
+    <p class="teacher-intel-inspector-lead">${escapeHTML(displayName)}</p>
+    ${renderDetailRows([
+      { label: "Visual state", value: formatAnchorStateLabel(visualState) },
+      { label: "Anchor type", value: formatAnchorStateLabel(anchorType) },
+      { label: "Resolution", value: formatAnchorStateLabel(resolution) },
+      { label: "Note link state", value: semanticEntry.note_anchor_state },
+      { label: "Anchor ID", value: semanticEntry.anchor_id },
+      { label: "Canonical topic", value: topicId },
+      { label: "Source text", value: semanticEntry.source_text },
+      { label: "Block", value: semanticEntry.block_key },
+    ])}
+    ${renderGovernanceActions(governanceButtons)}
+    <p class="text-muted teacher-intel-inspector-note mt-10">
+      Anchor note editing and relationships arrive in a later phase.
+    </p>
+    ${canonicalNoteButton}
+  `;
+}
+
+export function renderDormantAnchorInspector(semanticEntry = {}) {
+  const displayName =
+    semanticEntry.display_name ?? semanticEntry.source_text ?? "Anchor";
+
+  return `
+    <p class="teacher-intel-inspector-lead">${escapeHTML(displayName)}</p>
+    <p class="text-muted">This semantic entity is dormant in this note.</p>
+    ${renderDetailRows([
+      { label: "Source text", value: semanticEntry.source_text },
+      { label: "Normalized", value: semanticEntry.normalized_name },
+      { label: "Anchor ID", value: semanticEntry.anchor_id },
+    ])}
+    ${renderGovernanceActions([
+      `<button type="button" class="primary-btn" data-governance-action="${GOVERNANCE_ACTIONS.REACTIVATE}">Re-anchor</button>`,
+    ])}
+  `;
+}
+
+/**
+ * Candidate anchor inspector with governance actions.
+ */
+export function renderCandidateAnchorInspector(semanticEntry = {}) {
+  const displayName =
+    semanticEntry.display_name ?? semanticEntry.source_text ?? "Candidate";
+
+  return `
+    <p class="teacher-intel-inspector-lead">Candidate Anchor</p>
+    <p class="text-muted">
+      This semantic entity is not yet fully activated in this note.
+    </p>
+    ${renderDetailRows([
+      { label: "Source text", value: semanticEntry.source_text ?? displayName },
+      { label: "Normalized", value: semanticEntry.normalized_name },
+      { label: "Resolution", value: semanticEntry.resolution },
+      { label: "Canonical topic", value: semanticEntry.canonical_topic_id },
+    ])}
+    ${renderGovernanceActions([
+      `<button type="button" class="primary-btn" data-governance-action="${GOVERNANCE_ACTIONS.APPROVE}">Approve Anchor</button>`,
+      `<button type="button" class="secondary-btn" data-governance-action="${GOVERNANCE_ACTIONS.DISMISS}">Dismiss</button>`,
+    ])}
+  `;
+}
+
+/**
+ * Wire governance buttons (decoupled from DOM structure elsewhere).
+ */
+export function bindSemanticGovernanceActions(bodyEl, semanticEntry, governanceContext) {
+  if (!bodyEl || !governanceContext?.apply) {
+    return;
+  }
+
+  bodyEl.querySelectorAll("[data-governance-action]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const action = btn.dataset.governanceAction;
+      if (!action) {
+        return;
+      }
+
+      btn.disabled = true;
+
+      try {
+        if (action === GOVERNANCE_ACTIONS.DEACTIVATE) {
+          const confirmed = window.confirm(
+            "De-anchor this semantic link in this note? The global anchor identity is preserved."
+          );
+          if (!confirmed) {
+            return;
+          }
+        }
+
+        if (action === GOVERNANCE_ACTIONS.PROMOTE) {
+          openCanonicalTopicPicker({
+            onConfirm: async (topicId) => {
+              await governanceContext.apply(action, semanticEntry, {
+                canonicalTopicId: topicId,
+              });
+            },
+          });
+          return;
+        }
+
+        await governanceContext.apply(action, semanticEntry);
+      } catch (err) {
+        console.error("[Semantic governance]", err);
+        window.alert(err.message || "Governance action failed.");
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  });
+}
+
+function openSemanticInspector({
+  title,
+  subtitle,
+  bodyHtml,
+  debugPayload,
+  semanticEntry,
+  governanceContext,
+}) {
+  const overlay = ensureInspectorOverlay();
+  const titleEl = document.getElementById("teacher-inspector-title");
+  const subtitleEl = overlay.querySelector(".teacher-intel-inspector-subtitle");
+  const bodyEl = document.getElementById("teacher-inspector-body");
+
+  if (titleEl) {
+    titleEl.textContent = title;
+  }
+
+  if (subtitleEl) {
+    subtitleEl.textContent = subtitle;
+  }
+
+  if (bodyEl) {
+    bodyEl.innerHTML = bodyHtml;
+    bindSemanticGovernanceActions(bodyEl, semanticEntry, governanceContext);
+  }
+
+  window.__PREPOS_TEACHER_INSPECTOR__ = {
+    ...debugPayload,
+    openedAt: Date.now(),
+  };
+
+  openModal(overlay, { overlayType: "inspector" });
+}
+
+export function openAnchorInspector(semanticEntry = {}, options = {}) {
+  const displayName =
+    semanticEntry.display_name ?? semanticEntry.source_text ?? "Anchor";
+
+  openSemanticInspector({
+    title: displayName,
+    subtitle: "Semantic anchor · draft preview",
+    bodyHtml: renderAnchorInspector(semanticEntry, options),
+    semanticEntry,
+    governanceContext: options.governanceContext,
+    debugPayload: {
+      id: "anchor-inspector",
+      kind: "anchor",
+      data: semanticEntry,
+    },
+  });
+}
+
+export function openCandidateAnchorInspector(semanticEntry = {}, options = {}) {
+  openSemanticInspector({
+    title: "Candidate Anchor",
+    subtitle: "Semantic governance · draft preview",
+    bodyHtml: renderCandidateAnchorInspector(semanticEntry, options),
+    semanticEntry,
+    governanceContext: options.governanceContext,
+    debugPayload: {
+      id: "candidate-anchor-inspector",
+      kind: "candidate-anchor",
+      data: semanticEntry,
+    },
+  });
+}
+
+export function openDormantAnchorInspector(semanticEntry = {}, options = {}) {
+  const displayName =
+    semanticEntry.display_name ?? semanticEntry.source_text ?? "Anchor";
+
+  openSemanticInspector({
+    title: displayName,
+    subtitle: "Dormant semantic anchor · draft preview",
+    bodyHtml: renderDormantAnchorInspector(semanticEntry, options),
+    semanticEntry,
+    governanceContext: options.governanceContext,
+    debugPayload: {
+      id: "dormant-anchor-inspector",
+      kind: "dormant-anchor",
+      data: semanticEntry,
+    },
+  });
+}
+
 window.openTeacherInspector = openTeacherInspector;
 window.openInspector = openInspector;
+window.openAnchorInspector = openAnchorInspector;
+window.openCandidateAnchorInspector = openCandidateAnchorInspector;
+window.openDormantAnchorInspector = openDormantAnchorInspector;
