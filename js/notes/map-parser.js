@@ -1,8 +1,20 @@
 /**
- * MSMDF v1 → Canonical Object
- * Parser responsibilities only: section detection, extraction, topic links.
- * Never rewrites source prose.
+ * MSMDF v1.2 → Canonical Object
+ * Parser responsibilities: canonical section boundaries, block extraction, topic links.
+ * Never rewrites source prose. Semantic resolution remains downstream.
  */
+
+/** MSMDF v1.2 canonical representation boundary tags (line-whole section openers). */
+export const CANONICAL_BOUNDARY_TAGS = Object.freeze([
+  "METADATA",
+  "NARRATIVE",
+  "STRUCTURAL",
+  "REVISION",
+  "TIMELINE",
+  "INTERPRETATIONS",
+  "RECALL",
+  "ENTITY_INDEX",
+]);
 
 const SECTION_ANCHORS = Object.freeze({
   METADATA: "metadata",
@@ -12,6 +24,7 @@ const SECTION_ANCHORS = Object.freeze({
   TIMELINE: "timeline",
   INTERPRETATIONS: "interpretations",
   RECALL: "recall",
+  ENTITY_INDEX: "entity_index",
 });
 
 const REPRESENTATION_KEYS = Object.freeze([
@@ -22,8 +35,23 @@ const REPRESENTATION_KEYS = Object.freeze([
   "interpretations",
 ]);
 
-const ANCHOR_PATTERN =
-  /^#\s*\[(METADATA|NARRATIVE|STRUCTURAL|REVISION|TIMELINE|INTERPRETATIONS|RECALL)\]\s*$/im;
+/**
+ * MSMDF v1.2 section line: optional leading #, bracket tag, whitespace tolerant.
+ * Does NOT treat ## [TAG] as a section boundary (single optional # only).
+ */
+const SECTION_LINE_PATTERN = new RegExp(
+  `^\\s*#?\\s*\\[(${CANONICAL_BOUNDARY_TAGS.join("|")})\\]\\s*$`,
+  "i"
+);
+
+export const MSMDF_SECTION_SYNTAX_EXAMPLES = Object.freeze([
+  "[NARRATIVE]",
+  "# [NARRATIVE]",
+  "#[NARRATIVE]",
+]);
+
+export const MSMDF_SECTION_SYNTAX_HELP =
+  "Expected canonical section forms include [NARRATIVE] or # [NARRATIVE] (see MSMDF v1.2).";
 
 const TOPIC_LINK_PATTERN = /\[\[([^\]]+)\]\]/g;
 
@@ -31,6 +59,23 @@ function normalizeNewlines(text) {
   return String(text ?? "")
     .replace(/\r\n/g, "\n")
     .replace(/\r/g, "\n");
+}
+
+/**
+ * @param {string} line
+ * @returns {string|null} canonical tag name uppercased
+ */
+export function matchCanonicalSectionLine(line) {
+  const match = String(line ?? "").match(SECTION_LINE_PATTERN);
+  if (!match) {
+    return null;
+  }
+
+  return match[1].toUpperCase();
+}
+
+function sectionKeyFromTag(tag) {
+  return SECTION_ANCHORS[tag] ?? null;
 }
 
 function parseMetadataSection(body) {
@@ -74,7 +119,7 @@ function isListLine(line) {
   return /^\s*([-*•]|\d+[\.)])\s+/.test(line);
 }
 
-function extractBlocks(sectionKey, body) {
+function extractBlocks(sectionKey, body, extraMetadata = {}) {
   const lines = body.split("\n");
   const blocks = [];
   let sequence = 0;
@@ -94,7 +139,10 @@ function extractBlocks(sectionKey, body) {
         content: content || null,
         hierarchy_level: current.hierarchy_level ?? null,
         sequence_order: sequence++,
-        metadata_json: current.metadata_json ?? {},
+        metadata_json: {
+          ...extraMetadata,
+          ...(current.metadata_json ?? {}),
+        },
       });
     }
 
@@ -199,11 +247,17 @@ function extractTopicLinks(markdown, sectionKey = null, blockIndex = null) {
   return links;
 }
 
-function splitSections(markdown) {
+/**
+ * @returns {{ sections: Array<{ key: string, body: string, tag: string }>, prelude: string|null }}
+ */
+export function splitSections(markdown) {
   const sections = [];
   const lines = markdown.split("\n");
   let currentKey = null;
+  let currentTag = null;
   let buffer = [];
+  let preludeLines = [];
+  let preludeCaptured = null;
 
   function pushSection() {
     if (currentKey === null) {
@@ -212,29 +266,92 @@ function splitSections(markdown) {
 
     sections.push({
       key: currentKey,
+      tag: currentTag,
       body: buffer.join("\n").trim(),
     });
     buffer = [];
   }
 
   for (const line of lines) {
-    const anchorMatch = line.match(
-      /^#\s*\[(METADATA|NARRATIVE|STRUCTURAL|REVISION|TIMELINE|INTERPRETATIONS|RECALL)\]\s*$/i
-    );
+    const tag = matchCanonicalSectionLine(line);
 
-    if (anchorMatch) {
+    if (tag) {
       pushSection();
-      currentKey = SECTION_ANCHORS[anchorMatch[1].toUpperCase()];
+
+      if (preludeCaptured === null) {
+        const preludeBody = preludeLines.join("\n").trim();
+        if (preludeBody) {
+          preludeCaptured = preludeBody;
+        }
+        preludeLines = [];
+      }
+
+      currentTag = tag;
+      currentKey = sectionKeyFromTag(tag);
       continue;
     }
 
     if (currentKey !== null) {
       buffer.push(line);
+    } else {
+      preludeLines.push(line);
     }
   }
 
   pushSection();
-  return sections;
+
+  if (preludeCaptured === null) {
+    const trailingPrelude = preludeLines.join("\n").trim();
+    if (trailingPrelude) {
+      preludeCaptured = trailingPrelude;
+    }
+  }
+
+  return {
+    sections,
+    prelude: preludeCaptured,
+  };
+}
+
+function buildBoundaryReport(sections, representations, entityIndexBlocks, preludeBlocks) {
+  const detected = new Map();
+
+  for (const section of sections) {
+    detected.set(section.key, {
+      tag: section.tag,
+      key: section.key,
+      detected: true,
+    });
+  }
+
+  const boundaries = CANONICAL_BOUNDARY_TAGS.map((tag) => {
+    const key = sectionKeyFromTag(tag);
+    const info = detected.get(key);
+    let blockCount = 0;
+
+    if (key === "entity_index") {
+      blockCount = entityIndexBlocks.length;
+    } else if (key === "metadata") {
+      blockCount = info ? 1 : 0;
+    } else {
+      const repKey = mapSectionToRepresentation(key);
+      blockCount = repKey ? (representations[repKey]?.length ?? 0) : 0;
+      if (key === "recall") {
+        blockCount = (representations.revision ?? []).filter(
+          (b) => b.metadata_json?.source_section === "recall"
+        ).length;
+      }
+    }
+
+    return {
+      tag,
+      key,
+      detected: Boolean(info) || blockCount > 0,
+      block_count: blockCount,
+    };
+  });
+
+  return boundaries;
 }
 
 /**
@@ -245,7 +362,7 @@ function splitSections(markdown) {
  */
 export function parseMapMarkdown(rawMarkdown, options = {}) {
   const markdown = normalizeNewlines(rawMarkdown);
-  const sections = splitSections(markdown);
+  const { sections, prelude } = splitSections(markdown);
 
   const metadata = {};
   const representations = {
@@ -255,9 +372,28 @@ export function parseMapMarkdown(rawMarkdown, options = {}) {
     timeline: [],
     interpretations: [],
   };
+  const entityIndexBlocks = [];
+  const parserDiagnostics = {
+    msmdf_version: "1.2",
+    prelude: null,
+    boundaries: [],
+    warnings: [],
+  };
 
   const topicLinks = [];
   const globalTopicSeen = new Set();
+
+  if (prelude) {
+    const preludeBlocks = extractBlocks("narrative", prelude, {
+      msmdf_provenance: "prelude",
+    });
+    representations.narrative.push(...preludeBlocks);
+    parserDiagnostics.prelude = {
+      preserved: true,
+      block_count: preludeBlocks.length,
+      char_count: prelude.length,
+    };
+  }
 
   for (const section of sections) {
     if (section.key === "metadata") {
@@ -265,12 +401,26 @@ export function parseMapMarkdown(rawMarkdown, options = {}) {
       continue;
     }
 
-    const representationKey = mapSectionToRepresentation(section.key);
-    if (!representationKey) {
+    if (section.key === "entity_index") {
+      entityIndexBlocks.push(
+        ...extractBlocks("entity_index", section.body, {
+          msmdf_boundary: "entity_index",
+        })
+      );
       continue;
     }
 
-    const blocks = extractBlocks(representationKey, section.body);
+    const representationKey = mapSectionToRepresentation(section.key);
+    if (!representationKey) {
+      parserDiagnostics.warnings.push(
+        `Unmapped canonical boundary [${section.tag}] was detected but not stored in representations.`
+      );
+      continue;
+    }
+
+    const blocks = extractBlocks(representationKey, section.body, {
+      msmdf_boundary: section.tag,
+    });
 
     if (section.key === "recall") {
       for (const block of blocks) {
@@ -302,13 +452,9 @@ export function parseMapMarkdown(rawMarkdown, options = {}) {
     });
   }
 
-  const preambleEnd = markdown.search(ANCHOR_PATTERN);
-  const preamble =
-    preambleEnd > 0 ? markdown.slice(0, preambleEnd).trim() : "";
-
-  if (preamble && !sections.length) {
+  if (!sections.length && prelude && !representations.narrative.length) {
     representations.narrative.push(
-      ...extractBlocks("narrative", preamble)
+      ...extractBlocks("narrative", prelude, { msmdf_provenance: "prelude" })
     );
   }
 
@@ -321,8 +467,19 @@ export function parseMapMarkdown(rawMarkdown, options = {}) {
     topicLinks.push(link);
   }
 
-  const language =
-    options.language || metadata.language || "english";
+  parserDiagnostics.boundaries = buildBoundaryReport(
+    sections,
+    representations,
+    entityIndexBlocks
+  );
+
+  if (prelude && sections.length) {
+    parserDiagnostics.warnings.push(
+      "Content before the first canonical section was preserved as narrative prelude blocks."
+    );
+  }
+
+  const language = options.language || metadata.language || "english";
   const title = options.title || metadata.title || null;
 
   return {
@@ -330,7 +487,7 @@ export function parseMapMarkdown(rawMarkdown, options = {}) {
     canonical_note: {
       title,
       map_version: metadata.map_version || metadata.version || null,
-      canonical_version: metadata.canonical_version || null,
+      canonical_version: metadata.canonical_version || metadata.canonical_version || "1.2",
     },
     variant: {
       language,
@@ -340,11 +497,28 @@ export function parseMapMarkdown(rawMarkdown, options = {}) {
       raw_markdown: markdown,
       source_type: metadata.source_type || "map",
       map_version: metadata.map_version || metadata.version || null,
-      canonical_version: metadata.canonical_version || null,
+      canonical_version: metadata.canonical_version || metadata.canonical_version || "1.2",
     },
     representations,
+    entity_index: entityIndexBlocks,
     topic_links: topicLinks,
+    parser_diagnostics: parserDiagnostics,
   };
+}
+
+/**
+ * Human-readable list of detected canonical section tags for UI.
+ */
+export function formatDetectedSectionTags(parsed) {
+  const tags = (parsed?.parser_diagnostics?.boundaries ?? [])
+    .filter((b) => b.detected && b.tag !== "METADATA")
+    .map((b) => `[${b.tag}]`);
+
+  if (parsed?.parser_diagnostics?.prelude?.preserved) {
+    tags.unshift("[prelude]");
+  }
+
+  return tags;
 }
 
 /**
@@ -352,15 +526,26 @@ export function parseMapMarkdown(rawMarkdown, options = {}) {
  */
 export function summarizeDetectedSections(parsed) {
   const reps = parsed?.representations ?? {};
+  const boundaries = parsed?.parser_diagnostics?.boundaries ?? [];
+
+  const boundaryDetected = (tag) =>
+    boundaries.some((b) => b.tag === tag && b.detected);
+
   return {
-    metadata: Boolean(parsed?.metadata && Object.keys(parsed.metadata).length),
-    narrative: (reps.narrative?.length ?? 0) > 0,
-    structural: (reps.structural?.length ?? 0) > 0,
-    revision: (reps.revision?.length ?? 0) > 0,
-    timeline: (reps.timeline?.length ?? 0) > 0,
-    interpretations: (reps.interpretations?.length ?? 0) > 0,
-    recall: (reps.revision ?? []).some(
-      (b) => b.metadata_json?.source_section === "recall"
-    ),
+    metadata:
+      Boolean(parsed?.metadata && Object.keys(parsed.metadata).length) ||
+      boundaryDetected("METADATA"),
+    narrative: (reps.narrative?.length ?? 0) > 0 || boundaryDetected("NARRATIVE"),
+    structural: (reps.structural?.length ?? 0) > 0 || boundaryDetected("STRUCTURAL"),
+    revision: (reps.revision?.length ?? 0) > 0 || boundaryDetected("REVISION"),
+    timeline: (reps.timeline?.length ?? 0) > 0 || boundaryDetected("TIMELINE"),
+    interpretations:
+      (reps.interpretations?.length ?? 0) > 0 || boundaryDetected("INTERPRETATIONS"),
+    recall:
+      (reps.revision ?? []).some((b) => b.metadata_json?.source_section === "recall") ||
+      boundaryDetected("RECALL"),
+    entity_index:
+      (parsed?.entity_index?.length ?? 0) > 0 || boundaryDetected("ENTITY_INDEX"),
+    prelude: Boolean(parsed?.parser_diagnostics?.prelude?.preserved),
   };
 }
