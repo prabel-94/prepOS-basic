@@ -97,11 +97,13 @@ function renderInteractiveAnchor(
   options,
   className,
   anchorState,
-  extra = ""
+  extra = "",
+  emphasisClass = ""
 ) {
   const tag = anchorTag(options);
+  const emphasis = emphasisClass ? ` ${emphasisClass}` : "";
   const attrs = [
-    `class="semantic-anchor ${className}"`,
+    `class="semantic-anchor ${className}${emphasis}"`,
     `data-anchor-state="${anchorState}"`,
     `data-source-text="${escapeAttr(entry.source_text ?? display)}"`,
     `data-normalized-name="${escapeAttr(entry.normalized_name ?? "")}"`,
@@ -130,18 +132,32 @@ function renderInteractiveAnchor(
   return `<${tag} ${attrs.join(" ")}>${escapeHTML(display)}${extra}</${tag}>`;
 }
 
-function renderExistingAnchor(entry, display, interactive, options) {
+function resolveAnchorEmphasisClass(entry, label, options) {
+  const tracker = options.anchorOccurrenceTracker;
+  if (!tracker?.mark) {
+    return "semantic-anchor--primary";
+  }
+
+  const occurrence = tracker.mark(label, entry);
+  return occurrence === 0 ? "semantic-anchor--primary" : "semantic-anchor--repeat";
+}
+
+function renderExistingAnchor(entry, display, interactive, options, label = "") {
+  const emphasis = resolveAnchorEmphasisClass(entry, label || display, options);
   return renderInteractiveAnchor(
     entry,
     display,
     interactive,
     options,
     "existing-anchor",
-    "existing"
+    "existing",
+    "",
+    emphasis
   );
 }
 
-function renderCanonicalAnchor(entry, display, interactive, options) {
+function renderCanonicalAnchor(entry, display, interactive, options, label = "") {
+  const emphasis = resolveAnchorEmphasisClass(entry, label || display, options);
   return renderInteractiveAnchor(
     entry,
     display,
@@ -149,18 +165,22 @@ function renderCanonicalAnchor(entry, display, interactive, options) {
     options,
     "canonical-anchor",
     "canonical",
-    `<span class="canonical-anchor-indicator" aria-hidden="true">↗</span>`
+    `<span class="canonical-anchor-indicator" aria-hidden="true">↗</span>`,
+    emphasis
   );
 }
 
-function renderCandidateAnchor(entry, display, interactive, options) {
+function renderCandidateAnchor(entry, display, interactive, options, label = "") {
+  const emphasis = resolveAnchorEmphasisClass(entry, label || display, options);
   return renderInteractiveAnchor(
     entry,
     display,
     interactive,
     options,
     "candidate-anchor",
-    "candidate"
+    "candidate",
+    "",
+    emphasis
   );
 }
 
@@ -193,19 +213,19 @@ function renderSemanticToken(entry, label, options) {
       return renderPlainSemanticLabel(entry, label);
     }
 
-    return renderExistingAnchor(entry, display, interactive, options);
+    return renderExistingAnchor(entry, display, interactive, options, label);
   }
 
   switch (state) {
     case "dormant":
       return renderDormantAnchor(entry, display);
     case "candidate":
-      return renderCandidateAnchor(entry, display, interactive, options);
+      return renderCandidateAnchor(entry, display, interactive, options, label);
     case "canonical":
-      return renderCanonicalAnchor(entry, display, interactive, options);
+      return renderCanonicalAnchor(entry, display, interactive, options, label);
     case "existing":
     default:
-      return renderExistingAnchor(entry, display, interactive, options);
+      return renderExistingAnchor(entry, display, interactive, options, label);
   }
 }
 
@@ -214,7 +234,7 @@ function renderSemanticToken(entry, label, options) {
  *
  * @param {string} text
  * @param {Record<string, object>} semanticMap
- * @param {{ interactive?: boolean, previewMode?: boolean, studentMode?: boolean }} [options]
+ * @param {{ interactive?: boolean, previewMode?: boolean, studentMode?: boolean, anchorOccurrenceTracker?: { resetParagraph?: () => void, mark?: (label: string, entry?: object) => number } }} [options]
  * @returns {string}
  */
 export function renderSemanticAnchors(text, semanticMap = {}, options = {}) {

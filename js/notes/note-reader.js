@@ -18,6 +18,7 @@ import {
   getAvailableTabs,
   renderRepresentationTab,
 } from "./note-renderer.js";
+import { withReadingErgonomics } from "./reading-ergonomics.js";
 import {
   getReferencedInTopics,
   renderReferencedInPanel,
@@ -173,6 +174,7 @@ async function bootPublishedReader({
 
   function renderActiveTab() {
     contentEl.classList.remove("hidden");
+    contentEl.classList.add("semantic-reading-surface");
     contentEl.innerHTML = renderRepresentationTab(
       activeTab,
       bundle.representations,

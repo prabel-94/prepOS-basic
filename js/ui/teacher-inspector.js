@@ -3,6 +3,10 @@
  * Foundation for future classroom inspectors — readable placeholder UI.
  */
 
+import {
+  isCognitionInspectorKind,
+  restoreReadingContextIfNeeded,
+} from "../notes/reading-ergonomics.js";
 import { openModal, closeModal } from "./modal-system.js";
 import { resolveAppPath } from "../core/access.js";
 import { getClient } from "../core/get-client.js";
@@ -686,11 +690,17 @@ function openSemanticInspector({
   semanticEntry,
   governanceContext,
   onBodyReady,
+  cognitionInspector = false,
 }) {
   const overlay = ensureInspectorOverlay();
+  const contentEl = overlay.querySelector(".prepos-modal-content");
   const titleEl = document.getElementById("teacher-inspector-title");
   const subtitleEl = overlay.querySelector(".teacher-intel-inspector-subtitle");
   const bodyEl = document.getElementById("teacher-inspector-body");
+
+  if (contentEl) {
+    contentEl.classList.toggle("semantic-cognition-inspector", cognitionInspector);
+  }
 
   if (titleEl) {
     titleEl.textContent = title;
@@ -711,7 +721,15 @@ function openSemanticInspector({
     openedAt: Date.now(),
   };
 
-  openModal(overlay, { overlayType: "inspector" });
+  openModal(overlay, {
+    overlayType: "inspector",
+    onClose: () => {
+      contentEl?.classList.remove("semantic-cognition-inspector");
+      if (cognitionInspector || isCognitionInspectorKind(debugPayload?.kind)) {
+        restoreReadingContextIfNeeded();
+      }
+    },
+  });
 }
 
 /**
@@ -805,6 +823,7 @@ export async function openAnchorInspector(semanticEntry = {}, options = {}) {
     subtitle: studentMode
       ? "Concept · reading support"
       : "Semantic anchor · cognition layer",
+    cognitionInspector: true,
     bodyHtml: renderAnchorInspector(payload, {
       preferLanguage,
       canEditAnchorNote,
@@ -839,6 +858,7 @@ export function openCandidateAnchorInspector(semanticEntry = {}, options = {}) {
   openSemanticInspector({
     title: "Candidate Anchor",
     subtitle: "Semantic governance · draft preview",
+    cognitionInspector: true,
     bodyHtml: renderCandidateAnchorInspector(semanticEntry, options),
     semanticEntry,
     governanceContext: options.governanceContext,
@@ -857,6 +877,7 @@ export function openDormantAnchorInspector(semanticEntry = {}, options = {}) {
   openSemanticInspector({
     title: displayName,
     subtitle: "Dormant semantic anchor · draft preview",
+    cognitionInspector: true,
     bodyHtml: renderDormantAnchorInspector(semanticEntry, options),
     semanticEntry,
     governanceContext: options.governanceContext,
