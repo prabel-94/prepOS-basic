@@ -1989,6 +1989,322 @@ PREPOS SIDE PANEL OVERLAYS
 }
 
 /* ======================================================
+   SEMANTIC HIERARCHY RENDERING (cognition-first reading)
+   ====================================================== */
+
+#noteContent {
+  --semantic-l1-size: 1.55rem;
+  --semantic-l2-size: 1.32rem;
+  --semantic-l3-size: 1.14rem;
+  --semantic-l4-size: 1.02rem;
+  --semantic-l5-size: 0.94rem;
+  --semantic-l6-size: 0.88rem;
+  --semantic-l1-weight: 650;
+  --semantic-l2-weight: 600;
+  --semantic-l3-weight: 600;
+  --semantic-l4-weight: 550;
+  --semantic-l5-weight: 550;
+  --semantic-l6-weight: 500;
+  --semantic-l1-space-before: 2.35rem;
+  --semantic-l2-space-before: 1.75rem;
+  --semantic-l3-space-before: 1.25rem;
+  --semantic-l4-space-before: 0.95rem;
+  --semantic-l5-space-before: 0.7rem;
+  --semantic-l6-space-before: 0.55rem;
+  --semantic-body-gap: 0.65rem;
+  --semantic-paragraph-gap: 0.85rem;
+  line-height: 1.65;
+  font-size: 1rem;
+  color: #1e293b;
+}
+
+.canonical-representation {
+  max-width: 720px;
+}
+
+.semantic-reading-flow .semantic-block:first-child {
+  margin-top: 0;
+}
+
+.semantic-block {
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+.semantic-body {
+  margin: 0;
+  padding: 0;
+}
+
+.semantic-heading {
+  margin: 0;
+  padding: 0;
+  color: #0f172a;
+  letter-spacing: -0.015em;
+  line-height: 1.28;
+}
+
+.semantic-heading--l1 {
+  font-size: var(--semantic-l1-size);
+  font-weight: var(--semantic-l1-weight);
+  margin-top: var(--semantic-l1-space-before);
+  margin-bottom: calc(var(--semantic-body-gap) + 0.15rem);
+}
+
+.semantic-heading--l2 {
+  font-size: var(--semantic-l2-size);
+  font-weight: var(--semantic-l2-weight);
+  margin-top: var(--semantic-l2-space-before);
+  margin-bottom: var(--semantic-body-gap);
+}
+
+.semantic-heading--l3 {
+  font-size: var(--semantic-l3-size);
+  font-weight: var(--semantic-l3-weight);
+  margin-top: var(--semantic-l3-space-before);
+  margin-bottom: var(--semantic-body-gap);
+}
+
+.semantic-heading--l4 {
+  font-size: var(--semantic-l4-size);
+  font-weight: var(--semantic-l4-weight);
+  margin-top: var(--semantic-l4-space-before);
+  margin-bottom: var(--semantic-body-gap);
+  color: #1e293b;
+}
+
+.semantic-heading--l5,
+.semantic-heading--l6 {
+  font-size: var(--semantic-l5-size);
+  font-weight: var(--semantic-l5-weight);
+  margin-top: var(--semantic-l5-space-before);
+  margin-bottom: calc(var(--semantic-body-gap) * 0.85);
+  color: #334155;
+  letter-spacing: 0;
+}
+
+.semantic-heading--l6 {
+  font-size: var(--semantic-l6-size);
+  font-weight: var(--semantic-l6-weight);
+  margin-top: var(--semantic-l6-space-before);
+}
+
+.semantic-reading-flow .semantic-block:first-child .semantic-heading {
+  margin-top: 0;
+}
+
+.semantic-paragraph {
+  margin: 0 0 var(--semantic-paragraph-gap);
+  max-width: 68ch;
+}
+
+.semantic-paragraph:last-child {
+  margin-bottom: 0;
+}
+
+.semantic-list {
+  margin: 0 0 var(--semantic-paragraph-gap);
+  padding-left: 1.35rem;
+  max-width: 68ch;
+}
+
+/* Collapsible blocks (revision / timeline / interpretations) — subordinated chrome */
+.semantic-collapsible {
+  margin-top: var(--semantic-l3-space-before);
+  margin-bottom: 0.5rem;
+}
+
+.semantic-collapsible summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 0.15rem 0;
+  font-weight: inherit;
+  font-size: inherit;
+}
+
+.semantic-collapsible summary::-webkit-details-marker {
+  display: none;
+}
+
+.semantic-collapsible summary::before {
+  content: "+";
+  display: inline-block;
+  width: 1rem;
+  margin-right: 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: #94a3b8;
+  vertical-align: 0.05em;
+}
+
+.semantic-collapsible[open] summary::before {
+  content: "−";
+}
+
+.semantic-collapsible .canonical-block-body {
+  border-left: none;
+  padding-left: 0;
+  margin-top: 0.35rem;
+  margin-left: 1.15rem;
+}
+
+.semantic-level-1.semantic-collapsible summary {
+  font-size: var(--semantic-l1-size);
+  font-weight: var(--semantic-l1-weight);
+}
+
+.semantic-level-2.semantic-collapsible summary {
+  font-size: var(--semantic-l2-size);
+  font-weight: var(--semantic-l2-weight);
+}
+
+/* Structural representation — hierarchy without debug-tree aesthetics */
+.structural-hierarchy.semantic-structural-flow {
+  max-width: 720px;
+}
+
+.structural-group {
+  margin-bottom: 0.15rem;
+  padding-left: 0;
+}
+
+.structural-group[data-depth="1"] {
+  padding-left: 0.35rem;
+}
+
+.structural-group[data-depth="2"] {
+  padding-left: 0.6rem;
+}
+
+.structural-group[data-depth="3"],
+.structural-group[data-depth="4"] {
+  padding-left: 0.75rem;
+}
+
+.structural-heading-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.25rem;
+  margin-top: var(--semantic-l3-space-before);
+}
+
+.structural-group.semantic-level-1 > .structural-heading-row {
+  margin-top: var(--semantic-l1-space-before);
+}
+
+.structural-group.semantic-level-2 > .structural-heading-row {
+  margin-top: var(--semantic-l2-space-before);
+}
+
+.structural-group.semantic-level-1:first-child > .structural-heading-row,
+.structural-hierarchy > .structural-group:first-child > .structural-heading-row {
+  margin-top: 0;
+}
+
+.structural-toggle {
+  flex: 0 0 auto;
+  width: 1.5rem;
+  min-height: auto;
+  margin-top: 0.2em;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: #94a3b8;
+  font: inherit;
+  line-height: 1;
+}
+
+.structural-group.semantic-level-1 .structural-toggle {
+  width: 1.65rem;
+}
+
+.structural-group.semantic-level-4 .structural-toggle,
+.structural-group.semantic-level-5 .structural-toggle,
+.structural-group.semantic-level-6 .structural-toggle {
+  width: 1.25rem;
+  opacity: 0.85;
+}
+
+.structural-toggle:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+.structural-indicator {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.structural-group.semantic-level-4 .structural-indicator,
+.structural-group.semantic-level-5 .structural-indicator,
+.structural-group.semantic-level-6 .structural-indicator {
+  font-size: 0.72rem;
+}
+
+.structural-heading {
+  flex: 1;
+  margin: 0;
+  min-width: 0;
+}
+
+.structural-content {
+  padding: 0.15rem 0 0.5rem 1.65rem;
+  margin: 0;
+  border-left: 1px solid #e8edf2;
+}
+
+.structural-group.semantic-level-1 > .structural-content {
+  padding-left: 1.85rem;
+}
+
+.structural-group.semantic-level-4 > .structural-content,
+.structural-group.semantic-level-5 > .structural-content,
+.structural-group.semantic-level-6 > .structural-content {
+  padding-left: 1.35rem;
+  border-left-color: #f1f5f9;
+}
+
+.structural-content.collapsed {
+  display: none;
+}
+
+.structural-orphan-content {
+  margin-bottom: 1rem;
+}
+
+/* Anchors subordinate to headings */
+.semantic-heading .semantic-anchor,
+.semantic-heading .topic-link {
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+@media (max-width: 640px) {
+  #noteContent {
+    --semantic-l1-size: 1.38rem;
+    --semantic-l2-size: 1.22rem;
+    --semantic-l3-size: 1.08rem;
+    --semantic-l1-space-before: 1.85rem;
+    --semantic-l2-space-before: 1.35rem;
+    --semantic-l3-space-before: 1rem;
+  }
+
+  .structural-content {
+    padding-left: 1.15rem;
+  }
+
+  .structural-toggle {
+    width: 1.35rem;
+  }
+}
+
+/* ======================================================
    SEMANTIC ANCHOR PREVIEW (draft governance layer)
    ====================================================== */
 

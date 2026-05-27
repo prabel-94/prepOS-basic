@@ -33,27 +33,7 @@
       color: #fff;
       border-color: #1e293b;
     }
-    #noteContent {
-      line-height: 1.65;
-      font-size: 1rem;
-    }
-    .canonical-representation {
-      max-width: 720px;
-    }
-    .canonical-block,
-    .canonical-block.collapsible {
-      margin-bottom: 16px;
-    }
-    .canonical-block-heading {
-      margin: 0 0 8px;
-      font-weight: 600;
-    }
-    .canonical-paragraph {
-      margin: 0 0 12px;
-    }
-    .canonical-list {
-      margin: 0 0 16px 1.25rem;
-    }
+    /* Note reading hierarchy: css/style.css → Semantic hierarchy rendering */
     .topic-link {
       color: var(--primary);
       text-decoration: none;
@@ -70,16 +50,6 @@
     }
     .topic-link.unresolved:hover {
       text-decoration: none;
-    }
-    details.collapsible summary {
-      cursor: pointer;
-      font-weight: 600;
-      padding: 8px 0;
-    }
-    .canonical-block-body {
-      padding-left: 8px;
-      border-left: 3px solid #e2e8f0;
-      margin-top: 8px;
     }
     .canonical-empty {
       color: #64748b;
@@ -217,67 +187,6 @@
     }
     .referenced-in-link {
       font-weight: 500;
-    }
-    .structural-hierarchy {
-      max-width: 720px;
-    }
-    .structural-group {
-      margin-bottom: 0.35rem;
-      padding-left: calc(var(--structural-depth, 0) * 0.85rem);
-    }
-    .structural-toggle {
-      width: 100%;
-      text-align: left;
-      border: none;
-      background: transparent;
-      font-weight: 600;
-      cursor: pointer;
-      padding: 0.5rem 0;
-      font-size: 1rem;
-      line-height: 1.4;
-      color: #1e293b;
-      display: flex;
-      align-items: flex-start;
-      gap: 0.35rem;
-      min-height: 44px;
-    }
-    .structural-toggle:focus-visible {
-      outline: 2px solid var(--primary);
-      outline-offset: 2px;
-      border-radius: 4px;
-    }
-    .structural-indicator {
-      flex-shrink: 0;
-      width: 1.1rem;
-      color: #64748b;
-      font-size: 0.85rem;
-      line-height: 1.5;
-    }
-    .structural-heading {
-      flex: 1;
-    }
-    .structural-content {
-      padding: 0 0 0.75rem 1.25rem;
-      border-left: 2px solid #e2e8f0;
-      margin-left: 0.55rem;
-    }
-    .structural-content.collapsed {
-      display: none;
-    }
-    .structural-content .canonical-list {
-      margin-top: 0.25rem;
-      margin-bottom: 0.5rem;
-    }
-    .structural-orphan-content {
-      margin-bottom: 1rem;
-    }
-    @media (max-width: 640px) {
-      .structural-toggle {
-        padding: 0.6rem 0;
-      }
-      .structural-content {
-        padding-left: 0.85rem;
-      }
     }
   </style>
 </head>
