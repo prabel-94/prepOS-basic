@@ -4,7 +4,10 @@
  */
 
 import { getClient } from "../core/get-client.js";
-import { parseMapMarkdown } from "./map-parser.js";
+import {
+  MSMDF_SECTION_SYNTAX_HELP,
+  parseMapMarkdown,
+} from "./map-parser.js";
 import { normalizeLanguage } from "./note-variants.js";
 import {
   buildTopicLinkRows,
@@ -52,14 +55,13 @@ function validateParsed(parsed, rawMarkdown) {
   }
 
   const reps = parsed?.representations ?? {};
-  const blockCount = Object.values(reps).reduce(
-    (sum, blocks) => sum + (blocks?.length ?? 0),
-    0
-  );
+  const blockCount =
+    Object.values(reps).reduce((sum, blocks) => sum + (blocks?.length ?? 0), 0) +
+    (parsed?.entity_index?.length ?? 0);
 
   if (blockCount === 0) {
     throw new Error(
-      "No semantic sections detected. Add anchors such as # [NARRATIVE] before saving."
+      `No canonical semantic sections detected. ${MSMDF_SECTION_SYNTAX_HELP}`
     );
   }
 

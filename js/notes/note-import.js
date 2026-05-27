@@ -3,7 +3,12 @@
  * Variant-aware: draft revisions, language streams, publish replaces prior published.
  */
 
-import { parseMapMarkdown, summarizeDetectedSections } from "./map-parser.js";
+import {
+  formatDetectedSectionTags,
+  MSMDF_SECTION_SYNTAX_HELP,
+  parseMapMarkdown,
+  summarizeDetectedSections,
+} from "./map-parser.js";
 import {
   saveNoteVariant,
   getCanonicalNoteByTopicId,
@@ -26,6 +31,8 @@ const SECTION_LABELS = Object.freeze({
   timeline: "Timeline",
   interpretations: "Interpretations",
   recall: "Recall",
+  entity_index: "Entity index",
+  prelude: "Prelude (pre-section)",
 });
 
 function escapeHTML(value = "") {
@@ -229,12 +236,22 @@ export function initNoteImportPage({
       .map(([, label]) => `<li class="detected-item detected-ok">✓ ${label}</li>`);
 
     if (!items.length) {
-      sectionsEl.innerHTML =
-        '<li class="detected-item detected-miss">No semantic sections detected. Use # [NARRATIVE], etc.</li>';
+      const tags = formatDetectedSectionTags(parsed);
+      if (tags.length) {
+        sectionsEl.innerHTML = `<li class="detected-item detected-ok">Detected: ${escapeHTML(tags.join(", "))}</li>`;
+        return;
+      }
+
+      sectionsEl.innerHTML = `<li class="detected-item detected-miss">No canonical semantic sections detected. ${escapeHTML(MSMDF_SECTION_SYNTAX_HELP)}</li>`;
       return;
     }
 
-    sectionsEl.innerHTML = items.join("");
+    const tagSummary = formatDetectedSectionTags(parsed);
+    const summaryLine = tagSummary.length
+      ? `<li class="detected-item detected-ok">Canonical tags: ${escapeHTML(tagSummary.join(", "))}</li>`
+      : "";
+
+    sectionsEl.innerHTML = summaryLine + items.join("");
   }
 
   function renderTopicLinks(parsed) {
