@@ -560,6 +560,11 @@ CARD SYSTEM
   min-width: 0;
 }
 
+.topic-note-row-actions {
+  flex: 0 0 auto;
+  align-items: center;
+}
+
 .topic-note-meta {
   font-size: 0.875rem;
 }
