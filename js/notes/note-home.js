@@ -143,13 +143,36 @@ export function renderTopicNotesList(container, grouped = [], role = "student") 
               : ` <span class="topic-note-status topic-note-status--${escapeHTML(v.status)}">${escapeHTML(v.status)}</span>`;
           const updated = formatUpdatedAt(v.updated_at);
 
+          const isStaff = role === "teacher" || role === "admin";
+          const draftSibling =
+            isStaff && v.status === "published"
+              ? variants.find(
+                  (candidate) =>
+                    candidate.status === "draft" &&
+                    normalizeLanguage(candidate.language) === normalizeLanguage(v.language)
+                )
+              : null;
+          const draftHref =
+            draftSibling?.id && isStaff
+              ? resolveAppPath(
+                  `note.html?variant=${encodeURIComponent(draftSibling.id)}&mode=draft`
+                )
+              : null;
+
           return `
             <div class="topic-note-row recent-item mt-10">
               <div class="topic-note-row-main">
                 <div><b>${escapeHTML(lang)}</b>${status}</div>
                 <div class="topic-note-meta text-muted">${escapeHTML(v.title)}${updated ? ` · ${escapeHTML(updated)}` : ""}</div>
               </div>
-              <a class="secondary-btn" href="${escapeHTML(href)}">${role === "student" ? "Read" : v.status === "draft" ? "Refine" : "Read"}</a>
+              <div class="topic-note-row-actions flex gap-10">
+                <a class="secondary-btn" href="${escapeHTML(href)}">${role === "student" ? "Read" : v.status === "draft" ? "Refine" : "Read"}</a>
+                ${
+                  draftHref
+                    ? `<a class="secondary-btn" href="${escapeHTML(draftHref)}">View draft</a>`
+                    : ""
+                }
+              </div>
             </div>
           `;
         })
