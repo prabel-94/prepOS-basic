@@ -218,3 +218,83 @@ export function bindStudentSemanticReading(container, context = {}) {
   container.addEventListener("keydown", container._studentSemanticKeyHandler);
   container.dataset.studentSemanticBound = "true";
 }
+
+/**
+ * Bind published semantic anchors for any role.
+ * - student: read-only cognition inspector
+ * - teacher/admin: editorial cognition inspector (note editing only unless governanceContext exists)
+ *
+ * @param {HTMLElement} container
+ * @param {{ semanticMap?: Record<string, object>, preferLanguage?: string, role?: "student"|"teacher"|"admin" }} context
+ */
+export function bindPublishedSemanticReading(container, context = {}) {
+  if (!container) {
+    return;
+  }
+
+  const semanticMap = context.semanticMap ?? {};
+  const preferLanguage = context.preferLanguage ?? "english";
+  const role = context.role ?? "student";
+  const studentMode = role === "student";
+
+  const inspectorOptions = {
+    preferLanguage,
+    studentMode,
+    canEditAnchorNote: !studentMode,
+    studentSemanticMap: semanticMap,
+  };
+
+  if (container._publishedSemanticClickHandler) {
+    container.removeEventListener("click", container._publishedSemanticClickHandler);
+    container.removeEventListener("keydown", container._publishedSemanticKeyHandler);
+  }
+
+  const onActivate = (el) => {
+    if (!el?.classList?.contains("semantic-anchor")) {
+      return;
+    }
+
+    if (!el.classList.contains("existing-anchor")) {
+      return;
+    }
+
+    const entry = semanticEntryFromElement(el, semanticMap);
+    if (!entry.anchor_id) {
+      return;
+    }
+
+    captureReadingContext(el);
+
+    import("../ui/teacher-inspector.js").then(({ openAnchorInspector }) => {
+      openAnchorInspector(entry, inspectorOptions);
+    });
+  };
+
+  container._publishedSemanticClickHandler = (event) => {
+    const anchor = event.target.closest(".semantic-anchor.existing-anchor");
+    if (!anchor || !container.contains(anchor)) {
+      return;
+    }
+
+    event.preventDefault();
+    onActivate(anchor);
+  };
+
+  container._publishedSemanticKeyHandler = (event) => {
+    if (event.key !== "Enter" && event.key !== " ") {
+      return;
+    }
+
+    const anchor = event.target.closest(".semantic-anchor.existing-anchor");
+    if (!anchor || !container.contains(anchor)) {
+      return;
+    }
+
+    event.preventDefault();
+    onActivate(anchor);
+  };
+
+  container.addEventListener("click", container._publishedSemanticClickHandler);
+  container.addEventListener("keydown", container._publishedSemanticKeyHandler);
+  container.dataset.publishedSemanticBound = "true";
+}

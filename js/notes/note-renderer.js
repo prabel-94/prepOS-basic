@@ -39,19 +39,12 @@ function linkOptions(renderOptions = {}) {
 function resolveInlineSemantics(text, topicMap, renderOptions = {}) {
   const opts = withReadingErgonomics(renderOptions);
 
-  if (opts.studentSemanticMode && opts.semanticMap) {
+  // Semantic cognition rendering is authoritative whenever a semanticMap exists.
+  // Legacy topic traversal is fallback-only (when no semantic map available).
+  if (opts.semanticMap) {
     return renderSemanticAnchors(text, opts.semanticMap, {
       interactive: opts.semanticInteractive !== false,
-      studentMode: true,
-      anchorElement: opts.semanticAnchorElement ?? "button",
-      anchorOccurrenceTracker: opts.anchorOccurrenceTracker,
-    });
-  }
-
-  if (opts.semanticPreview && opts.semanticMap) {
-    return renderSemanticAnchors(text, opts.semanticMap, {
-      interactive: opts.semanticInteractive !== false,
-      previewMode: opts.previewMode !== false,
+      previewMode: opts.semanticPreview ? opts.previewMode !== false : false,
       studentMode: opts.studentMode === true,
       anchorElement: opts.semanticAnchorElement ?? "button",
       anchorOccurrenceTracker: opts.anchorOccurrenceTracker,
