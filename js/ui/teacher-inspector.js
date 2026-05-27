@@ -8,6 +8,7 @@ import {
   restoreReadingContextIfNeeded,
 } from "../notes/reading-ergonomics.js";
 import { openModal, closeModal } from "./modal-system.js";
+import { replaceOverlay } from "./overlay-transitions.js";
 import { resolveAppPath } from "../core/access.js";
 import { getClient } from "../core/get-client.js";
 import { GOVERNANCE_ACTIONS } from "../anchors/anchor-governance.js";
@@ -775,15 +776,25 @@ function bindAnchorNoteEditorActions(
 
   bodyEl.querySelectorAll("[data-anchor-note-edit]").forEach((btn) => {
     btn.addEventListener("click", () => {
-      openAnchorNoteEditor({
-        anchorId: semanticEntry.anchor_id,
-        anchorVariantId: variant?.id ?? semanticEntry.anchor_variant_id,
-        displayName: semanticEntry.display_name ?? semanticEntry.source_text,
-        language: preferLanguage,
-        initialContent: note?.note_content ?? "",
-        onSave: async () => {
-          await openAnchorInspector(semanticEntry, inspectorOptions);
-        },
+      const inspectorOverlay = document.getElementById("teacher-inspector-overlay");
+
+      replaceOverlay({
+        fromOverlay: inspectorOverlay,
+        suppressReadingRestore: true,
+        openNext: () =>
+          openAnchorNoteEditor({
+            anchorId: semanticEntry.anchor_id,
+            anchorVariantId: variant?.id ?? semanticEntry.anchor_variant_id,
+            displayName: semanticEntry.display_name ?? semanticEntry.source_text,
+            language: preferLanguage,
+            initialContent: note?.note_content ?? "",
+            onSave: async () => {
+              await openAnchorInspector(semanticEntry, inspectorOptions);
+            },
+            onCancel: async () => {
+              await openAnchorInspector(semanticEntry, inspectorOptions);
+            },
+          }),
       });
     });
   });

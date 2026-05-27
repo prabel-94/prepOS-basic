@@ -29,9 +29,7 @@ import {
   normalizeLanguage,
 } from "./note-variants.js";
 import {
-  bindStudentSemanticReading,
   bindPublishedSemanticReading,
-  buildStudentSemanticRenderOptions,
   preparePublishedStudentSemanticMap,
 } from "../anchors/anchor-student-reader.js";
 

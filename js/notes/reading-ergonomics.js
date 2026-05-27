@@ -9,6 +9,7 @@ const WIKI_LINK_PATTERN = /\[\[([^\]]+)\]\]/g;
 
 /** @type {{ scrollY: number, anchor: HTMLElement | null } | null} */
 let pendingReadingRestore = null;
+let suppressNextRestore = false;
 
 /**
  * Per-paragraph anchor occurrence tracking for repeat softening.
@@ -150,6 +151,11 @@ export function captureReadingContext(anchorEl = null) {
  * Restore reading position after inspector closes.
  */
 export function restoreReadingContextIfNeeded() {
+  if (suppressNextRestore) {
+    suppressNextRestore = false;
+    return;
+  }
+
   if (!pendingReadingRestore) {
     return;
   }
@@ -161,6 +167,14 @@ export function restoreReadingContextIfNeeded() {
     window.scrollTo({ top: scrollY, left: 0, behavior: "instant" });
     anchor?.focus?.({ preventScroll: true });
   });
+}
+
+/**
+ * Use when an overlay is being closed as part of a workflow transition
+ * (e.g. inspector → editor) where restoring scroll immediately would be disruptive.
+ */
+export function suppressNextReadingRestore() {
+  suppressNextRestore = true;
 }
 
 /**
