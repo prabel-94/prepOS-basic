@@ -13,6 +13,7 @@ import {
   getAvailableTabs,
   renderRepresentationTab,
 } from "./note-renderer.js";
+import { withReadingErgonomics } from "./reading-ergonomics.js";
 import {
   bindSemanticPreviewInteractions,
   buildSemanticPreviewRenderOptions,
@@ -128,9 +129,11 @@ export function initDraftWorkspace({
     previewParsed = preview.parsed;
     previewSemanticMap = preview.semanticMap;
     previewSummary = preview.summary ?? null;
-    previewRenderOptions = buildSemanticPreviewRenderOptions(previewSemanticMap, {
-      preferLanguage,
-    });
+    previewRenderOptions = withReadingErgonomics(
+      buildSemanticPreviewRenderOptions(previewSemanticMap, {
+        preferLanguage,
+      })
+    );
 
     renderPreviewTabs(previewParsed.representations, previewRenderOptions);
   }
@@ -213,6 +216,10 @@ export function initDraftWorkspace({
   }
 
   function renderPreviewTabs(representations, options) {
+    if (contentEl) {
+      contentEl.classList.add("semantic-reading-surface");
+    }
+
     const tabs = getAvailableTabs(representations);
 
     if (!tabs.length) {
@@ -293,9 +300,11 @@ export function initDraftWorkspace({
       previewParsed = preview.parsed;
       previewSemanticMap = preview.semanticMap;
       previewSummary = preview.summary ?? null;
-      previewRenderOptions = buildSemanticPreviewRenderOptions(previewSemanticMap, {
-        preferLanguage,
-      });
+      previewRenderOptions = withReadingErgonomics(
+        buildSemanticPreviewRenderOptions(previewSemanticMap, {
+          preferLanguage,
+        })
+      );
 
       if (sourcePanelEl) {
         sourcePanelEl.classList.add("hidden");

@@ -4,6 +4,7 @@
 
 import { getClient } from "../core/get-client.js";
 import { normalizeLanguage } from "../notes/note-variants.js";
+import { captureReadingContext } from "../notes/reading-ergonomics.js";
 import { lookupSemanticEntry } from "./anchor-renderer.js";
 import { normalizeAnchorName } from "./anchor-normalization.js";
 import { fetchNoteAnchorLinksForVariant } from "./anchor-selectors.js";
@@ -181,6 +182,8 @@ export function bindStudentSemanticReading(container, context = {}) {
     if (!entry.anchor_id) {
       return;
     }
+
+    captureReadingContext(el);
 
     import("../ui/teacher-inspector.js").then(({ openAnchorInspector }) => {
       openAnchorInspector(entry, inspectorOptions);

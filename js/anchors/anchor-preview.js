@@ -14,6 +14,7 @@ import {
   resolveSemanticVisualState,
 } from "./anchor-summary.js";
 import { fetchNoteAnchorLinksForVariant } from "./anchor-selectors.js";
+import { captureReadingContext } from "../notes/reading-ergonomics.js";
 import {
   openAnchorInspector,
   openCandidateAnchorInspector,
@@ -219,6 +220,8 @@ export function bindSemanticPreviewInteractions(container, context = {}) {
     if (!el?.classList?.contains("semantic-anchor")) {
       return;
     }
+
+    captureReadingContext(el);
 
     const entry = semanticEntryFromElement(el, semanticMap);
 

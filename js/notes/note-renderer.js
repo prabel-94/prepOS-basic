@@ -6,7 +6,6 @@ import { renderSemanticAnchors } from "../anchors/anchor-renderer.js";
 import { resolveTopicLinks } from "./note-topic-links.js";
 import {
   clampParserHeadingLevel,
-  isNarrativeRepresentation,
   resolveSemanticLevel,
   semanticBlockClasses,
   semanticHeadingClasses,
@@ -14,6 +13,15 @@ import {
   semanticLevelClass,
   shouldCollapseBlock,
 } from "./semantic-hierarchy.js";
+import {
+  countWikiLinksInText,
+  createAnchorOccurrenceTracker,
+  defaultCollapsibleOpen,
+  defaultStructuralExpanded,
+  isDenseParagraph,
+  representationReadingClass,
+  withReadingErgonomics,
+} from "./reading-ergonomics.js";
 
 function escapeHTML(value = "") {
   return String(value)
@@ -29,24 +37,28 @@ function linkOptions(renderOptions = {}) {
 }
 
 function resolveInlineSemantics(text, topicMap, renderOptions = {}) {
-  if (renderOptions.studentSemanticMode && renderOptions.semanticMap) {
-    return renderSemanticAnchors(text, renderOptions.semanticMap, {
-      interactive: renderOptions.semanticInteractive !== false,
+  const opts = withReadingErgonomics(renderOptions);
+
+  if (opts.studentSemanticMode && opts.semanticMap) {
+    return renderSemanticAnchors(text, opts.semanticMap, {
+      interactive: opts.semanticInteractive !== false,
       studentMode: true,
-      anchorElement: renderOptions.semanticAnchorElement ?? "button",
+      anchorElement: opts.semanticAnchorElement ?? "button",
+      anchorOccurrenceTracker: opts.anchorOccurrenceTracker,
     });
   }
 
-  if (renderOptions.semanticPreview && renderOptions.semanticMap) {
-    return renderSemanticAnchors(text, renderOptions.semanticMap, {
-      interactive: renderOptions.semanticInteractive !== false,
-      previewMode: renderOptions.previewMode !== false,
-      studentMode: renderOptions.studentMode === true,
-      anchorElement: renderOptions.semanticAnchorElement ?? "button",
+  if (opts.semanticPreview && opts.semanticMap) {
+    return renderSemanticAnchors(text, opts.semanticMap, {
+      interactive: opts.semanticInteractive !== false,
+      previewMode: opts.previewMode !== false,
+      studentMode: opts.studentMode === true,
+      anchorElement: opts.semanticAnchorElement ?? "button",
+      anchorOccurrenceTracker: opts.anchorOccurrenceTracker,
     });
   }
 
-  return resolveTopicLinks(text, topicMap, linkOptions(renderOptions));
+  return resolveTopicLinks(text, topicMap, linkOptions(opts));
 }
 
 function renderSemanticHeading(headingText, parserLevel, representationKey, topicMap, renderOptions) {
@@ -95,11 +107,20 @@ function renderBlockBody(block, topicMap, renderOptions) {
     .map((p) => p.trim())
     .filter(Boolean);
 
+  const tracker = renderOptions.anchorOccurrenceTracker;
+
   return paragraphs
-    .map(
-      (p) =>
-        `<p class="canonical-paragraph semantic-paragraph">${resolveInlineSemantics(p, topicMap, renderOptions)}</p>`
-    )
+    .map((p) => {
+      tracker?.resetParagraph?.();
+      const anchorCount = countWikiLinksInText(p);
+      const denseClass = isDenseParagraph(anchorCount) ? " semantic-paragraph--dense" : "";
+
+      return `<p class="canonical-paragraph semantic-paragraph${denseClass}">${resolveInlineSemantics(
+        p,
+        topicMap,
+        renderOptions
+      )}</p>`;
+    })
     .join("");
 }
 
@@ -109,6 +130,7 @@ function renderBlock(block, topicMap, renderOptions, representationKey = "narrat
     representation: representationKey,
   });
   const blockClass = semanticBlockClasses(semanticLevel, representationKey);
+  const sectionEntryClass = semanticLevel === 1 ? " semantic-section-entry" : "";
   const body = renderBlockBody(block, topicMap, renderOptions);
 
   const heading = block.heading
@@ -122,16 +144,16 @@ function renderBlock(block, topicMap, renderOptions, representationKey = "narrat
     : "";
 
   if (!shouldCollapseBlock(block, representationKey)) {
-    return `<article class="${blockClass}" data-semantic-level="${semanticLevel}">${heading}<div class="semantic-body">${body}</div></article>`;
+    return `<article class="${blockClass}${sectionEntryClass}" data-semantic-level="${semanticLevel}">${heading}<div class="semantic-body">${body}</div></article>`;
   }
 
-  const open = block.metadata_json?.default_open === true;
+  const open = defaultCollapsibleOpen(representationKey, semanticLevel, block);
   const summaryLabel = block.heading
     ? resolveInlineSemantics(block.heading, topicMap, renderOptions)
     : escapeHTML(block.block_type);
 
   return `
-    <details class="${blockClass} collapsible semantic-collapsible" data-semantic-level="${semanticLevel}" ${open ? "open" : ""}>
+    <details class="${blockClass}${sectionEntryClass} collapsible semantic-collapsible semantic-collapsible--${representationKey}" data-semantic-level="${semanticLevel}" ${open ? "open" : ""}>
       <summary class="semantic-collapsible-summary semantic-heading--l${semanticLevel}">${summaryLabel}</summary>
       <div class="canonical-block-body semantic-body">${body}</div>
     </details>
@@ -149,13 +171,12 @@ function renderRepresentation(
     return `<p class="canonical-empty">No content in this representation.</p>`;
   }
 
-  const modeClass = isNarrativeRepresentation(representationKey)
-    ? "semantic-reading-flow"
-    : "semantic-representation-blocks";
+  const modeClass = representationReadingClass(representationKey);
+  const readingOpts = withReadingErgonomics(renderOptions);
 
   return `
     <section class="canonical-representation ${className} ${modeClass}" data-representation="${representationKey}">
-      ${blocks.map((b) => renderBlock(b, topicMap, renderOptions, representationKey)).join("")}
+      ${blocks.map((b) => renderBlock(b, topicMap, readingOpts, representationKey)).join("")}
     </section>
   `;
 }
@@ -239,32 +260,41 @@ function renderStructuralContentBlock(block, topicMap, renderOptions) {
     return "";
   }
 
+  const tracker = renderOptions.anchorOccurrenceTracker;
+
   return String(block.content)
     .split(/\n{2,}/)
     .map((p) => p.trim())
     .filter(Boolean)
-    .map(
-      (p) =>
-        `<p class="canonical-paragraph structural-leaf semantic-paragraph">${resolveInlineSemantics(p, topicMap, renderOptions)}</p>`
-    )
+    .map((p) => {
+      tracker?.resetParagraph?.();
+      const anchorCount = countWikiLinksInText(p);
+      const denseClass = isDenseParagraph(anchorCount) ? " semantic-paragraph--dense" : "";
+
+      return `<p class="canonical-paragraph structural-leaf semantic-paragraph${denseClass}">${resolveInlineSemantics(
+        p,
+        topicMap,
+        renderOptions
+      )}</p>`;
+    })
     .join("");
 }
 
-function isStructuralExpanded(nodeId, depth) {
+function isStructuralExpanded(nodeId, depth, semanticLevel) {
   if (structuralSessionState.has(nodeId)) {
     return structuralSessionState.get(nodeId);
   }
 
-  return depth === 0;
+  return defaultStructuralExpanded(depth, semanticLevel);
 }
 
 function renderStructuralSectionNode(node, topicMap, depth, renderOptions) {
-  const expanded = isStructuralExpanded(node.id, depth);
-  const indicator = expanded ? "−" : "+";
   const semanticLevel = resolveSemanticLevel(node.hierarchy_level, {
     depth,
     representation: "structural",
   });
+  const expanded = isStructuralExpanded(node.id, depth, semanticLevel);
+  const indicator = expanded ? "−" : "+";
   const levelClass = semanticLevelClass(semanticLevel);
   const headingTag = semanticHeadingTag(semanticLevel);
   const headingClasses = semanticHeadingClasses(semanticLevel);
@@ -313,6 +343,7 @@ export function renderStructuralSection(node, topicMap, depth = 0, renderOptions
 }
 
 export function renderStructural(blocks, topicMap, renderOptions) {
+  const readingOpts = withReadingErgonomics(renderOptions);
   const sorted = sortBlocks(blocks);
 
   if (!sorted.length) {
@@ -325,13 +356,13 @@ export function renderStructural(blocks, topicMap, renderOptions) {
   if (tree.blocks.length) {
     parts.push(
       `<div class="structural-orphan-content semantic-body">${tree.blocks
-        .map((b) => renderStructuralContentBlock(b, topicMap, renderOptions))
+        .map((b) => renderStructuralContentBlock(b, topicMap, readingOpts))
         .join("")}</div>`
     );
   }
 
   for (const child of tree.children) {
-    parts.push(renderStructuralSectionNode(child, topicMap, 0, renderOptions));
+    parts.push(renderStructuralSectionNode(child, topicMap, 0, readingOpts));
   }
 
   if (!parts.length) {
@@ -339,7 +370,7 @@ export function renderStructural(blocks, topicMap, renderOptions) {
       sorted,
       topicMap,
       "representation-structural",
-      renderOptions,
+      readingOpts,
       "structural"
     );
   }
