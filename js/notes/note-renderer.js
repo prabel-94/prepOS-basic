@@ -32,6 +32,87 @@ function escapeHTML(value = "") {
     .replaceAll("'", "&#039;");
 }
 
+function normalizeDividerLine(line) {
+  return String(line ?? "").trim();
+}
+
+function isSemanticDividerLine(line) {
+  const trimmed = normalizeDividerLine(line);
+  if (!trimmed) {
+    return false;
+  }
+
+  // Common semantic divider glyphs used in exported MSMDF specimens.
+  // Keep pattern detection minimal and tolerant (no full grammar).
+  if (trimmed === "---") {
+    return true;
+  }
+
+  // Box / thin dividers: ━━━━━, ─────, and similar.
+  // Accept: only divider-like characters, repeated.
+  if (/^[━─—–-]{3,}$/.test(trimmed)) {
+    return true;
+  }
+
+  return false;
+}
+
+function dividerWeight(line) {
+  const trimmed = normalizeDividerLine(line);
+  if (trimmed.includes("━")) {
+    return "heavy";
+  }
+  if (trimmed === "---") {
+    return "hr";
+  }
+  return "thin";
+}
+
+function parseChronologyEventLine(line) {
+  const trimmed = String(line ?? "").trim();
+  const match = trimmed.match(
+    /^(\d{3,4}(?:\s*[–-]\s*\d{3,4})?)\s*[—–-]\s*(.+)$/
+  );
+  if (!match) {
+    return null;
+  }
+
+  return {
+    date: match[1].trim(),
+    label: match[2].trim(),
+  };
+}
+
+function parseDividerWrappedChronologyNode(paragraphText) {
+  const lines = String(paragraphText ?? "")
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+
+  if (lines.length < 3) {
+    return null;
+  }
+
+  // Divider / event / divider (+ optional annotation lines)
+  if (!isSemanticDividerLine(lines[0]) || !isSemanticDividerLine(lines[2])) {
+    return null;
+  }
+
+  const event = parseChronologyEventLine(lines[1]);
+  if (!event) {
+    return null;
+  }
+
+  const annotationLines = lines.slice(3);
+  const annotation = annotationLines.join(" ").trim() || null;
+
+  return {
+    divider: lines[0],
+    event,
+    annotation,
+  };
+}
+
 function linkOptions(renderOptions = {}) {
   return { preferLanguage: renderOptions.preferLanguage ?? "english" };
 }
@@ -86,7 +167,53 @@ function renderListContent(content, topicMap, renderOptions) {
   return `<ul class="canonical-list semantic-list">${items}</ul>`;
 }
 
-function renderBlockBody(block, topicMap, renderOptions) {
+function renderSemanticParagraph(p, topicMap, renderOptions, representationKey) {
+  const tracker = renderOptions.anchorOccurrenceTracker;
+  tracker?.resetParagraph?.();
+
+  const trimmed = String(p ?? "").trim();
+  if (!trimmed) {
+    return "";
+  }
+
+  // Divider utility line (including literal ---).
+  if (isSemanticDividerLine(trimmed)) {
+    const weight = dividerWeight(trimmed);
+    return `<div class="semantic-divider semantic-divider--${weight}" aria-hidden="true"></div>`;
+  }
+
+  // Minimal chronology node stabilization (Timeline + narrative snippets).
+  const node = parseDividerWrappedChronologyNode(trimmed);
+  if (node && (representationKey === "timeline" || representationKey === "narrative")) {
+    const eventLabel = resolveInlineSemantics(node.event.label, topicMap, renderOptions);
+    const annotation = node.annotation
+      ? resolveInlineSemantics(node.annotation, topicMap, renderOptions)
+      : "";
+
+    return `
+      <div class="semantic-chronology-node" data-representation="${escapeHTML(representationKey)}">
+        <div class="semantic-divider semantic-divider--${dividerWeight(node.divider)}" aria-hidden="true"></div>
+        <div class="semantic-chronology-row">
+          <span class="semantic-chronology-date">${escapeHTML(node.event.date)}</span>
+          <span class="semantic-chronology-label">${eventLabel}</span>
+        </div>
+        <div class="semantic-divider semantic-divider--${dividerWeight(node.divider)}" aria-hidden="true"></div>
+        ${annotation ? `<div class="semantic-chronology-annotation">${annotation}</div>` : ""}
+      </div>
+    `;
+  }
+
+  const anchorCount = countWikiLinksInText(trimmed);
+  const denseClass = isDenseParagraph(anchorCount) ? " semantic-paragraph--dense" : "";
+
+  return `<p class="canonical-paragraph semantic-paragraph${denseClass}">${resolveInlineSemantics(
+    trimmed,
+    topicMap,
+    renderOptions
+  )}</p>`;
+}
+
+function renderBlockBody(block, topicMap, renderOptions, representationKey = "narrative") {
   if (block.block_type === "list") {
     return renderListContent(block.content, topicMap, renderOptions);
   }
@@ -100,20 +227,9 @@ function renderBlockBody(block, topicMap, renderOptions) {
     .map((p) => p.trim())
     .filter(Boolean);
 
-  const tracker = renderOptions.anchorOccurrenceTracker;
-
   return paragraphs
-    .map((p) => {
-      tracker?.resetParagraph?.();
-      const anchorCount = countWikiLinksInText(p);
-      const denseClass = isDenseParagraph(anchorCount) ? " semantic-paragraph--dense" : "";
-
-      return `<p class="canonical-paragraph semantic-paragraph${denseClass}">${resolveInlineSemantics(
-        p,
-        topicMap,
-        renderOptions
-      )}</p>`;
-    })
+    .map((p) => renderSemanticParagraph(p, topicMap, renderOptions, representationKey))
+    .filter(Boolean)
     .join("");
 }
 
@@ -124,7 +240,7 @@ function renderBlock(block, topicMap, renderOptions, representationKey = "narrat
   });
   const blockClass = semanticBlockClasses(semanticLevel, representationKey);
   const sectionEntryClass = semanticLevel === 1 ? " semantic-section-entry" : "";
-  const body = renderBlockBody(block, topicMap, renderOptions);
+  const body = renderBlockBody(block, topicMap, renderOptions, representationKey);
 
   const heading = block.heading
     ? renderSemanticHeading(
@@ -167,9 +283,32 @@ function renderRepresentation(
   const modeClass = representationReadingClass(representationKey);
   const readingOpts = withReadingErgonomics(renderOptions);
 
+  const parts = [];
+  for (let i = 0; i < blocks.length; i += 1) {
+    const block = blocks[i];
+    const next = blocks[i + 1] ?? null;
+
+    // Retrieval cue grouping: "Retrieval Anchor:" paragraph + immediate heading block.
+    if (
+      representationKey === "narrative" &&
+      block?.block_type === "paragraph" &&
+      String(block.content ?? "").trim().toLowerCase() === "retrieval anchor:" &&
+      next?.block_type === "section" &&
+      next?.heading
+    ) {
+      const cue = `<div class="semantic-retrieval-cue">Retrieval Anchor</div>`;
+      const payload = renderBlock(next, topicMap, readingOpts, representationKey);
+      parts.push(`<div class="semantic-retrieval-block">${cue}${payload}</div>`);
+      i += 1;
+      continue;
+    }
+
+    parts.push(renderBlock(block, topicMap, readingOpts, representationKey));
+  }
+
   return `
     <section class="canonical-representation ${className} ${modeClass}" data-representation="${representationKey}">
-      ${blocks.map((b) => renderBlock(b, topicMap, readingOpts, representationKey)).join("")}
+      ${parts.join("")}
     </section>
   `;
 }
