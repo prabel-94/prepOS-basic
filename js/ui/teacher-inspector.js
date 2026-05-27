@@ -538,6 +538,7 @@ export function renderAnchorInspector(
     canEditAnchorNote = false,
     studentMode = false,
     studentSemanticMap = null,
+    canGovernAnchor = false,
   } = {}
 ) {
   if (studentMode) {
@@ -562,15 +563,17 @@ export function renderAnchorInspector(
     );
   }
 
-  if (isMicro) {
+  if (canGovernAnchor) {
+    if (isMicro) {
+      governanceButtons.push(
+        `<button type="button" class="primary-btn" data-governance-action="${GOVERNANCE_ACTIONS.PROMOTE}">Promote to Canonical</button>`
+      );
+    }
+
     governanceButtons.push(
-      `<button type="button" class="primary-btn" data-governance-action="${GOVERNANCE_ACTIONS.PROMOTE}">Promote to Canonical</button>`
+      `<button type="button" class="secondary-btn" data-governance-action="${GOVERNANCE_ACTIONS.DEACTIVATE}">De-anchor</button>`
     );
   }
-
-  governanceButtons.push(
-    `<button type="button" class="secondary-btn" data-governance-action="${GOVERNANCE_ACTIONS.DEACTIVATE}">De-anchor</button>`
-  );
 
   return `
     <section class="anchor-inspector-section anchor-inspector-header">
@@ -790,6 +793,7 @@ export async function openAnchorInspector(semanticEntry = {}, options = {}) {
   const preferLanguage = options.preferLanguage ?? "english";
   const studentMode = options.studentMode === true;
   const canEditAnchorNote = studentMode ? false : resolveCanEditAnchorNote(options);
+  const canGovernAnchor = Boolean(options.governanceContext?.apply);
 
   let payload = {
     semanticEntry,
@@ -829,6 +833,7 @@ export async function openAnchorInspector(semanticEntry = {}, options = {}) {
       canEditAnchorNote,
       studentMode,
       studentSemanticMap: options.studentSemanticMap,
+      canGovernAnchor,
     }),
     semanticEntry: entry,
     governanceContext: studentMode ? null : options.governanceContext,

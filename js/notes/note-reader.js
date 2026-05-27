@@ -30,6 +30,7 @@ import {
 } from "./note-variants.js";
 import {
   bindStudentSemanticReading,
+  bindPublishedSemanticReading,
   buildStudentSemanticRenderOptions,
   preparePublishedStudentSemanticMap,
 } from "../anchors/anchor-student-reader.js";
@@ -159,16 +160,26 @@ async function bootPublishedReader({
   const tabs = getAvailableTabs(bundle.representations);
   let activeTab = tabs[0]?.key ?? "narrative";
 
-  let renderOptions = { preferLanguage };
-  let studentSemanticMap = null;
+  let renderOptions = withReadingErgonomics({ preferLanguage });
+  let publishedSemanticMap = null;
 
-  if (isStudent) {
-    studentSemanticMap = await preparePublishedStudentSemanticMap(
+  try {
+    publishedSemanticMap = await preparePublishedStudentSemanticMap(
       bundle.variant.id,
       preferLanguage
     );
-    renderOptions = buildStudentSemanticRenderOptions(studentSemanticMap, {
+  } catch (err) {
+    console.warn("[Published semantic map]", err);
+    publishedSemanticMap = null;
+  }
+
+  if (publishedSemanticMap && Object.keys(publishedSemanticMap).length) {
+    renderOptions = withReadingErgonomics({
       preferLanguage,
+      semanticMap: publishedSemanticMap,
+      semanticPreview: true,
+      semanticInteractive: true,
+      studentMode: Boolean(isStudent),
     });
   }
 
@@ -186,10 +197,11 @@ async function bootPublishedReader({
       bindStructuralCollapse(contentEl);
     }
 
-    if (isStudent && studentSemanticMap) {
-      bindStudentSemanticReading(contentEl, {
-        semanticMap: studentSemanticMap,
+    if (publishedSemanticMap && Object.keys(publishedSemanticMap).length) {
+      bindPublishedSemanticReading(contentEl, {
+        semanticMap: publishedSemanticMap,
         preferLanguage,
+        role: isStudent ? "student" : isTeacher ? "teacher" : "admin",
       });
     }
   }
