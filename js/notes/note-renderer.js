@@ -1,9 +1,19 @@
 /**
- * Representation-aware note renderer (not generic markdown).
+ * Representation-aware note renderer (semantic cognition hierarchy).
  */
 
 import { renderSemanticAnchors } from "../anchors/anchor-renderer.js";
 import { resolveTopicLinks } from "./note-topic-links.js";
+import {
+  clampParserHeadingLevel,
+  isNarrativeRepresentation,
+  resolveSemanticLevel,
+  semanticBlockClasses,
+  semanticHeadingClasses,
+  semanticHeadingTag,
+  semanticLevelClass,
+  shouldCollapseBlock,
+} from "./semantic-hierarchy.js";
 
 function escapeHTML(value = "") {
   return String(value)
@@ -18,10 +28,6 @@ function linkOptions(renderOptions = {}) {
   return { preferLanguage: renderOptions.preferLanguage ?? "english" };
 }
 
-/**
- * Draft preview uses semantic anchors; published students use student semantic map.
- * Teachers on published notes keep topic traversal links.
- */
 function resolveInlineSemantics(text, topicMap, renderOptions = {}) {
   if (renderOptions.studentSemanticMode && renderOptions.semanticMap) {
     return renderSemanticAnchors(text, renderOptions.semanticMap, {
@@ -43,6 +49,18 @@ function resolveInlineSemantics(text, topicMap, renderOptions = {}) {
   return resolveTopicLinks(text, topicMap, linkOptions(renderOptions));
 }
 
+function renderSemanticHeading(headingText, parserLevel, representationKey, topicMap, renderOptions) {
+  const semanticLevel = resolveSemanticLevel(parserLevel, { representation: representationKey });
+  const tag = semanticHeadingTag(semanticLevel);
+  const classes = semanticHeadingClasses(semanticLevel);
+
+  return `<${tag} class="${classes}" data-semantic-level="${semanticLevel}">${resolveInlineSemantics(
+    headingText,
+    topicMap,
+    renderOptions
+  )}</${tag}>`;
+}
+
 function renderListContent(content, topicMap, renderOptions) {
   const lines = String(content ?? "")
     .split("\n")
@@ -60,39 +78,51 @@ function renderListContent(content, topicMap, renderOptions) {
     })
     .join("");
 
-  return `<ul class="canonical-list">${items}</ul>`;
+  return `<ul class="canonical-list semantic-list">${items}</ul>`;
 }
 
-function renderBlock(block, topicMap, renderOptions) {
-  const heading = block.heading
-    ? `<h${Math.min(Math.max(block.hierarchy_level || 3, 2), 4)} class="canonical-block-heading">${resolveInlineSemantics(block.heading, topicMap, renderOptions)}</h${Math.min(Math.max(block.hierarchy_level || 3, 2), 4)}>`
-    : "";
-
-  let body = "";
-
+function renderBlockBody(block, topicMap, renderOptions) {
   if (block.block_type === "list") {
-    body = renderListContent(block.content, topicMap, renderOptions);
-  } else if (block.content) {
-    const paragraphs = String(block.content)
-      .split(/\n{2,}/)
-      .map((p) => p.trim())
-      .filter(Boolean);
-
-    body = paragraphs
-      .map(
-        (p) =>
-          `<p class="canonical-paragraph">${resolveInlineSemantics(p, topicMap, renderOptions)}</p>`
-      )
-      .join("");
+    return renderListContent(block.content, topicMap, renderOptions);
   }
 
-  const collapsible =
-    block.block_type === "section" ||
-    block.block_type === "recall_section" ||
-    Boolean(block.heading);
+  if (!block.content) {
+    return "";
+  }
 
-  if (!collapsible) {
-    return `<article class="canonical-block">${heading}${body}</article>`;
+  const paragraphs = String(block.content)
+    .split(/\n{2,}/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+
+  return paragraphs
+    .map(
+      (p) =>
+        `<p class="canonical-paragraph semantic-paragraph">${resolveInlineSemantics(p, topicMap, renderOptions)}</p>`
+    )
+    .join("");
+}
+
+function renderBlock(block, topicMap, renderOptions, representationKey = "narrative") {
+  const parserLevel = clampParserHeadingLevel(block.hierarchy_level);
+  const semanticLevel = resolveSemanticLevel(parserLevel, {
+    representation: representationKey,
+  });
+  const blockClass = semanticBlockClasses(semanticLevel, representationKey);
+  const body = renderBlockBody(block, topicMap, renderOptions);
+
+  const heading = block.heading
+    ? renderSemanticHeading(
+        block.heading,
+        parserLevel,
+        representationKey,
+        topicMap,
+        renderOptions
+      )
+    : "";
+
+  if (!shouldCollapseBlock(block, representationKey)) {
+    return `<article class="${blockClass}" data-semantic-level="${semanticLevel}">${heading}<div class="semantic-body">${body}</div></article>`;
   }
 
   const open = block.metadata_json?.default_open === true;
@@ -101,31 +131,47 @@ function renderBlock(block, topicMap, renderOptions) {
     : escapeHTML(block.block_type);
 
   return `
-    <details class="canonical-block collapsible" ${open ? "open" : ""}>
-      <summary>${summaryLabel}</summary>
-      <div class="canonical-block-body">${body}</div>
+    <details class="${blockClass} collapsible semantic-collapsible" data-semantic-level="${semanticLevel}" ${open ? "open" : ""}>
+      <summary class="semantic-collapsible-summary semantic-heading--l${semanticLevel}">${summaryLabel}</summary>
+      <div class="canonical-block-body semantic-body">${body}</div>
     </details>
   `;
 }
 
-function renderRepresentation(blocks = [], topicMap = {}, className, renderOptions = {}) {
+function renderRepresentation(
+  blocks = [],
+  topicMap = {},
+  className,
+  renderOptions = {},
+  representationKey = "narrative"
+) {
   if (!blocks.length) {
     return `<p class="canonical-empty">No content in this representation.</p>`;
   }
 
+  const modeClass = isNarrativeRepresentation(representationKey)
+    ? "semantic-reading-flow"
+    : "semantic-representation-blocks";
+
   return `
-    <section class="canonical-representation ${className}">
-      ${blocks.map((b) => renderBlock(b, topicMap, renderOptions)).join("")}
+    <section class="canonical-representation ${className} ${modeClass}" data-representation="${representationKey}">
+      ${blocks.map((b) => renderBlock(b, topicMap, renderOptions, representationKey)).join("")}
     </section>
   `;
 }
 
 export function renderNarrative(blocks, topicMap, renderOptions) {
-  return renderRepresentation(blocks, topicMap, "representation-narrative", renderOptions);
+  return renderRepresentation(
+    blocks,
+    topicMap,
+    "representation-narrative",
+    renderOptions,
+    "narrative"
+  );
 }
 
 // ---------------------------------------------------------------------------
-// Structural hierarchy (interactive pedagogical compression — renderer only)
+// Structural hierarchy (semantic depth + subordinated interaction)
 // ---------------------------------------------------------------------------
 
 const structuralSessionState = new Map();
@@ -140,9 +186,6 @@ function isStructuralSection(block) {
   return Boolean(block.heading && block.block_type === "section");
 }
 
-/**
- * Build nested groups from canonical hierarchy_level + sequence_order.
- */
 export function buildStructuralTree(blocks = []) {
   const root = {
     id: "structural-root",
@@ -202,7 +245,7 @@ function renderStructuralContentBlock(block, topicMap, renderOptions) {
     .filter(Boolean)
     .map(
       (p) =>
-        `<p class="canonical-paragraph structural-leaf">${resolveInlineSemantics(p, topicMap, renderOptions)}</p>`
+        `<p class="canonical-paragraph structural-leaf semantic-paragraph">${resolveInlineSemantics(p, topicMap, renderOptions)}</p>`
     )
     .join("");
 }
@@ -217,7 +260,14 @@ function isStructuralExpanded(nodeId, depth) {
 
 function renderStructuralSectionNode(node, topicMap, depth, renderOptions) {
   const expanded = isStructuralExpanded(node.id, depth);
-  const indicator = expanded ? "▼" : "▶";
+  const indicator = expanded ? "−" : "+";
+  const semanticLevel = resolveSemanticLevel(node.hierarchy_level, {
+    depth,
+    representation: "structural",
+  });
+  const levelClass = semanticLevelClass(semanticLevel);
+  const headingTag = semanticHeadingTag(semanticLevel);
+  const headingClasses = semanticHeadingClasses(semanticLevel);
 
   const bodyParts = [
     ...node.blocks.map((b) => renderStructuralContentBlock(b, topicMap, renderOptions)),
@@ -226,28 +276,31 @@ function renderStructuralSectionNode(node, topicMap, depth, renderOptions) {
     ),
   ].filter(Boolean);
 
-  const indent = Math.min(depth, 6);
+  const indent = Math.min(depth, 4);
 
   return `
-    <div class="structural-group" data-depth="${indent}" style="--structural-depth: ${indent}">
-      <button
-        type="button"
-        class="structural-toggle"
-        aria-expanded="${expanded}"
-        aria-controls="structural-panel-${node.id}"
-        data-structural-id="${escapeHTML(node.id)}"
-      >
-        <span class="structural-indicator" aria-hidden="true">${indicator}</span>
-        <span class="structural-heading">${resolveInlineSemantics(node.heading, topicMap, {
-          ...renderOptions,
-          semanticAnchorElement: "span",
-        })}</span>
-      </button>
+    <div class="structural-group ${levelClass}" data-semantic-level="${semanticLevel}" data-depth="${indent}" style="--structural-depth: ${indent}">
+      <div class="structural-heading-row">
+        <button
+          type="button"
+          class="structural-toggle"
+          aria-expanded="${expanded}"
+          aria-controls="structural-panel-${node.id}"
+          data-structural-id="${escapeHTML(node.id)}"
+          aria-label="${expanded ? "Collapse" : "Expand"} section"
+        >
+          <span class="structural-indicator" aria-hidden="true">${indicator}</span>
+        </button>
+        <${headingTag} id="structural-heading-${escapeHTML(node.id)}" class="${headingClasses} structural-heading">${resolveInlineSemantics(node.heading, topicMap, {
+    ...renderOptions,
+    semanticAnchorElement: "span",
+  })}</${headingTag}>
+      </div>
       <div
         id="structural-panel-${node.id}"
         class="structural-content${expanded ? "" : " collapsed"}"
         role="region"
-        aria-label="${escapeHTML(node.heading)}"
+        aria-labelledby="structural-heading-${node.id}"
       >
         ${bodyParts.join("")}
       </div>
@@ -271,7 +324,7 @@ export function renderStructural(blocks, topicMap, renderOptions) {
 
   if (tree.blocks.length) {
     parts.push(
-      `<div class="structural-orphan-content">${tree.blocks
+      `<div class="structural-orphan-content semantic-body">${tree.blocks
         .map((b) => renderStructuralContentBlock(b, topicMap, renderOptions))
         .join("")}</div>`
     );
@@ -282,19 +335,22 @@ export function renderStructural(blocks, topicMap, renderOptions) {
   }
 
   if (!parts.length) {
-    return renderRepresentation(sorted, topicMap, "representation-structural", renderOptions);
+    return renderRepresentation(
+      sorted,
+      topicMap,
+      "representation-structural",
+      renderOptions,
+      "structural"
+    );
   }
 
   return `
-    <section class="canonical-representation representation-structural structural-hierarchy">
+    <section class="canonical-representation representation-structural structural-hierarchy semantic-structural-flow" data-representation="structural">
       ${parts.join("")}
     </section>
   `;
 }
 
-/**
- * Bind toggle behavior for structural hierarchy (session-local state).
- */
 export function bindStructuralCollapse(container) {
   if (!container || container.dataset.structuralBound === "true") {
     return;
@@ -322,7 +378,7 @@ export function bindStructuralCollapse(container) {
 
     const indicator = toggle.querySelector(".structural-indicator");
     if (indicator) {
-      indicator.textContent = nextExpanded ? "▼" : "▶";
+      indicator.textContent = nextExpanded ? "−" : "+";
     }
 
     structuralSessionState.set(nodeId, nextExpanded);
@@ -330,15 +386,33 @@ export function bindStructuralCollapse(container) {
 }
 
 export function renderRevision(blocks, topicMap, renderOptions) {
-  return renderRepresentation(blocks, topicMap, "representation-revision", renderOptions);
+  return renderRepresentation(
+    blocks,
+    topicMap,
+    "representation-revision",
+    renderOptions,
+    "revision"
+  );
 }
 
 export function renderTimeline(blocks, topicMap, renderOptions) {
-  return renderRepresentation(blocks, topicMap, "representation-timeline", renderOptions);
+  return renderRepresentation(
+    blocks,
+    topicMap,
+    "representation-timeline",
+    renderOptions,
+    "timeline"
+  );
 }
 
 export function renderInterpretations(blocks, topicMap, renderOptions) {
-  return renderRepresentation(blocks, topicMap, "representation-interpretations", renderOptions);
+  return renderRepresentation(
+    blocks,
+    topicMap,
+    "representation-interpretations",
+    renderOptions,
+    "interpretations"
+  );
 }
 
 const RENDERERS = Object.freeze({
