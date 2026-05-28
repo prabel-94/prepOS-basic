@@ -113,6 +113,77 @@ function parseDividerWrappedChronologyNode(paragraphText) {
   };
 }
 
+function parseParagraphWithEmbeddedChronology(paragraphText) {
+  const lines = String(paragraphText ?? "")
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+
+  if (lines.length < 3) {
+    return null;
+  }
+
+  // Find divider/event/divider anywhere in the paragraph, allowing leading cue lines.
+  for (let i = 0; i + 2 < lines.length; i += 1) {
+    if (!isSemanticDividerLine(lines[i]) || !isSemanticDividerLine(lines[i + 2])) {
+      continue;
+    }
+
+    const event = parseChronologyEventLine(lines[i + 1]);
+    if (!event) {
+      continue;
+    }
+
+    const prefixLines = lines.slice(0, i);
+    const annotation = lines.slice(i + 3).join(" ").trim() || null;
+
+    return {
+      prefix: prefixLines,
+      node: {
+        divider: lines[i],
+        event,
+        annotation,
+      },
+    };
+  }
+
+  return null;
+}
+
+function renderCueLines(lines, topicMap, renderOptions) {
+  const text = (lines ?? []).join(" ").trim();
+  if (!text) {
+    return "";
+  }
+
+  return `<p class="canonical-paragraph semantic-paragraph semantic-cue">${resolveInlineSemantics(
+    text,
+    topicMap,
+    renderOptions
+  )}</p>`;
+}
+
+function renderChronologyNode(node, topicMap, renderOptions, representationKey) {
+  const eventLabel = resolveInlineSemantics(node.event.label, topicMap, renderOptions);
+  const annotation = node.annotation
+    ? resolveInlineSemantics(node.annotation, topicMap, renderOptions)
+    : "";
+
+  return `
+    <div class="semantic-chronology-node chronology-group" data-representation="${escapeHTML(
+      representationKey
+    )}">
+      <div class="semantic-divider semantic-divider--${dividerWeight(node.divider)}" aria-hidden="true"></div>
+      <div class="semantic-chronology-row chronology-row">
+        <span class="semantic-chronology-date">${escapeHTML(node.event.date)}</span>
+        <span class="semantic-chronology-label">${eventLabel}</span>
+      </div>
+      <div class="semantic-divider semantic-divider--${dividerWeight(node.divider)}" aria-hidden="true"></div>
+      ${annotation ? `<div class="semantic-chronology-annotation chronology-annotation">${annotation}</div>` : ""}
+    </div>
+  `;
+}
+
 function linkOptions(renderOptions = {}) {
   return { preferLanguage: renderOptions.preferLanguage ?? "english" };
 }
@@ -185,22 +256,15 @@ function renderSemanticParagraph(p, topicMap, renderOptions, representationKey) 
   // Minimal chronology node stabilization (Timeline + narrative snippets).
   const node = parseDividerWrappedChronologyNode(trimmed);
   if (node && (representationKey === "timeline" || representationKey === "narrative")) {
-    const eventLabel = resolveInlineSemantics(node.event.label, topicMap, renderOptions);
-    const annotation = node.annotation
-      ? resolveInlineSemantics(node.annotation, topicMap, renderOptions)
-      : "";
+    return renderChronologyNode(node, topicMap, renderOptions, representationKey);
+  }
 
-    return `
-      <div class="semantic-chronology-node" data-representation="${escapeHTML(representationKey)}">
-        <div class="semantic-divider semantic-divider--${dividerWeight(node.divider)}" aria-hidden="true"></div>
-        <div class="semantic-chronology-row">
-          <span class="semantic-chronology-date">${escapeHTML(node.event.date)}</span>
-          <span class="semantic-chronology-label">${eventLabel}</span>
-        </div>
-        <div class="semantic-divider semantic-divider--${dividerWeight(node.divider)}" aria-hidden="true"></div>
-        ${annotation ? `<div class="semantic-chronology-annotation">${annotation}</div>` : ""}
-      </div>
-    `;
+  // Chronology blocks embedded in a paragraph with leading cue text.
+  const embedded = parseParagraphWithEmbeddedChronology(trimmed);
+  if (embedded && (representationKey === "timeline" || representationKey === "narrative")) {
+    const cue = renderCueLines(embedded.prefix, topicMap, renderOptions);
+    const block = renderChronologyNode(embedded.node, topicMap, renderOptions, representationKey);
+    return `<div class="semantic-escalation-group">${cue}${block}</div>`;
   }
 
   const anchorCount = countWikiLinksInText(trimmed);
@@ -301,6 +365,35 @@ function renderRepresentation(
       parts.push(`<div class="semantic-retrieval-block">${cue}${payload}</div>`);
       i += 1;
       continue;
+    }
+
+    // Semantic escalation cue grouping: short cue paragraph + immediate heading payload.
+    if (
+      representationKey === "narrative" &&
+      block?.block_type === "paragraph" &&
+      next?.block_type === "section" &&
+      next?.heading
+    ) {
+      const cueRaw = String(block.content ?? "").trim();
+      const isCue =
+        cueRaw.length > 0 &&
+        cueRaw.length <= 48 &&
+        /^(the|through|beginning with|leading to|resulting in|culminating in|following|under|during|because|events such as|conflict escalated through|this culminated in)\s*[:—-]\s*$/i.test(
+          cueRaw
+        );
+
+      if (isCue) {
+        const cueText = cueRaw.replace(/[:—-]\s*$/, "").trim() || cueRaw;
+        const cueEl = `<div class="semantic-cue-line">${resolveInlineSemantics(
+          cueText,
+          topicMap,
+          readingOpts
+        )}</div>`;
+        const payload = renderBlock(next, topicMap, readingOpts, representationKey);
+        parts.push(`<div class="semantic-escalation-group">${cueEl}${payload}</div>`);
+        i += 1;
+        continue;
+      }
     }
 
     parts.push(renderBlock(block, topicMap, readingOpts, representationKey));

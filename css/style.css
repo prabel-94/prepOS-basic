@@ -2181,6 +2181,38 @@ PREPOS SIDE PANEL OVERLAYS
   margin-bottom: 0.25rem;
 }
 
+.semantic-cue {
+  margin-bottom: 0.35rem;
+  color: #475569;
+}
+
+.semantic-cue-line {
+  font-size: 0.92rem;
+  color: #475569;
+  margin: 0 0 0.15rem;
+}
+
+.semantic-escalation-group {
+  max-width: 68ch;
+  margin: 0 0 var(--semantic-paragraph-gap);
+}
+
+.semantic-escalation-group .semantic-heading {
+  margin-top: 0.25rem;
+}
+
+.semantic-escalation-group .semantic-body .semantic-paragraph:first-child {
+  margin-top: 0.2rem;
+}
+
+.chronology-group .semantic-divider {
+  margin: 0.4rem 0;
+}
+
+.chronology-annotation {
+  margin-top: 0.1rem;
+}
+
 .semantic-list {
   margin: 0 0 var(--semantic-paragraph-gap);
   padding-left: 1.35rem;
