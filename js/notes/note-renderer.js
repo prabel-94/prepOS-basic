@@ -150,30 +150,101 @@ function parseParagraphWithEmbeddedChronology(paragraphText) {
   return null;
 }
 
+const SEMANTIC_CUE_PATTERN =
+  /^(the|through|beginning with|leading to|resulting in|culminating in|following|under|during|because|events such as|conflict escalated through|this culminated in)\s*[:—-]?\s*$/i;
+
+function isSemanticCue(line) {
+  const trimmed = String(line ?? "").trim();
+  if (!trimmed || trimmed.length > 48) {
+    return false;
+  }
+
+  return SEMANTIC_CUE_PATTERN.test(trimmed);
+}
+
+function normalizeCueDisplay(cueRaw) {
+  const trimmed = String(cueRaw ?? "").trim();
+  if (!trimmed) {
+    return "";
+  }
+
+  if (/[:—-]\s*$/.test(trimmed)) {
+    return trimmed;
+  }
+
+  return `${trimmed}:`;
+}
+
+function isDividerOnlyBlock(block) {
+  if (block?.block_type !== "paragraph" || !block.content) {
+    return false;
+  }
+
+  const lines = String(block.content)
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+
+  return lines.length === 1 && isSemanticDividerLine(lines[0]);
+}
+
+function renderSemanticDividerElement(line) {
+  const weight = dividerWeight(line);
+  return `<div class="semantic-divider semantic-divider--${weight} semantic-escalation-transition" aria-hidden="true"></div>`;
+}
+
+function renderSemanticDividerFromBlock(block) {
+  const line = String(block.content ?? "")
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean)[0];
+
+  return line ? renderSemanticDividerElement(line) : "";
+}
+
+function renderSemanticCueElement(cueRaw, topicMap, renderOptions) {
+  const display = normalizeCueDisplay(cueRaw);
+  if (!display) {
+    return "";
+  }
+
+  return `<div class="semantic-cue">${resolveInlineSemantics(
+    display,
+    topicMap,
+    renderOptions
+  )}</div>`;
+}
+
 function renderCueLines(lines, topicMap, renderOptions) {
   const text = (lines ?? []).join(" ").trim();
   if (!text) {
     return "";
   }
 
-  return `<p class="canonical-paragraph semantic-paragraph semantic-cue">${resolveInlineSemantics(
-    text,
-    topicMap,
-    renderOptions
-  )}</p>`;
+  return renderSemanticCueElement(text, topicMap, renderOptions);
 }
 
-function renderChronologyNode(node, topicMap, renderOptions, representationKey) {
+function renderChronologyNode(
+  node,
+  topicMap,
+  renderOptions,
+  representationKey,
+  { omitLeadingDivider = false } = {}
+) {
   const eventLabel = resolveInlineSemantics(node.event.label, topicMap, renderOptions);
   const annotation = node.annotation
     ? resolveInlineSemantics(node.annotation, topicMap, renderOptions)
     : "";
 
+  const leadingDivider = omitLeadingDivider
+    ? ""
+    : `<div class="semantic-divider semantic-divider--${dividerWeight(node.divider)}" aria-hidden="true"></div>`;
+
   return `
     <div class="semantic-chronology-node chronology-group" data-representation="${escapeHTML(
       representationKey
     )}">
-      <div class="semantic-divider semantic-divider--${dividerWeight(node.divider)}" aria-hidden="true"></div>
+      ${leadingDivider}
       <div class="semantic-chronology-row chronology-row">
         <span class="semantic-chronology-date">${escapeHTML(node.event.date)}</span>
         <span class="semantic-chronology-label">${eventLabel}</span>
@@ -182,6 +253,108 @@ function renderChronologyNode(node, topicMap, renderOptions, representationKey) 
       ${annotation ? `<div class="semantic-chronology-annotation chronology-annotation">${annotation}</div>` : ""}
     </div>
   `;
+}
+
+function renderSemanticEscalationHeading(headingText, parserLevel, topicMap, renderOptions) {
+  const semanticLevel = resolveSemanticLevel(parserLevel, { representation: "narrative" });
+  const tag = semanticHeadingTag(semanticLevel);
+
+  return `<${tag} class="semantic-heading semantic-escalation-heading semantic-heading--l${semanticLevel}" data-semantic-level="${semanticLevel}">${resolveInlineSemantics(
+    headingText,
+    topicMap,
+    renderOptions
+  )}</${tag}>`;
+}
+
+function renderSemanticEscalationPayload(
+  block,
+  topicMap,
+  renderOptions,
+  representationKey
+) {
+  if (!block?.heading) {
+    return "";
+  }
+
+  const parserLevel = clampParserHeadingLevel(block.hierarchy_level);
+  const heading = renderSemanticEscalationHeading(
+    block.heading,
+    parserLevel,
+    topicMap,
+    renderOptions
+  );
+
+  if (!block.content?.trim()) {
+    return heading;
+  }
+
+  const body = renderBlockBody(block, topicMap, renderOptions, representationKey);
+
+  return `${heading}<div class="semantic-escalation-resolution">${body}</div>`;
+}
+
+function renderSemanticEscalationSequence(
+  blocks,
+  cueIndex,
+  topicMap,
+  renderOptions,
+  representationKey,
+  skip
+) {
+  const cueBlock = blocks[cueIndex];
+  const headingBlock = blocks[cueIndex + 1];
+
+  if (
+    representationKey !== "narrative" ||
+    cueBlock?.block_type !== "paragraph" ||
+    !isSemanticCue(String(cueBlock.content ?? "").trim()) ||
+    headingBlock?.block_type !== "section" ||
+    !headingBlock?.heading
+  ) {
+    return null;
+  }
+
+  let transitionDivider = "";
+
+  if (cueIndex > 0 && !skip.has(cueIndex - 1)) {
+    const prev = blocks[cueIndex - 1];
+    if (isDividerOnlyBlock(prev)) {
+      transitionDivider = renderSemanticDividerFromBlock(prev);
+      skip.add(cueIndex - 1);
+    }
+  }
+
+  const cueEl = renderSemanticCueElement(cueBlock.content, topicMap, renderOptions);
+  let payload = renderSemanticEscalationPayload(
+    headingBlock,
+    topicMap,
+    renderOptions,
+    representationKey
+  );
+
+  skip.add(cueIndex);
+  skip.add(cueIndex + 1);
+
+  // Resolution often follows as a separate paragraph block (heading block has no content).
+  const resolutionBlock = blocks[cueIndex + 2];
+  if (
+    !headingBlock.content?.trim() &&
+    resolutionBlock?.block_type === "paragraph" &&
+    resolutionBlock.content?.trim() &&
+    !isSemanticCue(String(resolutionBlock.content).trim()) &&
+    !isDividerOnlyBlock(resolutionBlock)
+  ) {
+    const resolutionBody = renderBlockBody(
+      resolutionBlock,
+      topicMap,
+      renderOptions,
+      representationKey
+    );
+    payload += `<div class="semantic-escalation-resolution">${resolutionBody}</div>`;
+    skip.add(cueIndex + 2);
+  }
+
+  return `${transitionDivider}<div class="semantic-escalation-group">${cueEl}${payload}</div>`;
 }
 
 function linkOptions(renderOptions = {}) {
@@ -249,8 +422,7 @@ function renderSemanticParagraph(p, topicMap, renderOptions, representationKey) 
 
   // Divider utility line (including literal ---).
   if (isSemanticDividerLine(trimmed)) {
-    const weight = dividerWeight(trimmed);
-    return `<div class="semantic-divider semantic-divider--${weight}" aria-hidden="true"></div>`;
+    return renderSemanticDividerElement(trimmed);
   }
 
   // Minimal chronology node stabilization (Timeline + narrative snippets).
@@ -262,9 +434,12 @@ function renderSemanticParagraph(p, topicMap, renderOptions, representationKey) 
   // Chronology blocks embedded in a paragraph with leading cue text.
   const embedded = parseParagraphWithEmbeddedChronology(trimmed);
   if (embedded && (representationKey === "timeline" || representationKey === "narrative")) {
+    const transition = renderSemanticDividerElement(embedded.node.divider);
     const cue = renderCueLines(embedded.prefix, topicMap, renderOptions);
-    const block = renderChronologyNode(embedded.node, topicMap, renderOptions, representationKey);
-    return `<div class="semantic-escalation-group">${cue}${block}</div>`;
+    const block = renderChronologyNode(embedded.node, topicMap, renderOptions, representationKey, {
+      omitLeadingDivider: true,
+    });
+    return `${transition}<div class="semantic-escalation-group">${cue}${block}</div>`;
   }
 
   const anchorCount = countWikiLinksInText(trimmed);
@@ -348,7 +523,13 @@ function renderRepresentation(
   const readingOpts = withReadingErgonomics(renderOptions);
 
   const parts = [];
+  const skip = new Set();
+
   for (let i = 0; i < blocks.length; i += 1) {
+    if (skip.has(i)) {
+      continue;
+    }
+
     const block = blocks[i];
     const next = blocks[i + 1] ?? null;
 
@@ -361,39 +542,30 @@ function renderRepresentation(
       next?.heading
     ) {
       const cue = `<div class="semantic-retrieval-cue">Retrieval Anchor</div>`;
-      const payload = renderBlock(next, topicMap, readingOpts, representationKey);
+      const payload = renderSemanticEscalationPayload(
+        next,
+        topicMap,
+        readingOpts,
+        representationKey
+      );
       parts.push(`<div class="semantic-retrieval-block">${cue}${payload}</div>`);
-      i += 1;
+      skip.add(i);
+      skip.add(i + 1);
       continue;
     }
 
-    // Semantic escalation cue grouping: short cue paragraph + immediate heading payload.
-    if (
-      representationKey === "narrative" &&
-      block?.block_type === "paragraph" &&
-      next?.block_type === "section" &&
-      next?.heading
-    ) {
-      const cueRaw = String(block.content ?? "").trim();
-      const isCue =
-        cueRaw.length > 0 &&
-        cueRaw.length <= 48 &&
-        /^(the|through|beginning with|leading to|resulting in|culminating in|following|under|during|because|events such as|conflict escalated through|this culminated in)\s*[:—-]\s*$/i.test(
-          cueRaw
-        );
+    const escalationHtml = renderSemanticEscalationSequence(
+      blocks,
+      i,
+      topicMap,
+      readingOpts,
+      representationKey,
+      skip
+    );
 
-      if (isCue) {
-        const cueText = cueRaw.replace(/[:—-]\s*$/, "").trim() || cueRaw;
-        const cueEl = `<div class="semantic-cue-line">${resolveInlineSemantics(
-          cueText,
-          topicMap,
-          readingOpts
-        )}</div>`;
-        const payload = renderBlock(next, topicMap, readingOpts, representationKey);
-        parts.push(`<div class="semantic-escalation-group">${cueEl}${payload}</div>`);
-        i += 1;
-        continue;
-      }
+    if (escalationHtml) {
+      parts.push(escalationHtml);
+      continue;
     }
 
     parts.push(renderBlock(block, topicMap, readingOpts, representationKey));
