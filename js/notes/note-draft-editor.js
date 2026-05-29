@@ -108,7 +108,9 @@ export function initDraftWorkspace({
 
   const governanceContext = {
     variantId: variant.id,
+    noteId: variant.note_id,
     language: preferLanguage,
+    refreshPreview: () => refreshSemanticPreview(),
     async apply(action, entry, extra = {}) {
       const sb = await getClient();
       const { data: sessionData } = await sb.auth.getSession();
