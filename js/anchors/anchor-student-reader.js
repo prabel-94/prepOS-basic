@@ -242,6 +242,7 @@ export function bindPublishedSemanticReading(container, context = {}) {
     studentMode,
     canEditAnchorNote: !studentMode,
     studentSemanticMap: semanticMap,
+    governanceContext: studentMode ? null : context.governanceContext ?? null,
   };
 
   if (container._publishedSemanticClickHandler) {

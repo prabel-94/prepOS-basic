@@ -2872,6 +2872,84 @@ PREPOS SIDE PANEL OVERLAYS
   resize: vertical;
 }
 
+.anchor-note-editor-language-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 20px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.anchor-note-editor-lang-tab {
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 0.92rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.anchor-note-editor-lang-tab.active {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: rgba(37, 99, 235, 0.06);
+}
+
+.anchor-note-editor-lang-tab--no-variant {
+  opacity: 0.82;
+}
+
+.anchor-note-editor-lang-meta {
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin-left: 0.15rem;
+}
+
+.anchor-note-lang-status--has {
+  color: var(--muted);
+  font-size: 0.85em;
+}
+
+.anchor-note-lang-status--missing {
+  display: inline-block;
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 999px;
+  background: var(--anchor-note-missing);
+  vertical-align: middle;
+}
+
+.anchor-note-editor-status {
+  margin: 0 0 10px;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.anchor-note-editor-status.error {
+  color: var(--danger);
+}
+
+.anchor-note-editor-no-variant {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.anchor-note-editor-empty {
+  margin: 0 0 10px;
+}
+
+.anchor-note-editor-input:disabled {
+  background: var(--bg);
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
 .anchor-note-editor-preview {
   border: 1px dashed var(--border);
   border-radius: 8px;

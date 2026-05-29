@@ -2,10 +2,12 @@
  * Anchor lookup helpers (read-only).
  */
 
-import { normalizeLanguage } from "../notes/note-variants.js";
+import { normalizeLanguage, getLanguageLabel } from "../notes/note-variants.js";
 import { normalizeAnchorName } from "./anchor-normalization.js";
 import { extractWikiLinkNames } from "./anchor-note-renderer.js";
 import { ANCHOR_NOTE_STATUSES, ANCHOR_VARIANT_STATUSES } from "./anchor-types.js";
+import { fetchVariantsForNote } from "../notes/note-selectors.js";
+import { fetchActiveAnchorNote } from "./anchor-storage.js";
 
 function uniqueNormalized(names = []) {
   const seen = new Set();
@@ -377,6 +379,132 @@ export async function loadAnchorInspectorPayload(
     variant,
     note,
     noteLinkMap,
+  };
+}
+
+export async function fetchActiveAnchorVariantsForAnchor(sb, anchorId) {
+  if (!anchorId) {
+    return [];
+  }
+
+  const { data, error } = await sb
+    .from("anchor_variants")
+    .select("id, anchor_id, language, display_name, normalized_name, status")
+    .eq("anchor_id", anchorId)
+    .eq("status", ANCHOR_VARIANT_STATUSES.ACTIVE)
+    .order("language");
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data ?? [];
+}
+
+async function resolveNoteIdForEditor(sb, { noteId = null, variantId = null } = {}) {
+  if (noteId) {
+    return noteId;
+  }
+
+  if (!variantId) {
+    return null;
+  }
+
+  const { data, error } = await sb
+    .from("note_variants")
+    .select("note_id")
+    .eq("id", variantId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data?.note_id ?? null;
+}
+
+/**
+ * Cross-language editor context for a single anchor.
+ *
+ * @param {import("@supabase/supabase-js").SupabaseClient} sb
+ * @param {object} options
+ */
+export async function loadAnchorNoteEditorContext(
+  sb,
+  {
+    anchorId,
+    preferLanguage = "english",
+    noteId = null,
+    variantId = null,
+    displayName = null,
+  } = {}
+) {
+  if (!anchorId) {
+    throw new Error("anchorId is required.");
+  }
+
+  const selectedLanguage = normalizeLanguage(preferLanguage);
+  const resolvedNoteId = await resolveNoteIdForEditor(sb, { noteId, variantId });
+  const anchorVariants = await fetchActiveAnchorVariantsForAnchor(sb, anchorId);
+  const variantByLanguage = new Map(
+    anchorVariants.map((variant) => [normalizeLanguage(variant.language), variant])
+  );
+
+  const languageSet = new Set(
+    anchorVariants.map((variant) => normalizeLanguage(variant.language))
+  );
+
+  if (resolvedNoteId) {
+    const noteVariants = await fetchVariantsForNote(resolvedNoteId);
+    for (const noteVariant of noteVariants) {
+      languageSet.add(normalizeLanguage(noteVariant.language));
+    }
+  }
+
+  if (!languageSet.size) {
+    languageSet.add(selectedLanguage);
+  }
+
+  const languages = [...languageSet].sort((a, b) =>
+    getLanguageLabel(a).localeCompare(getLanguageLabel(b))
+  );
+
+  const variants = [];
+
+  for (const language of languages) {
+    const variant = variantByLanguage.get(language) ?? null;
+
+    if (!variant) {
+      variants.push({
+        anchorVariantId: null,
+        language,
+        hasVariant: false,
+        hasNote: false,
+        noteId: null,
+        noteContent: "",
+      });
+      continue;
+    }
+
+    const note = await fetchActiveAnchorNote(sb, variant.id);
+    const noteContent = note?.note_content ?? "";
+    const hasNote = Boolean(String(noteContent).trim());
+
+    variants.push({
+      anchorVariantId: variant.id,
+      language,
+      hasVariant: true,
+      hasNote,
+      noteId: note?.id ?? null,
+      noteContent,
+    });
+  }
+
+  return {
+    anchorId,
+    displayName,
+    selectedLanguage,
+    variants,
   };
 }
 

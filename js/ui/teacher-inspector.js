@@ -788,8 +788,12 @@ function bindAnchorNoteEditorActions(
             displayName: semanticEntry.display_name ?? semanticEntry.source_text,
             language: preferLanguage,
             initialContent: note?.note_content ?? "",
+            noteId: inspectorOptions.governanceContext?.noteId ?? null,
+            variantId: inspectorOptions.governanceContext?.variantId ?? null,
             onSave: async () => {
-              await openAnchorInspector(semanticEntry, inspectorOptions);
+              if (typeof inspectorOptions.governanceContext?.refreshPreview === "function") {
+                await inspectorOptions.governanceContext.refreshPreview();
+              }
             },
             onCancel: async () => {
               await openAnchorInspector(semanticEntry, inspectorOptions);

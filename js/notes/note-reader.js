@@ -243,6 +243,14 @@ async function bootPublishedReader({
         semanticMap: publishedSemanticMap,
         preferLanguage,
         role: isStudent ? "student" : isTeacher ? "teacher" : "admin",
+        governanceContext:
+          isStudent
+            ? null
+            : {
+                noteId: bundle.variant.note_id,
+                variantId: bundle.variant.id,
+                language: preferLanguage,
+              },
       });
     }
   }
