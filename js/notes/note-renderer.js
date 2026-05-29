@@ -371,6 +371,7 @@ function resolveInlineSemantics(text, topicMap, renderOptions = {}) {
       interactive: opts.semanticInteractive !== false,
       previewMode: opts.semanticPreview ? opts.previewMode !== false : false,
       studentMode: opts.studentMode === true,
+      highlightEmptyAnchorNotes: opts.highlightEmptyAnchorNotes === true,
       anchorElement: opts.semanticAnchorElement ?? "button",
       anchorOccurrenceTracker: opts.anchorOccurrenceTracker,
     });

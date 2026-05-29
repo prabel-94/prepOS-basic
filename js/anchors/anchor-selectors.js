@@ -5,7 +5,7 @@
 import { normalizeLanguage } from "../notes/note-variants.js";
 import { normalizeAnchorName } from "./anchor-normalization.js";
 import { extractWikiLinkNames } from "./anchor-note-renderer.js";
-import { ANCHOR_NOTE_STATUSES } from "./anchor-types.js";
+import { ANCHOR_NOTE_STATUSES, ANCHOR_VARIANT_STATUSES } from "./anchor-types.js";
 
 function uniqueNormalized(names = []) {
   const seen = new Set();
@@ -425,7 +425,8 @@ export async function fetchAnchorNotePresenceByAnchorIds(
     .from("anchor_variants")
     .select("id, anchor_id")
     .in("anchor_id", uniqueIds)
-    .eq("language", lang);
+    .eq("language", lang)
+    .eq("status", ANCHOR_VARIANT_STATUSES.ACTIVE);
 
   if (variantError) {
     throw new Error(variantError.message);
