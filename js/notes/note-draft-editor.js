@@ -50,6 +50,27 @@ function formatDate(value) {
   }
 }
 
+function countRecallBlocks(blocks = []) {
+  return blocks.filter(
+    (b) =>
+      b.block_type === "recall" ||
+      b.block_type === "recall_section" ||
+      b.metadata_json?.source_section === "recall"
+  ).length;
+}
+
+function logRevisionParityDraft(variantId, representations = {}) {
+  const revisionBlocks = representations.revision ?? [];
+  console.log("[Revision Parity] Draft Preview", {
+    draftVariantId: variantId ?? null,
+    publishedVariantId: null,
+    draftRevisionBlockCount: revisionBlocks.length,
+    publishedRevisionBlockCount: null,
+    draftRecallBlockCount: countRecallBlocks(revisionBlocks),
+    publishedRecallBlockCount: null,
+  });
+}
+
 
 /**
  * @param {object} options
@@ -134,6 +155,8 @@ export function initDraftWorkspace({
         preferLanguage,
       })
     );
+
+    logRevisionParityDraft(variant.id, previewParsed.representations);
 
     renderPreviewTabs(previewParsed.representations, previewRenderOptions);
   }
@@ -305,6 +328,8 @@ export function initDraftWorkspace({
           preferLanguage,
         })
       );
+
+      logRevisionParityDraft(variant.id, previewParsed.representations);
 
       if (sourcePanelEl) {
         sourcePanelEl.classList.add("hidden");

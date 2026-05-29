@@ -74,6 +74,27 @@ function escapeHTML(value = "") {
     .replaceAll("'", "&#039;");
 }
 
+function countRecallBlocks(blocks = []) {
+  return blocks.filter(
+    (b) =>
+      b.block_type === "recall" ||
+      b.block_type === "recall_section" ||
+      b.metadata_json?.source_section === "recall"
+  ).length;
+}
+
+function logRevisionParityPublished(variantId, representations = {}) {
+  const revisionBlocks = representations.revision ?? [];
+  console.log("[Revision Parity] Published Reader", {
+    draftVariantId: null,
+    publishedVariantId: variantId ?? null,
+    draftRevisionBlockCount: null,
+    publishedRevisionBlockCount: revisionBlocks.length,
+    draftRecallBlockCount: null,
+    publishedRecallBlockCount: countRecallBlocks(revisionBlocks),
+  });
+}
+
 function renderLanguageTabs(container, variants, activeVariantId, isTeacher) {
   if (!container || variants.length < 2) {
     container.innerHTML = "";
@@ -180,6 +201,8 @@ async function bootPublishedReader({
       studentMode: Boolean(isStudent),
     });
   }
+
+  logRevisionParityPublished(bundle.variant.id, bundle.representations);
 
   function renderActiveTab() {
     contentEl.classList.remove("hidden");
