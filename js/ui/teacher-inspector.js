@@ -464,7 +464,7 @@ function renderAnchorNoteSection(
   }
 
   return `
-    <section class="anchor-inspector-section">
+    <section class="anchor-inspector-section anchor-inspector-section--empty-note">
       <h3 class="anchor-inspector-section-title">Anchor note</h3>
       <p class="anchor-note-empty">No anchor note written yet.</p>
       <button type="button" class="primary-btn mt-10" data-anchor-note-edit>Create Anchor Note</button>

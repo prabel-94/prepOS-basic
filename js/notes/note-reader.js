@@ -3,6 +3,7 @@
  */
 
 import { bootPage } from "../core/page-boot.js";
+import { getClient } from "../core/get-client.js";
 import { mountAppNav } from "../ui/app-nav.js";
 import { TEACHER_ROLES } from "../core/access.js";
 import { resolveAppPath } from "../core/access.js";
@@ -32,6 +33,7 @@ import {
   bindPublishedSemanticReading,
   preparePublishedStudentSemanticMap,
 } from "../anchors/anchor-student-reader.js";
+import { enrichSemanticMapWithAnchorNotePresence } from "../anchors/anchor-selectors.js";
 
 function getQueryParam(key) {
   return new URLSearchParams(window.location.search).get(key);
@@ -192,6 +194,23 @@ async function bootPublishedReader({
     publishedSemanticMap = null;
   }
 
+  if (
+    isTeacher &&
+    publishedSemanticMap &&
+    Object.keys(publishedSemanticMap).length
+  ) {
+    try {
+      const sb = await getClient();
+      publishedSemanticMap = await enrichSemanticMapWithAnchorNotePresence(
+        sb,
+        publishedSemanticMap,
+        preferLanguage
+      );
+    } catch (err) {
+      console.warn("[Published semantic map anchor notes]", err);
+    }
+  }
+
   if (publishedSemanticMap && Object.keys(publishedSemanticMap).length) {
     renderOptions = withReadingErgonomics({
       preferLanguage,
@@ -199,6 +218,7 @@ async function bootPublishedReader({
       semanticPreview: true,
       semanticInteractive: true,
       studentMode: Boolean(isStudent),
+      highlightEmptyAnchorNotes: Boolean(isTeacher),
     });
   }
 

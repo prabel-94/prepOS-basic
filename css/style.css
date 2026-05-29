@@ -2633,6 +2633,19 @@ PREPOS SIDE PANEL OVERLAYS
   cursor: default;
 }
 
+.semantic-anchor.empty-anchor-note {
+  background-color: rgba(251, 191, 36, 0.22);
+  border-radius: 3px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  padding: 0 2px;
+}
+
+.existing-anchor.empty-anchor-note,
+.canonical-anchor.empty-anchor-note {
+  text-decoration-color: rgba(180, 83, 9, 0.55);
+}
+
 .dormant-anchor:hover {
   opacity: 0.7;
 }
@@ -2825,9 +2838,21 @@ PREPOS SIDE PANEL OVERLAYS
 }
 
 .anchor-note-empty {
-  opacity: 0.72;
-  font-style: italic;
+  color: #92400e;
+  background: rgba(251, 191, 36, 0.14);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-style: normal;
+  opacity: 1;
   margin: 0;
+}
+
+.anchor-inspector-section--empty-note {
+  background: rgba(251, 191, 36, 0.08);
+  border-left: 3px solid rgba(251, 191, 36, 0.5);
+  border-radius: 0 6px 6px 0;
+  padding-left: 12px;
 }
 
 .anchor-note-unresolved {
