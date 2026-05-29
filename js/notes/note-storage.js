@@ -32,17 +32,18 @@ function flattenBlocks(parsed) {
 
   for (const representationType of REPRESENTATION_TYPES) {
     const blocks = parsed?.representations?.[representationType] ?? [];
-    for (const block of blocks) {
+    blocks.forEach((block, index) => {
       rows.push({
         representation_type: representationType,
         block_type: block.block_type,
         heading: block.heading ?? null,
         content: block.content ?? null,
         hierarchy_level: block.hierarchy_level ?? null,
-        sequence_order: block.sequence_order ?? 0,
+        // Global index within representation — parser sequence_order resets per MSMDF section.
+        sequence_order: index,
         metadata_json: block.metadata_json ?? {},
       });
-    }
+    });
   }
 
   return rows;
