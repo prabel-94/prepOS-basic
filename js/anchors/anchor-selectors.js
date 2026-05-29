@@ -500,12 +500,158 @@ export async function loadAnchorNoteEditorContext(
     });
   }
 
-  return {
+  const context = {
     anchorId,
     displayName,
     selectedLanguage,
     variants,
   };
+
+  if (normalizeAnchorName(displayName) === "william laud") {
+    const currentEntry =
+      variants.find((entry) => normalizeLanguage(entry.language) === selectedLanguage) ??
+      null;
+
+    console.log("[Anchor Note Editor Context] William Laud", {
+      anchorId,
+      currentVariantId: currentEntry?.anchorVariantId ?? null,
+      siblingVariants: variants,
+    });
+  }
+
+  return context;
+}
+
+/**
+ * Read-only cross-language resolution audit (teacher console).
+ *
+ * @param {import("@supabase/supabase-js").SupabaseClient} sb
+ * @param {string} [displayName]
+ * @param {{ noteId?: string, variantId?: string }} [options]
+ */
+export async function auditCrossLanguageAnchorResolution(
+  sb,
+  displayName = "William Laud",
+  { noteId = null, variantId = null } = {}
+) {
+  const normalized = normalizeAnchorName(displayName);
+  const resolvedNoteId = await resolveNoteIdForEditor(sb, { noteId, variantId });
+
+  const { data: anchorRows, error: anchorError } = await sb
+    .from("anchors")
+    .select("id, normalized_name, anchor_type, canonical_topic_id")
+    .eq("normalized_name", normalized);
+
+  if (anchorError) {
+    throw new Error(anchorError.message);
+  }
+
+  const { data: variantsByName, error: variantNameError } = await sb
+    .from("anchor_variants")
+    .select("id, anchor_id, language, display_name, normalized_name, status")
+    .eq("normalized_name", normalized)
+    .eq("status", ANCHOR_VARIANT_STATUSES.ACTIVE);
+
+  if (variantNameError) {
+    throw new Error(variantNameError.message);
+  }
+
+  const anchorIds = [
+    ...new Set([
+      ...(anchorRows ?? []).map((row) => row.id),
+      ...(variantsByName ?? []).map((row) => row.anchor_id),
+    ]),
+  ];
+
+  let siblingVariants = [];
+  if (anchorIds.length) {
+    const { data, error } = await sb
+      .from("anchor_variants")
+      .select("id, anchor_id, language, display_name, normalized_name, status")
+      .in("anchor_id", anchorIds)
+      .eq("status", ANCHOR_VARIANT_STATUSES.ACTIVE)
+      .order("language");
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    siblingVariants = data ?? [];
+  }
+
+  const englishVariant =
+    siblingVariants.find((row) => normalizeLanguage(row.language) === "english") ??
+    null;
+  const malayalamVariant =
+    siblingVariants.find((row) => normalizeLanguage(row.language) === "malayalam") ??
+    null;
+
+  let noteAnchorLinks = [];
+  if (resolvedNoteId) {
+    const noteVariants = await fetchVariantsForNote(resolvedNoteId);
+    const noteVariantIds = noteVariants.map((row) => row.id);
+
+    if (noteVariantIds.length) {
+      const { data, error } = await sb
+        .from("note_anchor_links")
+        .select(
+          `
+          id,
+          variant_id,
+          anchor_id,
+          source_text,
+          state,
+          note_variants ( id, language, title, status )
+        `
+        )
+        .in("variant_id", noteVariantIds)
+        .eq("source_text", displayName);
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      noteAnchorLinks = data ?? [];
+    }
+  }
+
+  const englishLink = noteAnchorLinks.find(
+    (link) => normalizeLanguage(link.note_variants?.language) === "english"
+  );
+  const malayalamLink = noteAnchorLinks.find(
+    (link) => normalizeLanguage(link.note_variants?.language) === "malayalam"
+  );
+
+  const report = {
+    displayName,
+    normalizedName: normalized,
+    noteId: resolvedNoteId,
+    anchorRow: anchorRows?.[0] ?? null,
+    anchorId: anchorRows?.[0]?.id ?? englishVariant?.anchor_id ?? malayalamVariant?.anchor_id ?? null,
+    english: {
+      anchor_id: englishVariant?.anchor_id ?? englishLink?.anchor_id ?? null,
+      anchor_variant_id: englishVariant?.id ?? null,
+      note_anchor_link_id: englishLink?.id ?? null,
+      note_variant_id: englishLink?.variant_id ?? null,
+    },
+    malayalam: {
+      anchor_id: malayalamVariant?.anchor_id ?? malayalamLink?.anchor_id ?? null,
+      anchor_variant_id: malayalamVariant?.id ?? null,
+      note_anchor_link_id: malayalamLink?.id ?? null,
+      note_variant_id: malayalamLink?.variant_id ?? null,
+    },
+    siblingsShareSameAnchorId:
+      englishVariant && malayalamVariant
+        ? englishVariant.anchor_id === malayalamVariant.anchor_id
+        : englishLink && malayalamLink
+          ? englishLink.anchor_id === malayalamLink.anchor_id
+          : null,
+    siblingVariants,
+    noteAnchorLinks,
+  };
+
+  console.log("[Cross-Language Anchor Audit]", report);
+  return report;
 }
 
 export async function fetchAnchorById(sb, anchorId) {

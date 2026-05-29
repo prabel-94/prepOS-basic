@@ -15,10 +15,12 @@ import { GOVERNANCE_ACTIONS } from "../anchors/anchor-governance.js";
 import { openAnchorNoteEditor } from "../anchors/anchor-note-editor.js";
 import { renderAnchorNote } from "../anchors/anchor-note-renderer.js";
 import {
+  auditCrossLanguageAnchorResolution,
   loadAnchorInspectorPayload,
   searchTopicsForCanonical,
 } from "../anchors/anchor-selectors.js";
 import { ANCHOR_TYPES } from "../anchors/anchor-types.js";
+import { normalizeAnchorName } from "../anchors/anchor-normalization.js";
 import { filterNoteLinkMapForStudent } from "../anchors/anchor-renderer.js";
 import { getLanguageLabel } from "../notes/note-variants.js";
 
@@ -809,6 +811,8 @@ export async function openAnchorInspector(semanticEntry = {}, options = {}) {
   const studentMode = options.studentMode === true;
   const canEditAnchorNote = studentMode ? false : resolveCanEditAnchorNote(options);
   const canGovernAnchor = Boolean(options.governanceContext?.apply);
+  const displayName =
+    semanticEntry.display_name ?? semanticEntry.source_text ?? "Anchor";
 
   let payload = {
     semanticEntry,
@@ -822,13 +826,19 @@ export async function openAnchorInspector(semanticEntry = {}, options = {}) {
     try {
       const sb = await getClient();
       payload = await loadAnchorInspectorPayload(sb, semanticEntry, { preferLanguage });
+
+      if (!studentMode && normalizeAnchorName(displayName) === "william laud") {
+        await auditCrossLanguageAnchorResolution(sb, displayName, {
+          noteId: options.governanceContext?.noteId ?? null,
+          variantId: options.governanceContext?.variantId ?? null,
+        });
+      }
     } catch (err) {
       console.error("[Anchor inspector]", err);
     }
   }
 
   const entry = payload.semanticEntry ?? semanticEntry;
-  const displayName = entry.display_name ?? entry.source_text ?? "Anchor";
 
   const inspectorOptions = {
     ...options,

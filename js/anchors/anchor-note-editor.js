@@ -8,6 +8,7 @@ import { getClient } from "../core/get-client.js";
 import { getLanguageLabel, normalizeLanguage } from "../notes/note-variants.js";
 import { saveAnchorNoteWithVersion } from "./anchor-storage.js";
 import {
+  auditCrossLanguageAnchorResolution,
   buildAnchorNoteLinkMap,
   loadAnchorNoteEditorContext,
 } from "./anchor-selectors.js";
@@ -394,4 +395,22 @@ export async function openAnchorNoteEditor({
   applyLanguageSelection(overlay, session);
   bindLanguageTabSwitching(overlay, session);
   openModal(overlay, { overlayType: "critical-dialog" });
+}
+
+/**
+ * Teacher console helper — cross-language anchor resolution audit.
+ *
+ * Example:
+ *   await auditCrossLanguageAnchorResolution("William Laud", { variantId: "<note-variant-id>" })
+ */
+export async function runCrossLanguageAnchorAudit(
+  displayName = "William Laud",
+  { noteId = null, variantId = null } = {}
+) {
+  const sb = await getClient();
+  return auditCrossLanguageAnchorResolution(sb, displayName, { noteId, variantId });
+}
+
+if (typeof window !== "undefined") {
+  window.auditCrossLanguageAnchorResolution = runCrossLanguageAnchorAudit;
 }
