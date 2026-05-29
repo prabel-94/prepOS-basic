@@ -90,12 +90,16 @@ function anchorTag(options = {}) {
   return options.anchorElement === "span" ? "span" : "button";
 }
 
-function emptyAnchorNoteModifierClass(entry, options) {
+function anchorHasNote(entry) {
+  return entry?.hasAnchorNote === true || entry?.has_anchor_note === true;
+}
+
+function renderMissingAnchorNoteIndicator(entry, options) {
   if (!options.highlightEmptyAnchorNotes || !entry?.anchor_id) {
     return "";
   }
 
-  if (entry.has_anchor_note === true) {
+  if (anchorHasNote(entry)) {
     return "";
   }
 
@@ -104,7 +108,7 @@ function emptyAnchorNoteModifierClass(entry, options) {
     return "";
   }
 
-  return " empty-anchor-note";
+  return `<span class="anchor-note-missing-indicator" aria-hidden="true" title="Anchor note not yet created"></span>`;
 }
 
 function renderInteractiveAnchor(
@@ -119,9 +123,9 @@ function renderInteractiveAnchor(
 ) {
   const tag = anchorTag(options);
   const emphasis = emphasisClass ? ` ${emphasisClass}` : "";
-  const emptyNote = emptyAnchorNoteModifierClass(entry, options);
+  const missingNoteIndicator = renderMissingAnchorNoteIndicator(entry, options);
   const attrs = [
-    `class="semantic-anchor ${className}${emphasis}${emptyNote}"`,
+    `class="semantic-anchor ${className}${emphasis}"`,
     `data-anchor-state="${anchorState}"`,
     `data-source-text="${escapeAttr(entry.source_text ?? display)}"`,
     `data-normalized-name="${escapeAttr(entry.normalized_name ?? "")}"`,
@@ -147,7 +151,7 @@ function renderInteractiveAnchor(
     attrs.push(`tabindex="-1"`);
   }
 
-  return `<${tag} ${attrs.join(" ")}>${escapeHTML(display)}${extra}</${tag}>`;
+  return `<${tag} ${attrs.join(" ")}>${escapeHTML(display)}${missingNoteIndicator}${extra}</${tag}>`;
 }
 
 function resolveAnchorEmphasisClass(entry, label, options) {

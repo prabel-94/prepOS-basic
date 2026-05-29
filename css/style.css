@@ -20,6 +20,9 @@ DESIGN SYSTEM
   --danger:#dc2626;
   --danger-bg:#fef2f2;
 
+  --anchor-note-missing:#b45309;
+  --anchor-note-missing-bg:#fffbeb;
+
   --radius:10px;
   --shadow:0 2px 6px rgba(0,0,0,0.05);
 }
@@ -2633,17 +2636,14 @@ PREPOS SIDE PANEL OVERLAYS
   cursor: default;
 }
 
-.semantic-anchor.empty-anchor-note {
-  background-color: rgba(251, 191, 36, 0.22);
-  border-radius: 3px;
-  box-decoration-break: clone;
-  -webkit-box-decoration-break: clone;
-  padding: 0 2px;
-}
-
-.existing-anchor.empty-anchor-note,
-.canonical-anchor.empty-anchor-note {
-  text-decoration-color: rgba(180, 83, 9, 0.55);
+.anchor-note-missing-indicator {
+  display: inline-block;
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 999px;
+  margin-left: 0.3rem;
+  background: var(--anchor-note-missing);
+  vertical-align: middle;
 }
 
 .dormant-anchor:hover {
@@ -2838,9 +2838,9 @@ PREPOS SIDE PANEL OVERLAYS
 }
 
 .anchor-note-empty {
-  color: #92400e;
-  background: rgba(251, 191, 36, 0.14);
-  border: 1px solid rgba(251, 191, 36, 0.35);
+  color: var(--anchor-note-missing);
+  background: var(--anchor-note-missing-bg);
+  border: 1px solid rgba(180, 83, 9, 0.2);
   border-radius: 6px;
   padding: 10px 12px;
   font-style: normal;
@@ -2849,8 +2849,8 @@ PREPOS SIDE PANEL OVERLAYS
 }
 
 .anchor-inspector-section--empty-note {
-  background: rgba(251, 191, 36, 0.08);
-  border-left: 3px solid rgba(251, 191, 36, 0.5);
+  background: var(--anchor-note-missing-bg);
+  border-left: 3px solid rgba(180, 83, 9, 0.35);
   border-radius: 0 6px 6px 0;
   padding-left: 12px;
 }

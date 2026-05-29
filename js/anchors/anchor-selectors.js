@@ -480,7 +480,7 @@ export function annotateSemanticMapWithAnchorNotePresence(
     if (!entry?.anchor_id) {
       continue;
     }
-    entry.has_anchor_note = presenceByAnchorId.get(entry.anchor_id) === true;
+    entry.hasAnchorNote = presenceByAnchorId.get(entry.anchor_id) === true;
   }
 
   return semanticMap;
