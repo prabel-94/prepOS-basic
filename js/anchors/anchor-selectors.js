@@ -2,8 +2,10 @@
  * Anchor lookup helpers (read-only).
  */
 
+import { normalizeLanguage } from "../notes/note-variants.js";
 import { normalizeAnchorName } from "./anchor-normalization.js";
 import { extractWikiLinkNames } from "./anchor-note-renderer.js";
+import { ANCHOR_NOTE_STATUSES } from "./anchor-types.js";
 
 function uniqueNormalized(names = []) {
   const seen = new Set();
@@ -396,4 +398,119 @@ export async function fetchAnchorById(sb, anchorId) {
   }
 
   return data;
+}
+
+/**
+ * Batch lookup: anchor_id → whether an active note with content exists.
+ *
+ * @param {import("@supabase/supabase-js").SupabaseClient} sb
+ * @param {string[]} anchorIds
+ * @param {string} [language]
+ * @returns {Promise<Map<string, boolean>>}
+ */
+export async function fetchAnchorNotePresenceByAnchorIds(
+  sb,
+  anchorIds = [],
+  language = "english"
+) {
+  const presence = new Map();
+  const uniqueIds = [...new Set(anchorIds.filter(Boolean))];
+
+  if (!uniqueIds.length) {
+    return presence;
+  }
+
+  const lang = normalizeLanguage(language);
+  const { data: variants, error: variantError } = await sb
+    .from("anchor_variants")
+    .select("id, anchor_id")
+    .in("anchor_id", uniqueIds)
+    .eq("language", lang);
+
+  if (variantError) {
+    throw new Error(variantError.message);
+  }
+
+  const variantRows = variants ?? [];
+  if (!variantRows.length) {
+    uniqueIds.forEach((id) => presence.set(id, false));
+    return presence;
+  }
+
+  const variantIds = variantRows.map((row) => row.id);
+  const { data: notes, error: noteError } = await sb
+    .from("anchor_notes")
+    .select("anchor_variant_id, note_content")
+    .in("anchor_variant_id", variantIds)
+    .eq("status", ANCHOR_NOTE_STATUSES.ACTIVE);
+
+  if (noteError) {
+    throw new Error(noteError.message);
+  }
+
+  const variantHasNote = new Map();
+  for (const note of notes ?? []) {
+    if (String(note.note_content ?? "").trim()) {
+      variantHasNote.set(note.anchor_variant_id, true);
+    }
+  }
+
+  for (const variant of variantRows) {
+    presence.set(variant.anchor_id, Boolean(variantHasNote.get(variant.id)));
+  }
+
+  for (const id of uniqueIds) {
+    if (!presence.has(id)) {
+      presence.set(id, false);
+    }
+  }
+
+  return presence;
+}
+
+/**
+ * @param {Record<string, object>} semanticMap
+ * @param {Map<string, boolean>} presenceByAnchorId
+ */
+export function annotateSemanticMapWithAnchorNotePresence(
+  semanticMap = {},
+  presenceByAnchorId = new Map()
+) {
+  for (const entry of Object.values(semanticMap)) {
+    if (!entry?.anchor_id) {
+      continue;
+    }
+    entry.has_anchor_note = presenceByAnchorId.get(entry.anchor_id) === true;
+  }
+
+  return semanticMap;
+}
+
+/**
+ * Teacher-only enrichment for semantic preview / published read maps.
+ *
+ * @param {import("@supabase/supabase-js").SupabaseClient} sb
+ * @param {Record<string, object>} semanticMap
+ * @param {string} [language]
+ */
+export async function enrichSemanticMapWithAnchorNotePresence(
+  sb,
+  semanticMap = {},
+  language = "english"
+) {
+  const anchorIds = [
+    ...new Set(
+      Object.values(semanticMap)
+        .map((entry) => entry?.anchor_id)
+        .filter(Boolean)
+    ),
+  ];
+
+  const presence = await fetchAnchorNotePresenceByAnchorIds(
+    sb,
+    anchorIds,
+    language
+  );
+
+  return annotateSemanticMapWithAnchorNotePresence(semanticMap, presence);
 }

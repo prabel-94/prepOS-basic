@@ -13,7 +13,10 @@ import {
   buildSemanticStateSummary,
   resolveSemanticVisualState,
 } from "./anchor-summary.js";
-import { fetchNoteAnchorLinksForVariant } from "./anchor-selectors.js";
+import {
+  enrichSemanticMapWithAnchorNotePresence,
+  fetchNoteAnchorLinksForVariant,
+} from "./anchor-selectors.js";
 import { captureReadingContext } from "../notes/reading-ergonomics.js";
 import {
   openAnchorInspector,
@@ -151,7 +154,12 @@ export async function prepareDraftSemanticPreview(rawMarkdown, options = {}) {
     );
   }
 
-  const semanticMap = buildSemanticMapFromCandidates(governedCandidates);
+  let semanticMap = buildSemanticMapFromCandidates(governedCandidates);
+  semanticMap = await enrichSemanticMapWithAnchorNotePresence(
+    sb,
+    semanticMap,
+    language
+  );
   const summary = buildSemanticStateSummary(governedCandidates);
 
   return {
@@ -173,6 +181,7 @@ export function buildSemanticPreviewRenderOptions(semanticMap, { preferLanguage 
     semanticPreview: true,
     semanticMap,
     semanticInteractive: true,
+    highlightEmptyAnchorNotes: true,
   };
 }
 

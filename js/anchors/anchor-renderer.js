@@ -90,6 +90,23 @@ function anchorTag(options = {}) {
   return options.anchorElement === "span" ? "span" : "button";
 }
 
+function emptyAnchorNoteModifierClass(entry, options) {
+  if (!options.highlightEmptyAnchorNotes || !entry?.anchor_id) {
+    return "";
+  }
+
+  if (entry.has_anchor_note === true) {
+    return "";
+  }
+
+  const state = entry.state ?? "existing";
+  if (state === "dormant" || state === "candidate") {
+    return "";
+  }
+
+  return " empty-anchor-note";
+}
+
 function renderInteractiveAnchor(
   entry,
   display,
@@ -102,8 +119,9 @@ function renderInteractiveAnchor(
 ) {
   const tag = anchorTag(options);
   const emphasis = emphasisClass ? ` ${emphasisClass}` : "";
+  const emptyNote = emptyAnchorNoteModifierClass(entry, options);
   const attrs = [
-    `class="semantic-anchor ${className}${emphasis}"`,
+    `class="semantic-anchor ${className}${emphasis}${emptyNote}"`,
     `data-anchor-state="${anchorState}"`,
     `data-source-text="${escapeAttr(entry.source_text ?? display)}"`,
     `data-normalized-name="${escapeAttr(entry.normalized_name ?? "")}"`,
