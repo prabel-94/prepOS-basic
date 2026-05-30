@@ -27,21 +27,19 @@ import {
 } from "./student/student-dashboard-renderer.js";
 import { loadTopicNotesSection } from "./notes/note-home.js";
 
-function startExam() {
-  const id = document.getElementById("examId")?.value.trim();
-  if (!id) {
-    alert("Enter exam id");
-    return;
-  }
-  location.href = resolveAppPath(`exam.html?id=${id}`);
-}
-
 function startExamById(id) {
   location.href = resolveAppPath(`exam.html?id=${id}`);
 }
 
 function goToPractice() {
   location.href = resolveAppPath("practice.html");
+}
+
+function scrollToTopicNotes() {
+  document.getElementById("topicNotesSection")?.scrollIntoView({
+    behavior: "smooth",
+    block: "start",
+  });
 }
 
 function goToPracticeTopic(topic) {
@@ -116,10 +114,10 @@ async function initStudent() {
   }
 }
 
-window.startExam = startExam;
 window.startExamById = startExamById;
 window.goToPractice = goToPractice;
 window.goToPracticeTopic = goToPracticeTopic;
+window.scrollToTopicNotes = scrollToTopicNotes;
 window.initStudent = initStudent;
 
 function bootStudentDashboard() {

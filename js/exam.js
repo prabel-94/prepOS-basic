@@ -6,10 +6,19 @@ import {
   getHomePathForRole,
   resolveAppPath,
 } from "./core/access.js";
+import { openModal, closeModal } from "./ui/modal-system.js";
+import {
+  extractRawQuestions,
+  getExamQuestionCount,
+  formatExamDuration,
+  collectTopicsFromRawQuestions,
+} from "./student/student-exam-meta.js";
 
-console.log("SCRIPT STARTED");
-
-let timer; // global timer instance
+let timer;
+let examStarted = false;
+let totalQuestions = 0;
+let visibleQuestionIndex = 1;
+let questionObserver = null;
 
 /* ---------- watermark image ---------- */
 
@@ -78,12 +87,19 @@ function showLoading(){
   document.getElementById("loadingState").style.display="block";
   document.getElementById("errorState").style.display="none";
   document.getElementById("examContent").style.display="none";
+  document.getElementById("examOverviewSection")?.classList.add("hidden");
+}
+
+function showOverview(){
+  document.getElementById("loadingState").style.display="none";
+  document.getElementById("examOverviewSection")?.classList.remove("hidden");
 }
 
 function showError(message){
   document.getElementById("loadingState").style.display="none";
   document.getElementById("errorState").style.display="block";
   document.getElementById("examContent").style.display="none";
+  document.getElementById("examOverviewSection")?.classList.add("hidden");
   document.getElementById("errorMessage").textContent=message;
 }
 
@@ -91,6 +107,285 @@ function showExam(){
   document.getElementById("loadingState").style.display="none";
   document.getElementById("errorState").style.display="none";
   document.getElementById("examContent").style.display="block";
+}
+
+function getAnswerStats(){
+  const total = window.examQuestionsRaw?.length ?? 0;
+  let answered = 0;
+
+  for (let i = 0; i < total; i += 1) {
+    if (document.querySelector(`input[name="q_${i}"]:checked`)) {
+      answered += 1;
+    }
+  }
+
+  return { total, answered, unanswered: Math.max(0, total - answered) };
+}
+
+function updateExamProgress(){
+  const { total, answered } = getAnswerStats();
+  totalQuestions = total;
+
+  const pct = total ? Math.round((answered / total) * 100) : 0;
+  const fill = document.getElementById("examProgressFill");
+  const label = document.getElementById("examProgressLabel");
+  const bar = document.getElementById("examProgressBar");
+
+  if (fill) {
+    fill.style.width = `${pct}%`;
+  }
+
+  if (label) {
+    label.textContent = `${answered} / ${total} Answered`;
+  }
+
+  if (bar) {
+    bar.setAttribute("aria-valuenow", String(pct));
+  }
+}
+
+function updateQuestionIndicator(){
+  const el = document.getElementById("examQuestionIndicator");
+
+  if (!el || !totalQuestions) {
+    return;
+  }
+
+  const index = Math.min(Math.max(visibleQuestionIndex, 1), totalQuestions);
+  el.textContent = `Question ${index} of ${totalQuestions}`;
+}
+
+function bindQuestionVisibilityObserver(){
+  if (questionObserver) {
+    questionObserver.disconnect();
+  }
+
+  const cards = document.querySelectorAll("#examContent .question-card");
+
+  if (!cards.length) {
+    return;
+  }
+
+  questionObserver = new IntersectionObserver(
+    (entries) => {
+      let best = visibleQuestionIndex;
+      let bestRatio = 0;
+
+      for (const entry of entries) {
+        if (!entry.isIntersecting) {
+          continue;
+        }
+
+        const idx = Number(entry.target.dataset.questionIndex);
+
+        if (idx && entry.intersectionRatio >= bestRatio) {
+          bestRatio = entry.intersectionRatio;
+          best = idx;
+        }
+      }
+
+      if (best !== visibleQuestionIndex) {
+        visibleQuestionIndex = best;
+        updateQuestionIndicator();
+      }
+    },
+    { threshold: [0.35, 0.55, 0.75] }
+  );
+
+  cards.forEach((card) => questionObserver.observe(card));
+}
+
+function formatTimerPreview(seconds = 0){
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+}
+
+function renderExamOverview(exam, topics = []){
+  const title = exam.title || "Exam";
+
+  document.getElementById("overviewExamTitle").textContent = title;
+
+  const titleEl = document.getElementById("examTitle");
+  if (titleEl) {
+    titleEl.textContent = title;
+  }
+
+  const metaEl = document.getElementById("examOverviewMeta");
+  const count = getExamQuestionCount(exam.schema_json);
+  const durationLabel = formatExamDuration(exam.duration);
+  const rows = [];
+
+  if (count) {
+    rows.push(["Questions", String(count)]);
+  }
+
+  if (durationLabel) {
+    rows.push(["Duration", durationLabel]);
+  }
+
+  metaEl.innerHTML = rows
+    .map(
+      ([label, value]) =>
+        `<dt>${escapeHTML(label)}</dt><dd>${escapeHTML(value)}</dd>`
+    )
+    .join("");
+
+  const topicsWrap = document.getElementById("examOverviewTopics");
+  const topicsList = document.getElementById("examOverviewTopicsList");
+
+  if (topics.length && topicsWrap && topicsList) {
+    topicsWrap.classList.remove("hidden");
+    topicsList.innerHTML = topics
+      .map((topic) => `<li>${escapeHTML(topic)}</li>`)
+      .join("");
+  } else if (topicsWrap) {
+    topicsWrap.classList.add("hidden");
+  }
+}
+
+async function resolveStudentName(){
+  const input = document.getElementById("studentName");
+  const manual = input?.value?.trim();
+
+  if (manual) {
+    localStorage.setItem("studentName", manual);
+    return manual;
+  }
+
+  const stored = localStorage.getItem("studentName")?.trim();
+  if (stored) {
+    return stored;
+  }
+
+  try {
+    const sb = await getClient();
+    const { data } = await sb.auth.getUser();
+    const user = data?.user;
+
+    if (user) {
+      const name =
+        user.user_metadata?.full_name ||
+        user.user_metadata?.name ||
+        user.email?.split("@")[0] ||
+        "Student";
+
+      localStorage.setItem("studentName", name);
+      return name;
+    }
+  } catch {
+    /* ignore */
+  }
+
+  return null;
+}
+
+async function setupOverviewNameField(){
+  const row = document.getElementById("overviewNameRow");
+  if (!row) {
+    return;
+  }
+
+  try {
+    const sb = await getClient();
+    const { data } = await sb.auth.getUser();
+
+    if (data?.user) {
+      row.classList.add("hidden");
+      return;
+    }
+  } catch {
+    /* ignore */
+  }
+
+  row.classList.remove("hidden");
+}
+
+function showActiveExamChrome(){
+  document.getElementById("examProgressPanel")?.classList.remove("hidden");
+  document.getElementById("examReviewFab")?.classList.remove("hidden");
+  document.getElementById("examQuestionIndicator")?.classList.remove("hidden");
+  document.getElementById("examHeader")?.classList.add("exam-header--active");
+}
+
+function hideActiveExamChrome(){
+  document.getElementById("examProgressPanel")?.classList.add("hidden");
+  document.getElementById("examReviewFab")?.classList.add("hidden");
+  document.getElementById("examQuestionIndicator")?.classList.add("hidden");
+  document.getElementById("examHeader")?.classList.remove("exam-header--active");
+}
+
+function bindReviewModal(){
+  const modal = document.getElementById("examReviewModal");
+
+  document.getElementById("examReviewFab")?.addEventListener("click", () => {
+    const { answered, unanswered } = getAnswerStats();
+    document.getElementById("examReviewAnswered").textContent = String(answered);
+    document.getElementById("examReviewUnanswered").textContent = String(unanswered);
+    openModal(modal, {
+      overlayType: "critical-dialog",
+      closeOnBackdrop: true,
+    });
+  });
+
+  document.getElementById("examReviewContinueBtn")?.addEventListener("click", () => {
+    closeModal(modal);
+  });
+
+  document.getElementById("examReviewSubmitBtn")?.addEventListener("click", () => {
+    closeModal(modal);
+    submitExam();
+  });
+}
+
+function beginExamSession(){
+  examStarted = true;
+  document.getElementById("examOverviewSection")?.classList.add("hidden");
+  showExam();
+  showActiveExamChrome();
+
+  totalQuestions = window.examQuestionsRaw?.length ?? 0;
+  visibleQuestionIndex = 1;
+  updateExamProgress();
+  updateQuestionIndicator();
+  bindQuestionVisibilityObserver();
+
+  timer.start({
+    onTick: ({ formatted }) => {
+      document.getElementById("examTimer").innerText = `${formatted} remaining`;
+    },
+    onEnd: () => {
+      alert("Time up! Auto submitting...");
+      submitExam();
+    },
+  });
+}
+
+function renderExamResults(score, answers, studentName){
+  const total = window.examQuestionsRaw.length;
+  const accuracy = total ? Math.round((score / total) * 100) : 0;
+  const answeredCount = answers.filter((a) => a.chosen && a.chosen !== "-").length;
+
+  window.examScoreText = `${studentName}, your score: ${score}/${total}`;
+
+  document.getElementById("result").innerHTML = `
+    <div class="exam-results-card card">
+      <div class="exam-results-kicker">Your Score</div>
+      <div class="exam-results-score">${escapeHTML(String(score))} / ${escapeHTML(String(total))}</div>
+      <div class="exam-results-grid mt-20">
+        <div class="exam-results-stat">
+          <div class="exam-results-stat-label">Accuracy</div>
+          <div class="exam-results-stat-value">${escapeHTML(String(accuracy))}%</div>
+        </div>
+        <div class="exam-results-stat">
+          <div class="exam-results-stat-label">Questions Attempted</div>
+          <div class="exam-results-stat-value">${escapeHTML(String(answeredCount))}</div>
+        </div>
+      </div>
+      <button type="button" id="reviewBtn" class="primary-btn mt-20">View Answers</button>
+      <button type="button" id="downloadPdfBtn" class="secondary-btn mt-10 hidden">Download Review PDF</button>
+    </div>
+  `;
 }
 function escapeHTML(str){
   return String(str)
@@ -320,64 +615,43 @@ async function loadExam(){
 
     /* ---------- EXTRACT QUESTIONS ---------- */
 
-    let questions = [];
-
-    if(exam.schema_json?.sections){
-      // New schema
-      questions = exam.schema_json.sections.flatMap(section => section.questions || []);
-    }
-    else if(exam.schema_json?.questions){
-      // Old schema
-      questions = exam.schema_json.questions;
-    }
+    let questions = extractRawQuestions(exam.schema_json || {});
 
     if(!questions.length){
       throw new Error("No questions found in exam");
     }
 
+    const overviewTopics = collectTopicsFromRawQuestions(questions);
+
     /* ---------- NORMALIZE (CORE STEP) ---------- */
 
     window.examQuestionsRaw = questions.map(normalizeQuestion);
 
-    /* ---------- UI STRUCTURE ---------- */
-
     /* ---------- STORE ORIGINAL ---------- */
     window.examQuestions = questions;
 
-    console.log("Normalized Questions:", window.examQuestionsRaw);
+    renderExamOverview(exam, overviewTopics);
+    await setupOverviewNameField();
 
-    /* ---------- RENDER ---------- */
+    if (exam.duration) {
+      document.getElementById("examTimer").textContent =
+        formatTimerPreview(exam.duration);
+    }
 
     renderQuiz(window.examQuestionsRaw);
+    bindReviewModal();
+    showOverview();
 
-    /* ---------- START EXAM BUTTON ---------- */
+    document.getElementById("startExamBtn").addEventListener("click", async () => {
+      const studentName = await resolveStudentName();
 
-    document.getElementById("startExamBtn").addEventListener("click", () => {
-      const studentName = document.getElementById("studentName").value.trim();
       if (!studentName) {
         alert("Please enter your name");
         return;
       }
 
-      // Store student name
       localStorage.setItem("studentName", studentName);
-
-      // Hide student info
-      document.getElementById("studentInfoSection").style.display = "none";
-
-      // Show exam
-      showExam();
-
-      // Start timer
-      timer.start({
-        onTick: ({ formatted }) => {
-          document.getElementById("examTimer").innerText = formatted;
-        },
-        onEnd: () => {
-          alert("Time up! Auto submitting...");
-          submitExam();
-        }
-      });
+      beginExamSession();
     });
 
   }
@@ -421,7 +695,7 @@ function createQuestionCard(q, index){
     .join("");
 
   return `
-    <div class="question-card">
+    <div class="question-card" data-question-index="${index + 1}">
 
       <div class="q-number">
         Q${index + 1}
@@ -470,6 +744,7 @@ function renderQuiz(questions){
         JSON.stringify(attemptState)
       );
 
+      updateExamProgress();
     });
   });
 
@@ -489,13 +764,7 @@ function renderQuiz(questions){
 
   }
 
-  /* ---------- SUBMIT BUTTON ---------- */
-
-  const btn = document.createElement("button");
-  btn.innerText = "Submit";
-  btn.onclick = submitExam;
-
-  container.appendChild(btn);
+  updateExamProgress();
 }
 
 /* ======================================================
@@ -679,6 +948,8 @@ try{
     /* ---------- clean up timer ---------- */
     localStorage.removeItem(TIMER_KEY);
 
+    hideActiveExamChrome();
+
     document.querySelectorAll('input[type="radio"]')
       .forEach(el=>el.disabled=true);
 
@@ -702,11 +973,7 @@ try{
     };
   });
 
-window.examScoreText = `${studentName}, your score: ${score}/${window.examQuestionsRaw.length}`;
-    document.getElementById("result").innerHTML =
-`<h3>${window.examScoreText}</h3>
- <button id="reviewBtn">View Answers</button>
- <button id="downloadPdfBtn" style="display:none">Download Review PDF</button>`;
+    renderExamResults(score, answers, studentName);
 
 scrollToResult()
 
@@ -714,7 +981,7 @@ scrollToResult()
 
   this.style.display = "none";
 
-  document.getElementById("downloadPdfBtn").style.display = "inline-block";
+  document.getElementById("downloadPdfBtn").classList.remove("hidden");
 
   renderReview();
 

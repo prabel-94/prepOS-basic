@@ -11,16 +11,10 @@
 
   <meta name="description" content="PrepOS Online Exam Platform">
 
-  <!-- Styles -->
   <link rel="stylesheet" href="css/style.css">
 
-  <!-- PDF Generator -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-
-  <!-- Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-  <!-- Config + Logic (config before exam module for getClient) -->
   <script src="js/config.js?v=20260520"></script>
   <script type="module" src="js/exam.js" defer></script>
 
@@ -31,13 +25,11 @@
 
   <main class="exam-wrapper">
 
-    <!-- ================= HEADER ================= -->
-
-    <header class="exam-header">
+    <header class="exam-header" id="examHeader">
 
       <div class="exam-header-left">
         <a id="examHomeBtn" class="exam-home-btn hidden" href="#">← Home</a>
-        <img 
+        <img
           id="examLogo"
           class="exam-logo hidden"
           alt="Exam logo"
@@ -46,63 +38,97 @@
 
       <div class="exam-header-right">
         <h2 id="examTitle">PrepOS Exam</h2>
-        <div id="examSubtitle" class="exam-subtitle"></div>
+        <div id="examQuestionIndicator" class="exam-question-indicator hidden"></div>
         <div class="timer-box" id="examTimer">00:00</div>
       </div>
 
     </header>
 
-
-    <!-- ================= STUDENT INFO ================= -->
-
-    <section class="student-info" id="studentInfoSection">
-
-      <label for="studentName">Enter your name</label>
-
-      <input
-        id="studentName"
-        type="text"
-        placeholder="Your name"
-        autocomplete="off"
-        required
+    <div id="examProgressPanel" class="exam-progress-panel hidden" aria-live="polite">
+      <div
+        class="exam-progress-bar"
+        role="progressbar"
+        aria-valuemin="0"
+        aria-valuemax="100"
+        aria-valuenow="0"
+        id="examProgressBar"
       >
+        <div class="exam-progress-fill" id="examProgressFill"></div>
+      </div>
+      <div class="exam-progress-label" id="examProgressLabel">0 / 0 Answered</div>
+    </div>
 
-      <button id="startExamBtn">Start Exam</button>
+    <section class="exam-overview card hidden" id="examOverviewSection" aria-label="Exam overview">
+
+      <h2 id="overviewExamTitle" class="exam-overview-title">Exam</h2>
+
+      <dl class="exam-overview-meta" id="examOverviewMeta"></dl>
+
+      <div id="examOverviewTopics" class="exam-overview-topics hidden">
+        <div class="exam-overview-topics-label">Topics Covered</div>
+        <ul id="examOverviewTopicsList" class="exam-overview-topics-list"></ul>
+      </div>
+
+      <div id="overviewNameRow" class="exam-overview-name hidden">
+        <label for="studentName">Your name</label>
+        <input
+          id="studentName"
+          type="text"
+          placeholder="Enter your name"
+          autocomplete="name"
+        >
+      </div>
+
+      <button type="button" id="startExamBtn" class="primary-btn w-full mt-20">
+        Start Exam
+      </button>
 
     </section>
 
-
-    <!-- ================= QUIZ AREA ================= -->
-
     <section id="quiz" class="quiz-container">
 
-      <!-- Loading State -->
       <div id="loadingState" class="loading-state">
         <p>Loading exam...</p>
       </div>
 
-      <!-- Error State -->
       <div id="errorState" class="error-state hidden">
         <p id="errorMessage"></p>
-        <button onclick="location.reload()">Retry</button>
+        <button type="button" onclick="location.reload()">Retry</button>
       </div>
 
-      <!-- Exam Content -->
-      <div id="examContent" class="exam-content hidden">
-        <!-- Questions render here -->
-      </div>
+      <div id="examContent" class="exam-content hidden"></div>
 
     </section>
-
-
-    <!-- ================= RESULT AREA ================= -->
 
     <section id="result" class="result-container"></section>
 
   </main>
 
+  <button type="button" id="examReviewFab" class="exam-review-fab hidden">
+    Review &amp; Submit
+  </button>
 
-  <!-- ================= NOSCRIPT ================= -->
+  <div id="examReviewModal" class="prepos-modal hidden" aria-hidden="true">
+    <div class="prepos-modal-backdrop"></div>
+    <div class="prepos-modal-content exam-review-modal-content">
+      <div class="prepos-modal-header">
+        <div class="h2">Review &amp; Submit</div>
+        <p class="text-muted mt-5">Check your progress before submitting.</p>
+      </div>
+      <div class="prepos-modal-body">
+        <dl class="exam-review-summary">
+          <dt>Answered</dt>
+          <dd id="examReviewAnswered">0</dd>
+          <dt>Unanswered</dt>
+          <dd id="examReviewUnanswered">0</dd>
+        </dl>
+      </div>
+      <div class="prepos-modal-footer exam-review-modal-footer">
+        <button type="button" class="secondary-btn" id="examReviewContinueBtn">Continue Exam</button>
+        <button type="button" class="primary-btn" id="examReviewSubmitBtn">Submit Exam</button>
+      </div>
+    </div>
+  </div>
 
   <noscript>
     <div style="padding:20px;font-size:18px;text-align:center">
@@ -110,12 +136,6 @@
       Please enable JavaScript in your browser.
     </div>
   </noscript>
-
-<!-- Debug Console -->
-<script src="https://cdn.jsdelivr.net/npm/eruda"></script>
-<script>
-  eruda.init();
-</script>
 
 </body>
 

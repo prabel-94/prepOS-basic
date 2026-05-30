@@ -3,6 +3,8 @@
  * Pure presentation — no analytics computation, no Supabase.
  */
 
+import { formatExamDuration } from "./student-exam-meta.js";
+
 function escapeHTML(value = "") {
   return String(value ?? "")
     .replace(/&/g, "&amp;")
@@ -26,7 +28,7 @@ export function renderConfidenceState(container, confidenceView = {}) {
 
   container.innerHTML = `
     <div class="student-intel-confidence student-intel-confidence--${escapeHTML(confidenceView.level ?? "low")}">
-      <div class="student-intel-confidence-label">${escapeHTML(confidenceView.label ?? "Low Confidence")}</div>
+      <div class="student-intel-confidence-label">${escapeHTML(confidenceView.label ?? "Learning Profile Building")}</div>
       <div class="text-muted mt-5">${escapeHTML(confidenceView.message ?? "")}</div>
       <div class="text-muted mt-5">${escapeHTML(confidenceView.trend ?? "")}</div>
     </div>
@@ -40,7 +42,7 @@ export function renderLearningSnapshot(container, snapshot = {}, confidenceView 
     renderEmptyState(
       container,
       confidenceView.message ??
-        "Complete more verified practice to unlock learning intelligence insights.",
+        "Your learning profile is still being built. Complete more verified practice to unlock topic mastery insights.",
       { variant: "no-data" }
     );
     return;
@@ -91,7 +93,7 @@ export function renderWeakTopics(container, cards = []) {
   if (!cards.length) {
     renderEmptyState(
       container,
-      "No weak topics detected yet. Keep practicing with topic-linked questions.",
+      "No weak topics identified yet. Complete more practice and PrepOS will highlight areas that need attention.",
       { variant: "weak-empty" }
     );
     return;
@@ -118,7 +120,7 @@ export function renderStrongTopics(container, cards = []) {
   if (!cards.length) {
     renderEmptyState(
       container,
-      "Strong topics will appear here as your verified mastery grows.",
+      "No strong topics identified yet. Keep practicing to build your mastery profile.",
       { variant: "strong-empty" }
     );
     return;
@@ -173,24 +175,42 @@ export function renderAvailableExams(container, exams = []) {
   container.innerHTML = "";
 
   if (!exams.length) {
-    renderEmptyState(container, "No exams available", { variant: "exams-empty" });
+    renderEmptyState(
+      container,
+      "No exams assigned yet. Your teacher will add exams here when they are ready.",
+      { variant: "exams-empty" }
+    );
     return;
   }
 
   exams.forEach(exam => {
+    const metaLines = [];
+
+    if (exam.questionCount) {
+      metaLines.push(`${exam.questionCount} Question${exam.questionCount === 1 ? "" : "s"}`);
+    }
+
+    const durationLabel =
+      exam.durationLabel ?? formatExamDuration(exam.duration);
+    if (durationLabel) {
+      metaLines.push(durationLabel);
+    }
+
+    metaLines.push("Assigned by Teacher");
+
     const div = document.createElement("div");
-    div.className = "recent-item mt-10";
+    div.className = "student-exam-card recent-item mt-10";
     div.innerHTML = `
-      <b>${escapeHTML(exam.title || "Untitled Exam")}</b><br>
-      <div class="text-muted mt-5">
-        ${escapeHTML(new Date(exam.created_at).toLocaleString())}
-      </div>
+      <div class="student-exam-card-title">${escapeHTML(exam.title || "Untitled Exam")}</div>
+      <ul class="student-exam-card-meta">
+        ${metaLines.map((line) => `<li>${escapeHTML(line)}</li>`).join("")}
+      </ul>
       <button
         type="button"
         class="primary-btn mt-10"
         data-exam-id="${escapeHTML(exam.id)}"
       >
-        Start
+        Start Exam
       </button>
     `;
     container.appendChild(div);
