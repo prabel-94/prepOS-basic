@@ -55,7 +55,6 @@ async function initStudent() {
       showHome: false,
       title: "Student Dashboard",
       subtitle: "Exams, practice, and learning intelligence",
-      preset: "studentHome",
     },
   });
 
