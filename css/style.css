@@ -3028,10 +3028,11 @@ PHASE 1 — STUDENT UI UPGRADE
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 16px;
+  align-items: stretch;
 }
 
-.student-action-card {
-  height: 100%;
+.student-primary-actions .card + .card {
+  margin-top: 0;
 }
 
 .student-exam-card {
