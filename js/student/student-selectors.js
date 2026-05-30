@@ -8,9 +8,9 @@ import { normalizeTopicKey } from "./student-intelligence.js";
 const CONFIDENCE_MESSAGES = {
   high: "Your mastery estimates are based on enough verified practice to trust these insights.",
   medium: "These insights are becoming reliable. A few more verified attempts will sharpen them further.",
-  low: "PrepOS needs more verified attempts before mastery can be estimated reliably.",
+  low: "Complete a few more practice sessions and PrepOS will begin identifying your strengths, weaknesses, and revision priorities.",
   topic_low:
-    "This topic needs more verified practice before mastery can be estimated reliably.",
+    "This topic needs more verified practice before PrepOS can estimate mastery reliably.",
 };
 
 const TREND_MESSAGES = {
@@ -26,7 +26,7 @@ export function selectLearningSnapshot(learningState = {}) {
     topicsMastered: snapshot.topicsMastered ?? 0,
     weakTopicCount: snapshot.weakTopicCount ?? 0,
     totalTopics: snapshot.totalTopics ?? 0,
-    knowledgeConfidence: snapshot.knowledgeConfidenceLabel ?? "Low Confidence",
+    knowledgeConfidence: snapshot.knowledgeConfidenceLabel ?? "Learning Profile Building",
     recentTrend: selectTopicTrend(learningState),
     recommendedFocus: snapshot.recommendedFocus
       ? formatTopicLabel(snapshot.recommendedFocus)
@@ -93,7 +93,7 @@ export function selectConfidenceMessage(learningState = {}) {
   const emptyReason = learningState.metadata?.emptyReason;
 
   if (emptyReason === "no_analytics") {
-    return "Complete more verified practice to unlock learning intelligence insights.";
+    return "Complete a few more practice sessions and PrepOS will begin identifying your strengths, weaknesses, and revision priorities.";
   }
 
   if (emptyReason === "public_only_history") {
@@ -143,8 +143,8 @@ function formatTopicLabel(value = "") {
 
 function formatConfidenceLevel(level = "low") {
   if (level === "high") return "High Confidence";
-  if (level === "medium") return "Medium Confidence";
-  return "Low Confidence";
+  if (level === "medium") return "Growing Confidence";
+  return "Learning Profile Building";
 }
 
 function humanizeRecommendation(recommendation = "", topic = {}) {

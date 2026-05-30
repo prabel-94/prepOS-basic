@@ -2994,3 +2994,260 @@ PREPOS SIDE PANEL OVERLAYS
     font-size: 0.94rem;
   }
 }
+
+/* ======================================================
+PHASE 1 — STUDENT UI UPGRADE
+====================================================== */
+
+.dashboard-section-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.student-primary-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.student-action-card {
+  height: 100%;
+}
+
+.student-exam-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  background: var(--card);
+}
+
+.student-exam-card-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.student-exam-card-meta {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+}
+
+.student-exam-card-meta li {
+  color: var(--muted);
+  font-size: 0.92rem;
+  margin: 4px 0;
+}
+
+.student-exam-card-meta li::before {
+  content: "• ";
+  color: var(--primary);
+}
+
+.card input,
+.card select,
+.card textarea,
+.exam-overview-name input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.exam-overview {
+  max-width: 640px;
+  margin: 0 auto 24px;
+}
+
+.exam-overview-title {
+  font-size: 1.35rem;
+  margin: 0 0 16px;
+}
+
+.exam-overview-meta {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 16px;
+  margin: 0;
+}
+
+.exam-overview-meta dt {
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.exam-overview-meta dd {
+  margin: 0;
+}
+
+.exam-overview-topics {
+  margin-top: 20px;
+}
+
+.exam-overview-topics-label {
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.exam-overview-topics-list {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.exam-overview-name {
+  margin-top: 20px;
+}
+
+.exam-overview-name label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.exam-progress-panel {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--bg);
+  padding: 10px 0 14px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.exam-progress-bar {
+  height: 8px;
+  background: #e5e7eb;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.exam-progress-fill {
+  height: 100%;
+  width: 0;
+  background: var(--primary);
+  transition: width 0.2s ease;
+}
+
+.exam-progress-label {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-top: 6px;
+}
+
+.exam-question-indicator {
+  font-size: 0.92rem;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.exam-header--active .exam-header-right h2 {
+  font-size: 1.05rem;
+  line-height: 1.25;
+}
+
+.exam-header--active .timer-box {
+  font-size: 0.9rem;
+}
+
+.exam-review-fab {
+  position: fixed;
+  right: 16px;
+  bottom: max(16px, env(safe-area-inset-bottom));
+  z-index: 30;
+  padding: 14px 18px;
+  border: none;
+  border-radius: 999px;
+  background: var(--primary);
+  color: #fff;
+  font-weight: 600;
+  box-shadow: var(--shadow-md);
+  cursor: pointer;
+}
+
+.exam-review-fab:hover {
+  background: var(--primary-dark);
+}
+
+.exam-review-summary {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px 16px;
+  margin: 0;
+}
+
+.exam-review-summary dt {
+  font-weight: 600;
+}
+
+.exam-review-summary dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.exam-review-modal-footer {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.exam-results-card {
+  max-width: 520px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.exam-results-kicker {
+  font-size: 0.9rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.exam-results-score {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-top: 8px;
+}
+
+.exam-results-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.exam-results-stat {
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+}
+
+.exam-results-stat-label {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.exam-results-stat-value {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+@media (max-width: 768px) {
+  .exam-review-fab {
+    left: 16px;
+    right: 16px;
+    width: calc(100% - 32px);
+  }
+
+  .exam-header {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .exam-results-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -5,6 +5,7 @@
  */
 
 import { getClient } from "../core/get-client.js";
+import { enrichAssignedExam } from "./student-exam-meta.js";
 import {
   buildKnowledgeAnalytics,
   buildTopicMastery,
@@ -114,7 +115,7 @@ async function fetchQuestionsForAttempts(sb, attempts = []) {
 async function fetchStudentExamAssignments(sb, userId) {
   const { data, error } = await sb
     .from("exam_assignments")
-    .select(`exam_sessions ( id, title, created_at )`)
+    .select(`exam_sessions ( id, title, created_at, duration, schema_json )`)
     .eq("student_id", userId);
 
   if (error) {
@@ -122,7 +123,7 @@ async function fetchStudentExamAssignments(sb, userId) {
   }
 
   return (data || [])
-    .map(row => row.exam_sessions)
+    .map((row) => enrichAssignedExam(row.exam_sessions))
     .filter(Boolean);
 }
 
@@ -233,7 +234,7 @@ export function buildLearningSnapshot({
     weakTopicCount: weakTopics.length,
     totalTopics: topicMastery.length,
     knowledgeConfidence: confidence.level ?? "low",
-    knowledgeConfidenceLabel: confidence.label ?? "Low Confidence",
+    knowledgeConfidenceLabel: confidence.label ?? "Learning Profile Building",
     recentTrend: confidence.trend ?? "stable",
     recommendedFocus,
     canonicalAttemptCount,
@@ -336,8 +337,8 @@ function deriveOverallConfidence({ canonicalAttempts = [], topicMastery = [], qu
 
 function confidenceLabelFromLevel(level) {
   if (level === "high") return "High Confidence";
-  if (level === "medium") return "Medium Confidence";
-  return "Low Confidence";
+  if (level === "medium") return "Growing Confidence";
+  return "Learning Profile Building";
 }
 
 function deriveRecentTrend(attempts = [], topicMastery = []) {
