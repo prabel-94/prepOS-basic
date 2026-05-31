@@ -5,6 +5,7 @@
 import { getClient } from "./core/get-client.js";
 import { bootPage } from "./core/page-boot.js";
 import { resolveAppPath } from "./core/access.js";
+import { computeQuestionHash } from "./core/question-hash.js";
 import { openModal, closeModal } from "./ui/modal-system.js";
 
 const SIDE_PANEL_OPTIONS = {
@@ -66,19 +67,6 @@ function populateDifficultyPanel(meta = {}) {
   setRadioGroup("cognitive", meta.cognitive_level);
   setRadioGroup("complexity", meta.complexity_level);
   setRadioGroup("depth", meta.depth_level);
-}
-
-async function computeQuestionHash(questionText, optionTexts = []) {
-  const normalized = (
-    questionText.trim() +
-    optionTexts.map(text => text.trim()).join("")
-  ).toLowerCase();
-
-  const data = new TextEncoder().encode(normalized);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  return Array.from(new Uint8Array(hashBuffer))
-    .map(byte => byte.toString(16).padStart(2, "0"))
-    .join("");
 }
 
 // --------------------------------
@@ -488,6 +476,19 @@ async function saveQuestionContent(questionId, payload) {
   const questionHash = await computeQuestionHash(questionText, options);
   const sb = await getClient()
 
+  const { data: duplicate } = await sb
+    .from("questions")
+    .select("id")
+    .eq("question_hash", questionHash)
+    .neq("id", questionId)
+    .maybeSingle();
+
+  if (duplicate?.id) {
+    throw new Error(
+      "Another question with the same text and options already exists in the bank."
+    );
+  }
+
   const { error } = await sb
     .from("questions")
     .update({
@@ -501,7 +502,14 @@ async function saveQuestionContent(questionId, payload) {
     })
     .eq("id", questionId);
 
-  if (error) throw error;
+  if (error) {
+    if (error.code === "23505") {
+      throw new Error(
+        "Another question with the same text and options already exists in the bank."
+      );
+    }
+    throw error;
+  }
 }
 
 async function getPatternsByTopics(topicIds, query = "") {
