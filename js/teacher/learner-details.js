@@ -81,6 +81,18 @@ function normalizeLearnerDetails(raw) {
 
   const lastActivityAt = raw.lastActivityAt ?? raw.last_activity_at ?? null;
 
+  const batchMemberships = Array.isArray(raw.batchMemberships)
+    ? raw.batchMemberships.map((batch) => ({
+        id: batch.id ?? null,
+        name: batch.name ?? "",
+      }))
+    : Array.isArray(raw.batch_memberships)
+      ? raw.batch_memberships.map((batch) => ({
+          id: batch.id ?? null,
+          name: batch.name ?? "",
+        }))
+      : [];
+
   return {
     id: raw.id ?? null,
     userId: raw.userId ?? raw.user_id ?? null,
@@ -90,7 +102,30 @@ function normalizeLearnerDetails(raw) {
     examsAssigned: Number(raw.examsAssigned ?? raw.exams_assigned ?? 0),
     examsAttempted: Number(raw.examsAttempted ?? raw.exams_attempted ?? 0),
     lastActivityAt: lastActivityAt || null,
+    batchMemberships,
   };
+}
+
+function renderBatchMemberships(memberships = []) {
+  if (!memberships.length) {
+    return `
+      <dt>Member Of</dt>
+      <dd class="text-muted">Not in any batches</dd>
+    `;
+  }
+
+  const items = memberships
+    .map((batch) => `<li>${escapeHTML(batch.name || "Batch")}</li>`)
+    .join("");
+
+  return `
+    <dt>Member Of</dt>
+    <dd>
+      <ul class="learner-batch-membership-list">
+        ${items}
+      </ul>
+    </dd>
+  `;
 }
 
 function setFooterMode(mode) {
@@ -205,6 +240,8 @@ export function renderLearnerDetails(details) {
 
       <dt>Last Activity</dt>
       <dd>${escapeHTML(formatLastActivity(details.lastActivityAt))}</dd>
+
+      ${renderBatchMemberships(details.batchMemberships)}
     </dl>
     <div id="learnerDetailEditStatus" class="mt-10 text-muted"></div>
   `;

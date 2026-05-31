@@ -52,8 +52,37 @@
 
   <div class="h2">Student Management</div>
   <div class="section-sub mt-5">
-    Create learners and manage your roster for exam assignment.
+    Create learners, organize batches, and manage your roster for exam assignment.
   </div>
+
+  <div
+    class="student-management-tabs mt-20"
+    role="tablist"
+    aria-label="Student management sections"
+  >
+    <button
+      type="button"
+      id="studentManagementTabStudents"
+      class="student-management-tab student-management-tab--active"
+      role="tab"
+      aria-selected="true"
+      aria-controls="studentManagementStudentsPanel"
+    >
+      Students
+    </button>
+    <button
+      type="button"
+      id="studentManagementTabBatches"
+      class="student-management-tab"
+      role="tab"
+      aria-selected="false"
+      aria-controls="studentManagementBatchesPanel"
+    >
+      Batches
+    </button>
+  </div>
+
+  <div id="studentManagementStudentsPanel" class="student-management-panel mt-20">
 
   <form id="createLearnerForm" class="mt-20">
     <label class="student-management-label" for="learnerDisplayName">Display Name</label>
@@ -96,6 +125,29 @@
   <div class="h3 mt-20">Your Learners</div>
   <div id="learnerList" class="mt-10 text-muted">
     Loading learners...
+  </div>
+
+  </div>
+
+  <div id="studentManagementBatchesPanel" class="student-management-panel mt-20 hidden">
+
+    <div class="flex gap-10 batch-management-toolbar">
+      <button
+        type="button"
+        id="openCreateBatchModalBtn"
+        class="primary-btn"
+      >
+        + Create Batch
+      </button>
+    </div>
+
+    <div id="batchManagementStatus" class="mt-10 text-muted"></div>
+
+    <div class="h3 mt-20">Your Batches</div>
+    <div id="batchList" class="mt-10 text-muted">
+      Loading batches...
+    </div>
+
   </div>
 
 </div>
@@ -253,6 +305,187 @@
         </button>
       </div>
     </div>
+
+  </div>
+</div>
+
+<div id="createBatchModal" class="prepos-modal hidden">
+  <div class="prepos-modal-backdrop"></div>
+  <div class="prepos-modal-content">
+
+    <div class="prepos-modal-header">
+      <div class="h2">Create Batch</div>
+    </div>
+
+    <form id="createBatchForm" class="prepos-modal-body">
+      <label class="student-management-label" for="createBatchName">Batch Name</label>
+      <input
+        id="createBatchName"
+        type="text"
+        placeholder="Beta Testers"
+        class="w-full mt-5"
+        autocomplete="off"
+        required
+      >
+
+      <label class="student-management-label mt-15" for="createBatchDescription">Description</label>
+      <textarea
+        id="createBatchDescription"
+        placeholder="Optional notes about this cohort"
+        class="w-full mt-5"
+        rows="3"
+      ></textarea>
+
+      <div class="prepos-modal-footer mt-20">
+        <button id="closeCreateBatchModal" type="button" class="secondary-btn">
+          Cancel
+        </button>
+        <button id="createBatchSubmitBtn" type="submit" class="primary-btn">
+          Create Batch
+        </button>
+      </div>
+    </form>
+
+  </div>
+</div>
+
+<div id="editBatchModal" class="prepos-modal hidden">
+  <div class="prepos-modal-backdrop"></div>
+  <div class="prepos-modal-content">
+
+    <div class="prepos-modal-header">
+      <div class="h2">Edit Batch</div>
+    </div>
+
+    <form id="editBatchForm" class="prepos-modal-body">
+      <input id="editBatchId" type="hidden">
+
+      <label class="student-management-label" for="editBatchName">Batch Name</label>
+      <input
+        id="editBatchName"
+        type="text"
+        class="w-full mt-5"
+        autocomplete="off"
+        required
+      >
+
+      <label class="student-management-label mt-15" for="editBatchDescription">Description</label>
+      <textarea
+        id="editBatchDescription"
+        class="w-full mt-5"
+        rows="3"
+      ></textarea>
+
+      <div id="editBatchStatus" class="mt-10 text-muted"></div>
+
+      <div class="prepos-modal-footer mt-20">
+        <button id="closeEditBatchModal" type="button" class="secondary-btn">
+          Cancel
+        </button>
+        <button id="editBatchSubmitBtn" type="submit" class="primary-btn">
+          Save Changes
+        </button>
+      </div>
+    </form>
+
+  </div>
+</div>
+
+<div id="batchDetailModal" class="prepos-modal hidden">
+  <div class="prepos-modal-backdrop"></div>
+  <div class="prepos-modal-content prepos-modal-content--wide">
+
+    <div class="prepos-modal-header batch-detail-modal-header">
+      <div id="batchDetailTitle" class="h2">Batch Details</div>
+      <div class="batch-detail-menu-wrap">
+        <button
+          type="button"
+          id="batchDetailMenuBtn"
+          class="secondary-btn batch-detail-menu-btn"
+          aria-haspopup="menu"
+          aria-expanded="false"
+          aria-controls="batchDetailMenu"
+          aria-label="Batch actions"
+        >
+          ⋮
+        </button>
+        <div
+          id="batchDetailMenu"
+          class="topic-dropdown batch-detail-menu hidden"
+          role="menu"
+          aria-labelledby="batchDetailMenuBtn"
+        >
+          <button
+            type="button"
+            id="batchDetailMenuEdit"
+            class="topic-option batch-detail-menu-item"
+            role="menuitem"
+          >
+            Edit Batch
+          </button>
+          <button
+            type="button"
+            id="batchDetailMenuDelete"
+            class="topic-option batch-detail-menu-item batch-detail-menu-item--danger"
+            role="menuitem"
+          >
+            Delete Batch
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="batchDetailBody" class="prepos-modal-body">
+      Loading batch details...
+    </div>
+
+    <div class="prepos-modal-footer">
+      <button id="closeBatchDetailModal" type="button" class="secondary-btn">
+        Close
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<div id="addBatchMembersModal" class="prepos-modal hidden">
+  <div class="prepos-modal-backdrop"></div>
+  <div class="prepos-modal-content prepos-modal-content--wide">
+
+    <div class="prepos-modal-header">
+      <div class="h2">Add Students to Batch</div>
+      <p class="text-muted mt-5">Select from your managed learners.</p>
+    </div>
+
+    <form id="addBatchMembersForm" class="prepos-modal-body">
+      <label class="student-management-label" for="addBatchMembersSearch">Search</label>
+      <input
+        id="addBatchMembersSearch"
+        type="search"
+        placeholder="Search by name or email"
+        class="w-full mt-5"
+        autocomplete="off"
+      >
+
+      <div id="addBatchMembersList" class="batch-add-members-list mt-15">
+        Loading learners...
+      </div>
+
+      <div id="addBatchMembersSelectedCount" class="mt-10 text-muted">
+        0 students selected
+      </div>
+
+      <div id="addBatchMembersStatus" class="mt-10 text-muted"></div>
+
+      <div class="prepos-modal-footer mt-20">
+        <button id="closeAddBatchMembersModal" type="button" class="secondary-btn">
+          Cancel
+        </button>
+        <button id="addBatchMembersSubmitBtn" type="submit" class="primary-btn">
+          Add to Batch
+        </button>
+      </div>
+    </form>
 
   </div>
 </div>
