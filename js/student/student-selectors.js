@@ -119,10 +119,12 @@ export function selectKnowledgeConfidence(learningState = {}) {
 }
 
 export function selectRecentProgress(learningState = {}) {
-  return (learningState.metadata?.recentAttempts ?? []).map(attempt => ({
-    examId: attempt.exam_id,
+  return (learningState.metadata?.recentAttempts ?? []).map((attempt) => ({
+    examId: attempt.examId ?? attempt.exam_id,
+    examTitle: attempt.examTitle ?? attempt.exam_sessions?.title ?? "Exam",
     score: attempt.score,
-    submittedAt: attempt.submitted_at,
+    total: attempt.total ?? attempt.question_count,
+    submittedAt: attempt.submittedAt ?? attempt.submitted_at,
   }));
 }
 

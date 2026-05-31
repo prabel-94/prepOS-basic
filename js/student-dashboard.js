@@ -6,6 +6,7 @@ import { bootPage } from "./core/page-boot.js";
 import { resolveAppPath } from "./core/access.js";
 import {
   loadStudentIntelligence,
+  loadStudentExamDashboardData,
   buildStudentLearningState,
   normalizeTopicKey,
 } from "./student/student-intelligence.js";
@@ -21,6 +22,8 @@ import {
 
 import {
   renderStudentDashboard,
+  renderAvailableExams,
+  renderRecentAttempts,
   bindPracticeActions,
   bindExamStartActions,
   renderEmptyState,
@@ -47,6 +50,56 @@ function goToPracticeTopic(topic) {
   location.href = resolveAppPath(`practice.html?topic=${encodeURIComponent(key)}`);
 }
 
+function renderIntelligenceSections(learningState) {
+  const snapshotView = selectLearningSnapshot(learningState);
+  const confidenceView = selectKnowledgeConfidence(learningState);
+  const weakTopicCards = selectWeakTopicCards(learningState);
+  const strongTopicCards = selectStrongTopicCards(learningState);
+  const recommendations = selectRevisionRecommendations(learningState);
+
+  renderStudentDashboard({
+    snapshotView,
+    confidenceView,
+    weakTopicCards,
+    strongTopicCards,
+    recommendations,
+  });
+
+  bindPracticeActions(goToPracticeTopic);
+}
+
+function renderIntelligenceErrorStates() {
+  renderEmptyState(
+    document.getElementById("learningSnapshot"),
+    "Unable to load learning intelligence right now.",
+    { variant: "error" }
+  );
+
+  renderEmptyState(
+    document.getElementById("confidenceState"),
+    "Learning profile status is unavailable.",
+    { variant: "error" }
+  );
+
+  renderEmptyState(
+    document.getElementById("weakTopicsList"),
+    "Weak topic insights are unavailable.",
+    { variant: "error" }
+  );
+
+  renderEmptyState(
+    document.getElementById("strongTopicsList"),
+    "Strong topic insights are unavailable.",
+    { variant: "error" }
+  );
+
+  renderEmptyState(
+    document.getElementById("revisionRecommendations"),
+    "Revision recommendations are unavailable.",
+    { variant: "error" }
+  );
+}
+
 async function initStudent() {
   const runtime = await bootPage({
     roles: ["student", "admin"],
@@ -70,47 +123,60 @@ async function initStudent() {
     }
   }
 
+  let examDashboardData = null;
+
   try {
-    const intelligence = await loadStudentIntelligence();
+    examDashboardData = await loadStudentExamDashboardData();
+
+    renderAvailableExams(
+      document.getElementById("availableExams"),
+      examDashboardData.exams ?? []
+    );
+
+    renderRecentAttempts(
+      document.getElementById("recentAttempts"),
+      examDashboardData.recentAttempts ?? []
+    );
+
+    bindExamStartActions(startExamById);
+  } catch (error) {
+    console.error("[Student Dashboard] Exam data load failed", error);
+
+    renderEmptyState(
+      document.getElementById("availableExams"),
+      "Unable to load assigned exams right now.",
+      { variant: "error" }
+    );
+
+    renderEmptyState(
+      document.getElementById("recentAttempts"),
+      "Recent attempts are unavailable.",
+      { variant: "error" }
+    );
+  }
+
+  try {
+    const intelligence = await loadStudentIntelligence({
+      attemptRows: examDashboardData?.attemptRows,
+    });
     const learningState = buildStudentLearningState(intelligence);
     window.__PREPOS_STUDENT_LEARNING_STATE__ = learningState;
 
-    const snapshotView = selectLearningSnapshot(learningState);
-    const confidenceView = selectKnowledgeConfidence(learningState);
-    const weakTopicCards = selectWeakTopicCards(learningState);
-    const strongTopicCards = selectStrongTopicCards(learningState);
-    const recommendations = selectRevisionRecommendations(learningState);
-    const recentAttempts = selectRecentProgress(learningState);
+    renderIntelligenceSections(learningState);
 
-    renderStudentDashboard({
-      snapshotView,
-      confidenceView,
-      weakTopicCards,
-      strongTopicCards,
-      recommendations,
-      exams: intelligence.exams ?? [],
-      recentAttempts,
-    });
-
-    bindPracticeActions(goToPracticeTopic);
-    bindExamStartActions(startExamById);
+    if (!examDashboardData) {
+      renderRecentAttempts(
+        document.getElementById("recentAttempts"),
+        selectRecentProgress(learningState)
+      );
+      bindExamStartActions(startExamById);
+    }
   } catch (error) {
-    console.error("[Student Dashboard]", error);
-
-    renderEmptyState(
-      document.getElementById("learningSnapshot"),
-      "Unable to load learning intelligence right now.",
-      { variant: "error" }
-    );
-
-    renderEmptyState(
-      document.getElementById("weakTopicsList"),
-      "Weak topic insights are unavailable.",
-      { variant: "error" }
-    );
-  } finally {
-    await loadStudentTopicNotes();
+    console.error("[Student Dashboard] Intelligence load failed", error);
+    renderIntelligenceErrorStates();
   }
+
+  await loadStudentTopicNotes();
 }
 
 window.startExamById = startExamById;
