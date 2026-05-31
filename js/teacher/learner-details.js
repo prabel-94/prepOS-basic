@@ -3,9 +3,14 @@
  */
 
 import { getClient } from "../core/get-client.js";
+import { updateLearnerDisplayName } from "../core/learner-profile.js";
 import { openModal, closeModal } from "../ui/modal-system.js";
 
 const MODAL_ID = "learnerDetailModal";
+
+let currentUserId = null;
+let currentDetails = null;
+let isEditingName = false;
 
 function escapeHTML(value = "") {
   return String(value ?? "")
@@ -33,11 +38,6 @@ function formatDate(value) {
   });
 }
 
-/**
- * Relative activity label for lastActivityAt.
- * @param {string|null|undefined} value - ISO timestamp
- * @returns {string}
- */
 function formatLastActivity(value) {
   if (!value) {
     return "Never Active";
@@ -74,18 +74,6 @@ function formatLastActivity(value) {
   return formatDate(value);
 }
 
-/**
- * @typedef {Object} LearnerDetails
- * @property {string|null} id
- * @property {string|null} userId
- * @property {string} displayName
- * @property {string|null} email
- * @property {string|null} createdAt
- * @property {number} examsAssigned
- * @property {number} examsAttempted
- * @property {string|null} lastActivityAt
- */
-
 function normalizeLearnerDetails(raw) {
   if (!raw || typeof raw !== "object") {
     return null;
@@ -103,6 +91,31 @@ function normalizeLearnerDetails(raw) {
     examsAttempted: Number(raw.examsAttempted ?? raw.exams_attempted ?? 0),
     lastActivityAt: lastActivityAt || null,
   };
+}
+
+function setFooterMode(mode) {
+  const viewActions = document.getElementById("learnerDetailViewActions");
+  const editActions = document.getElementById("learnerDetailEditActions");
+
+  if (viewActions) {
+    viewActions.classList.toggle("hidden", mode !== "view");
+  }
+
+  if (editActions) {
+    editActions.classList.toggle("hidden", mode !== "edit");
+  }
+}
+
+function setEditStatus(message, { isError = false } = {}) {
+  const el = document.getElementById("learnerDetailEditStatus");
+  if (!el) {
+    return;
+  }
+
+  el.textContent = message;
+  el.classList.toggle("student-management-status--error", isError);
+  el.classList.toggle("student-management-status--success", Boolean(message) && !isError);
+  el.classList.toggle("text-muted", !message);
 }
 
 /**
@@ -133,6 +146,29 @@ export async function loadLearnerDetails(userId) {
   return details;
 }
 
+function renderNameField(details) {
+  if (isEditingName) {
+    return `
+      <dt>Name</dt>
+      <dd>
+        <input
+          id="learnerDetailNameInput"
+          type="text"
+          class="w-full"
+          value="${escapeHTML(details.displayName || "")}"
+          maxlength="120"
+          autocomplete="off"
+        >
+      </dd>
+    `;
+  }
+
+  return `
+    <dt>Name</dt>
+    <dd>${escapeHTML(details.displayName || "—")}</dd>
+  `;
+}
+
 /**
  * Render learner details into the modal body.
  * @param {object} details
@@ -140,6 +176,8 @@ export async function loadLearnerDetails(userId) {
 export function renderLearnerDetails(details) {
   const body = document.getElementById("learnerDetailBody");
   const title = document.getElementById("learnerDetailTitle");
+
+  currentDetails = details;
 
   if (title) {
     title.textContent = details.displayName || "Learner";
@@ -151,8 +189,7 @@ export function renderLearnerDetails(details) {
 
   body.innerHTML = `
     <dl class="learner-detail-meta">
-      <dt>Name</dt>
-      <dd>${escapeHTML(details.displayName || "—")}</dd>
+      ${renderNameField(details)}
 
       <dt>Email</dt>
       <dd>${escapeHTML(details.email || "—")}</dd>
@@ -169,10 +206,17 @@ export function renderLearnerDetails(details) {
       <dt>Last Activity</dt>
       <dd>${escapeHTML(formatLastActivity(details.lastActivityAt))}</dd>
     </dl>
+    <div id="learnerDetailEditStatus" class="mt-10 text-muted"></div>
   `;
+
+  setFooterMode(isEditingName ? "edit" : "view");
 }
 
 function setModalLoading() {
+  isEditingName = false;
+  setEditStatus("");
+  setFooterMode("view");
+
   const body = document.getElementById("learnerDetailBody");
   const title = document.getElementById("learnerDetailTitle");
 
@@ -186,10 +230,72 @@ function setModalLoading() {
 }
 
 function setModalError(message) {
+  isEditingName = false;
+  setFooterMode("view");
+
   const body = document.getElementById("learnerDetailBody");
 
   if (body) {
     body.innerHTML = `<div class="empty-state">${escapeHTML(message)}</div>`;
+  }
+}
+
+function enterEditNameMode() {
+  if (!currentDetails) {
+    return;
+  }
+
+  isEditingName = true;
+  setEditStatus("");
+  renderLearnerDetails(currentDetails);
+
+  document.getElementById("learnerDetailNameInput")?.focus();
+}
+
+function cancelEditNameMode() {
+  isEditingName = false;
+  setEditStatus("");
+  renderLearnerDetails(currentDetails);
+}
+
+async function saveDisplayName() {
+  if (!currentUserId || !currentDetails) {
+    return;
+  }
+
+  const input = document.getElementById("learnerDetailNameInput");
+  const displayName = input?.value?.trim() ?? "";
+
+  if (!displayName) {
+    setEditStatus("Display name is required.", { isError: true });
+    return;
+  }
+
+  const saveBtn = document.getElementById("saveLearnerNameBtn");
+  if (saveBtn) {
+    saveBtn.disabled = true;
+  }
+
+  setEditStatus("Saving...");
+
+  try {
+    await updateLearnerDisplayName({
+      userId: currentUserId,
+      displayName,
+    });
+
+    isEditingName = false;
+    const details = await loadLearnerDetails(currentUserId);
+    renderLearnerDetails(details);
+    setEditStatus("Name updated.");
+    window.dispatchEvent(new CustomEvent("prepos:learner-profile-updated"));
+  } catch (error) {
+    console.error("[Learner Details] save name failed", error);
+    setEditStatus(error.message || "Unable to update name.", { isError: true });
+  } finally {
+    if (saveBtn) {
+      saveBtn.disabled = false;
+    }
   }
 }
 
@@ -198,7 +304,19 @@ function setModalError(message) {
  * @param {string} userId
  */
 export async function openLearnerModal(userId) {
-  openModal(MODAL_ID, { overlayType: "modal" });
+  currentUserId = userId;
+  isEditingName = false;
+
+  openModal(MODAL_ID, {
+    overlayType: "modal",
+    onClose: () => {
+      currentUserId = null;
+      currentDetails = null;
+      isEditingName = false;
+      setEditStatus("");
+    },
+  });
+
   setModalLoading();
 
   try {
@@ -220,4 +338,16 @@ export function initLearnerDetailsModal() {
   document
     .getElementById("closeLearnerDetailModal")
     ?.addEventListener("click", closeLearnerModal);
+
+  document
+    .getElementById("editLearnerNameBtn")
+    ?.addEventListener("click", enterEditNameMode);
+
+  document
+    .getElementById("cancelLearnerNameBtn")
+    ?.addEventListener("click", cancelEditNameMode);
+
+  document
+    .getElementById("saveLearnerNameBtn")
+    ?.addEventListener("click", saveDisplayName);
 }
