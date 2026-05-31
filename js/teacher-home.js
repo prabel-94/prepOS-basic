@@ -3,6 +3,11 @@ import { resolveAppPath } from "./core/access.js";
 import { getClient } from "./core/get-client.js";
 import { loadTopicNotesSection } from "./notes/note-home.js";
 import { initStudentManagement } from "./teacher/student-management.js";
+import {
+  applyStudentManagementVisibility,
+  ensureStudentManagementReady,
+  initStudentManagementSecretToggle,
+} from "./teacher/student-management-visibility.js";
 
 function goToStudent() {
   location.href = resolveAppPath("student-dashboard.html");
@@ -121,9 +126,18 @@ async function initTeacherHome() {
   const { upgradeLegacyOnclickNav } = await import("./core/navigate.js");
   upgradeLegacyOnclickNav(document);
 
+  applyStudentManagementVisibility();
+  initStudentManagementSecretToggle();
+
+  window.addEventListener("prepos:student-management-unlocked", () => {
+    ensureStudentManagementReady(initStudentManagement).catch((error) => {
+      console.error("[Teacher Home] Student Management init failed", error);
+    });
+  });
+
   await loadRecentExams();
   await loadRecentDraft();
-  await initStudentManagement();
+  await ensureStudentManagementReady(initStudentManagement);
   await loadTopicNotesSection(document.getElementById("teacherTopicNotes"), {
     role: "teacher",
   });
