@@ -2,6 +2,7 @@ import { bootPage } from "./core/page-boot.js";
 import { resolveAppPath } from "./core/access.js";
 import { getClient } from "./core/get-client.js";
 import { loadTopicNotesSection } from "./notes/note-home.js";
+import { initStudentManagement } from "./teacher/student-management.js";
 
 function goToStudent() {
   location.href = resolveAppPath("student-dashboard.html");
@@ -122,6 +123,7 @@ async function initTeacherHome() {
 
   await loadRecentExams();
   await loadRecentDraft();
+  await initStudentManagement();
   await loadTopicNotesSection(document.getElementById("teacherTopicNotes"), {
     role: "teacher",
   });

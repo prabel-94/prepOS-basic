@@ -48,6 +48,58 @@
 
 </div>
 
+<div class="card mt-20" id="studentManagementSection">
+
+  <div class="h2">Student Management</div>
+  <div class="section-sub mt-5">
+    Create learners and manage your roster for exam assignment.
+  </div>
+
+  <form id="createLearnerForm" class="mt-20">
+    <label class="student-management-label" for="learnerDisplayName">Display Name</label>
+    <input
+      id="learnerDisplayName"
+      type="text"
+      placeholder="John Smith"
+      class="w-full mt-5"
+      autocomplete="name"
+      required
+    >
+
+    <label class="student-management-label mt-15" for="learnerEmail">Email</label>
+    <input
+      id="learnerEmail"
+      type="email"
+      placeholder="student@example.com"
+      class="w-full mt-5"
+      autocomplete="off"
+      required
+    >
+
+    <label class="student-management-label mt-15" for="learnerPassword">Password</label>
+    <input
+      id="learnerPassword"
+      type="password"
+      placeholder="Temporary password"
+      class="w-full mt-5"
+      autocomplete="new-password"
+      required
+    >
+
+    <button id="createLearnerBtn" type="submit" class="primary-btn w-full mt-20">
+      Create Learner
+    </button>
+  </form>
+
+  <div id="studentManagementStatus" class="mt-10 text-muted"></div>
+
+  <div class="h3 mt-20">Your Learners</div>
+  <div id="learnerList" class="mt-10 text-muted">
+    Loading learners...
+  </div>
+
+</div>
+
   <div class="card mt-30">
 
     <div class="h2">Start Creating</div>
@@ -169,6 +221,27 @@
 
   </div>
 
+</div>
+
+<div id="learnerDetailModal" class="prepos-modal hidden">
+  <div class="prepos-modal-backdrop"></div>
+  <div class="prepos-modal-content">
+
+    <div class="prepos-modal-header">
+      <div id="learnerDetailTitle" class="h2">Learner Details</div>
+    </div>
+
+    <div id="learnerDetailBody" class="prepos-modal-body">
+      Loading learner details...
+    </div>
+
+    <div class="prepos-modal-footer">
+      <button id="closeLearnerDetailModal" type="button" class="secondary-btn">
+        Close
+      </button>
+    </div>
+
+  </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>

@@ -3065,6 +3065,36 @@ PHASE 1 — STUDENT UI UPGRADE
   color: var(--primary);
 }
 
+.student-management-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.student-management-status--success {
+  color: var(--success);
+}
+
+.student-management-status--error {
+  color: var(--danger);
+}
+
+.learner-detail-meta {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px 16px;
+  margin: 0;
+}
+
+.learner-detail-meta dt {
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.learner-detail-meta dd {
+  margin: 0;
+}
+
 .card input,
 .card select,
 .card textarea,

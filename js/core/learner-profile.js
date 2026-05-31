@@ -2,11 +2,10 @@
  * PrepOS canonical learner identity layer.
  * Additive only — does not replace auth.users, public.users roles, or exam tables.
  *
- * Integration points (optional, not wired yet):
- * - list-students edge fn / assign-exam-modal: enrich labels via getLearnerProfile
- * - exam.js resolveStudentName: prefer profile display_name over localStorage/metadata
- * - future create-student edge fn: call createLearnerProfile after auth user exists
- * - student-dashboard header: show getLearnerProfile(auth.uid()).display_name
+ * Integration points:
+ * - create-learner edge fn: provisions auth user + learner_profiles row
+ * - list-students edge fn / assign-exam-modal: enriched via learner_profiles.display_name
+ * - exam.js resolveStudentName: prefers profile display_name
  */
 
 import { getClient } from "./get-client.js";
