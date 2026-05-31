@@ -42,6 +42,8 @@
 
   </div>
 
+  <div id="qb-status" class="qb-status hidden" role="status" aria-live="polite"></div>
+
   <!-- =========================
        OVERVIEW
   ========================== -->
@@ -243,7 +245,15 @@ METADATA PANEL
 
     <div class="mt-20">
       <b>Event</b>
-      <input id="caEventEdit" class="w-full mt-10" placeholder="Enter event name" />
+      <div class="pattern-box ca-box">
+        <input
+          id="caEventEdit"
+          class="w-full mt-10"
+          placeholder="Search CA events..."
+          autocomplete="off"
+        />
+        <div id="caEventDropdown" class="pattern-dropdown hidden"></div>
+      </div>
     </div>
 
     <div class="mt-20">
@@ -258,6 +268,63 @@ METADATA PANEL
 
     <button id="saveCABtn" class="primary-btn w-full mt-20">
       Save CA
+    </button>
+
+  </div>
+
+</aside>
+
+<aside class="question-bank-panel prepos-side-panel prepos-side-panel-right hidden" id="editQuestionPanel">
+
+  <div class="qb-header">
+    <button id="closeEditQuestion" type="button">← Back</button>
+    <h3>Edit Question</h3>
+  </div>
+
+  <div class="mt-20">
+
+    <div class="mt-20">
+      <label for="editQuestionText"><b>Question</b></label>
+      <textarea
+        id="editQuestionText"
+        class="w-full mt-10"
+        rows="4"
+        placeholder="Question text"
+      ></textarea>
+    </div>
+
+    <div class="mt-20">
+      <label for="editOptionA"><b>Option A</b></label>
+      <input id="editOptionA" class="w-full mt-10" type="text" />
+    </div>
+
+    <div class="mt-20">
+      <label for="editOptionB"><b>Option B</b></label>
+      <input id="editOptionB" class="w-full mt-10" type="text" />
+    </div>
+
+    <div class="mt-20">
+      <label for="editOptionC"><b>Option C</b></label>
+      <input id="editOptionC" class="w-full mt-10" type="text" />
+    </div>
+
+    <div class="mt-20">
+      <label for="editOptionD"><b>Option D</b></label>
+      <input id="editOptionD" class="w-full mt-10" type="text" />
+    </div>
+
+    <div class="mt-20">
+      <b>Correct answer</b>
+      <div class="flex gap-10 mt-10">
+        <label><input type="radio" name="editCorrect" value="A"> A</label>
+        <label><input type="radio" name="editCorrect" value="B"> B</label>
+        <label><input type="radio" name="editCorrect" value="C"> C</label>
+        <label><input type="radio" name="editCorrect" value="D"> D</label>
+      </div>
+    </div>
+
+    <button id="saveQuestionBtn" class="primary-btn w-full mt-20" type="button">
+      Save Question
     </button>
 
   </div>

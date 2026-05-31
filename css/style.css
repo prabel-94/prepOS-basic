@@ -861,6 +861,57 @@ EMPTY STATE
   border-radius:8px;
 }
 
+.qb-status{
+  padding:10px 14px;
+  border-radius:8px;
+  margin-top:12px;
+  font-size:14px;
+  background:#ecfdf5;
+  color:#065f46;
+  border:1px solid #a7f3d0;
+}
+
+.qb-status.error{
+  background:#fef2f2;
+  color:#991b1b;
+  border-color:#fecaca;
+}
+
+.pattern-box{
+  position:relative;
+}
+
+.pattern-dropdown{
+  position:absolute;
+  left:0;
+  right:0;
+  top:100%;
+  z-index:20;
+  max-height:200px;
+  overflow-y:auto;
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:8px;
+  box-shadow:0 4px 12px rgba(0,0,0,0.08);
+}
+
+.pattern-option,
+.ca-option{
+  padding:8px 12px;
+  cursor:pointer;
+}
+
+.pattern-option:hover,
+.ca-option:hover{
+  background:#f3f4f6;
+}
+
+.pattern-empty{
+  padding:8px 12px;
+  color:var(--muted);
+  font-size:13px;
+}
+
 /* ======================================================
 QUESTION BANK PANEL
 ====================================================== */
