@@ -50,3 +50,100 @@ export function enrichAssignedExam(examSession = {}) {
     durationLabel,
   };
 }
+
+export const LOCAL_ATTEMPT_KEY_PREFIX = "prepos-attempt-";
+
+export function readLocalExamAttempt(examId) {
+  if (!examId) {
+    return null;
+  }
+
+  try {
+    const raw = localStorage.getItem(`${LOCAL_ATTEMPT_KEY_PREFIX}${examId}`);
+    if (!raw) {
+      return null;
+    }
+
+    const state = JSON.parse(raw);
+    if (state?.examId && state.examId !== examId) {
+      return null;
+    }
+
+    return state;
+  } catch {
+    return null;
+  }
+}
+
+export function groupLatestAttemptsByExamId(attemptRows = []) {
+  const latestByExam = new Map();
+
+  for (const row of attemptRows) {
+    const examId = row.exam_id;
+    if (!examId || latestByExam.has(examId)) {
+      continue;
+    }
+    latestByExam.set(examId, row);
+  }
+
+  return latestByExam;
+}
+
+export function resolveExamAttemptPresentation(exam = {}, latestServerAttempt = null, localAttempt = null) {
+  const total =
+    exam.questionCount ??
+    latestServerAttempt?.question_count ??
+    localAttempt?.total ??
+    null;
+
+  if (latestServerAttempt || localAttempt?.status === "submitted") {
+    const score = Number(latestServerAttempt?.score ?? localAttempt?.score ?? 0);
+    const scoreTotal = total ?? latestServerAttempt?.question_count ?? localAttempt?.total ?? "?";
+
+    return {
+      attemptStatus: "completed",
+      score,
+      total: scoreTotal,
+      buttonLabel: "View Results",
+    };
+  }
+
+  if (localAttempt?.status === "in_progress" && localAttempt?.startedAt) {
+    return {
+      attemptStatus: "in_progress",
+      buttonLabel: "Continue Exam",
+    };
+  }
+
+  return {
+    attemptStatus: "not_attempted",
+    buttonLabel: "Start Exam",
+  };
+}
+
+export function enrichAssignedExamsWithAttemptStatus(exams = [], attemptRows = []) {
+  const latestByExam = groupLatestAttemptsByExamId(attemptRows);
+
+  return exams.map((exam) => {
+    const presentation = resolveExamAttemptPresentation(
+      exam,
+      latestByExam.get(exam.id) ?? null,
+      readLocalExamAttempt(exam.id)
+    );
+
+    return {
+      ...exam,
+      ...presentation,
+    };
+  });
+}
+
+export function mapRecentAttemptRows(attemptRows = [], limit = 5) {
+  return attemptRows.slice(0, limit).map((row) => ({
+    examId: row.exam_id,
+    examTitle: row.exam_sessions?.title ?? "Exam",
+    score: row.score,
+    total: row.question_count,
+    submittedAt: row.submitted_at,
+  }));
+}

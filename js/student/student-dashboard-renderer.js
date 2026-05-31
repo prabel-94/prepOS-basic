@@ -198,6 +198,15 @@ export function renderAvailableExams(container, exams = []) {
 
     metaLines.push("Assigned by Teacher");
 
+    if (exam.attemptStatus === "completed" && exam.score != null) {
+      metaLines.push("Completed");
+      metaLines.push(`Score ${exam.score}/${exam.total ?? exam.questionCount ?? "?"}`);
+    } else if (exam.attemptStatus === "in_progress") {
+      metaLines.push("In Progress");
+    }
+
+    const buttonLabel = exam.buttonLabel ?? "Start Exam";
+
     const div = document.createElement("div");
     div.className = "student-exam-card recent-item mt-10";
     div.innerHTML = `
@@ -210,7 +219,7 @@ export function renderAvailableExams(container, exams = []) {
         class="primary-btn mt-10"
         data-exam-id="${escapeHTML(exam.id)}"
       >
-        Start Exam
+        ${escapeHTML(buttonLabel)}
       </button>
     `;
     container.appendChild(div);
@@ -228,14 +237,28 @@ export function renderRecentAttempts(container, attempts = []) {
   }
 
   attempts.forEach(attempt => {
+    const title = attempt.examTitle ?? "Exam";
+    const score = attempt.score ?? 0;
+    const total = attempt.total ?? attempt.question_count;
+    const scoreLabel = total != null ? `${score} / ${total}` : String(score);
+    const submittedAt = attempt.submittedAt ?? attempt.submitted_at;
+    const examId = attempt.examId ?? attempt.exam_id;
+
     const div = document.createElement("div");
     div.className = "recent-item mt-10";
     div.innerHTML = `
-      <b>Exam ID: ${escapeHTML(attempt.examId ?? attempt.exam_id)}</b><br>
-      Score: ${escapeHTML(attempt.score)}<br>
+      <b>${escapeHTML(title)}</b><br>
+      Score: ${escapeHTML(scoreLabel)}<br>
       <div class="text-muted mt-5">
-        ${escapeHTML(new Date(attempt.submittedAt ?? attempt.submitted_at).toLocaleString())}
+        ${escapeHTML(new Date(submittedAt).toLocaleString())}
       </div>
+      <button
+        type="button"
+        class="primary-btn mt-10"
+        data-exam-id="${escapeHTML(examId)}"
+      >
+        View Results
+      </button>
     `;
     container.appendChild(div);
   });
@@ -247,8 +270,8 @@ export function renderStudentDashboard({
   weakTopicCards = [],
   strongTopicCards = [],
   recommendations = [],
-  exams = [],
-  recentAttempts = [],
+  exams = null,
+  recentAttempts = null,
 } = {}) {
   renderLearningSnapshot(
     document.getElementById("learningSnapshot"),
@@ -268,8 +291,13 @@ export function renderStudentDashboard({
     recommendations
   );
 
-  renderAvailableExams(document.getElementById("availableExams"), exams);
-  renderRecentAttempts(document.getElementById("recentAttempts"), recentAttempts);
+  if (Array.isArray(exams)) {
+    renderAvailableExams(document.getElementById("availableExams"), exams);
+  }
+
+  if (Array.isArray(recentAttempts)) {
+    renderRecentAttempts(document.getElementById("recentAttempts"), recentAttempts);
+  }
 }
 
 export function bindPracticeActions(onPracticeTopic) {
@@ -284,15 +312,19 @@ export function bindPracticeActions(onPracticeTopic) {
 }
 
 export function bindExamStartActions(onStartExam) {
-  const container = document.getElementById("availableExams");
-  if (!container) return;
+  const containerIds = ["availableExams", "recentAttempts"];
 
-  container.querySelectorAll("[data-exam-id]").forEach(button => {
-    button.addEventListener("click", () => {
-      const examId = button.dataset.examId;
-      if (examId && typeof onStartExam === "function") {
-        onStartExam(examId);
-      }
+  containerIds.forEach((containerId) => {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    container.querySelectorAll("[data-exam-id]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const examId = button.dataset.examId;
+        if (examId && typeof onStartExam === "function") {
+          onStartExam(examId);
+        }
+      });
     });
   });
 }

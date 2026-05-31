@@ -354,7 +354,22 @@ function bindReviewModal(){
   });
 }
 
-function beginExamSession(){
+function beginExamSession(examDurationSeconds){
+  if (examStarted || attemptState.status === "submitted") {
+    return;
+  }
+
+  if (!attemptState.startedAt) {
+    attemptState.startedAt = Date.now();
+    attemptState.duration = examDurationSeconds || attemptState.duration || 1800;
+    localStorage.setItem(ATTEMPT_KEY, JSON.stringify(attemptState));
+  }
+
+  timer = new TimerEngine({
+    duration: attemptState.duration,
+    startedAt: attemptState.startedAt,
+  });
+
   examStarted = true;
   document.getElementById("examOverviewSection")?.classList.add("hidden");
   showExam();
@@ -402,6 +417,135 @@ function renderExamResults(score, answers, studentName){
       <button type="button" id="downloadPdfBtn" class="secondary-btn mt-10 hidden">Download Review PDF</button>
     </div>
   `;
+}
+
+function buildReviewDataFromStoredAnswers(answers = []){
+  return window.examQuestionsRaw.map((q, i) => {
+    const entry = answers[i] || {};
+    const student = entry.chosen || "-";
+
+    return {
+      question: q.text,
+      options: (q.options || []).map((o) =>
+        typeof o === "string" ? { id: "", text: o } : o
+      ),
+      correct: q.correct,
+      student,
+      explanation: q.explanation,
+      isCorrect: student === q.correct,
+    };
+  });
+}
+
+function bindResultsReviewActions(){
+  const reviewBtn = document.getElementById("reviewBtn");
+  if (!reviewBtn) {
+    return;
+  }
+
+  reviewBtn.onclick = function(){
+    this.style.display = "none";
+    document.getElementById("downloadPdfBtn")?.classList.remove("hidden");
+    renderReview();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+}
+
+function enterReadOnlyCompletedMode({ score, answers, studentName }){
+  examStarted = true;
+
+  document.getElementById("examOverviewSection")?.classList.add("hidden");
+  document.getElementById("loadingState").style.display = "none";
+  document.getElementById("errorState").style.display = "none";
+  document.getElementById("examContent").style.display = "none";
+  hideActiveExamChrome();
+
+  if (window.examDuration) {
+    document.getElementById("examTimer").textContent = "Completed";
+  }
+
+  window.reviewData = buildReviewDataFromStoredAnswers(answers);
+  renderExamResults(score, answers, studentName);
+  bindResultsReviewActions();
+  scrollToResult();
+}
+
+async function fetchLatestCanonicalAttempt(sb, userId){
+  const { data, error } = await sb
+    .from("exam_attempts")
+    .select("score, answers, student_name, question_count, submitted_at")
+    .eq("exam_id", examId)
+    .eq("student_id", userId)
+    .order("submitted_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.warn("[Exam] Failed to load canonical attempt", error);
+    return null;
+  }
+
+  return data;
+}
+
+async function restoreCompletedExamState(){
+  if (
+    attemptState.status === "submitted" &&
+    Array.isArray(attemptState.answers) &&
+    attemptState.score != null
+  ) {
+    const studentName =
+      attemptState.studentName ||
+      localStorage.getItem("studentName") ||
+      "Student";
+
+    enterReadOnlyCompletedMode({
+      score: attemptState.score,
+      answers: attemptState.answers,
+      studentName,
+    });
+    return true;
+  }
+
+  try {
+    const sb = await getClient();
+    const { data: userData } = await sb.auth.getUser();
+    const user = userData?.user;
+
+    if (!user) {
+      return false;
+    }
+
+    const attempt = await fetchLatestCanonicalAttempt(sb, user.id);
+
+    if (!attempt) {
+      return false;
+    }
+
+    enterReadOnlyCompletedMode({
+      score: attempt.score,
+      answers: attempt.answers ?? [],
+      studentName:
+        attempt.student_name ||
+        localStorage.getItem("studentName") ||
+        "Student",
+    });
+
+    attemptState.status = "submitted";
+    attemptState.score = attempt.score;
+    attemptState.total = attempt.question_count ?? attempt.answers?.length ?? 0;
+    attemptState.answers = attempt.answers ?? [];
+    attemptState.studentName =
+      attempt.student_name ||
+      localStorage.getItem("studentName") ||
+      "Student";
+    localStorage.setItem(ATTEMPT_KEY, JSON.stringify(attemptState));
+
+    return true;
+  } catch (error) {
+    console.warn("[Exam] Completed state restore failed", error);
+    return false;
+  }
 }
 function escapeHTML(str){
   return String(str)
@@ -602,6 +746,7 @@ async function loadExam(){
 
     window.examTitle = exam.title || "Exam";
     window.examLogo = exam.logo_url || "";
+    window.examDuration = exam.duration || 1800;
 
     const logoEl = document.getElementById("examLogo");
     if(window.examLogo && logoEl){
@@ -613,21 +758,6 @@ async function loadExam(){
     if(titleEl){
       titleEl.textContent = window.examTitle;
     }
-
-    /* ---------- EXTEND ATTEMPT STATE ---------- */
-
-    if (!attemptState.startedAt) {
-      attemptState.startedAt = Date.now();
-      attemptState.duration = exam.duration || 1800; // default 30 min
-      localStorage.setItem(ATTEMPT_KEY, JSON.stringify(attemptState));
-    }
-
-    /* ---------- INITIALIZE TIMER (NOT STARTED YET) ---------- */
-
-    timer = new TimerEngine({
-      duration: attemptState.duration,
-      startedAt: attemptState.startedAt
-    });
 
     /* ---------- EXTRACT QUESTIONS ---------- */
 
@@ -656,6 +786,23 @@ async function loadExam(){
 
     renderQuiz(window.examQuestionsRaw);
     bindReviewModal();
+
+    if (await restoreCompletedExamState()) {
+      return;
+    }
+
+    const resumeInProgress =
+      attemptState.status === "in_progress" && attemptState.startedAt;
+
+    if (resumeInProgress) {
+      const studentName = await resolveStudentName();
+      if (studentName) {
+        localStorage.setItem("studentName", studentName);
+      }
+      beginExamSession(window.examDuration);
+      return;
+    }
+
     showOverview();
 
     document.getElementById("startExamBtn").addEventListener("click", async () => {
@@ -667,7 +814,7 @@ async function loadExam(){
       }
 
       localStorage.setItem("studentName", studentName);
-      beginExamSession();
+      beginExamSession(window.examDuration);
     });
 
   }
@@ -849,8 +996,10 @@ const selected =
 
   /* ---------- CALCULATE TIME TAKEN ---------- */
 
-  const elapsed = Math.floor((Date.now() - attemptState.startedAt) / 1000);
-  const time_taken = Math.min(elapsed, attemptState.duration);
+  const elapsed = attemptState.startedAt
+    ? Math.floor((Date.now() - attemptState.startedAt) / 1000)
+    : 0;
+  const time_taken = Math.min(elapsed, attemptState.duration || window.examDuration || 1800);
 
   const bankAnswers = answers.filter(a => a.question_id);
 
@@ -926,7 +1075,11 @@ try{
   const submissionMode = useCanonical ? "canonical" : "public";
 
     /* ---------- lock ---------- */
-    attemptState.status="submitted";
+    attemptState.status = "submitted";
+    attemptState.score = score;
+    attemptState.total = answers.length;
+    attemptState.answers = answers;
+    attemptState.studentName = studentName;
     localStorage.setItem(ATTEMPT_KEY, JSON.stringify(attemptState));
 
     /* ---------- analytics (disabled via analytics-config.js) ---------- */
@@ -991,19 +1144,9 @@ try{
 
     renderExamResults(score, answers, studentName);
 
-scrollToResult()
+    scrollToResult();
 
-    document.getElementById("reviewBtn").onclick = function(){
-
-  this.style.display = "none";
-
-  document.getElementById("downloadPdfBtn").classList.remove("hidden");
-
-  renderReview();
-
-  window.scrollTo({top:0,behavior:"smooth"});
-
-};
+    bindResultsReviewActions();
 
   }catch(err){
     console.error(err);

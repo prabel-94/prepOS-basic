@@ -5,7 +5,11 @@
  */
 
 import { getClient } from "../core/get-client.js";
-import { enrichAssignedExam } from "./student-exam-meta.js";
+import {
+  enrichAssignedExam,
+  enrichAssignedExamsWithAttemptStatus,
+  mapRecentAttemptRows,
+} from "./student-exam-meta.js";
 import {
   buildKnowledgeAnalytics,
   buildTopicMastery,
@@ -130,7 +134,17 @@ async function fetchStudentExamAssignments(sb, userId) {
 async function fetchCanonicalAttempts(sb, userId) {
   const { data, error } = await sb
     .from("exam_attempts")
-    .select("id, exam_id, score, answers, submitted_at, student_name, time_taken")
+    .select(`
+      id,
+      exam_id,
+      score,
+      answers,
+      submitted_at,
+      student_name,
+      time_taken,
+      question_count,
+      exam_sessions ( title )
+    `)
     .eq("student_id", userId)
     .order("submitted_at", { ascending: false });
 
@@ -247,7 +261,6 @@ export function buildStudentLearningState(intelligence = {}) {
     canonicalAttempts = [],
     questions = [],
     cacheEntries = [],
-    exams = [],
     recentAttempts = [],
   } = intelligence;
 
@@ -307,7 +320,6 @@ export function buildStudentLearningState(intelligence = {}) {
       questionCount: questions.filter(q => isKnowledgeEligible(q)).length,
       hasKnowledgeData: topicMastery.length > 0,
       hasCanonicalAttempts: canonicalAttempts.length > 0,
-      exams,
       recentAttempts,
       emptyReason: resolveEmptyReason({
         canonicalAttempts,
@@ -402,7 +414,7 @@ function resolveEmptyReason({ canonicalAttempts = [], topicMastery = [], confide
   return null;
 }
 
-export async function loadStudentIntelligence() {
+export async function loadStudentExamDashboardData() {
   const sb = await getClient();
   const { data: userData } = await sb.auth.getUser();
   const user = userData?.user;
@@ -415,6 +427,25 @@ export async function loadStudentIntelligence() {
     fetchStudentExamAssignments(sb, user.id),
     fetchCanonicalAttempts(sb, user.id),
   ]);
+
+  return {
+    exams: enrichAssignedExamsWithAttemptStatus(exams, attemptRows),
+    attemptRows,
+    recentAttempts: mapRecentAttemptRows(attemptRows),
+  };
+}
+
+export async function loadStudentIntelligence({ attemptRows: prefetchedAttemptRows } = {}) {
+  const sb = await getClient();
+  const { data: userData } = await sb.auth.getUser();
+  const user = userData?.user;
+
+  if (!user) {
+    throw new Error("User not authenticated");
+  }
+
+  const attemptRows =
+    prefetchedAttemptRows ?? (await fetchCanonicalAttempts(sb, user.id));
 
   const canonicalAttempts = toAttemptRecords(attemptRows);
   const examIds = [...new Set(canonicalAttempts.map(a => a.exam_id ?? a.examId).filter(Boolean))];
@@ -434,8 +465,7 @@ export async function loadStudentIntelligence() {
     questions,
     cacheEntries,
     knowledge,
-    exams,
-    recentAttempts: attemptRows.slice(0, 5),
+    recentAttempts: mapRecentAttemptRows(attemptRows),
   };
 }
 
