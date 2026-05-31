@@ -5,6 +5,13 @@
 
 import { invokeEdgeFunction } from "../core/edge-invoke.js";
 import { openLearnerModal, initLearnerDetailsModal } from "./learner-details.js";
+import {
+  initBatchManagement,
+  refreshBatches,
+  loadBatchesIfActive,
+} from "./batch-management.js";
+
+const TAB_STORAGE_KEY = "prepos_student_management_tab";
 
 function escapeHTML(value = "") {
   return String(value ?? "")
@@ -170,6 +177,55 @@ async function handleCreateLearnerSubmit(event) {
   }
 }
 
+function setStudentManagementTab(tab) {
+  const studentsPanel = document.getElementById("studentManagementStudentsPanel");
+  const batchesPanel = document.getElementById("studentManagementBatchesPanel");
+  const studentsTab = document.getElementById("studentManagementTabStudents");
+  const batchesTab = document.getElementById("studentManagementTabBatches");
+
+  const showStudents = tab !== "batches";
+
+  studentsPanel?.classList.toggle("hidden", !showStudents);
+  batchesPanel?.classList.toggle("hidden", showStudents);
+
+  studentsTab?.classList.toggle("student-management-tab--active", showStudents);
+  batchesTab?.classList.toggle("student-management-tab--active", !showStudents);
+  studentsTab?.setAttribute("aria-selected", showStudents ? "true" : "false");
+  batchesTab?.setAttribute("aria-selected", showStudents ? "false" : "true");
+
+  try {
+    localStorage.setItem(TAB_STORAGE_KEY, showStudents ? "students" : "batches");
+  } catch {
+    /* ignore storage errors */
+  }
+
+  if (!showStudents) {
+    refreshBatches().catch((error) => {
+      console.error("[Student Management] batch list refresh failed", error);
+    });
+  }
+}
+
+function initStudentManagementTabs() {
+  const studentsTab = document.getElementById("studentManagementTabStudents");
+  const batchesTab = document.getElementById("studentManagementTabBatches");
+
+  studentsTab?.addEventListener("click", () => setStudentManagementTab("students"));
+  batchesTab?.addEventListener("click", () => setStudentManagementTab("batches"));
+
+  let initialTab = "students";
+
+  try {
+    if (localStorage.getItem(TAB_STORAGE_KEY) === "batches") {
+      initialTab = "batches";
+    }
+  } catch {
+    /* ignore storage errors */
+  }
+
+  setStudentManagementTab(initialTab);
+}
+
 /**
  * Wire Student Management UI on Teacher Home.
  */
@@ -178,10 +234,21 @@ export async function initStudentManagement() {
   form?.addEventListener("submit", handleCreateLearnerSubmit);
 
   initLearnerDetailsModal();
+  initBatchManagement();
+  initStudentManagementTabs();
 
   window.addEventListener("prepos:learner-profile-updated", () => {
     refreshLearners().catch((error) => {
       console.error("[Student Management] list refresh failed", error);
+    });
+    loadBatchesIfActive().catch((error) => {
+      console.error("[Student Management] batch refresh failed", error);
+    });
+  });
+
+  window.addEventListener("prepos:batch-updated", () => {
+    loadBatchesIfActive().catch((error) => {
+      console.error("[Student Management] batch refresh failed", error);
     });
   });
 
@@ -198,4 +265,5 @@ export async function initStudentManagement() {
   });
 
   await refreshLearners();
+  await loadBatchesIfActive();
 }

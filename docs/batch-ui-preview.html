@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Batch UI Preview — PrepOS</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <style>
+    body { padding: 16px; max-width: 960px; margin: 0 auto; }
+    .preview-section { margin-bottom: 40px; }
+    .preview-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: #64748b; margin-bottom: 12px; }
+    .preview-frame { border: 1px dashed #cbd5e1; border-radius: 12px; padding: 16px; background: #fff; }
+    .preview-frame--mobile { max-width: 390px; }
+    .preview-frame--desktop { max-width: 720px; }
+  </style>
+</head>
+<body>
+
+  <h1 class="h2">Batch UI Refinement Preview</h1>
+  <p class="text-muted">Static preview for screenshots — matches production markup and styles.</p>
+
+  <div class="preview-section" id="batch-list-with-description">
+    <div class="preview-label">Batch List — with description (desktop)</div>
+    <div class="preview-frame preview-frame--desktop card">
+      <div class="h3">Your Batches</div>
+      <div class="recent-item mt-10 student-batch-row">
+        <div class="topic-note-row">
+          <div class="topic-note-row-main batch-card">
+            <div class="batch-card-name">Beta Testers</div>
+            <div class="batch-card-meta">12 Members</div>
+            <p class="batch-card-description">Students actively testing new PrepOS features.</p>
+          </div>
+          <div class="topic-note-row-actions student-batch-row-actions">
+            <button type="button" class="secondary-btn">View</button>
+            <button type="button" class="secondary-btn">Edit</button>
+            <button type="button" class="secondary-btn">Delete</button>
+          </div>
+        </div>
+      </div>
+      <div class="recent-item mt-10 student-batch-row">
+        <div class="topic-note-row">
+          <div class="topic-note-row-main batch-card">
+            <div class="batch-card-name">KAS 2027</div>
+            <div class="batch-card-meta">4 Members</div>
+          </div>
+          <div class="topic-note-row-actions student-batch-row-actions">
+            <button type="button" class="secondary-btn">View</button>
+            <button type="button" class="secondary-btn">Edit</button>
+            <button type="button" class="secondary-btn">Delete</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="preview-section" id="batch-list-mobile">
+    <div class="preview-label">Batch List — mobile</div>
+    <div class="preview-frame preview-frame--mobile card">
+      <div class="recent-item mt-10 student-batch-row">
+        <div class="topic-note-row">
+          <div class="topic-note-row-main batch-card">
+            <div class="batch-card-name">Beta Testers</div>
+            <div class="batch-card-meta">12 Members</div>
+            <p class="batch-card-description">Students actively testing new PrepOS features.</p>
+          </div>
+          <div class="topic-note-row-actions student-batch-row-actions">
+            <button type="button" class="secondary-btn">View</button>
+            <button type="button" class="secondary-btn">Edit</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="preview-section" id="batch-detail-with-description">
+    <div class="preview-label">Batch Detail — with description (desktop)</div>
+    <div class="preview-frame preview-frame--desktop card prepos-modal-content--wide">
+      <div class="h2">Batch Details</div>
+      <div class="batch-detail-header mt-15">
+        <div class="batch-card-name batch-card-name--detail">Beta Testers</div>
+        <p class="batch-card-description">Students actively testing new PrepOS features.</p>
+        <div class="batch-card-meta batch-card-meta--detail">12 Members</div>
+        <dl class="batch-detail-provenance">
+          <div class="batch-detail-provenance-row">
+            <dt>Created By</dt>
+            <dd>Prabe</dd>
+          </div>
+          <div class="batch-detail-provenance-row">
+            <dt>Created</dt>
+            <dd>31 May 2026, 10:42 AM</dd>
+          </div>
+        </dl>
+      </div>
+      <div class="h3 mt-20">Members</div>
+      <div class="recent-item mt-10">
+        <div class="topic-note-row">
+          <div class="topic-note-row-main">
+            <b>Kenway</b>
+            <div class="text-muted mt-5">kenway@example.com</div>
+          </div>
+          <button type="button" class="secondary-btn">Remove</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="preview-section" id="batch-detail-no-description">
+    <div class="preview-label">Batch Detail — without description (mobile)</div>
+    <div class="preview-frame preview-frame--mobile card">
+      <div class="h2">Batch Details</div>
+      <div class="batch-detail-header mt-15">
+        <div class="batch-card-name batch-card-name--detail">KAS 2027</div>
+        <div class="batch-card-meta batch-card-meta--detail">4 Members</div>
+        <dl class="batch-detail-provenance">
+          <div class="batch-detail-provenance-row">
+            <dt>Created By</dt>
+            <dd>prabelsurendran@gmail.com</dd>
+          </div>
+          <div class="batch-detail-provenance-row">
+            <dt>Created</dt>
+            <dd>31 May 2026, 9:15 AM</dd>
+          </div>
+        </dl>
+      </div>
+      <div class="h3 mt-20">Members</div>
+      <div class="empty-state mt-10">No students in this batch yet.</div>
+    </div>
+  </div>
+
+</body>
+</html>
