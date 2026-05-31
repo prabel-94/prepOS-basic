@@ -421,10 +421,41 @@ DEV DEBUG
     </div>
 
     <div class="prepos-modal-body">
-      <input id="studentSearch" placeholder="Search student..." class="w-full">
+      <div
+        class="student-management-tabs assign-exam-tabs"
+        role="tablist"
+        aria-label="Assignment target type"
+      >
+        <button
+          type="button"
+          id="assignTabStudents"
+          class="student-management-tab student-management-tab--active"
+          role="tab"
+        >
+          Students
+        </button>
+        <button
+          type="button"
+          id="assignTabBatches"
+          class="student-management-tab"
+          role="tab"
+        >
+          Batches
+        </button>
+      </div>
 
-      <div id="studentList" class="mt-20">
-        Loading students...
+      <div id="assignStudentsPanel" class="assign-exam-panel mt-15">
+        <input id="studentSearch" placeholder="Search student..." class="w-full">
+        <div id="studentList" class="mt-15 assign-exam-list">
+          Loading students...
+        </div>
+      </div>
+
+      <div id="assignBatchesPanel" class="assign-exam-panel mt-15 hidden">
+        <input id="batchSearch" placeholder="Search batch..." class="w-full">
+        <div id="batchList" class="mt-15 assign-exam-list">
+          Loading batches...
+        </div>
       </div>
     </div>
 

@@ -3119,6 +3119,24 @@ PHASE 1 — STUDENT UI UPGRADE
   color: #fff;
 }
 
+.assign-exam-tabs {
+  margin-bottom: 4px;
+}
+
+.assign-exam-list {
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.assign-batch-row {
+  align-items: flex-start;
+}
+
+.assign-batch-row-label {
+  flex: 1;
+  min-width: 0;
+}
+
 .student-batch-row-actions {
   display: flex;
   flex-wrap: wrap;
@@ -3298,17 +3316,6 @@ PHASE 1 — STUDENT UI UPGRADE
   margin-top: 14px;
   padding-top: 12px;
   border-top: 1px dashed var(--border, #d8dee9);
-}
-
-.batch-add-student-placeholder:disabled {
-  opacity: 0.72;
-  cursor: not-allowed;
-}
-
-.batch-add-student-soon {
-  margin-top: 6px;
-  font-size: 0.75rem;
-  text-align: center;
 }
 
 @media (max-width: 767px) {

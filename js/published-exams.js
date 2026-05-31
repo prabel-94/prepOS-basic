@@ -13,6 +13,7 @@ import {
 let currentUser = null;
 let currentRole = null;
 let currentExams = [];
+let assignmentSummaries = new Map();
 
 function escapeHTML(value) {
   return String(value ?? "")
@@ -25,6 +26,89 @@ function escapeHTML(value) {
 
 function getAssignedCount(exam) {
   return Number(exam.exam_assignments?.[0]?.count ?? 0);
+}
+
+async function loadAssignmentSummaries(examIds) {
+  const map = new Map();
+
+  if (!examIds.length) {
+    return map;
+  }
+
+  for (const id of examIds) {
+    map.set(id, { batchNames: [], individualCount: 0 });
+  }
+
+  const sb = await getClient();
+
+  const [batchRes, assignRes] = await Promise.all([
+    sb
+      .from("exam_batch_assignments")
+      .select("exam_id, student_batches(name)")
+      .in("exam_id", examIds),
+    sb
+      .from("exam_assignments")
+      .select("exam_id, source_batch_id")
+      .in("exam_id", examIds),
+  ]);
+
+  if (batchRes.error) {
+    console.warn("Failed to load batch assignment labels", batchRes.error);
+  }
+
+  if (assignRes.error) {
+    console.warn("Failed to load individual assignment counts", assignRes.error);
+  }
+
+  for (const row of assignRes.data || []) {
+    const entry = map.get(row.exam_id);
+    if (!entry) continue;
+
+    if (!row.source_batch_id) {
+      entry.individualCount += 1;
+    }
+  }
+
+  for (const row of batchRes.data || []) {
+    const entry = map.get(row.exam_id);
+    if (!entry) continue;
+
+    const batch = row.student_batches;
+    const name = Array.isArray(batch) ? batch[0]?.name : batch?.name;
+
+    if (name && !entry.batchNames.includes(name)) {
+      entry.batchNames.push(name);
+    }
+  }
+
+  return map;
+}
+
+function formatAssignmentSummary(exam) {
+  const total = getAssignedCount(exam);
+
+  if (!total) {
+    return "Not assigned yet";
+  }
+
+  const summary = assignmentSummaries.get(exam.id) ?? {
+    batchNames: [],
+    individualCount: 0,
+  };
+
+  const parts = [
+    `${total} student${total === 1 ? "" : "s"} assigned`,
+  ];
+
+  if (summary.batchNames.length) {
+    parts.push(`Batches: ${summary.batchNames.join(", ")}`);
+  }
+
+  if (summary.individualCount > 0) {
+    parts.push(`${summary.individualCount} individual`);
+  }
+
+  return parts.join(" · ");
 }
 
 function getDateRange() {
@@ -104,6 +188,9 @@ async function loadPublishedExams() {
     if (error) throw error;
 
     currentExams = data || [];
+    assignmentSummaries = await loadAssignmentSummaries(
+      currentExams.map((exam) => exam.id)
+    );
     renderExams(currentExams);
   } catch (error) {
     console.error(error);
@@ -137,10 +224,7 @@ function renderExams(exams) {
       ? new Date(exam.created_at).toLocaleString()
       : "-";
 
-    const assignedCount = getAssignedCount(exam);
-    const assignmentLabel = assignedCount === 1
-      ? "1 student assigned"
-      : `${assignedCount} students assigned`;
+    const assignmentLabel = formatAssignmentSummary(exam);
 
     item.innerHTML = `
       <div class="flex" style="justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap;">
