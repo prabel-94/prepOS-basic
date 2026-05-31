@@ -222,8 +222,10 @@ function renderBatchList(batches = []) {
 }
 
 function openCreateBatchModal() {
-  document.getElementById("createBatchName")?.value = "";
-  document.getElementById("createBatchDescription")?.value = "";
+  const nameEl = document.getElementById("createBatchName");
+  const descriptionEl = document.getElementById("createBatchDescription");
+  if (nameEl) nameEl.value = "";
+  if (descriptionEl) descriptionEl.value = "";
   setBatchStatus("");
 
   openModal(CREATE_MODAL_ID, { overlayType: "modal" });
