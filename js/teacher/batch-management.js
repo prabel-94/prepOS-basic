@@ -114,18 +114,15 @@ function renderBatchDetailHeader(batch) {
   `;
 }
 
-function renderAddStudentPlaceholder() {
+function renderAddStudentCta() {
   return `
     <div class="batch-add-student-cta">
       <button
         type="button"
-        class="secondary-btn batch-add-student-placeholder w-full"
-        disabled
-        aria-disabled="true"
+        class="primary-btn batch-add-student-btn w-full"
       >
         + Add Student
       </button>
-      <div class="batch-add-student-soon text-muted">Coming Soon</div>
     </div>
   `;
 }
@@ -317,7 +314,7 @@ async function handleEditBatchSubmit(event) {
     closeModal(EDIT_MODAL_ID);
 
     if (currentBatchId === batchId && currentBatchDetails) {
-      await openBatchDetailModal(batchId);
+      await refreshBatchDetail();
     }
 
     await refreshBatches();
@@ -414,11 +411,22 @@ function renderBatchDetailBody(batch) {
     <div class="batch-members-section">
       <div class="h3 batch-members-heading">Members</div>
       <div id="batchDetailMemberList">${memberRows}</div>
-      ${renderAddStudentPlaceholder()}
+      ${renderAddStudentCta()}
     </div>
   `;
 
   closeBatchDetailMenu();
+}
+
+async function refreshBatchDetail() {
+  if (!currentBatchId) {
+    return null;
+  }
+
+  const batch = await getBatchDetails(currentBatchId);
+  currentBatchDetails = batch;
+  renderBatchDetailBody(batch);
+  return batch;
 }
 
 export async function openBatchDetailModal(batchId) {
@@ -474,7 +482,7 @@ async function handleRemoveMember(profileId, displayName) {
 
   try {
     await removeBatchMember(currentBatchId, profileId);
-    await openBatchDetailModal(currentBatchId);
+    await refreshBatchDetail();
     await refreshBatches();
     window.dispatchEvent(new CustomEvent("prepos:batch-updated"));
   } catch (error) {
@@ -504,8 +512,13 @@ function renderAddMembersList(profiles = [], search = "") {
     (profile) => !addMembersExistingProfileIds.has(profile.profileId)
   );
 
+  if (!filtered.length) {
+    listEl.innerHTML = `<div class="empty-state">No learners match your search.</div>`;
+    return;
+  }
+
   if (!available.length) {
-    listEl.innerHTML = `<div class="empty-state">No available learners match your search.</div>`;
+    listEl.innerHTML = `<div class="empty-state">All matching learners are already in this batch.</div>`;
     return;
   }
 
@@ -572,6 +585,16 @@ async function openAddMembersModal() {
 
   try {
     managedProfilesCache = await listManagedLearnerProfiles();
+    const addableCount = managedProfilesCache.filter(
+      (profile) => !addMembersExistingProfileIds.has(profile.profileId)
+    ).length;
+
+    if (!addableCount) {
+      listEl.innerHTML =
+        `<div class="empty-state">All of your learners are already in this batch.</div>`;
+      return;
+    }
+
     renderAddMembersList(managedProfilesCache, "");
   } catch (error) {
     console.error("[Batch Management] load profiles failed", error);
@@ -604,7 +627,7 @@ async function handleAddMembersSubmit(event) {
   try {
     const result = await addBatchMembers(currentBatchId, profileIds);
     closeModal(ADD_MEMBERS_MODAL_ID);
-    await openBatchDetailModal(currentBatchId);
+    await refreshBatchDetail();
     await refreshBatches();
     setAddMembersStatus("");
 
@@ -660,6 +683,13 @@ export function initBatchManagement() {
     ?.addEventListener("click", (event) => {
       event.stopPropagation();
       toggleBatchDetailMenu();
+    });
+
+  document
+    .getElementById("batchDetailMenuAddStudents")
+    ?.addEventListener("click", () => {
+      closeBatchDetailMenu();
+      openAddMembersModal();
     });
 
   document
@@ -719,6 +749,12 @@ export function initBatchManagement() {
   document
     .getElementById("batchDetailBody")
     ?.addEventListener("click", (event) => {
+      const addBtn = event.target.closest(".batch-add-student-btn");
+      if (addBtn) {
+        openAddMembersModal();
+        return;
+      }
+
       const removeBtn = event.target.closest(".batch-remove-member-btn");
       if (removeBtn?.dataset.profileId) {
         handleRemoveMember(removeBtn.dataset.profileId, removeBtn.dataset.displayName);

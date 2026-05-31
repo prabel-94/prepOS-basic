@@ -1,66 +1,26 @@
-import { getClient } from "../core/get-client.js";
+import { invokeEdgeFunction } from "../core/edge-invoke.js";
+import { listBatches } from "../core/batch-management.js";
 import { openModal, closeModal, isModalOpen } from "./modal-system.js";
 
 const MODAL_ID = "assignModal";
 
 let currentExamId = null;
 let selectedStudents = [];
+let selectedBatches = [];
 let assignedStudentIds = new Set();
 let studentSearchTimer = null;
+let batchSearchTimer = null;
 let onAssignedCallback = null;
+let activeAssignTab = "students";
+let cachedBatches = [];
 
-function escapeHTML(value) {
+function escapeHTML(value = "") {
   return String(value ?? "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
-}
-
-async function getAccessToken() {
-  const sb = await getClient();
-  const { data: sessionData } = await sb.auth.getSession();
-  let accessToken = sessionData?.session?.access_token;
-
-  if (!accessToken) {
-    const { data: refreshed, error: refreshError } = await sb.auth.refreshSession();
-    if (refreshError || !refreshed?.session?.access_token) {
-      throw new Error("Your session expired. Please sign in again.");
-    }
-    accessToken = refreshed.session.access_token;
-  }
-
-  return accessToken;
-}
-
-async function invokeEdgeFunction(name, body) {
-  const sb = await getClient();
-  const accessToken = await getAccessToken();
-
-  const { data, error } = await sb.functions.invoke(name, {
-    body,
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-  });
-
-  if (error) {
-    let message = error.message || `${name} failed`;
-
-    if (error.context instanceof Response) {
-      const details = await error.context.clone().json().catch(() => null);
-      message = details?.error || message;
-    }
-
-    throw new Error(message);
-  }
-
-  if (data?.error) {
-    throw new Error(data.error);
-  }
-
-  return data;
 }
 
 function setModalCopy({ examTitle, assignedCount = 0 } = {}) {
@@ -73,13 +33,32 @@ function setModalCopy({ examTitle, assignedCount = 0 } = {}) {
 
   if (subtitleEl) {
     if (assignedCount > 0) {
-      subtitleEl.textContent = `${assignedCount} student${assignedCount === 1 ? "" : "s"} already assigned. Select additional students below.`;
+      subtitleEl.textContent = `${assignedCount} student${assignedCount === 1 ? "" : "s"} already assigned. Select additional students or batches below.`;
       subtitleEl.classList.remove("hidden");
     } else {
-      subtitleEl.textContent = "Select students to assign this exam.";
+      subtitleEl.textContent =
+        "Select individual students, entire batches, or both.";
       subtitleEl.classList.remove("hidden");
     }
   }
+}
+
+function setAssignTab(tab) {
+  activeAssignTab = tab === "batches" ? "batches" : "students";
+
+  document
+    .getElementById("assignTabStudents")
+    ?.classList.toggle("student-management-tab--active", activeAssignTab === "students");
+  document
+    .getElementById("assignTabBatches")
+    ?.classList.toggle("student-management-tab--active", activeAssignTab === "batches");
+
+  document
+    .getElementById("assignStudentsPanel")
+    ?.classList.toggle("hidden", activeAssignTab !== "students");
+  document
+    .getElementById("assignBatchesPanel")
+    ?.classList.toggle("hidden", activeAssignTab !== "batches");
 }
 
 function renderStudentList(students = []) {
@@ -87,35 +66,87 @@ function renderStudentList(students = []) {
   if (!list) return;
 
   if (!students.length) {
-    list.innerHTML = `<div class="empty-state">No students found</div>`;
+    list.innerHTML = `<div class="empty-state">No students found in your roster</div>`;
     return;
   }
 
-  list.innerHTML = students.map((student) => {
-    const alreadyAssigned = assignedStudentIds.has(student.id);
-    const checked = alreadyAssigned || selectedStudents.includes(student.id) ? "checked" : "";
-    const disabled = alreadyAssigned ? "disabled" : "";
-    const label = student.name || student.email || "Unnamed student";
-    const suffix = alreadyAssigned ? ' <span class="text-muted">(assigned)</span>' : "";
+  list.innerHTML = students
+    .map((student) => {
+      const alreadyAssigned = assignedStudentIds.has(student.id);
+      const checked =
+        alreadyAssigned || selectedStudents.includes(student.id) ? "checked" : "";
+      const disabled = alreadyAssigned ? "disabled" : "";
+      const label = student.name || student.email || "Unnamed student";
+      const suffix = alreadyAssigned ? ' <span class="text-muted">(assigned)</span>' : "";
 
-    return `
-      <label class="radio-row${alreadyAssigned ? " text-muted" : ""}">
-        <input
-          type="checkbox"
-          value="${escapeHTML(student.id)}"
-          ${checked}
-          ${disabled}
-        >
-        ${escapeHTML(label)}${suffix}
-      </label>
-    `;
-  }).join("");
+      return `
+        <label class="radio-row${alreadyAssigned ? " text-muted" : ""}">
+          <input
+            type="checkbox"
+            value="${escapeHTML(student.id)}"
+            ${checked}
+            ${disabled}
+          >
+          ${escapeHTML(label)}${suffix}
+        </label>
+      `;
+    })
+    .join("");
+}
+
+function renderBatchList(batches = [], search = "") {
+  const list = document.getElementById("batchList");
+  if (!list) return;
+
+  const normalizedSearch = search.trim().toLowerCase();
+  const filtered = batches.filter((batch) => {
+    if (!normalizedSearch) {
+      return true;
+    }
+
+    const name = (batch.name ?? "").toLowerCase();
+    const description = (batch.description ?? "").toLowerCase();
+    return name.includes(normalizedSearch) || description.includes(normalizedSearch);
+  });
+
+  if (!filtered.length) {
+    list.innerHTML = `<div class="empty-state">No batches match your search</div>`;
+    return;
+  }
+
+  list.innerHTML = filtered
+    .map((batch) => {
+      const checked = selectedBatches.includes(batch.id) ? "checked" : "";
+      const memberLabel =
+        batch.memberCount === 1 ? "1 member" : `${batch.memberCount} members`;
+      const description = batch.description
+        ? `<div class="text-muted mt-5 batch-card-description">${escapeHTML(batch.description)}</div>`
+        : "";
+
+      return `
+        <label class="radio-row assign-batch-row">
+          <input
+            type="checkbox"
+            class="assign-batch-checkbox"
+            value="${escapeHTML(batch.id)}"
+            ${checked}
+          >
+          <span class="assign-batch-row-label">
+            <b>${escapeHTML(batch.name)}</b>
+            <span class="text-muted"> · ${escapeHTML(memberLabel)}</span>
+            ${description}
+          </span>
+        </label>
+      `;
+    })
+    .join("");
 }
 
 async function loadAssignedStudents(examId) {
   assignedStudentIds = new Set();
 
   try {
+    const { getClient } = await import("../core/get-client.js");
     const sb = await getClient();
     const { data, error } = await sb
       .from("exam_assignments")
@@ -139,6 +170,7 @@ async function loadStudents(search = "") {
   try {
     const result = await invokeEdgeFunction("list-students", {
       search: search.trim(),
+      managedOnly: true,
     });
 
     renderStudentList(result.students || []);
@@ -150,11 +182,29 @@ async function loadStudents(search = "") {
   }
 }
 
+async function loadBatches(search = "") {
+  const list = document.getElementById("batchList");
+  if (list) list.innerHTML = "Loading batches...";
+
+  try {
+    cachedBatches = await listBatches();
+    renderBatchList(cachedBatches, search);
+  } catch (error) {
+    console.error(error);
+    if (list) {
+      list.innerHTML = `<div class="empty-state">Unable to load batches</div>`;
+    }
+  }
+}
+
 function resetAssignModalState() {
   currentExamId = null;
   selectedStudents = [];
+  selectedBatches = [];
   assignedStudentIds = new Set();
   onAssignedCallback = null;
+  activeAssignTab = "students";
+  cachedBatches = [];
 }
 
 export async function openAssignExamModal(examId, { examTitle, onAssigned } = {}) {
@@ -162,10 +212,15 @@ export async function openAssignExamModal(examId, { examTitle, onAssigned } = {}
 
   currentExamId = examId;
   selectedStudents = [];
+  selectedBatches = [];
   onAssignedCallback = typeof onAssigned === "function" ? onAssigned : null;
 
-  const search = document.getElementById("studentSearch");
-  if (search) search.value = "";
+  const studentSearch = document.getElementById("studentSearch");
+  const batchSearch = document.getElementById("batchSearch");
+  if (studentSearch) studentSearch.value = "";
+  if (batchSearch) batchSearch.value = "";
+
+  setAssignTab("students");
 
   const assignedCount = await loadAssignedStudents(examId);
   setModalCopy({ examTitle, assignedCount });
@@ -176,6 +231,7 @@ export async function openAssignExamModal(examId, { examTitle, onAssigned } = {}
   });
 
   loadStudents();
+  loadBatches();
 }
 
 export function closeAssignExamModal() {
@@ -189,9 +245,10 @@ export async function assignSelectedStudents() {
   }
 
   const newStudentIds = selectedStudents.filter((id) => !assignedStudentIds.has(id));
+  const batchIds = [...selectedBatches];
 
-  if (!newStudentIds.length) {
-    alert("Select at least one student who is not already assigned");
+  if (!newStudentIds.length && !batchIds.length) {
+    alert("Select at least one student or batch to assign");
     return false;
   }
 
@@ -207,9 +264,25 @@ export async function assignSelectedStudents() {
     const result = await invokeEdgeFunction("assign-exam", {
       examId: currentExamId,
       studentIds: newStudentIds,
+      batchIds,
     });
 
-    alert(`Assigned successfully (${result.assigned ?? newStudentIds.length} student${newStudentIds.length === 1 ? "" : "s"})`);
+    const assigned = Number(result.assigned ?? 0);
+    const skipped = Number(result.skipped ?? 0);
+    const batchesRecorded = Number(result.batchesRecorded ?? 0);
+
+    let message = `Assigned to ${assigned} student${assigned === 1 ? "" : "s"}.`;
+
+    if (batchesRecorded > 0) {
+      message += ` ${batchesRecorded} batch${batchesRecorded === 1 ? "" : "es"} recorded.`;
+    }
+
+    if (skipped > 0) {
+      message += ` ${skipped} already assigned.`;
+    }
+
+    alert(message);
+
     const assignedExamId = currentExamId;
     const callback = onAssignedCallback;
     closeAssignExamModal();
@@ -234,40 +307,69 @@ export async function assignSelectedStudents() {
 }
 
 export function initAssignExamModal() {
-  document.getElementById("assignSelectedBtn")
+  document
+    .getElementById("assignSelectedBtn")
     ?.addEventListener("click", assignSelectedStudents);
 
-  document.getElementById("closeAssignModal")
+  document
+    .getElementById("closeAssignModal")
     ?.addEventListener("click", closeAssignExamModal);
 
-  document.getElementById("studentSearch")
-    ?.addEventListener("input", (event) => {
-      clearTimeout(studentSearchTimer);
-      studentSearchTimer = setTimeout(() => {
-        loadStudents(event.target.value);
-      }, 250);
-    });
+  document
+    .getElementById("assignTabStudents")
+    ?.addEventListener("click", () => setAssignTab("students"));
 
-  document.getElementById("studentList")
-    ?.addEventListener("change", (event) => {
-      if (event.target.type !== "checkbox") return;
+  document
+    .getElementById("assignTabBatches")
+    ?.addEventListener("click", () => setAssignTab("batches"));
 
-      const studentId = event.target.value;
+  document.getElementById("studentSearch")?.addEventListener("input", (event) => {
+    clearTimeout(studentSearchTimer);
+    studentSearchTimer = setTimeout(() => {
+      loadStudents(event.target.value);
+    }, 250);
+  });
 
-      if (assignedStudentIds.has(studentId)) {
-        event.target.checked = true;
-        return;
+  document.getElementById("batchSearch")?.addEventListener("input", (event) => {
+    clearTimeout(batchSearchTimer);
+    batchSearchTimer = setTimeout(() => {
+      renderBatchList(cachedBatches, event.target.value ?? "");
+    }, 250);
+  });
+
+  document.getElementById("studentList")?.addEventListener("change", (event) => {
+    if (event.target.type !== "checkbox") return;
+
+    const studentId = event.target.value;
+
+    if (assignedStudentIds.has(studentId)) {
+      event.target.checked = true;
+      return;
+    }
+
+    if (event.target.checked) {
+      if (!selectedStudents.includes(studentId)) {
+        selectedStudents.push(studentId);
       }
+    } else {
+      selectedStudents = selectedStudents.filter((id) => id !== studentId);
+    }
+  });
 
-      if (event.target.checked) {
-        if (!selectedStudents.includes(studentId)) {
-          selectedStudents.push(studentId);
-        }
-      } else {
-        selectedStudents = selectedStudents.filter((id) => id !== studentId);
+  document.getElementById("batchList")?.addEventListener("change", (event) => {
+    const checkbox = event.target.closest(".assign-batch-checkbox");
+    if (!checkbox) {
+      return;
+    }
+
+    if (checkbox.checked) {
+      if (!selectedBatches.includes(checkbox.value)) {
+        selectedBatches.push(checkbox.value);
       }
-    });
+    } else {
+      selectedBatches = selectedBatches.filter((id) => id !== checkbox.value);
+    }
+  });
 }
 
-// Back-compat alias used by draft publish button onclick.
 export const openAssignModal = openAssignExamModal;
