@@ -18,6 +18,32 @@ type StudentRow = {
   name: string | null
 }
 
+function resolveStudentDisplayName(
+  userId: string,
+  email: string | null,
+  displayNameById: Map<string, string>,
+  metadataNameById: Map<string, string>
+) {
+  const profileName = displayNameById.get(userId)
+  if (profileName) {
+    return profileName
+  }
+
+  const metadataName = metadataNameById.get(userId)
+  if (metadataName) {
+    return metadataName
+  }
+
+  if (email) {
+    const prefix = email.split("@")[0]?.trim()
+    if (prefix) {
+      return prefix
+    }
+  }
+
+  return null
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders })
@@ -39,8 +65,9 @@ Deno.serve(async (req) => {
 
     const body = await req.json().catch(() => ({}))
     const search = typeof body.search === "string" ? body.search.trim().toLowerCase() : ""
+    const managedOnly = body.managedOnly === true
 
-    const { data: profiles, error: profilesError } = await auth.adminClient
+    const { data: studentRows, error: profilesError } = await auth.adminClient
       .from("users")
       .select("id")
       .eq("role", "student")
@@ -50,14 +77,44 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: profilesError.message }, 400)
     }
 
-    const profileIds = new Set((profiles || []).map((row) => row.id))
+    let studentIds = (studentRows || []).map((row) => row.id)
 
-    if (!profileIds.size) {
+    const { data: learnerProfiles, error: learnerProfilesError } =
+      await auth.adminClient
+        .from("learner_profiles")
+        .select("user_id, display_name, created_by")
+
+    if (learnerProfilesError) {
+      return jsonResponse({ error: learnerProfilesError.message }, 400)
+    }
+
+    const displayNameById = new Map<string, string>()
+    const managedStudentIds = new Set<string>()
+
+    for (const profile of learnerProfiles || []) {
+      if (profile.display_name) {
+        displayNameById.set(profile.user_id, profile.display_name.trim())
+      }
+
+      if (profile.created_by === auth.user.id) {
+        managedStudentIds.add(profile.user_id)
+      }
+    }
+
+    if (managedOnly) {
+      studentIds =
+        auth.role === "admin"
+          ? studentIds.filter((id) => displayNameById.has(id))
+          : studentIds.filter((id) => managedStudentIds.has(id))
+    }
+
+    if (!studentIds.length) {
       return jsonResponse({ success: true, students: [] })
     }
 
+    const studentIdSet = new Set(studentIds)
     const emailById = new Map<string, string>()
-    const nameById = new Map<string, string>()
+    const metadataNameById = new Map<string, string>()
 
     let page = 1
     const perPage = 200
@@ -73,7 +130,7 @@ Deno.serve(async (req) => {
       const users = authPage?.users ?? []
 
       for (const user of users) {
-        if (!profileIds.has(user.id)) {
+        if (!studentIdSet.has(user.id)) {
           continue
         }
 
@@ -87,7 +144,7 @@ Deno.serve(async (req) => {
             : ""
 
         if (fullName) {
-          nameById.set(user.id, fullName)
+          metadataNameById.set(user.id, fullName)
         }
       }
 
@@ -98,10 +155,15 @@ Deno.serve(async (req) => {
       page += 1
     }
 
-    let students: StudentRow[] = [...profileIds].map((id) => ({
+    let students: StudentRow[] = studentIds.map((id) => ({
       id,
       email: emailById.get(id) ?? null,
-      name: nameById.get(id) ?? null,
+      name: resolveStudentDisplayName(
+        id,
+        emailById.get(id) ?? null,
+        displayNameById,
+        metadataNameById
+      ),
     }))
 
     if (search) {

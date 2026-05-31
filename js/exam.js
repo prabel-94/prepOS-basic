@@ -13,6 +13,7 @@ import {
   formatExamDuration,
   collectTopicsFromRawQuestions,
 } from "./student/student-exam-meta.js";
+import { getLearnerProfile } from "./core/learner-profile.js";
 
 let timer;
 let examStarted = false;
@@ -253,17 +254,27 @@ async function resolveStudentName(){
     return manual;
   }
 
-  const stored = localStorage.getItem("studentName")?.trim();
-  if (stored) {
-    return stored;
-  }
-
   try {
     const sb = await getClient();
     const { data } = await sb.auth.getUser();
     const user = data?.user;
 
     if (user) {
+      try {
+        const profile = await getLearnerProfile(user.id);
+        if (profile?.displayName) {
+          localStorage.setItem("studentName", profile.displayName);
+          return profile.displayName;
+        }
+      } catch {
+        /* profile lookup is optional */
+      }
+
+      const stored = localStorage.getItem("studentName")?.trim();
+      if (stored) {
+        return stored;
+      }
+
       const name =
         user.user_metadata?.full_name ||
         user.user_metadata?.name ||
@@ -275,6 +286,11 @@ async function resolveStudentName(){
     }
   } catch {
     /* ignore */
+  }
+
+  const stored = localStorage.getItem("studentName")?.trim();
+  if (stored) {
+    return stored;
   }
 
   return null;
