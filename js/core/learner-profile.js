@@ -85,3 +85,39 @@ export async function createLearnerProfile({ userId, displayName }) {
 
   return profile;
 }
+
+/**
+ * Update canonical display name for an existing learner profile.
+ * Caller must be teacher (owner) or admin. Does not change created_by or user_id.
+ *
+ * @param {{ userId: string, displayName: string }} params
+ * @returns {Promise<{ id, userId, displayName, createdBy, createdAt, updatedAt }>}
+ */
+export async function updateLearnerDisplayName({ userId, displayName }) {
+  if (!userId?.trim()) {
+    throw new Error("userId is required");
+  }
+
+  if (!displayName?.trim()) {
+    throw new Error("displayName is required");
+  }
+
+  const sb = await getClient();
+  const { data, error } = await sb.rpc("update_learner_display_name", {
+    p_user_id: userId.trim(),
+    p_display_name: displayName.trim(),
+  });
+
+  if (error) {
+    console.error("[PrepOS Learner Profile] updateLearnerDisplayName failed", error);
+    throw error;
+  }
+
+  const profile = normalizeProfile(data);
+
+  if (!profile) {
+    throw new Error("Learner profile was not returned after update");
+  }
+
+  return profile;
+}

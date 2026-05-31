@@ -179,6 +179,12 @@ export async function initStudentManagement() {
 
   initLearnerDetailsModal();
 
+  window.addEventListener("prepos:learner-profile-updated", () => {
+    refreshLearners().catch((error) => {
+      console.error("[Student Management] list refresh failed", error);
+    });
+  });
+
   document.getElementById("learnerList")?.addEventListener("click", (event) => {
     const button = event.target.closest(".learner-view-btn");
     if (!button) {
