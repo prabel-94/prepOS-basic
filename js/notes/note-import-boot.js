@@ -5,6 +5,77 @@ import {
   getTopicIdFromUrl,
   isValidTopicId,
 } from "./note-import-params.js";
+import {
+  pickMarkdownFile,
+  readMarkdownFile,
+} from "./note-import-file.js";
+
+function initMarkdownFileUpload(handlers) {
+  const fileInput = document.getElementById("mapMarkdownFile");
+  const uploadBtn = document.getElementById("uploadMarkdownBtn");
+  const dropZone = document.getElementById("mapMarkdownDropZone");
+  const statusEl = document.getElementById("importStatus");
+
+  if (!fileInput || !handlers?.loadMarkdown) {
+    return;
+  }
+
+  async function ingestFile(file) {
+    if (!file) {
+      return;
+    }
+
+    try {
+      const { text, filename } = await readMarkdownFile(file);
+      handlers.loadMarkdown(text, { filename });
+    } catch (err) {
+      if (statusEl) {
+        statusEl.textContent = err.message || "Could not load file.";
+        statusEl.classList.add("error");
+      }
+    }
+  }
+
+  uploadBtn?.addEventListener("click", () => fileInput.click());
+
+  fileInput.addEventListener("change", () => {
+    const file = fileInput.files?.[0];
+    fileInput.value = "";
+    ingestFile(file);
+  });
+
+  if (!dropZone) {
+    return;
+  }
+
+  dropZone.addEventListener("dragover", (event) => {
+    event.preventDefault();
+    dropZone.classList.add("import-drag-over");
+  });
+
+  dropZone.addEventListener("dragleave", (event) => {
+    if (!dropZone.contains(event.relatedTarget)) {
+      dropZone.classList.remove("import-drag-over");
+    }
+  });
+
+  dropZone.addEventListener("drop", (event) => {
+    event.preventDefault();
+    dropZone.classList.remove("import-drag-over");
+
+    const file = pickMarkdownFile(event.dataTransfer?.files);
+    if (!file) {
+      if (statusEl) {
+        statusEl.textContent =
+          "Drop a .md, .markdown, or .txt file onto this panel.";
+        statusEl.classList.add("error");
+      }
+      return;
+    }
+
+    ingestFile(file);
+  });
+}
 
 function showTopicGuidance(invalidValue) {
   const topicLabel = document.getElementById("importTopicLabel");
@@ -117,6 +188,7 @@ async function bootNoteImport() {
 
   document.getElementById("parseBtn")?.addEventListener("click", handlers.parse);
   document.getElementById("saveBtn")?.addEventListener("click", handlers.save);
+  initMarkdownFileUpload(handlers);
 }
 
 bootNoteImport();

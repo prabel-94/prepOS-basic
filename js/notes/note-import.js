@@ -342,11 +342,36 @@ export function initNoteImportPage({
     }
   }
 
+  function loadMarkdown(text, { filename } = {}) {
+    const normalized = String(text ?? "");
+
+    if (!normalized.trim()) {
+      setStatus("File is empty.", true);
+      return;
+    }
+
+    const current = markdownEl?.value?.trim();
+    if (current) {
+      const label = filename ? `"${filename}"` : "uploaded file";
+      if (!globalThis.confirm?.(`Replace current markdown with ${label}?`)) {
+        return;
+      }
+    }
+
+    if (markdownEl) {
+      markdownEl.value = normalized;
+    }
+
+    const label = filename || "file";
+    setStatus(`Loaded ${label}. Review, then Parse or Save.`);
+  }
+
   renderExistingVariants();
 
   return {
     parse: handleParse,
     save: handleSave,
+    loadMarkdown,
     refreshVariants: renderExistingVariants,
   };
 }
