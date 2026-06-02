@@ -57,6 +57,36 @@
       margin: 0;
       font-size: 0.875rem;
     }
+    .import-markdown-panel {
+      position: relative;
+    }
+    .import-markdown-panel.import-drag-over {
+      outline: 2px dashed var(--primary, #4f46e5);
+      outline-offset: 4px;
+    }
+    .import-markdown-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .import-markdown-hint {
+      margin: 0;
+      font-size: 0.875rem;
+      color: var(--muted, #6b7280);
+    }
+    #mapMarkdownFile {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
   </style>
 </head>
 <body>
@@ -68,7 +98,7 @@
   <div class="exam-header">
     <div>
       <h2>Import Canonical Note</h2>
-      <div class="exam-subtitle" id="importTopicLabel">Paste MAP semantic markdown</div>
+      <div class="exam-subtitle" id="importTopicLabel">Paste or upload MAP semantic markdown</div>
     </div>
   </div>
 
@@ -84,8 +114,19 @@
     </label>
   </div>
 
-  <div class="import-panel">
-    <h3>Paste MAP Semantic Markdown</h3>
+  <div class="import-panel import-markdown-panel" id="mapMarkdownDropZone">
+    <h3>Paste or Upload MAP Semantic Markdown</h3>
+    <div class="import-markdown-actions">
+      <input
+        type="file"
+        id="mapMarkdownFile"
+        accept=".md,.markdown,.txt,text/markdown,text/plain"
+      >
+      <button type="button" id="uploadMarkdownBtn" class="secondary-btn">
+        Upload .md file
+      </button>
+      <p class="import-markdown-hint">Or drag and drop a .md file onto this panel</p>
+    </div>
     <textarea id="mapMarkdown" placeholder="[METADATA]&#10;title: English Revolution&#10;&#10;[NARRATIVE]&#10;..."></textarea>
     <div class="mt-16">
       <button id="parseBtn" type="button" class="primary-btn">Parse</button>
@@ -124,7 +165,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/config.js?v=20260520"></script>
 <script type="module" src="js/auth.js"></script>
-<script type="module" src="js/notes/note-import-boot.js?v=20260609"></script>
+<script type="module" src="js/notes/note-import-boot.js?v=20260602"></script>
 
 </body>
 </html>
