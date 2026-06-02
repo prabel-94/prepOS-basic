@@ -2,12 +2,19 @@
  * Anchor lookup helpers (read-only).
  */
 
-import { normalizeLanguage, getLanguageLabel } from "../notes/note-variants.js";
+import {
+  normalizeLanguage,
+  getLanguageLabel,
+  SUPPORTED_LANGUAGES,
+} from "../notes/note-variants.js";
 import { normalizeAnchorName } from "./anchor-normalization.js";
 import { extractWikiLinkNames } from "./anchor-note-renderer.js";
 import { ANCHOR_NOTE_STATUSES, ANCHOR_VARIANT_STATUSES } from "./anchor-types.js";
 import { fetchVariantsForNote } from "../notes/note-selectors.js";
-import { fetchActiveAnchorNote } from "./anchor-storage.js";
+import {
+  ensureAnchorVariantForLanguage,
+  fetchActiveAnchorNote,
+} from "./anchor-storage.js";
 
 function uniqueNormalized(names = []) {
   const seen = new Set();
@@ -465,25 +472,36 @@ export async function loadAnchorNoteEditorContext(
     languageSet.add(selectedLanguage);
   }
 
-  const languages = [...languageSet].sort((a, b) =>
-    getLanguageLabel(a).localeCompare(getLanguageLabel(b))
-  );
+  let languages = [...languageSet]
+    .filter((lang) => SUPPORTED_LANGUAGES.includes(lang))
+    .sort((a, b) => getLanguageLabel(a).localeCompare(getLanguageLabel(b)));
+
+  if (!languages.length) {
+    languages = [
+      SUPPORTED_LANGUAGES.includes(selectedLanguage)
+        ? selectedLanguage
+        : "english",
+    ];
+  }
+
+  const fallbackDisplayName =
+    String(displayName ?? "").trim() ||
+    anchorVariants.find((row) => String(row.display_name ?? "").trim())
+      ?.display_name ||
+    "Anchor";
 
   const variants = [];
 
   for (const language of languages) {
-    const variant = variantByLanguage.get(language) ?? null;
+    let variant = variantByLanguage.get(language) ?? null;
 
     if (!variant) {
-      variants.push({
-        anchorVariantId: null,
+      variant = await ensureAnchorVariantForLanguage(sb, {
+        anchorId,
         language,
-        hasVariant: false,
-        hasNote: false,
-        noteId: null,
-        noteContent: "",
+        displayName: fallbackDisplayName,
       });
-      continue;
+      variantByLanguage.set(language, variant);
     }
 
     const note = await fetchActiveAnchorNote(sb, variant.id);
