@@ -3,8 +3,8 @@
 // creator.js
 // ==============================================
 
-import { getClient } from "./core/get-client.js";
 import { bootPage } from "./core/page-boot.js";
+import { createDraft } from "./creator-draft.js";
 
 // ==============================================
 // CLEAN QUESTION TEXT
@@ -45,167 +45,8 @@ function cleanQuestionText(text){
 }
 
 // ==============================================
-// CREATE DRAFT
+// CREATE DRAFT — see creator-draft.js
 // ==============================================
-
-async function createDraft(
-  title,
-  questions,
-  duration
-){
-
-  try{
-
-    const sb = await getClient();
-
-    // ------------------------------------------
-    // SESSION
-    // ------------------------------------------
-
-    const session =
-      await sb.auth.getSession();
-
-    const accessToken =
-      session?.data?.session?.access_token;
-
-    if(!accessToken){
-
-      alert(
-        "Please sign in to create draft."
-      );
-
-      return null;
-
-    }
-
-    // ------------------------------------------
-    // REQUEST
-    // ------------------------------------------
-
-    const res = await fetch(
-      "https://bcqjfosxneuyoyuzhdiq.supabase.co/functions/v1/create-exam",
-      {
-        method: "POST",
-
-        headers: {
-
-          "Content-Type":
-            "application/json",
-
-          apikey:
-            SUPABASE_ANON_KEY,
-
-          Authorization:
-            `Bearer ${accessToken}`
-
-        },
-
-        body: JSON.stringify({
-
-          title,
-
-          duration,
-
-          questions
-
-        })
-
-      }
-    );
-
-    // ------------------------------------------
-    // ERROR
-    // ------------------------------------------
-
-    if(!res.ok){
-
-      const errorText =
-        await res.text();
-
-      console.error(
-        "Create exam failed:",
-        res.status,
-        errorText
-      );
-
-      alert(
-        `Create draft failed (${res.status})`
-      );
-
-      return null;
-
-    }
-
-    // ------------------------------------------
-    // RESPONSE
-    // ------------------------------------------
-
-    const data =
-      await res.json();
-
-    console.log(
-      "CREATE EXAM RESPONSE:",
-      data
-    );
-
-    if(data.error){
-
-      console.error(data.error);
-
-      alert(data.error);
-
-      return null;
-
-    }
-
-    // ------------------------------------------
-    // DRAFT ID
-    // ------------------------------------------
-
-    const draftId =
-
-      data.draft_id ||
-
-      data.draft?.id ||
-
-      data.id ||
-
-      null;
-
-    if(!draftId){
-
-      console.error(
-        "Draft ID missing",
-        data
-      );
-
-      alert(
-        "Draft created but ID missing"
-      );
-
-      return null;
-
-    }
-
-    // ------------------------------------------
-    // RELATIVE URL
-    // IMPORTANT:
-    // supports GitHub Pages subfolders
-    // ------------------------------------------
-
-    return `draft.html?id=${draftId}`;
-
-  }catch(err){
-
-    console.error(err);
-
-    alert("Failed to create draft");
-
-    return null;
-
-  }
-
-}
 
 // ===============================
 // QCP CLEAN v2
