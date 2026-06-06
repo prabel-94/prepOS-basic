@@ -4,6 +4,10 @@ Singleton-safe for multi-page apps
 v20260520 — never uses bare `supabase` global
 ======================================== */
 
+(function () {
+  if (window.__PREPOS_CONFIG_LOADED__) return
+  window.__PREPOS_CONFIG_LOADED__ = true
+
 /**
  * GitHub Pages project site base path (no trailing slash).
  * Auto-detected from js/config.js URL when null; set explicitly if needed.
@@ -113,3 +117,5 @@ if (!window.supabaseClient) {
  * Do not call ensurePrepOSClient() directly unless you need a fresh attempt after failure.
  */
 window.prepOSClientReady = window.ensurePrepOSClient()
+
+})()
