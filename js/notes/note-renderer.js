@@ -22,6 +22,7 @@ import {
   representationReadingClass,
   withReadingErgonomics,
 } from "./reading-ergonomics.js";
+import { getTabEligibleRepresentations } from "./note-representations.js";
 
 function escapeHTML(value = "") {
   return String(value)
@@ -419,6 +420,16 @@ function renderSemanticParagraph(p, topicMap, renderOptions, representationKey) 
   const trimmed = String(p ?? "").trim();
   if (!trimmed) {
     return "";
+  }
+
+  // Quote lines (QUOTES representation).
+  if (representationKey === "quotes" && /^>\s?/.test(trimmed)) {
+    const quoteText = trimmed.replace(/^>\s?/, "");
+    return `<blockquote class="quote-blockquote">${resolveInlineSemantics(
+      quoteText,
+      topicMap,
+      renderOptions
+    )}</blockquote>`;
   }
 
   // Divider utility line (including literal ---).
@@ -844,13 +855,33 @@ export function renderInterpretations(blocks, topicMap, renderOptions) {
   );
 }
 
-const RENDERERS = Object.freeze({
+export function renderQuotes(blocks, topicMap, renderOptions) {
+  return renderRepresentation(
+    blocks,
+    topicMap,
+    "representation-quotes",
+    renderOptions,
+    "quotes"
+  );
+}
+
+const RENDERER_FUNCTIONS = Object.freeze({
   narrative: renderNarrative,
   structural: renderStructural,
   revision: renderRevision,
   timeline: renderTimeline,
   interpretations: renderInterpretations,
+  quotes: renderQuotes,
 });
+
+const RENDERERS = Object.freeze(
+  Object.fromEntries(
+    getTabEligibleRepresentations().map((entry) => [
+      entry.id,
+      RENDERER_FUNCTIONS[entry.id],
+    ])
+  )
+);
 
 export function renderRepresentationTab(key, representations, topicMap, renderOptions = {}) {
   const renderer = RENDERERS[key];
@@ -862,11 +893,7 @@ export function renderRepresentationTab(key, representations, topicMap, renderOp
 }
 
 export function getAvailableTabs(representations = {}) {
-  return [
-    { key: "narrative", label: "Narrative" },
-    { key: "structural", label: "Structural" },
-    { key: "revision", label: "Revision" },
-    { key: "timeline", label: "Timeline" },
-    { key: "interpretations", label: "Interpretations" },
-  ].filter((tab) => (representations[tab.key]?.length ?? 0) > 0);
+  return getTabEligibleRepresentations()
+    .filter((entry) => (representations[entry.id]?.length ?? 0) > 0)
+    .map((entry) => ({ key: entry.id, label: entry.tabLabel }));
 }

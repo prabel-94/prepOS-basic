@@ -5,6 +5,9 @@
 import { getClient } from "../core/get-client.js";
 import { buildTopicMap } from "./note-topic-links.js";
 import {
+  createEmptyRepresentations,
+} from "./note-representations.js";
+import {
   buildLanguageFallbackChain,
   normalizeLanguage,
 } from "./note-variants.js";
@@ -234,13 +237,7 @@ export async function fetchNoteById(noteId) {
 }
 
 export function groupBlocksByRepresentation(blocks = []) {
-  const grouped = {
-    narrative: [],
-    structural: [],
-    revision: [],
-    timeline: [],
-    interpretations: [],
-  };
+  const grouped = createEmptyRepresentations();
 
   for (const block of blocks) {
     const key = block.representation_type;

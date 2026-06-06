@@ -4,6 +4,7 @@
  */
 
 import { normalizeAnchorName } from "../anchors/anchor-normalization.js";
+import { getReadingClassForRepresentation } from "./note-representations.js";
 
 const WIKI_LINK_PATTERN = /\[\[([^\]]+)\]\]/g;
 
@@ -99,7 +100,7 @@ export function defaultCollapsibleOpen(representationKey, semanticLevel, block =
     return true;
   }
 
-  if (representationKey === "revision" || representationKey === "interpretations") {
+  if (representationKey === "revision" || representationKey === "interpretations" || representationKey === "quotes") {
     return semanticLevel <= 2;
   }
 
@@ -111,15 +112,7 @@ export function defaultCollapsibleOpen(representationKey, semanticLevel, block =
  * @returns {string}
  */
 export function representationReadingClass(representationKey) {
-  const classes = {
-    narrative: "semantic-reading-flow",
-    structural: "semantic-structural-flow",
-    revision: "semantic-revision-compact",
-    timeline: "semantic-timeline-linear",
-    interpretations: "semantic-interpretations-compact",
-  };
-
-  return classes[representationKey] ?? "semantic-representation-blocks";
+  return getReadingClassForRepresentation(representationKey) ?? "semantic-representation-blocks";
 }
 
 /**

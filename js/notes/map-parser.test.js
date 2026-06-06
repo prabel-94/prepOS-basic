@@ -29,6 +29,7 @@ describe("MSMDF v1.2 section line detection", () => {
     assert.equal(matchCanonicalSectionLine("# [NARRATIVE]"), "NARRATIVE");
     assert.equal(matchCanonicalSectionLine("#[NARRATIVE]"), "NARRATIVE");
     assert.equal(matchCanonicalSectionLine("# [ENTITY_INDEX]"), "ENTITY_INDEX");
+    assert.equal(matchCanonicalSectionLine("[QUOTES]"), "QUOTES");
   });
 
   it("rejects non-boundary lines", () => {
@@ -166,6 +167,26 @@ Canonical body.`
     const tags = formatDetectedSectionTags(parsed);
     assert.ok(tags.some((t) => t === "[NARRATIVE]"));
     assert.ok(tags.some((t) => t === "[STRUCTURAL]"));
+  });
+
+  it("[QUOTES] section maps to representations.quotes", () => {
+    const parsed = parseMapMarkdown(
+      `[QUOTES]
+
+## Churchill
+> Democracy is the worst form of government.
+
+## Gandhi
+Be the change you wish to see in the world.`
+    );
+    const summary = summarizeDetectedSections(parsed);
+    assert.ok(summary.quotes);
+    assert.ok(parsed.representations.quotes.length >= 2);
+    assert.ok(
+      parsed.representations.quotes.some((block) =>
+        (block.content ?? "").includes("Democracy")
+      )
+    );
   });
 });
 
