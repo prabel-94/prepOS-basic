@@ -5,6 +5,7 @@
 
 export const LANGUAGE_VARIANT_META_KEY = "language_variant_malayalam";
 export const LANGUAGE_VARIANT_SOURCE_BROWSER = "browser_translator";
+export const LANGUAGE_VARIANT_SOURCE_WEB_FALLBACK = "web_fallback_mymemory";
 
 /**
  * @param {Record<string, unknown>} meta from extractQuestionMeta
