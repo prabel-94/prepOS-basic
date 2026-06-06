@@ -1,4 +1,7 @@
 import { bootPage } from "./core/page-boot.js";
+import { createDraft } from "./creator-draft.js";
+
+window.createDraft = createDraft;
 
 export async function bootParserReviewPage() {
   const runtime = await bootPage({
