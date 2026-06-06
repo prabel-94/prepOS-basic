@@ -8,14 +8,16 @@ import { resolveAppPath } from "./core/access.js";
 import { computeQuestionHash } from "./core/question-hash.js";
 import { openModal, closeModal } from "./ui/modal-system.js";
 import {
+  getMalayalamUnsupportedMessage,
   getMalayalamTranslatorAvailability,
-  getBrowserTranslatorSetupHint,
   isBrowserTranslatorSupported,
+  isMalayalamInChromeTranslatorList,
   translateQuestionFieldsToMalayalam,
 } from "./core/browser-translate.js";
 import {
   LANGUAGE_VARIANT_META_KEY,
   LANGUAGE_VARIANT_SOURCE_BROWSER,
+  LANGUAGE_VARIANT_SOURCE_WEB_FALLBACK,
   buildMalayalamVariantPayload,
   getMalayalamVariantStatus,
   malayalamVariantToFormFields,
@@ -89,6 +91,7 @@ function populateDifficultyPanel(meta = {}) {
 // --------------------------------
 let selectedQuestionId = null;
 let selectedQuestionExplanation = "";
+let lastTranslationBackend = null;
 
 // --------------------------------
 // MALAYALAM VARIANT (browser translate experiment)
@@ -150,25 +153,32 @@ async function refreshTranslatorHint() {
   const btn = document.getElementById("browserTranslateBtn");
   if (!hint || !btn) return;
 
+  btn.disabled = false;
+
+  if (!isMalayalamInChromeTranslatorList()) {
+    hint.textContent = getMalayalamUnsupportedMessage();
+    return;
+  }
+
   if (!isBrowserTranslatorSupported()) {
-    hint.textContent = getBrowserTranslatorSetupHint();
-    btn.disabled = true;
+    hint.textContent =
+      "Chrome Translator API not detected. PrepOS will use the web fallback translator (requires internet).";
     return;
   }
 
   const availability = await getMalayalamTranslatorAvailability();
-  btn.disabled = availability === "unavailable" || availability === "unsupported";
 
   if (availability === "available") {
     hint.textContent =
-      "Browser translator ready. Translate from English, review, then save draft or publish.";
+      "Chrome on-device translator ready for Malayalam. Translate, review, then save or publish.";
   } else if (availability === "downloadable" || availability === "downloading") {
     hint.textContent =
       "Malayalam model will download on first translate (Chrome on-device AI).";
-  } else if (availability === "unsupported" || availability === "unavailable") {
-    hint.textContent = getBrowserTranslatorSetupHint();
+  } else if (availability === "not_listed" || availability === "unavailable") {
+    hint.textContent = getMalayalamUnsupportedMessage();
   } else {
-    hint.textContent = `Translator status: ${availability}`;
+    hint.textContent =
+      "PrepOS will use the web fallback translator for Malayalam (requires internet).";
   }
 }
 
@@ -224,7 +234,10 @@ async function saveMalayalamVariant(questionId, status) {
 
   const payload = buildMalayalamVariantPayload(mlFields, {
     status,
-    source: LANGUAGE_VARIANT_SOURCE_BROWSER,
+    source:
+      lastTranslationBackend === "chrome"
+        ? LANGUAGE_VARIANT_SOURCE_BROWSER
+        : LANGUAGE_VARIANT_SOURCE_WEB_FALLBACK,
     englishHash,
     translated_at: existingVariant?.translated_at,
     verified_at: existingVariant?.verified_at,
@@ -259,10 +272,15 @@ async function handleBrowserTranslate() {
   }
 
   try {
+    let backendUsed = "web_fallback";
+
     const translated = await translateQuestionFieldsToMalayalam(english, {
+      onBackendResolved(backend) {
+        backendUsed = backend;
+      },
       onDownloadProgress({ percentage }) {
         if (progressEl) {
-          progressEl.textContent = `Downloading translation model… ${percentage}%`;
+          progressEl.textContent = `Downloading Chrome translation model… ${percentage}%`;
         }
       },
       onFieldProgress(field, index, total) {
@@ -272,6 +290,10 @@ async function handleBrowserTranslate() {
       },
     });
 
+    backendUsed = translated._backend ?? backendUsed;
+    lastTranslationBackend = backendUsed;
+    delete translated._backend;
+
     document.getElementById("mlQuestionText").value = translated.question_text ?? "";
     document.getElementById("mlOptionA").value = translated.option_a ?? "";
     document.getElementById("mlOptionB").value = translated.option_b ?? "";
@@ -280,7 +302,13 @@ async function handleBrowserTranslate() {
     document.getElementById("mlExplanation").value = translated.explanation ?? "";
 
     updateMlVariantStatusBadge({ status: "draft" });
-    showQbStatus("Browser translation complete — review before saving");
+
+    const viaLabel =
+      backendUsed === "chrome"
+        ? "Chrome on-device translator"
+        : "web fallback (MyMemory — review carefully)";
+
+    showQbStatus(`Translation complete via ${viaLabel}. Review before saving.`);
   } catch (error) {
     showQbStatus(error?.message || "Browser translation failed", true);
   } finally {
