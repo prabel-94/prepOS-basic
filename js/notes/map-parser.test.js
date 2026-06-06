@@ -173,10 +173,10 @@ Canonical body.`
     const parsed = parseMapMarkdown(
       `[QUOTES]
 
-## Churchill
-> Democracy is the worst form of government.
+## [[James I]]
+> "Democracy is the worst form of government."
 
-## Gandhi
+## [[Gandhi]]
 Be the change you wish to see in the world.`
     );
     const summary = summarizeDetectedSections(parsed);
@@ -184,7 +184,7 @@ Be the change you wish to see in the world.`
     assert.ok(parsed.representations.quotes.length >= 2);
     assert.ok(
       parsed.representations.quotes.some((block) =>
-        (block.content ?? "").includes("Democracy")
+        (block.content ?? "").startsWith(">")
       )
     );
   });
