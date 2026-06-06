@@ -2,10 +2,6 @@ import { runGenerator } from "./generator-core.js";
 import { getClient } from "./core/get-client.js";
 import { bootPage } from "./core/page-boot.js";
 import { normalizeTopicKey } from "./student/student-intelligence.js";
-import {
-  getMalayalamVariantStatus,
-  parseMalayalamVariant,
-} from "./qb/language-variant-meta.js";
 
 const subjectSelect = document.getElementById("subjectSelect");
 const patternSelect = document.getElementById("patternSelect");
@@ -15,7 +11,6 @@ const startBtn = document.getElementById("startBtn");
 const generatorControls = document.getElementById("generatorControls");
 const bankControls = document.getElementById("bankControls");
 const bankTopicSelect = document.getElementById("bankTopicSelect");
-const bankLanguageSelect = document.getElementById("bankLanguageSelect");
 const bankOrderSelect = document.getElementById("bankOrderSelect");
 const modeButtons = document.querySelectorAll(".practice-mode-card");
 
@@ -205,13 +200,6 @@ function getEmptyBankMessage() {
       ""
     ) || "";
 
-  if (bankLanguageSelect?.value === "malayalam") {
-    if (bankTopicSelect.value && topicLabel) {
-      return `No published Malayalam variants for "${topicLabel}" yet. Teachers verify translations in Question Bank → Edit → Publish Malayalam.`;
-    }
-    return "No published Malayalam question variants yet. Teachers add them in Question Bank (browser translate experiment).";
-  }
-
   if (bankTopicSelect.value && topicLabel) {
     return `No saved questions are available for "${topicLabel}" yet. Try All Topics or switch to Generator mode.`;
   }
@@ -282,35 +270,19 @@ function shuffleQuestions(questions) {
   return shuffled;
 }
 
-function metaRowsToMap(rows = []) {
-  const meta = {};
-  rows.forEach((row) => {
-    meta[row.key] = row.value;
-  });
-  return meta;
-}
-
-function normalizeBankQuestion(row, language = "english") {
-  const meta = metaRowsToMap(row.question_metadata);
-  const mlVariant = parseMalayalamVariant(meta);
-  const useMalayalam =
-    language === "malayalam" && getMalayalamVariantStatus(mlVariant) === "published";
-
-  const source = useMalayalam ? mlVariant : row;
-
+function normalizeBankQuestion(row) {
   return {
     id: row.id,
     source: "bank",
-    contentLanguage: useMalayalam ? "malayalam" : "english",
-    text: source.question_text || row.question_text || "",
+    text: row.question_text || "",
     options: [
-      { id: "A", text: source.option_a || row.option_a || "" },
-      { id: "B", text: source.option_b || row.option_b || "" },
-      { id: "C", text: source.option_c || row.option_c || "" },
-      { id: "D", text: source.option_d || row.option_d || "" }
+      { id: "A", text: row.option_a || "" },
+      { id: "B", text: row.option_b || "" },
+      { id: "C", text: row.option_c || "" },
+      { id: "D", text: row.option_d || "" }
     ].filter(option => option.text),
     correct: String(row.correct_option || "A").toUpperCase(),
-    explanation: source.explanation || row.explanation || ""
+    explanation: row.explanation || ""
   };
 }
 
@@ -359,13 +331,6 @@ async function loadBankTopics() {
 
 async function loadBankQuestions() {
   const sb = await getClient();
-  const language = bankLanguageSelect?.value || "english";
-  const metadataSelect = `
-    question_metadata (
-      key,
-      value
-    )
-  `;
   let data;
   let error;
 
@@ -382,8 +347,7 @@ async function loadBankQuestions() {
           option_d,
           correct_option,
           explanation,
-          created_at,
-          ${metadataSelect}
+          created_at
         )
       `)
       .eq("topic_id", bankTopicSelect.value)
@@ -396,18 +360,7 @@ async function loadBankQuestions() {
   } else {
     const response = await sb
       .from("questions")
-      .select(`
-        id,
-        question_text,
-        option_a,
-        option_b,
-        option_c,
-        option_d,
-        correct_option,
-        explanation,
-        created_at,
-        ${metadataSelect}
-      `)
+      .select("id, question_text, option_a, option_b, option_c, option_d, correct_option, explanation, created_at")
       .order("created_at", { ascending: false })
       .limit(200);
 
@@ -421,12 +374,8 @@ async function loadBankQuestions() {
 
   let questions = data
     .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
-    .map((row) => normalizeBankQuestion(row, language))
+    .map(normalizeBankQuestion)
     .filter(question => question.text && question.options.length >= 2);
-
-  if (language === "malayalam") {
-    questions = questions.filter((question) => question.contentLanguage === "malayalam");
-  }
 
   if (bankOrderSelect.value === "random") {
     questions = shuffleQuestions(questions);
@@ -475,8 +424,8 @@ modeButtons.forEach(button => {
   button.addEventListener("click", () => setPracticeMode(button.dataset.mode));
 });
 
-[bankTopicSelect, bankOrderSelect, bankLanguageSelect].forEach(select => {
-  select?.addEventListener("change", () => {
+[bankTopicSelect, bankOrderSelect].forEach(select => {
+  select.addEventListener("change", () => {
     state.bankQuestions = [];
     state.bankCursor = 0;
   });
