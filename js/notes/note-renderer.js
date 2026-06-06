@@ -23,6 +23,7 @@ import {
   withReadingErgonomics,
 } from "./reading-ergonomics.js";
 import { getTabEligibleRepresentations } from "./note-representations.js";
+import { stripHighlightedQuoteLines } from "./quote-highlight.js";
 
 function escapeHTML(value = "") {
   return String(value)
@@ -413,6 +414,29 @@ function renderListContent(content, topicMap, renderOptions) {
   return `<ul class="canonical-list semantic-list">${items}</ul>`;
 }
 
+function renderHighlightedQuoteBlock(text, topicMap, renderOptions) {
+  const quoteLines = stripHighlightedQuoteLines(text);
+  if (!quoteLines?.length) {
+    return "";
+  }
+
+  const inner =
+    quoteLines.length === 1
+      ? resolveInlineSemantics(quoteLines[0], topicMap, renderOptions)
+      : quoteLines
+          .map(
+            (line) =>
+              `<p class="quote-blockquote-line">${resolveInlineSemantics(
+                line,
+                topicMap,
+                renderOptions
+              )}</p>`
+          )
+          .join("");
+
+  return `<blockquote class="quote-blockquote quote-blockquote--highlighted">${inner}</blockquote>`;
+}
+
 function renderSemanticParagraph(p, topicMap, renderOptions, representationKey) {
   const tracker = renderOptions.anchorOccurrenceTracker;
   tracker?.resetParagraph?.();
@@ -422,14 +446,12 @@ function renderSemanticParagraph(p, topicMap, renderOptions, representationKey) 
     return "";
   }
 
-  // Quote lines (QUOTES representation).
-  if (representationKey === "quotes" && /^>\s?/.test(trimmed)) {
-    const quoteText = trimmed.replace(/^>\s?/, "");
-    return `<blockquote class="quote-blockquote">${resolveInlineSemantics(
-      quoteText,
-      topicMap,
-      renderOptions
-    )}</blockquote>`;
+  // Important quotes in [QUOTES]: prefix with > for amber highlight.
+  if (representationKey === "quotes") {
+    const highlighted = renderHighlightedQuoteBlock(trimmed, topicMap, renderOptions);
+    if (highlighted) {
+      return highlighted;
+    }
   }
 
   // Divider utility line (including literal ---).

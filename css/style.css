@@ -2550,10 +2550,24 @@ PREPOS SIDE PANEL OVERLAYS
 
 .semantic-quotes-gallery .quote-blockquote {
   margin: 0.75rem 0 1rem;
-  padding: 0.65rem 0 0.65rem 1rem;
-  border-left: 3px solid #cbd5e1;
-  color: #334155;
   font-style: italic;
+}
+
+.semantic-quotes-gallery .quote-blockquote--highlighted {
+  padding: 0.75rem 1rem;
+  border-left: 4px solid #d97706;
+  background: #fffbeb;
+  color: #78350f;
+  border-radius: 0 6px 6px 0;
+  box-shadow: 0 1px 3px rgba(217, 119, 6, 0.12);
+}
+
+.semantic-quotes-gallery .quote-blockquote--highlighted .quote-blockquote-line {
+  margin: 0 0 0.5rem;
+}
+
+.semantic-quotes-gallery .quote-blockquote--highlighted .quote-blockquote-line:last-child {
+  margin-bottom: 0;
 }
 
 .semantic-quotes-gallery .semantic-block--quotes {
