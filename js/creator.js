@@ -493,11 +493,11 @@ function parseQuiz(text){
       lines[answerIndex];
 
     const answerMatch =
-      answerLine.match(/[A-D]/i);
+      answerLine.match(/Answer\s*:\s*([A-D])\b/i);
 
     const answer =
       answerMatch
-        ? answerMatch[0].toUpperCase()
+        ? answerMatch[1].toUpperCase()
         : "A";
 
     // ===============================
