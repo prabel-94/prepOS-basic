@@ -877,7 +877,40 @@ EMPTY STATE
   border-color:#fecaca;
 }
 
-.pattern-box{
+.qb-panel-divider{
+  border:0;
+  border-top:1px solid var(--border);
+}
+
+.ml-variant-badge{
+  display:inline-block;
+  font-size:11px;
+  font-weight:600;
+  letter-spacing:0.02em;
+  padding:4px 8px;
+  border-radius:999px;
+  text-transform:uppercase;
+}
+
+.ml-variant-badge--none{
+  background:#f3f4f6;
+  color:#6b7280;
+}
+
+.ml-variant-badge--draft{
+  background:#fef3c7;
+  color:#92400e;
+}
+
+.ml-variant-badge--published{
+  background:#d1fae5;
+  color:#065f46;
+}
+
+.qb-ml-variant-section{
+  padding-bottom:24px;
+}
+
   position:relative;
 }
 

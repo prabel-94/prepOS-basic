@@ -324,8 +324,62 @@ METADATA PANEL
     </div>
 
     <button id="saveQuestionBtn" class="primary-btn w-full mt-20" type="button">
-      Save Question
+      Save English
     </button>
+
+    <hr class="qb-panel-divider mt-20">
+
+    <div class="qb-ml-variant-section mt-20">
+      <div class="flex gap-10" style="align-items: center; justify-content: space-between; flex-wrap: wrap;">
+        <h4 class="h3" style="margin: 0;">Malayalam variant</h4>
+        <span id="mlVariantStatusBadge" class="ml-variant-badge ml-variant-badge--none">Not started</span>
+      </div>
+      <p id="mlTranslatorHint" class="text-muted mt-10" style="font-size: 13px;">
+        Prepublish experiment: browser on-device translation (Chrome 138+ desktop). Review and edit before publishing.
+      </p>
+      <p id="mlTranslateProgress" class="text-muted mt-5 hidden" aria-live="polite"></p>
+
+      <button id="browserTranslateBtn" class="secondary-btn w-full mt-10" type="button">
+        Browser translate from English
+      </button>
+
+      <div class="mt-20">
+        <label for="mlQuestionText"><b>Question (Malayalam)</b></label>
+        <textarea id="mlQuestionText" class="w-full mt-10 prepos-text" rows="4" placeholder="Verify Malayalam question text"></textarea>
+      </div>
+
+      <div class="mt-20">
+        <label for="mlOptionA"><b>Option A</b></label>
+        <input id="mlOptionA" class="w-full mt-10 prepos-text" type="text" />
+      </div>
+      <div class="mt-20">
+        <label for="mlOptionB"><b>Option B</b></label>
+        <input id="mlOptionB" class="w-full mt-10 prepos-text" type="text" />
+      </div>
+      <div class="mt-20">
+        <label for="mlOptionC"><b>Option C</b></label>
+        <input id="mlOptionC" class="w-full mt-10 prepos-text" type="text" />
+      </div>
+      <div class="mt-20">
+        <label for="mlOptionD"><b>Option D</b></label>
+        <input id="mlOptionD" class="w-full mt-10 prepos-text" type="text" />
+      </div>
+      <div class="mt-20">
+        <label for="mlExplanation"><b>Explanation (Malayalam)</b></label>
+        <textarea id="mlExplanation" class="w-full mt-10 prepos-text" rows="3" placeholder="Optional"></textarea>
+      </div>
+
+      <p class="text-muted mt-10" style="font-size: 12px;">
+        Correct answer stays the same letter (A–D) as English. Students will not see this until you publish.
+      </p>
+
+      <button id="saveMlDraftBtn" class="secondary-btn w-full mt-10" type="button">
+        Save Malayalam draft
+      </button>
+      <button id="publishMlVariantBtn" class="primary-btn w-full mt-10" type="button">
+        Publish verified Malayalam
+      </button>
+    </div>
 
   </div>
 

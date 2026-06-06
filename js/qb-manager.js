@@ -7,6 +7,21 @@ import { bootPage } from "./core/page-boot.js";
 import { resolveAppPath } from "./core/access.js";
 import { computeQuestionHash } from "./core/question-hash.js";
 import { openModal, closeModal } from "./ui/modal-system.js";
+import {
+  getMalayalamTranslatorAvailability,
+  getBrowserTranslatorSetupHint,
+  isBrowserTranslatorSupported,
+  translateQuestionFieldsToMalayalam,
+} from "./core/browser-translate.js";
+import {
+  LANGUAGE_VARIANT_META_KEY,
+  LANGUAGE_VARIANT_SOURCE_BROWSER,
+  buildMalayalamVariantPayload,
+  getMalayalamVariantStatus,
+  malayalamVariantToFormFields,
+  parseMalayalamVariant,
+  validateMalayalamVariantForSave,
+} from "./qb/language-variant-meta.js";
 
 const SIDE_PANEL_OPTIONS = {
   overlayType: "side-panel",
@@ -73,6 +88,210 @@ function populateDifficultyPanel(meta = {}) {
 // INIT
 // --------------------------------
 let selectedQuestionId = null;
+let selectedQuestionExplanation = "";
+
+// --------------------------------
+// MALAYALAM VARIANT (browser translate experiment)
+// --------------------------------
+
+function readEnglishFieldsFromEditPanel() {
+  return {
+    question_text: document.getElementById("editQuestionText")?.value ?? "",
+    option_a: document.getElementById("editOptionA")?.value ?? "",
+    option_b: document.getElementById("editOptionB")?.value ?? "",
+    option_c: document.getElementById("editOptionC")?.value ?? "",
+    option_d: document.getElementById("editOptionD")?.value ?? "",
+    explanation: selectedQuestionExplanation ?? "",
+  };
+}
+
+function readMlFieldsFromEditPanel() {
+  return {
+    question_text: document.getElementById("mlQuestionText")?.value ?? "",
+    option_a: document.getElementById("mlOptionA")?.value ?? "",
+    option_b: document.getElementById("mlOptionB")?.value ?? "",
+    option_c: document.getElementById("mlOptionC")?.value ?? "",
+    option_d: document.getElementById("mlOptionD")?.value ?? "",
+    explanation: document.getElementById("mlExplanation")?.value ?? "",
+  };
+}
+
+function populateMlVariantPanel(variant) {
+  const fields = malayalamVariantToFormFields(variant);
+
+  document.getElementById("mlQuestionText").value = fields.question_text;
+  document.getElementById("mlOptionA").value = fields.option_a;
+  document.getElementById("mlOptionB").value = fields.option_b;
+  document.getElementById("mlOptionC").value = fields.option_c;
+  document.getElementById("mlOptionD").value = fields.option_d;
+  document.getElementById("mlExplanation").value = fields.explanation;
+
+  updateMlVariantStatusBadge(variant);
+}
+
+function updateMlVariantStatusBadge(variant) {
+  const badge = document.getElementById("mlVariantStatusBadge");
+  if (!badge) return;
+
+  const status = getMalayalamVariantStatus(variant);
+  badge.className = `ml-variant-badge ml-variant-badge--${status}`;
+
+  if (status === "published") {
+    badge.textContent = "Published";
+  } else if (status === "draft") {
+    badge.textContent = "Draft";
+  } else {
+    badge.textContent = "Not started";
+  }
+}
+
+async function refreshTranslatorHint() {
+  const hint = document.getElementById("mlTranslatorHint");
+  const btn = document.getElementById("browserTranslateBtn");
+  if (!hint || !btn) return;
+
+  if (!isBrowserTranslatorSupported()) {
+    hint.textContent = getBrowserTranslatorSetupHint();
+    btn.disabled = true;
+    return;
+  }
+
+  const availability = await getMalayalamTranslatorAvailability();
+  btn.disabled = availability === "unavailable" || availability === "unsupported";
+
+  if (availability === "available") {
+    hint.textContent =
+      "Browser translator ready. Translate from English, review, then save draft or publish.";
+  } else if (availability === "downloadable" || availability === "downloading") {
+    hint.textContent =
+      "Malayalam model will download on first translate (Chrome on-device AI).";
+  } else if (availability === "unsupported" || availability === "unavailable") {
+    hint.textContent = getBrowserTranslatorSetupHint();
+  } else {
+    hint.textContent = `Translator status: ${availability}`;
+  }
+}
+
+function renderMlListBadge(meta = {}) {
+  const variant = parseMalayalamVariant(meta);
+  const status = getMalayalamVariantStatus(variant);
+
+  if (status === "published") {
+    return `<span class="ml-variant-badge ml-variant-badge--published">ML ✓</span>`;
+  }
+
+  if (status === "draft") {
+    return `<span class="ml-variant-badge ml-variant-badge--draft">ML draft</span>`;
+  }
+
+  return "";
+}
+
+async function upsertMalayalamVariantMetadata(questionId, payload) {
+  const sb = await getClient();
+
+  const { error } = await sb.from("question_metadata").upsert(
+    {
+      question_id: questionId,
+      key: LANGUAGE_VARIANT_META_KEY,
+      value: payload,
+    },
+    { onConflict: "question_id,key" }
+  );
+
+  if (error) {
+    throw error;
+  }
+}
+
+async function saveMalayalamVariant(questionId, status) {
+  const english = readEnglishFieldsFromEditPanel();
+  const mlFields = readMlFieldsFromEditPanel();
+
+  validateMalayalamVariantForSave(mlFields);
+
+  const englishHash = await computeQuestionHash(
+    english.question_text.trim(),
+    [english.option_a, english.option_b, english.option_c, english.option_d].map(
+      (t) => String(t ?? "").trim()
+    )
+  );
+
+  const existing = state.questions.find((row) => row.id === questionId);
+  const existingVariant = parseMalayalamVariant(
+    extractQuestionMeta(existing ?? {})
+  );
+
+  const payload = buildMalayalamVariantPayload(mlFields, {
+    status,
+    source: LANGUAGE_VARIANT_SOURCE_BROWSER,
+    englishHash,
+    translated_at: existingVariant?.translated_at,
+    verified_at: existingVariant?.verified_at,
+  });
+
+  await upsertMalayalamVariantMetadata(questionId, payload);
+  updateMlVariantStatusBadge(payload);
+  return payload;
+}
+
+async function handleBrowserTranslate() {
+  const progressEl = document.getElementById("mlTranslateProgress");
+  const btn = document.getElementById("browserTranslateBtn");
+
+  if (!selectedQuestionId) {
+    showQbStatus("Open a question to translate", true);
+    return;
+  }
+
+  const english = readEnglishFieldsFromEditPanel();
+
+  if (!english.question_text.trim()) {
+    showQbStatus("Add English question text first", true);
+    return;
+  }
+
+  if (btn) btn.disabled = true;
+
+  if (progressEl) {
+    progressEl.classList.remove("hidden");
+    progressEl.textContent = "Preparing browser translator…";
+  }
+
+  try {
+    const translated = await translateQuestionFieldsToMalayalam(english, {
+      onDownloadProgress({ percentage }) {
+        if (progressEl) {
+          progressEl.textContent = `Downloading translation model… ${percentage}%`;
+        }
+      },
+      onFieldProgress(field, index, total) {
+        if (progressEl) {
+          progressEl.textContent = `Translating ${field} (${index}/${total})…`;
+        }
+      },
+    });
+
+    document.getElementById("mlQuestionText").value = translated.question_text ?? "";
+    document.getElementById("mlOptionA").value = translated.option_a ?? "";
+    document.getElementById("mlOptionB").value = translated.option_b ?? "";
+    document.getElementById("mlOptionC").value = translated.option_c ?? "";
+    document.getElementById("mlOptionD").value = translated.option_d ?? "";
+    document.getElementById("mlExplanation").value = translated.explanation ?? "";
+
+    updateMlVariantStatusBadge({ status: "draft" });
+    showQbStatus("Browser translation complete — review before saving");
+  } catch (error) {
+    showQbStatus(error?.message || "Browser translation failed", true);
+  } finally {
+    if (progressEl) {
+      progressEl.classList.add("hidden");
+      progressEl.textContent = "";
+    }
+
+    await refreshTranslatorHint();
+  }
+}
 
 // --------------------------------
 // STATE
@@ -747,6 +966,7 @@ const caBadge = caEvent
     ${pattern || "PATTERN"}
   </div>
   ${caBadge}
+  ${renderMlListBadge(meta)}
 
 </div>
 
@@ -1089,6 +1309,7 @@ function handleEdit(id) {
   }
 
   selectedQuestionId = id;
+  selectedQuestionExplanation = question.explanation || "";
   openSidePanel("editQuestionPanel");
 
   document.getElementById("editQuestionText").value =
@@ -1106,6 +1327,10 @@ function handleEdit(id) {
     "editCorrect",
     String(question.correct_option || "A").toUpperCase()
   );
+
+  const meta = extractQuestionMeta(question);
+  populateMlVariantPanel(parseMalayalamVariant(meta));
+  refreshTranslatorHint();
 }
 
 async function replaceCAMetadata(questionId, event, date) {
@@ -1728,7 +1953,54 @@ document.getElementById("saveQuestionBtn")
     }
 
     closeModal("editQuestionPanel");
-    showQbStatus("Question saved");
+    showQbStatus("English question saved");
+    await fetchQuestions();
+  });
+
+document.getElementById("browserTranslateBtn")
+  ?.addEventListener("click", () => {
+    handleBrowserTranslate();
+  });
+
+document.getElementById("saveMlDraftBtn")
+  ?.addEventListener("click", async () => {
+    if (!selectedQuestionId) {
+      showQbStatus("No question selected", true);
+      return;
+    }
+
+    try {
+      await saveMalayalamVariant(selectedQuestionId, "draft");
+    } catch (error) {
+      showQbStatus(error?.message || "Save failed", true);
+      return;
+    }
+
+    showQbStatus("Malayalam draft saved");
+    await fetchQuestions();
+  });
+
+document.getElementById("publishMlVariantBtn")
+  ?.addEventListener("click", async () => {
+    if (!selectedQuestionId) {
+      showQbStatus("No question selected", true);
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "Publish this Malayalam variant?\n\nStudents can use it once exam/practice surfaces are wired. Verify the translation first."
+    );
+
+    if (!confirmed) return;
+
+    try {
+      await saveMalayalamVariant(selectedQuestionId, "published");
+    } catch (error) {
+      showQbStatus(error?.message || "Publish failed", true);
+      return;
+    }
+
+    showQbStatus("Malayalam variant published");
     await fetchQuestions();
   });
 
