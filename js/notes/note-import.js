@@ -9,6 +9,7 @@ import {
   parseMapMarkdown,
   summarizeDetectedSections,
 } from "./map-parser.js";
+import { getImportSectionLabels } from "./note-representations.js";
 import {
   saveNoteVariant,
   getCanonicalNoteByTopicId,
@@ -23,17 +24,7 @@ import {
 } from "./note-variants.js";
 import { fetchVariantsForNote } from "./note-selectors.js";
 
-const SECTION_LABELS = Object.freeze({
-  metadata: "Metadata",
-  narrative: "Narrative",
-  structural: "Structural",
-  revision: "Revision",
-  timeline: "Timeline",
-  interpretations: "Interpretations",
-  recall: "Recall",
-  entity_index: "Entity index",
-  prelude: "Prelude (pre-section)",
-});
+const SECTION_LABELS = getImportSectionLabels();
 
 function escapeHTML(value = "") {
   return String(value ?? "")

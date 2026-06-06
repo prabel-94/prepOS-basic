@@ -2543,8 +2543,33 @@ PREPOS SIDE PANEL OVERLAYS
 }
 
 .semantic-revision-compact .semantic-collapsible,
-.semantic-interpretations-compact .semantic-collapsible {
+.semantic-interpretations-compact .semantic-collapsible,
+.semantic-quotes-gallery .semantic-collapsible {
   margin-top: var(--semantic-l4-space-before);
+}
+
+.semantic-quotes-gallery .quote-blockquote {
+  margin: 0.75rem 0 1rem;
+  padding: 0.65rem 0 0.65rem 1rem;
+  border-left: 3px solid #cbd5e1;
+  color: #334155;
+  font-style: italic;
+}
+
+.semantic-quotes-gallery .semantic-block--quotes {
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.semantic-quotes-gallery .semantic-block--quotes:last-child {
+  border-bottom: none;
+}
+
+.semantic-quotes-gallery .semantic-heading {
+  font-weight: 600;
+  font-style: normal;
+  color: #475569;
 }
 
 .semantic-timeline-linear .semantic-collapsible {

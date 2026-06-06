@@ -8,6 +8,7 @@ import {
   MSMDF_SECTION_SYNTAX_HELP,
   parseMapMarkdown,
 } from "./map-parser.js";
+import { getPersistedRepresentationIds } from "./note-representations.js";
 import { normalizeLanguage } from "./note-variants.js";
 import {
   buildTopicLinkRows,
@@ -19,18 +20,10 @@ import {
   syncVariantAnchorLinks,
 } from "../anchors/anchor-storage.js";
 
-const REPRESENTATION_TYPES = [
-  "narrative",
-  "structural",
-  "revision",
-  "timeline",
-  "interpretations",
-];
-
 function flattenBlocks(parsed) {
   const rows = [];
 
-  for (const representationType of REPRESENTATION_TYPES) {
+  for (const representationType of getPersistedRepresentationIds()) {
     const blocks = parsed?.representations?.[representationType] ?? [];
     blocks.forEach((block, index) => {
       rows.push({

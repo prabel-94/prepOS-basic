@@ -4,36 +4,20 @@
  * Never rewrites source prose. Semantic resolution remains downstream.
  */
 
-/** MSMDF v1.2 canonical representation boundary tags (line-whole section openers). */
-export const CANONICAL_BOUNDARY_TAGS = Object.freeze([
-  "METADATA",
-  "NARRATIVE",
-  "STRUCTURAL",
-  "REVISION",
-  "TIMELINE",
-  "INTERPRETATIONS",
-  "RECALL",
-  "ENTITY_INDEX",
-]);
+import {
+  CANONICAL_BOUNDARY_TAGS,
+  applyRecallBlockTransform,
+  buildBoundaryReport,
+  createEmptyRepresentations,
+  getSectionKeyFromTag,
+  isEntityIndexSection,
+  isMetadataSection,
+  mapSectionToRepresentation,
+  shouldApplyRecallTransform,
+  summarizeDetectedSectionsFromRegistry,
+} from "./note-representations.js";
 
-const SECTION_ANCHORS = Object.freeze({
-  METADATA: "metadata",
-  NARRATIVE: "narrative",
-  STRUCTURAL: "structural",
-  REVISION: "revision",
-  TIMELINE: "timeline",
-  INTERPRETATIONS: "interpretations",
-  RECALL: "recall",
-  ENTITY_INDEX: "entity_index",
-});
-
-const REPRESENTATION_KEYS = Object.freeze([
-  "narrative",
-  "structural",
-  "revision",
-  "timeline",
-  "interpretations",
-]);
+export { CANONICAL_BOUNDARY_TAGS };
 
 /**
  * MSMDF v1.2 section line: optional leading #, bracket tag, whitespace tolerant.
@@ -72,10 +56,6 @@ export function matchCanonicalSectionLine(line) {
   }
 
   return match[1].toUpperCase();
-}
-
-function sectionKeyFromTag(tag) {
-  return SECTION_ANCHORS[tag] ?? null;
 }
 
 function parseMetadataSection(body) {
@@ -206,18 +186,6 @@ function extractBlocks(sectionKey, body, extraMetadata = {}) {
   return blocks;
 }
 
-function mapSectionToRepresentation(sectionKey) {
-  if (sectionKey === "recall") {
-    return "revision";
-  }
-
-  if (REPRESENTATION_KEYS.includes(sectionKey)) {
-    return sectionKey;
-  }
-
-  return null;
-}
-
 function extractTopicLinks(markdown, sectionKey = null, blockIndex = null) {
   const links = [];
   const seen = new Set();
@@ -287,7 +255,7 @@ export function splitSections(markdown) {
       }
 
       currentTag = tag;
-      currentKey = sectionKeyFromTag(tag);
+      currentKey = getSectionKeyFromTag(tag);
       continue;
     }
 
@@ -313,47 +281,6 @@ export function splitSections(markdown) {
   };
 }
 
-function buildBoundaryReport(sections, representations, entityIndexBlocks, preludeBlocks) {
-  const detected = new Map();
-
-  for (const section of sections) {
-    detected.set(section.key, {
-      tag: section.tag,
-      key: section.key,
-      detected: true,
-    });
-  }
-
-  const boundaries = CANONICAL_BOUNDARY_TAGS.map((tag) => {
-    const key = sectionKeyFromTag(tag);
-    const info = detected.get(key);
-    let blockCount = 0;
-
-    if (key === "entity_index") {
-      blockCount = entityIndexBlocks.length;
-    } else if (key === "metadata") {
-      blockCount = info ? 1 : 0;
-    } else {
-      const repKey = mapSectionToRepresentation(key);
-      blockCount = repKey ? (representations[repKey]?.length ?? 0) : 0;
-      if (key === "recall") {
-        blockCount = (representations.revision ?? []).filter(
-          (b) => b.metadata_json?.source_section === "recall"
-        ).length;
-      }
-    }
-
-    return {
-      tag,
-      key,
-      detected: Boolean(info) || blockCount > 0,
-      block_count: blockCount,
-    };
-  });
-
-  return boundaries;
-}
-
 /**
  * Parse MSMDF semantic markdown into a canonical object.
  * @param {string} rawMarkdown
@@ -365,13 +292,7 @@ export function parseMapMarkdown(rawMarkdown, options = {}) {
   const { sections, prelude } = splitSections(markdown);
 
   const metadata = {};
-  const representations = {
-    narrative: [],
-    structural: [],
-    revision: [],
-    timeline: [],
-    interpretations: [],
-  };
+  const representations = createEmptyRepresentations();
   const entityIndexBlocks = [];
   const parserDiagnostics = {
     msmdf_version: "1.2",
@@ -396,12 +317,12 @@ export function parseMapMarkdown(rawMarkdown, options = {}) {
   }
 
   for (const section of sections) {
-    if (section.key === "metadata") {
+    if (isMetadataSection(section.key)) {
       Object.assign(metadata, parseMetadataSection(section.body));
       continue;
     }
 
-    if (section.key === "entity_index") {
+    if (isEntityIndexSection(section.key)) {
       entityIndexBlocks.push(
         ...extractBlocks("entity_index", section.body, {
           msmdf_boundary: "entity_index",
@@ -422,14 +343,8 @@ export function parseMapMarkdown(rawMarkdown, options = {}) {
       msmdf_boundary: section.tag,
     });
 
-    if (section.key === "recall") {
-      for (const block of blocks) {
-        block.block_type = block.block_type === "section" ? "recall_section" : "recall";
-        block.metadata_json = {
-          ...block.metadata_json,
-          source_section: "recall",
-        };
-      }
+    if (shouldApplyRecallTransform(section.key)) {
+      applyRecallBlockTransform(blocks);
     }
 
     representations[representationKey].push(...blocks);
@@ -525,27 +440,5 @@ export function formatDetectedSectionTags(parsed) {
  * Summarize which representation sections were detected (for import UI).
  */
 export function summarizeDetectedSections(parsed) {
-  const reps = parsed?.representations ?? {};
-  const boundaries = parsed?.parser_diagnostics?.boundaries ?? [];
-
-  const boundaryDetected = (tag) =>
-    boundaries.some((b) => b.tag === tag && b.detected);
-
-  return {
-    metadata:
-      Boolean(parsed?.metadata && Object.keys(parsed.metadata).length) ||
-      boundaryDetected("METADATA"),
-    narrative: (reps.narrative?.length ?? 0) > 0 || boundaryDetected("NARRATIVE"),
-    structural: (reps.structural?.length ?? 0) > 0 || boundaryDetected("STRUCTURAL"),
-    revision: (reps.revision?.length ?? 0) > 0 || boundaryDetected("REVISION"),
-    timeline: (reps.timeline?.length ?? 0) > 0 || boundaryDetected("TIMELINE"),
-    interpretations:
-      (reps.interpretations?.length ?? 0) > 0 || boundaryDetected("INTERPRETATIONS"),
-    recall:
-      (reps.revision ?? []).some((b) => b.metadata_json?.source_section === "recall") ||
-      boundaryDetected("RECALL"),
-    entity_index:
-      (parsed?.entity_index?.length ?? 0) > 0 || boundaryDetected("ENTITY_INDEX"),
-    prelude: Boolean(parsed?.parser_diagnostics?.prelude?.preserved),
-  };
+  return summarizeDetectedSectionsFromRegistry(parsed);
 }
