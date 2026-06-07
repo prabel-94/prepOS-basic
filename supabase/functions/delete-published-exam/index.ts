@@ -22,21 +22,128 @@ function jsonResponse(
   )
 }
 
-Deno.serve(async (req) => {
+type ExamRow = {
+  id: string
+  created_by: string
+  title: string
+  source_draft_id: string | null
+  series_id: string | null
+}
 
-  // =========================
-  // CORS
-  // =========================
+async function deleteExamsByIds(
+  adminClient: ReturnType<typeof createClient>,
+  exams: ExamRow[],
+  options: { seriesId?: string } = {}
+) {
+  const examIds = exams.map((exam) => exam.id)
+
+  if (!examIds.length) {
+    return
+  }
+
+  const { error: assignmentError } = await adminClient
+    .from("exam_assignments")
+    .delete()
+    .in("exam_id", examIds)
+
+  if (assignmentError) {
+    throw new Error(
+      `Failed to delete exam assignments: ${assignmentError.message}`
+    )
+  }
+
+  const { error: attemptsError } = await adminClient
+    .from("exam_attempts")
+    .delete()
+    .in("exam_id", examIds)
+
+  if (attemptsError) {
+    throw new Error(
+      `Failed to delete exam attempts: ${attemptsError.message}`
+    )
+  }
+
+  const sourceDraftIds = [
+    ...new Set(
+      exams
+        .map((exam) => exam.source_draft_id)
+        .filter((id): id is string => typeof id === "string" && !!id)
+    ),
+  ]
+
+  if (options.seriesId) {
+    const { error: seriesDraftError } = await adminClient
+      .from("draft_exams")
+      .update({
+        status: "draft",
+        published_exam_id: null,
+        publish_series_id: null,
+        published_question_ids: [],
+      })
+      .eq("publish_series_id", options.seriesId)
+
+    if (seriesDraftError) {
+      throw new Error(
+        `Failed to reset series draft: ${seriesDraftError.message}`
+      )
+    }
+  }
+
+  const { error: linkedDraftError } = await adminClient
+    .from("draft_exams")
+    .update({
+      status: "draft",
+      published_exam_id: null,
+      ...(options.seriesId
+        ? {
+            publish_series_id: null,
+            published_question_ids: [],
+          }
+        : {}),
+    })
+    .in("published_exam_id", examIds)
+
+  if (linkedDraftError) {
+    throw new Error(
+      `Failed to unlink related drafts: ${linkedDraftError.message}`
+    )
+  }
+
+  if (options.seriesId && sourceDraftIds.length) {
+    const { error: sourceDraftError } = await adminClient
+      .from("draft_exams")
+      .update({
+        status: "draft",
+        published_exam_id: null,
+        publish_series_id: null,
+        published_question_ids: [],
+      })
+      .in("id", sourceDraftIds)
+
+    if (sourceDraftError) {
+      throw new Error(
+        `Failed to reset source draft: ${sourceDraftError.message}`
+      )
+    }
+  }
+
+  const { error: deleteError } = await adminClient
+    .from("exam_sessions")
+    .delete()
+    .in("id", examIds)
+
+  if (deleteError) {
+    throw new Error(`Failed to delete exam: ${deleteError.message}`)
+  }
+}
+
+Deno.serve(async (req) => {
 
   if (req.method === "OPTIONS") {
     return new Response("ok", {
       headers: corsHeaders,
     })
   }
-
-  // =========================
-  // METHOD VALIDATION
-  // =========================
 
   if (req.method !== "POST") {
     return jsonResponse(
@@ -46,10 +153,6 @@ Deno.serve(async (req) => {
   }
 
   try {
-
-    // =========================
-    // ENV
-    // =========================
 
     const supabaseUrl =
       Deno.env.get("SUPABASE_URL")
@@ -74,10 +177,6 @@ Deno.serve(async (req) => {
       )
     }
 
-    // =========================
-    // AUTH HEADER
-    // =========================
-
     const authHeader =
       req.headers.get("Authorization") || ""
 
@@ -87,11 +186,6 @@ Deno.serve(async (req) => {
         401
       )
     }
-
-    // =========================
-    // USER CLIENT
-    // Used ONLY for auth validation
-    // =========================
 
     const userClient = createClient(
       supabaseUrl,
@@ -105,10 +199,6 @@ Deno.serve(async (req) => {
       }
     )
 
-    // =========================
-    // VALIDATE USER
-    // =========================
-
     const {
       data: { user },
       error: userError,
@@ -121,36 +211,31 @@ Deno.serve(async (req) => {
       )
     }
 
-    // =========================
-    // ADMIN CLIENT
-    // Used for privileged DB ops
-    // =========================
-
     const adminClient = createClient(
       supabaseUrl,
       serviceRoleKey
     )
-
-    // =========================
-    // REQUEST BODY
-    // =========================
 
     const body = await req
       .json()
       .catch(() => ({}))
 
     const examId = body?.examId
+    const seriesId = body?.seriesId
 
-    if (!examId) {
+    if (!examId && !seriesId) {
       return jsonResponse(
-        { error: "Missing examId" },
+        { error: "Missing examId or seriesId" },
         400
       )
     }
 
-    // =========================
-    // GET USER ROLE
-    // =========================
+    if (examId && seriesId) {
+      return jsonResponse(
+        { error: "Provide examId or seriesId, not both" },
+        400
+      )
+    }
 
     const {
       data: profile,
@@ -183,33 +268,56 @@ Deno.serve(async (req) => {
       )
     }
 
-    // =========================
-    // FETCH EXAM
-    // =========================
+    let exams: ExamRow[] = []
 
-    const {
-      data: exam,
-      error: examError,
-    } = await adminClient
-      .from("exam_sessions")
-      .select("id, created_by, title")
-      .eq("id", examId)
-      .single()
+    if (seriesId) {
+      const {
+        data: seriesExams,
+        error: seriesError,
+      } = await adminClient
+        .from("exam_sessions")
+        .select("id, created_by, title, source_draft_id, series_id")
+        .eq("series_id", seriesId)
+        .order("part_index", { ascending: true })
 
-    if (examError || !exam) {
-      return jsonResponse(
-        { error: "Exam not found" },
-        404
-      )
+      if (seriesError) {
+        return jsonResponse(
+          { error: "Failed to load exam series" },
+          400
+        )
+      }
+
+      exams = seriesExams ?? []
+
+      if (!exams.length) {
+        return jsonResponse(
+          { error: "Exam series not found" },
+          404
+        )
+      }
+    } else {
+      const {
+        data: exam,
+        error: examError,
+      } = await adminClient
+        .from("exam_sessions")
+        .select("id, created_by, title, source_draft_id, series_id")
+        .eq("id", examId)
+        .single()
+
+      if (examError || !exam) {
+        return jsonResponse(
+          { error: "Exam not found" },
+          404
+        )
+      }
+
+      exams = [exam]
     }
-
-    // =========================
-    // OWNERSHIP CHECK
-    // =========================
 
     if (
       role !== "admin" &&
-      exam.created_by !== user.id
+      exams.some((exam) => exam.created_by !== user.id)
     ) {
       return jsonResponse(
         {
@@ -220,123 +328,26 @@ Deno.serve(async (req) => {
       )
     }
 
-    // =========================
-    // DELETE ASSIGNMENTS
-    // =========================
+    await deleteExamsByIds(
+      adminClient,
+      exams,
+      seriesId ? { seriesId } : {}
+    )
 
-    const {
-      error: assignmentError,
-    } = await adminClient
-      .from("exam_assignments")
-      .delete()
-      .eq("exam_id", examId)
-
-    if (assignmentError) {
-      console.error(
-        "Assignment delete failed",
-        assignmentError
-      )
-
-      return jsonResponse(
-        {
-          error:
-            "Failed to delete exam assignments",
-          details: assignmentError.message,
-        },
-        400
-      )
-    }
-
-    // =========================
-    // DELETE ATTEMPTS
-    // =========================
-
-    const {
-      error: attemptsError,
-    } = await adminClient
-      .from("exam_attempts")
-      .delete()
-      .eq("exam_id", examId)
-
-    if (attemptsError) {
-      console.error(
-        "Attempt delete failed",
-        attemptsError
-      )
-
-      return jsonResponse(
-        {
-          error:
-            "Failed to delete exam attempts",
-          details: attemptsError.message,
-        },
-        400
-      )
-    }
-
-    // =========================
-    // UNLINK DRAFTS
-    // =========================
-
-    const {
-      error: draftError,
-    } = await adminClient
-      .from("draft_exams")
-      .update({
-        status: "draft",
-        published_exam_id: null,
+    if (seriesId) {
+      return jsonResponse({
+        success: true,
+        deleted_series_id: seriesId,
+        deleted_exam_ids: exams.map((exam) => exam.id),
+        deleted_count: exams.length,
       })
-      .eq("published_exam_id", examId)
-
-    if (draftError) {
-      console.error(
-        "Draft unlink failed",
-        draftError
-      )
-
-      return jsonResponse(
-        {
-          error:
-            "Failed to unlink related drafts",
-          details: draftError.message,
-        },
-        400
-      )
     }
 
-    // =========================
-    // DELETE EXAM
-    // =========================
-
-    const {
-      error: deleteError,
-    } = await adminClient
-      .from("exam_sessions")
-      .delete()
-      .eq("id", examId)
-
-    if (deleteError) {
-      console.error(
-        "Exam delete failed",
-        deleteError
-      )
-
-      return jsonResponse(
-        {
-          error: "Failed to delete exam",
-          details: deleteError.message,
-        },
-        400
-      )
-    }
-
-    // =========================
-    // SUCCESS
-    // =========================
+    const exam = exams[0]
 
     return jsonResponse({
       success: true,
-      deleted_exam_id: examId,
+      deleted_exam_id: exam.id,
       deleted_exam_title: exam.title,
     })
 
@@ -347,12 +358,14 @@ Deno.serve(async (req) => {
       error
     )
 
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Unexpected server error"
+
     return jsonResponse(
       {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Unexpected server error",
+        error: message,
       },
       500
     )
