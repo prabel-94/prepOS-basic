@@ -4,7 +4,8 @@ PrepOS Malayalam Generator
 
 import {
   fetchGroups,
-  buildQuestion
+  buildQuestion,
+  DEFAULT_LEXICON_TOPIC,
 } from "./shared/lexicon-engine.js";
 import { getClient } from "../core/get-client.js";
 const DEFAULT_ADAPTIVE_MODE = true;
@@ -273,7 +274,8 @@ SYNONYM GENERATOR
 ========================================= */
 
 async function generateSynonymQuestion(config = {}) {
-  const groups = await fetchGroups("ml");
+  const topic = config.topic || DEFAULT_LEXICON_TOPIC;
+  const groups = await fetchGroups("ml", { topic });
   const groupId = await selectGroup(groups, getAdaptiveMode(config));
 
   if (!groupId) {
@@ -327,8 +329,9 @@ async function generateSynonymQuestion(config = {}) {
 OPPOSITE GENERATOR
 ========================================= */
 
-async function generateOppositeWordQuestion() {
-  const groups = await fetchGroups("ml");
+async function generateOppositeWordQuestion(config = {}) {
+  const topic = config.topic || DEFAULT_LEXICON_TOPIC;
+  const groups = await fetchGroups("ml", { topic });
   const relations = await fetchOppositeRelations();
 
   const adjacency = {};

@@ -1,13 +1,22 @@
 import { getClient } from "../../core/get-client.js";
 
+export const DEFAULT_LEXICON_TOPIC = "vocabulary";
+
 /* =========================================
 FETCH GROUPS
 ========================================= */
 
-export async function fetchGroups(languageCode) {
+/**
+ * @param {string} languageCode
+ * @param {{ topic?: string }} [options]
+ */
+export async function fetchGroups(languageCode, options = {}) {
+  const topic = String(options.topic ?? DEFAULT_LEXICON_TOPIC)
+    .trim()
+    .toLowerCase();
 
   const sb = await getClient();
-  const { data, error } = await sb
+  let query = sb
     .from("lexicon_entries")
     .select(`
   id,
@@ -15,9 +24,16 @@ export async function fetchGroups(languageCode) {
   group_id,
   difficulty,
   language_code,
-  lexical_class
+  lexical_class,
+  topic
 `)
     .eq("language_code", languageCode);
+
+  if (topic) {
+    query = query.eq("topic", topic);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     console.error(error);
@@ -26,8 +42,10 @@ export async function fetchGroups(languageCode) {
 
   const groups = {};
 
-  (data || []).forEach(row => {
-    if (!row.group_id || !row.word) return;
+  (data || []).forEach((row) => {
+    if (!row.group_id || !row.word) {
+      return;
+    }
 
     if (!groups[row.group_id]) {
       groups[row.group_id] = [];
@@ -51,7 +69,7 @@ export function buildQuestion({
   pattern = null,
   difficulty = "easy",
   topics = [],
-  tracking = null
+  tracking = null,
 }) {
   const optionIds = ["A", "B", "C", "D"];
   const normalizedOptions = options.map((option, index) => {
@@ -61,7 +79,7 @@ export function buildQuestion({
 
     return {
       id: optionIds[index],
-      text: option
+      text: option,
     };
   });
 
@@ -76,6 +94,6 @@ export function buildQuestion({
     primary_pattern: pattern,
     bank_status: "draft",
     difficulty,
-    tracking
+    tracking,
   };
 }

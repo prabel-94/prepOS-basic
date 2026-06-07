@@ -19,7 +19,8 @@
 <div class="container">
 
   <div class="exam-header">
-    <div class="exam-header-right">
+    <div>
+      <h2>Lexicon Manager</h2>
       <div id="lexiconStatus" class="exam-subtitle">
         Manage generator word groups
       </div>
@@ -28,15 +29,12 @@
 
   <div class="control-bar mt-20">
     <select id="groupSearchSelect" style="display:none;">
-  <option value="">Select Group</option>
-</select>
+      <option value="">Select Group</option>
+    </select>
+
     <select id="modeSelect">
-  <option value="SESSION">Session Entry</option>
-  <option value="BROWSE">Browse & Edit</option>
-</select>
-    <select id="patternSelect">
-      <option value="SYNONYM">Synonym</option>
-      <option value="OPPOSITE_WORD">Opposite</option>
+      <option value="SESSION">Session Entry</option>
+      <option value="BROWSE">Browse &amp; Edit</option>
     </select>
 
     <select id="languageSelect">
@@ -45,86 +43,80 @@
     </select>
 
     <input
-  type="text"
-  id="topicInput"
-  class="topic-input"
-  placeholder="Topic"
-  value="vocabulary"
-/>
+      type="text"
+      id="topicInput"
+      class="topic-input"
+      placeholder="Topic"
+      value="vocabulary"
+    />
 
     <button type="button" id="addGroupBtn" class="primary-btn">
       + Add Word Group
     </button>
   </div>
 
+  <p class="lexicon-practice-hint small mt-10">
+    Synonym and opposite patterns are selected on
+    <a href="practice.html">Practice</a>.
+    Generator uses the topic field above (default: vocabulary).
+  </p>
+
   <div class="lexical-class-guide mt-20 question-card">
-
-  <div class="small mb-10">
-    Lexical Classes
+    <div class="small mb-10">Lexical Classes</div>
+    <div class="flex gap-10 wrap">
+      <span class="tag">ABSTRACT</span>
+      <span class="tag">EMOTION</span>
+      <span class="tag">STATE</span>
+      <span class="tag">QUALITY</span>
+      <span class="tag">ACTION</span>
+      <span class="tag">OBJECT</span>
+      <span class="tag">PLACE</span>
+      <span class="tag">COLLECTIVE</span>
+      <span class="tag">TITLE</span>
+      <span class="tag">PERSON_NEUTRAL</span>
+      <span class="tag">PERSON_MALE</span>
+      <span class="tag">PERSON_FEMALE</span>
+    </div>
   </div>
 
-  <div class="flex gap-10 wrap">
+  <div id="groupsContainer" class="lexicon-groups mt-20"></div>
 
-    <span class="tag">ABSTRACT</span>
-    <span class="tag">EMOTION</span>
-    <span class="tag">STATE</span>
-    <span class="tag">QUALITY</span>
-    <span class="tag">ACTION</span>
-    <span class="tag">OBJECT</span>
-    <span class="tag">PLACE</span>
-    <span class="tag">COLLECTIVE</span>
-    <span class="tag">TITLE</span>
-    <span class="tag">PERSON_NEUTRAL</span>
-    <span class="tag">PERSON_MALE</span>
-    <span class="tag">PERSON_FEMALE</span>
-
+  <div id="relationSessionHint" class="question-card small mt-20">
+    Opposite linking is available in <strong>Browse &amp; Edit</strong> after groups are saved.
   </div>
 
-</div>
+  <div id="relationBuilder" class="relation-builder mt-20 hidden">
+    <h3>Link Opposites</h3>
 
-<div id="groupsContainer" class="lexicon-groups mt-20"></div>
-  <!-- =========================================
-ANTONYM LINKER
-========================================= -->
+    <div class="relation-columns">
+      <div class="group-panel">
+        <div class="small">Group A</div>
+        <div id="groupA-list" class="group-list"></div>
+      </div>
 
-<div class="relation-builder mt-20">
-
-  <h3>Link Opposites</h3>
-
-  <div class="relation-columns">
-
-    <!-- GROUP A -->
-    <div class="group-panel">
-      <div class="small">Group A</div>
-      <div id="groupA-list" class="group-list"></div>
+      <div class="group-panel">
+        <div class="small">Group B</div>
+        <div id="groupB-list" class="group-list"></div>
+      </div>
     </div>
 
-    <!-- GROUP B -->
-    <div class="group-panel">
-      <div class="small">Group B</div>
-      <div id="groupB-list" class="group-list"></div>
+    <div class="mt-10">
+      <button type="button" id="link-opposite-btn" class="primary-btn">
+        Link as Opposite
+      </button>
     </div>
-
   </div>
 
-  <div class="mt-10">
-    <button id="link-opposite-btn" class="primary-btn">
-      🔗 Link as Opposite
-    </button>
+  <div id="existingRelationsPanel" class="mt-20 hidden">
+    <h3>Existing Opposite Links</h3>
+    <ul id="existingRelationsList" class="lexicon-relations-list"></ul>
   </div>
 
 </div>
 
-</div>
-
-<!-- Supabase -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-<!-- Config -->
 <script src="js/config.js?v=20260520"></script>
 <script type="module" src="js/auth.js"></script>
-
-<!-- Lexicon Manager -->
 <script type="module" src="js/lexicon-manager.js"></script>
 
 </body>
