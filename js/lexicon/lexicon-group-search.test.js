@@ -55,6 +55,12 @@ describe("lexicon-group-search", () => {
     assert.equal(result.groups[0].group_id, "g1");
   });
 
+  it("filterLexiconGroups sorts alphabetically when query is empty", () => {
+    const result = filterLexiconGroups(sampleGroups, { query: "" });
+    assert.equal(result.groups[0].group_id, "g2");
+    assert.equal(result.groups[1].group_id, "g1");
+  });
+
   it("describeLexiconGroupRow notes related-word matches", () => {
     const row = describeLexiconGroupRow(sampleGroups[0], "glad");
     assert.match(row.subtitle, /match in related: glad/);
