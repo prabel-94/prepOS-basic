@@ -2,6 +2,7 @@
 // PrepOS Draft Editor (v6 - Stable)
 // ===============================
 import { getClient } from "./core/get-client.js";
+import { invokeEdgeFunction } from "./core/edge-invoke.js";
 import { runGenerator } from "./generator-core.js";
 import { openModal, closeModal, isModalOpen } from "./ui/modal-system.js";
 import { bootPage } from "./core/page-boot.js";
@@ -80,160 +81,15 @@ let isPublishing = false;
 let currentDraft = null;
 let logoURL = null;
 
-async function debugSessionContext(label, { sessionData, sessionError, userData, userError } = {}) {
+async function requireDraftUser() {
   const sb = await getClient();
-  const session = sessionData?.session;
-  const now = Math.floor(Date.now() / 1000);
-  const expiresAt = session?.expires_at ?? null;
-
-  console.debug(`[PrepOS Session] ${label}`, {
-    hasSession: Boolean(session),
-    hasAccessToken: Boolean(session?.access_token),
-    expiresAt,
-    expiresInSec:
-      typeof expiresAt === "number" ? expiresAt - now : null,
-    userId: session?.user?.id ?? userData?.user?.id ?? null,
-    sessionError: sessionError?.message ?? null,
-    userError: userError?.message ?? null,
-    clientReady: Boolean(sb)
-  });
-}
-
-async function getAccessToken() {
-  const sb = await getClient()
-
   const { data: userData, error: userError } = await sb.auth.getUser();
 
-  debugSessionContext("getAccessToken:getUser", {
-    userData,
-    userError
-  });
-
   if (userError || !userData?.user) {
-    const { data: refreshed, error: refreshError } =
-      await sb.auth.refreshSession();
-
-    debugSessionContext("getAccessToken:after-refresh-no-user", {
-      sessionData: refreshed,
-      sessionError: refreshError
-    });
-
-    if (refreshError || !refreshed?.session?.access_token) {
-      throw new Error("Your session expired. Please sign in again.");
-    }
-
-    return refreshed.session.access_token;
-  }
-
-  const { data: sessionData, error: sessionError } =
-    await sb.auth.getSession();
-
-  debugSessionContext("getAccessToken:getSession", {
-    sessionData,
-    sessionError
-  });
-
-  if (sessionError || !sessionData?.session?.access_token) {
     throw new Error("Your session expired. Please sign in again.");
   }
 
-  let accessToken = sessionData.session.access_token;
-  const expiresAt = sessionData.session.expires_at ?? 0;
-  const now = Math.floor(Date.now() / 1000);
-
-  if (expiresAt <= now + 60) {
-    const { data: refreshed, error: refreshError } =
-      await sb.auth.refreshSession();
-
-    debugSessionContext("getAccessToken:after-refresh-expiry", {
-      sessionData: refreshed,
-      sessionError: refreshError
-    });
-
-    if (refreshError || !refreshed?.session?.access_token) {
-      throw new Error("Your session expired. Please sign in again.");
-    }
-
-    accessToken = refreshed.session.access_token;
-  }
-
-  return accessToken;
-}
-
-async function invokeEdgeFunction(name, body) {
-  const sb = await getClient()
-  console.debug("[PrepOS Session] invokeEdgeFunction:start", { name });
-
-  let accessToken;
-
-  try {
-    accessToken = await getAccessToken();
-  } catch (err) {
-    const { data: sessionData, error: sessionError } = await sb.auth.getSession();
-    const { data: userData, error: userError } = await sb.auth.getUser();
-    debugSessionContext("invokeEdgeFunction:before-throw", {
-      sessionData,
-      sessionError,
-      userData,
-      userError
-    });
-    console.debug("[PrepOS Session] invokeEdgeFunction:edge-call-skipped", {
-      name,
-      reason: err?.message ?? "no access token"
-    });
-    throw err;
-  }
-
-  const { data, error } = await sb.functions.invoke(name, {
-    body,
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-  });
-
-  if (error) {
-    let message = error.message || `${name} failed`;
-
-    if (error.context instanceof Response) {
-      const details = await error.context.clone().json().catch(() => null);
-      message = details?.error || message;
-      console.debug("[PrepOS Session] invokeEdgeFunction:edge-error-body", {
-        name,
-        status: error.context.status,
-        details
-      });
-    }
-
-    if (/invalid session/i.test(message)) {
-      const { data: sessionData, error: sessionError } = await sb.auth.getSession();
-      const { data: userData, error: userError } = await sb.auth.getUser();
-      debugSessionContext("invokeEdgeFunction:invalid-session-response", {
-        sessionData,
-        sessionError,
-        userData,
-        userError
-      });
-    }
-
-    throw new Error(message);
-  }
-
-  if (data?.error) {
-    if (/invalid session/i.test(String(data.error))) {
-      const { data: sessionData, error: sessionError } = await sb.auth.getSession();
-      const { data: userData, error: userError } = await sb.auth.getUser();
-      debugSessionContext("invokeEdgeFunction:invalid-session-payload", {
-        sessionData,
-        sessionError,
-        userData,
-        userError
-      });
-    }
-
-    throw new Error(data.error);
-  }
-
-  return data;
+  return { sb, user: userData.user };
 }
 
 // --------------------------------
@@ -3243,9 +3099,17 @@ async function clearDraftMemory() {
     return;
 
   try {
-    await invokeEdgeFunction("manage-drafts", {
-      action: "clear-non-question-sets"
-    });
+    const { sb, user } = await requireDraftUser();
+
+    const { error } = await sb
+      .from("draft_exams")
+      .delete()
+      .eq("created_by", user.id)
+      .neq("status", "question_set");
+
+    if (error) {
+      throw error;
+    }
 
     setStatus("Memory cleared ✅");
   } catch (error) {
@@ -3274,10 +3138,16 @@ if (e.target.classList.contains("load-set")) {
       return;
 
     try {
-      await invokeEdgeFunction("manage-drafts", {
-        action: "delete",
-        draftId: id
-      });
+      const { sb } = await requireDraftUser();
+
+      const { error } = await sb
+        .from("draft_exams")
+        .delete()
+        .eq("id", id);
+
+      if (error) {
+        throw error;
+      }
     } catch (error) {
       console.error(error);
       alert(error.message || "Delete failed");
@@ -3399,6 +3269,9 @@ document.addEventListener("DOMContentLoaded", () => {
     ?.addEventListener("click", clearDraftQuestions);
 
   document.getElementById("shuffleDraftBtn")
+    ?.addEventListener("click", shuffleDraftQuestions);
+
+  document.getElementById("shuffleDraftBtnBottom")
     ?.addEventListener("click", shuffleDraftQuestions);
 
   initAssignExamModal();

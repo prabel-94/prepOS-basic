@@ -38,18 +38,23 @@ export async function authenticateTeacherRequest(
     return { ok: false, status: 401, error: "Missing authorization token" }
   }
 
+  const jwt = authHeader.replace(/^Bearer\s+/i, "").trim()
+
+  if (!jwt) {
+    return { ok: false, status: 401, error: "Missing authorization token" }
+  }
+
   const userClient = createClient(supabaseUrl, anonKey, {
-    global: {
-      headers: {
-        Authorization: authHeader,
-      },
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
     },
   })
 
   const {
     data: { user },
     error: userError,
-  } = await userClient.auth.getUser()
+  } = await userClient.auth.getUser(jwt)
 
   if (userError || !user) {
     console.error("edge-auth getUser failed:", userError?.message)
