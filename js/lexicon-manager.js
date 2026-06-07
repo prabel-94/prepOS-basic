@@ -5,6 +5,7 @@ PrepOS Lexicon Manager (v3)
 import { getClient } from "./core/get-client.js";
 import { bootPage } from "./core/page-boot.js";
 import { DEFAULT_LEXICON_TOPIC } from "./generators/shared/lexicon-engine.js";
+import { mountLexiconGroupPicker } from "./lexicon/lexicon-group-picker.js";
 import {
   normalizeWordKey,
   validateGroupWords,
@@ -21,6 +22,13 @@ import {
 let selectedGroupA = null;
 let selectedGroupB = null;
 
+/** @type {ReturnType<typeof mountLexiconGroupPicker>|null} */
+let browsePicker = null;
+/** @type {ReturnType<typeof mountLexiconGroupPicker>|null} */
+let relationPickerA = null;
+/** @type {ReturnType<typeof mountLexiconGroupPicker>|null} */
+let relationPickerB = null;
+
 const state = {
   topic: DEFAULT_LEXICON_TOPIC,
   mode: "SESSION",
@@ -33,7 +41,9 @@ const state = {
 };
 
 const el = {
-  groupSearchSelect: document.getElementById("groupSearchSelect"),
+  browseGroupPicker: document.getElementById("browseGroupPicker"),
+  groupAPicker: document.getElementById("groupA-picker"),
+  groupBPicker: document.getElementById("groupB-picker"),
   topicInput: document.getElementById("topicInput"),
   languageSelect: document.getElementById("languageSelect"),
   modeSelect: document.getElementById("modeSelect"),
@@ -101,7 +111,7 @@ function groupLabel(groupId) {
   return getHeadwordLabel(group.words);
 }
 
-function getRelationEligibleGroups() {
+function getRelationEligibleGroupList() {
   const merged = new Map();
 
   for (const group of [...state.dbGroups, ...state.sessionGroups]) {
@@ -113,6 +123,65 @@ function getRelationEligibleGroups() {
   }
 
   return [...merged.values()];
+}
+
+function getRelationEligibleGroups() {
+  return getRelationEligibleGroupList();
+}
+
+function ensureGroupPickers() {
+  if (!browsePicker && el.browseGroupPicker) {
+    browsePicker = mountLexiconGroupPicker(el.browseGroupPicker, {
+      variant: "dropdown",
+      placeholder: "Search primary or related words…",
+      showClassFilter: true,
+      allowClear: true,
+      getGroups: () => state.dbGroups,
+      onSelect: (groupId) => {
+        state.selectedGroupId = groupId;
+        renderGroups({ skipSync: true });
+        if (!groupId) {
+          setStatus("Showing all groups");
+        }
+      },
+    });
+  }
+
+  if (!relationPickerA && el.groupAPicker) {
+    relationPickerA = mountLexiconGroupPicker(el.groupAPicker, {
+      variant: "panel",
+      placeholder: "Search Group A…",
+      showClassFilter: true,
+      allowClear: false,
+      getGroups: getRelationEligibleGroupList,
+      onSelect: (groupId) => {
+        selectedGroupA = groupId;
+      },
+    });
+  }
+
+  if (!relationPickerB && el.groupBPicker) {
+    relationPickerB = mountLexiconGroupPicker(el.groupBPicker, {
+      variant: "panel",
+      placeholder: "Search Group B…",
+      showClassFilter: true,
+      allowClear: false,
+      getGroups: getRelationEligibleGroupList,
+      onSelect: (groupId) => {
+        selectedGroupB = groupId;
+      },
+    });
+  }
+}
+
+function refreshGroupPickers() {
+  ensureGroupPickers();
+  browsePicker?.setSelectedGroupId(state.selectedGroupId);
+  browsePicker?.refresh();
+  relationPickerA?.setSelectedGroupId(selectedGroupA);
+  relationPickerA?.refresh();
+  relationPickerB?.setSelectedGroupId(selectedGroupB);
+  relationPickerB?.refresh();
 }
 
 function syncGroup(card) {
@@ -280,80 +349,30 @@ function renderGroups({ skipSync = false } = {}) {
   updateRelationPanels();
 }
 
-function renderRelationGroups(groups) {
-  const map = {};
+function updateRelationPanels() {
+  const browseMode = state.mode === "BROWSE";
 
-  groups.forEach((group) => {
-    if (group.group_id) {
-      map[group.group_id] = group.words;
-    }
-  });
-
-  renderRelationList("groupA-list", map, "A");
-  renderRelationList("groupB-list", map, "B");
-}
-
-function renderRelationList(containerId, groups, side) {
-  const container = document.getElementById(containerId);
-  if (!container) {
-    return;
+  if (el.relationSessionHint) {
+    el.relationSessionHint.classList.toggle("hidden", browseMode);
   }
 
-  container.innerHTML = "";
-
-  const entries = Object.entries(groups);
-  if (!entries.length) {
-    container.innerHTML = `<p class="small text-muted">No saved groups available.</p>`;
-    return;
+  if (el.relationBuilder) {
+    el.relationBuilder.classList.toggle("hidden", !browseMode);
   }
 
-  entries.forEach(([groupId, words]) => {
-    const div = document.createElement("div");
-    div.className = "group-item";
-    div.dataset.id = groupId;
-    div.textContent = getHeadwordLabel(words);
-    div.onclick = () => selectRelationGroup(side, groupId, div);
-    container.appendChild(div);
-  });
-}
-
-function selectRelationGroup(side, groupId, itemEl) {
-  const containerId = side === "A" ? "groupA-list" : "groupB-list";
-
-  document
-    .querySelectorAll(`#${containerId} .group-item`)
-    .forEach((node) => node.classList.remove("active"));
-
-  itemEl.classList.add("active");
-
-  if (side === "A") {
-    selectedGroupA = groupId;
-  } else {
-    selectedGroupB = groupId;
-  }
-}
-
-function populateSearchDropdown() {
-  if (!el.groupSearchSelect) {
-    return;
+  const existingPanel = document.getElementById("existingRelationsPanel");
+  if (existingPanel) {
+    existingPanel.classList.toggle("hidden", !browseMode);
   }
 
-  el.groupSearchSelect.innerHTML = `<option value="">Select primary word</option>`;
+  if (el.browseGroupPicker) {
+    el.browseGroupPicker.classList.toggle("hidden", !browseMode);
+  }
 
-  const sortedGroups = [...state.dbGroups].sort((a, b) =>
-    getHeadwordLabel(a.words).localeCompare(getHeadwordLabel(b.words))
-  );
-
-  sortedGroups.forEach((group) => {
-    const label = groupLabel(group.group_id);
-    const option = document.createElement("option");
-    option.value = group.group_id;
-    option.textContent = label;
-    if (group.group_id === state.selectedGroupId) {
-      option.selected = true;
-    }
-    el.groupSearchSelect.appendChild(option);
-  });
+  if (browseMode) {
+    refreshGroupPickers();
+    renderExistingRelations();
+  }
 }
 
 function renderExistingRelations() {
@@ -395,29 +414,6 @@ function renderExistingRelations() {
       `
     )
     .join("");
-}
-
-function updateRelationPanels() {
-  const browseMode = state.mode === "BROWSE";
-  const eligibleGroups = getRelationEligibleGroups();
-
-  if (el.relationSessionHint) {
-    el.relationSessionHint.classList.toggle("hidden", browseMode);
-  }
-
-  if (el.relationBuilder) {
-    el.relationBuilder.classList.toggle("hidden", !browseMode);
-  }
-
-  const existingPanel = document.getElementById("existingRelationsPanel");
-  if (existingPanel) {
-    existingPanel.classList.toggle("hidden", !browseMode);
-  }
-
-  if (browseMode) {
-    renderRelationGroups(eligibleGroups);
-    renderExistingRelations();
-  }
 }
 
 async function loadRelations() {
@@ -463,7 +459,7 @@ async function loadGroups() {
     language_code: state.language,
   }));
 
-  populateSearchDropdown();
+  refreshGroupPickers();
   await loadRelations();
   renderGroups({ skipSync: true });
   setStatus(`${state.dbGroups.length} groups loaded`);
@@ -823,11 +819,10 @@ el.modeSelect?.addEventListener("change", async (event) => {
   state.mode = event.target.value;
 
   if (state.mode === "BROWSE") {
-    el.groupSearchSelect.style.display = "inline-block";
     await loadGroups();
   } else {
-    el.groupSearchSelect.style.display = "none";
     state.selectedGroupId = null;
+    browsePicker?.setSelectedGroupId(null);
     renderGroups({ skipSync: true });
   }
 });
@@ -914,11 +909,6 @@ el.groupsContainer?.addEventListener("click", async (event) => {
   }
 });
 
-el.groupSearchSelect?.addEventListener("change", (event) => {
-  state.selectedGroupId = event.target.value || null;
-  renderGroups({ skipSync: true });
-});
-
 el.topicInput?.addEventListener("change", async (event) => {
   state.topic = event.target.value.trim().toLowerCase() || DEFAULT_LEXICON_TOPIC;
 
@@ -972,6 +962,7 @@ async function init() {
   }
 
   state.sessionGroups = [];
+  ensureGroupPickers();
   renderGroups({ skipSync: true });
   setStatus("Session entry mode — save each group, then use Browse & Edit to link opposites.");
 }
