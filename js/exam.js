@@ -102,6 +102,14 @@ function showLoading(){
 function showOverview(){
   document.getElementById("loadingState").style.display="none";
   document.getElementById("examOverviewSection")?.classList.remove("hidden");
+  document.getElementById("examHeader")?.classList.add("exam-header--overview");
+  document.getElementById("examTitle")?.classList.add("hidden");
+  document.getElementById("examTimer")?.classList.add("hidden");
+}
+
+function leaveOverviewHeader(){
+  document.getElementById("examHeader")?.classList.remove("exam-header--overview");
+  document.getElementById("examTitle")?.classList.remove("hidden");
 }
 
 function showError(message){
@@ -205,10 +213,7 @@ function bindQuestionVisibilityObserver(){
 }
 
 function getSelectedNavigationMode(){
-  const selected = document.querySelector('input[name="examNavigationMode"]:checked');
-  return selected?.value === EXAM_NAV_MODES.step
-    ? EXAM_NAV_MODES.step
-    : EXAM_NAV_MODES.scroll;
+  return EXAM_NAV_MODES.scroll;
 }
 
 function resolveNavigationModeFromAttempt(){
@@ -217,15 +222,8 @@ function resolveNavigationModeFromAttempt(){
     : EXAM_NAV_MODES.scroll;
 }
 
-function syncNavigationModeRadios(mode){
-  const value =
-    mode === EXAM_NAV_MODES.step ? EXAM_NAV_MODES.step : EXAM_NAV_MODES.scroll;
-  const input = document.querySelector(
-    `input[name="examNavigationMode"][value="${value}"]`
-  );
-  if (input) {
-    input.checked = true;
-  }
+function syncNavigationModeRadios(_mode){
+  /* overview mode picker removed; header toggle is the control */
 }
 
 function lockNavigationMode(mode){
@@ -516,6 +514,7 @@ function showActiveExamChrome(){
   document.getElementById("examReviewFab")?.classList.remove("hidden");
   document.getElementById("examQuestionIndicator")?.classList.remove("hidden");
   document.getElementById("examHeader")?.classList.add("exam-header--active");
+  document.getElementById("examTitle")?.classList.remove("hidden");
   showNavModeToggle();
 }
 
@@ -575,9 +574,11 @@ function beginExamSession(examDurationSeconds){
   });
 
   examStarted = true;
+  leaveOverviewHeader();
   document.getElementById("examOverviewSection")?.classList.add("hidden");
   showExam();
   showActiveExamChrome();
+  document.getElementById("examTimer")?.classList.remove("hidden");
 
   totalQuestions = window.examQuestionsRaw?.length ?? 0;
   visibleQuestionIndex = 1;
@@ -607,10 +608,12 @@ function beginInspectSession(){
   isInspectSession = true;
   examStarted = true;
 
+  leaveOverviewHeader();
   document.getElementById("examOverviewSection")?.classList.add("hidden");
   showExam();
   showInspectBanner();
   hideActiveExamChrome();
+  document.getElementById("examTitle")?.classList.remove("hidden");
 
   document.getElementById("examTimer")?.classList.add("hidden");
 
@@ -1064,6 +1067,7 @@ async function loadExam(){
     if (exam.duration && !isInspectSession) {
       document.getElementById("examTimer").textContent =
         formatTimerPreview(exam.duration);
+      document.getElementById("examTimer")?.classList.add("hidden");
     } else if (isInspectSession) {
       document.getElementById("examTimer")?.classList.add("hidden");
     }
