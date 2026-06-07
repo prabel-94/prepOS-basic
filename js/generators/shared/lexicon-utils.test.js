@@ -8,11 +8,34 @@ import {
   normalizeWordKey,
   validateGroupWords,
   validateGeneratorReadiness,
+  inferGroupLexicalClass,
+  applyGroupLexicalClassToWords,
 } from "./lexicon-utils.js";
 
 describe("lexicon-utils", () => {
   it("normalizeWordKey trims and lowercases", () => {
     assert.equal(normalizeWordKey("  Hello "), "hello");
+  });
+
+  it("inferGroupLexicalClass picks the most common class", () => {
+    assert.equal(
+      inferGroupLexicalClass([
+        { lexical_class: "QUALITY" },
+        { lexical_class: "QUALITY" },
+        { lexical_class: "ACTION" },
+      ]),
+      "QUALITY"
+    );
+  });
+
+  it("applyGroupLexicalClassToWords sets every entry", () => {
+    const group = {
+      default_lexical_class: "EMOTION",
+      words: [{ word: "a" }, { word: "b" }],
+    };
+    applyGroupLexicalClassToWords(group);
+    assert.equal(group.words[0].lexical_class, "EMOTION");
+    assert.equal(group.words[1].lexical_class, "EMOTION");
   });
 
   it("validateGroupWords rejects empty and duplicate words", () => {

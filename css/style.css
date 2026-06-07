@@ -450,6 +450,22 @@ QUESTION CARD (BUILDER)
   gap:8px;
 }
 
+.group-lexical-class-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.group-lexical-class-row label {
+  margin: 0;
+}
+
+.group-lexical-class-select {
+  min-width: 200px;
+  margin-bottom: 0;
+}
+
 .value-row{
   display:flex;
   gap:10px;
