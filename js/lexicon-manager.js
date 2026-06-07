@@ -6,10 +6,12 @@ import { getClient } from "./core/get-client.js";
 import { bootPage } from "./core/page-boot.js";
 import { DEFAULT_LEXICON_TOPIC } from "./generators/shared/lexicon-engine.js";
 import {
-  LEXICAL_CLASS_OPTIONS,
   normalizeWordKey,
   validateGroupWords,
   validateGeneratorReadiness,
+  inferGroupLexicalClass,
+  applyGroupLexicalClassToWords,
+  renderLexicalClassSelect,
 } from "./generators/shared/lexicon-utils.js";
 
 let selectedGroupA = null;
@@ -23,6 +25,7 @@ const state = {
   dbGroups: [],
   dbRelations: [],
   selectedGroupId: null,
+  lastLexicalClass: "",
 };
 
 const el = {
@@ -120,16 +123,23 @@ function syncGroup(card) {
   group.words = rows
     .map((row) => {
       const word = row.querySelector(".word-input")?.value?.trim() ?? "";
-      const lexicalClass = row.querySelector(".lexical-class-select")?.value || null;
       const entryId = row.dataset.entryId || null;
 
       return {
         id: entryId || undefined,
         word,
-        lexical_class: lexicalClass,
       };
     })
     .filter((entry) => entry.word);
+
+  group.default_lexical_class =
+    card.querySelector(".group-lexical-class-select")?.value || "";
+
+  if (group.default_lexical_class) {
+    state.lastLexicalClass = group.default_lexical_class;
+  }
+
+  applyGroupLexicalClassToWords(group);
 
   return group;
 }
@@ -153,6 +163,8 @@ function findGroupByCard(card) {
 }
 
 function renderGroup(group, index) {
+  const defaultClass = group.default_lexical_class ?? inferGroupLexicalClass(group.words);
+
   return `
     <div
       class="group-card"
@@ -164,13 +176,19 @@ function renderGroup(group, index) {
         · topic: ${escapeHTML(state.topic)}
       </div>
 
+      <div class="group-lexical-class-row mb-10">
+        <label class="small" for="group-class-${group.group_id || index}">Lexical class for group</label>
+        ${renderLexicalClassSelect(defaultClass, {
+          selectClass: "group-lexical-class-select",
+          id: `group-class-${group.group_id || index}`,
+        })}
+      </div>
+
       <div class="values">
         ${group.words
           .map((wordEntry, wordIndex) => {
             const word =
               typeof wordEntry === "string" ? wordEntry : wordEntry?.word || "";
-            const lexicalClass =
-              typeof wordEntry === "object" ? wordEntry?.lexical_class || "" : "";
             const entryId =
               typeof wordEntry === "object" && wordEntry?.id
                 ? wordEntry.id
@@ -181,18 +199,6 @@ function renderGroup(group, index) {
                 entryId ? ` data-entry-id="${escapeHTML(entryId)}"` : ""
               }>
                 <input class="word-input" value="${escapeHTML(word)}" placeholder="Word" />
-                <div class="lexical-class-wrapper">
-                  <select class="lexical-class-select">
-                    <option value="">Class</option>
-                    ${LEXICAL_CLASS_OPTIONS.map(
-                      (type) => `
-                        <option value="${type}"${
-                          lexicalClass === type ? " selected" : ""
-                        }>${type}</option>
-                      `
-                    ).join("")}
-                  </select>
-                </div>
                 <button type="button" class="delete-word secondary-btn" aria-label="Delete word">×</button>
               </div>
             `;
@@ -236,7 +242,12 @@ function renderGroups({ skipSync = false } = {}) {
   }
 
   el.groupsContainer.innerHTML = groups
-    .map((group, index) => renderGroup(group, index))
+    .map((group, index) => {
+      if (!group.default_lexical_class) {
+        group.default_lexical_class = inferGroupLexicalClass(group.words);
+      }
+      return renderGroup(group, index);
+    })
     .join("");
 
   updateRelationPanels();
@@ -420,6 +431,7 @@ async function loadGroups() {
     group_id: groupId,
     original_group_id: groupId,
     words,
+    default_lexical_class: inferGroupLexicalClass(words),
     language_code: state.language,
   }));
 
@@ -438,6 +450,8 @@ function mergeSavedGroupIntoBrowseCache(group) {
     group_id: group.group_id,
     original_group_id: group.group_id,
     words: group.words,
+    default_lexical_class:
+      group.default_lexical_class ?? inferGroupLexicalClass(group.words),
     language_code: state.language,
   };
 
@@ -782,7 +796,8 @@ el.addGroupBtn?.addEventListener("click", () => {
   target.unshift({
     group_id: null,
     original_group_id: null,
-    words: [{ word: "", lexical_class: "" }],
+    default_lexical_class: state.lastLexicalClass || "",
+    words: [{ word: "" }],
     language_code: state.language,
   });
 
@@ -802,7 +817,7 @@ el.groupsContainer?.addEventListener("click", async (event) => {
   }
 
   if (event.target.classList.contains("add-word")) {
-    group.words.push({ word: "", lexical_class: "" });
+    group.words.push({ word: "" });
     renderGroups({ skipSync: true });
     return;
   }
@@ -815,7 +830,7 @@ el.groupsContainer?.addEventListener("click", async (event) => {
     }
 
     if (!group.words.length) {
-      group.words.push({ word: "", lexical_class: "" });
+      group.words.push({ word: "" });
     }
 
     renderGroups({ skipSync: true });

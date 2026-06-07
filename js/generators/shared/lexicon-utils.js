@@ -23,6 +23,66 @@ export function normalizeWordKey(word) {
 }
 
 /**
+ * Infer a group default from existing entry classes (mode, then first).
+ * @param {Array<{ lexical_class?: string|null }>} words
+ */
+export function inferGroupLexicalClass(words = []) {
+  const counts = new Map();
+
+  for (const entry of words) {
+    const lexicalClass = String(entry?.lexical_class ?? "").trim();
+    if (!lexicalClass) {
+      continue;
+    }
+    counts.set(lexicalClass, (counts.get(lexicalClass) ?? 0) + 1);
+  }
+
+  if (!counts.size) {
+    return "";
+  }
+
+  return [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
+}
+
+/**
+ * Apply the group's default class to every word entry.
+ * @param {{ default_lexical_class?: string, words?: Array<object> }} group
+ */
+export function applyGroupLexicalClassToWords(group) {
+  const lexicalClass = group.default_lexical_class || null;
+
+  group.words = (group.words ?? []).map((entry) => ({
+    ...entry,
+    lexical_class: lexicalClass,
+  }));
+}
+
+/**
+ * @param {string} [selectedValue]
+ * @param {{ selectClass?: string, id?: string, placeholder?: string }} [options]
+ */
+export function renderLexicalClassSelect(
+  selectedValue = "",
+  { selectClass = "lexical-class-select", id = "", placeholder = "Class (optional)" } = {}
+) {
+  const options = LEXICAL_CLASS_OPTIONS.map(
+    (type) =>
+      `<option value="${type}"${
+        selectedValue === type ? " selected" : ""
+      }>${type}</option>`
+  ).join("");
+
+  const idAttr = id ? ` id="${id}"` : "";
+
+  return `
+    <select class="${selectClass}"${idAttr}>
+      <option value="">${placeholder}</option>
+      ${options}
+    </select>
+  `;
+}
+
+/**
  * @param {Array<{ word?: string }>} words
  */
 export function validateGroupWords(words = []) {
