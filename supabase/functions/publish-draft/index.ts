@@ -3,6 +3,10 @@ import {
   computeExamDurationSeconds,
   normalizeSecondsPerQuestion,
 } from "../_shared/exam-timing.ts"
+import {
+  flattenDraftQuestions,
+  getPublishedQuestionIds,
+} from "../_shared/draft-publish.ts"
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -47,7 +51,7 @@ Deno.serve(async (req) => {
 
     const { data: draft, error: fetchError } = await adminClient
       .from("draft_exams")
-      .select("title, duration, schema_json, logo_url, created_by")
+      .select("title, duration, schema_json, logo_url, created_by, published_exam_id, published_question_ids")
       .eq("id", draftId)
       .single()
 
@@ -99,6 +103,16 @@ Deno.serve(async (req) => {
       secondsPerQuestion
     )
 
+    const seriesId = crypto.randomUUID()
+    const mergedPublishedIds = [
+      ...new Set([
+        ...getPublishedQuestionIds(draft),
+        ...flattenDraftQuestions(schema)
+          .map((question) => question.id)
+          .filter((id): id is string => typeof id === "string" && !!id),
+      ]),
+    ]
+
     const { data: exam, error: examError } = await adminClient
       .from("exam_sessions")
       .insert({
@@ -107,6 +121,11 @@ Deno.serve(async (req) => {
         schema_json: draft.schema_json,
         logo_url: draft.logo_url,
         created_by: draft.created_by || user.id,
+        source_draft_id: draftId,
+        series_id: seriesId,
+        part_index: 1,
+        part_count: 1,
+        require_sequential_parts: false,
       })
       .select()
       .single()
@@ -120,6 +139,8 @@ Deno.serve(async (req) => {
       .update({
         status: "published",
         published_exam_id: exam.id,
+        publish_series_id: seriesId,
+        published_question_ids: mergedPublishedIds,
       })
       .eq("id", draftId)
 

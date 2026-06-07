@@ -104,6 +104,10 @@ WORKSPACE
         <button type="button" id="clearDraftBtn" class="secondary-btn">
           Clear Questions
         </button>
+
+        <button type="button" id="shuffleDraftBtn" class="secondary-btn">
+          Shuffle Questions
+        </button>
       </div>
     </div>
 
@@ -346,9 +350,58 @@ DRAFT ACTIONS
     Publish Exam
   </button>
 
+  <button type="button" id="openSplitPublishBtn" class="secondary-btn">
+    Split & Publish
+  </button>
+
 </div>
 
 </section>
+<aside class="question-bank-panel prepos-side-panel prepos-side-panel-right hidden" id="splitPublishPanel">
+
+  <div class="qb-header">
+    <button type="button" id="closeSplitPublish">← Back</button>
+    <h3>Split & Publish</h3>
+  </div>
+
+  <div class="mt-20">
+    <p class="text-muted">
+      Divide this draft into separate exams. Assign questions manually or use auto-split.
+      Unpublished questions can stay in the draft for a later partial publish.
+    </p>
+
+    <div class="form-group mt-15">
+      <label for="splitChunkSize">Auto-split: questions per part</label>
+      <div class="flex gap-10 mt-5">
+        <input id="splitChunkSize" type="number" min="1" class="w-full">
+        <button type="button" id="applySplitPreset" class="secondary-btn">
+          Apply
+        </button>
+      </div>
+    </div>
+
+    <div id="splitPartsList" class="mt-20"></div>
+
+    <div id="splitQuestionPicker" class="mt-20"></div>
+
+    <button type="button" id="addSplitPartBtn" class="secondary-btn mt-10">
+      + Add Part
+    </button>
+
+    <div id="splitPublishSummary" class="text-muted mt-15"></div>
+
+    <button type="button" id="publishSplitPartsBtn" class="primary-btn w-full mt-20">
+      Publish Selected Parts
+    </button>
+
+    <button type="button" id="publishAllSplitPartsBtn" class="secondary-btn w-full mt-10">
+      Publish All Unpublished
+    </button>
+
+    <div id="splitPublishResult" class="question-card mt-15 hidden"></div>
+  </div>
+
+</aside>
 <aside class="question-bank-panel prepos-side-panel prepos-side-panel-right hidden" id="questionSetPanel">
 
   <div class="qb-header">

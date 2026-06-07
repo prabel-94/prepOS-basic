@@ -2,6 +2,8 @@
  * Pure helpers for exam metadata display (no Supabase).
  */
 
+import { enrichExamsWithSeriesLocks } from "../core/exam-series.js";
+
 export function extractRawQuestions(schemaJson = {}) {
   if (schemaJson?.sections?.length) {
     return schemaJson.sections.flatMap((section) => section.questions || []);
@@ -123,13 +125,27 @@ export function resolveExamAttemptPresentation(exam = {}, latestServerAttempt = 
 
 export function enrichAssignedExamsWithAttemptStatus(exams = [], attemptRows = []) {
   const latestByExam = groupLatestAttemptsByExamId(attemptRows);
+  const withLocks = enrichExamsWithSeriesLocks(exams, attemptRows);
 
-  return exams.map((exam) => {
+  return withLocks.map((exam) => {
     const presentation = resolveExamAttemptPresentation(
       exam,
       latestByExam.get(exam.id) ?? null,
       readLocalExamAttempt(exam.id)
     );
+
+    if (
+      exam.seriesLocked &&
+      presentation.attemptStatus === "not_attempted"
+    ) {
+      return {
+        ...exam,
+        ...presentation,
+        attemptStatus: "locked",
+        buttonLabel: "Locked",
+        lockReason: exam.seriesLockReason,
+      };
+    }
 
     return {
       ...exam,

@@ -203,9 +203,16 @@ export function renderAvailableExams(container, exams = []) {
       metaLines.push(`Score ${exam.score}/${exam.total ?? exam.questionCount ?? "?"}`);
     } else if (exam.attemptStatus === "in_progress") {
       metaLines.push("In Progress");
+    } else if (exam.attemptStatus === "locked") {
+      metaLines.push(exam.lockReason || "Complete the previous part first");
+    }
+
+    if (exam.part_index) {
+      metaLines.push(`Part ${exam.part_index}${exam.part_count ? ` of ${exam.part_count}` : ""}`);
     }
 
     const buttonLabel = exam.buttonLabel ?? "Start Exam";
+    const isLocked = exam.attemptStatus === "locked";
 
     const div = document.createElement("div");
     div.className = "student-exam-card recent-item mt-10";
@@ -218,6 +225,7 @@ export function renderAvailableExams(container, exams = []) {
         type="button"
         class="primary-btn mt-10"
         data-exam-id="${escapeHTML(exam.id)}"
+        ${isLocked ? "disabled" : ""}
       >
         ${escapeHTML(buttonLabel)}
       </button>

@@ -15,6 +15,7 @@ import {
   normalizeSecondsPerQuestion,
   describeComputedExamDuration,
 } from "./core/exam-timing.js";
+import { initSplitPublishPanel, refreshSplitPublishPreview } from "./ui/split-publish.js";
 
 const SIDE_PANEL_OPTIONS = {
   overlayType: "side-panel",
@@ -38,12 +39,36 @@ function updateComputedDurationDisplay() {
     currentDraft?.schema_json,
     readSecondsPerQuestionInput()
   );
+
+  refreshSplitPublishPreview();
+}
+
+async function refreshPublishedPartMeta() {
+  publishedPartCount = 0;
+
+  if (!draftId) return;
+
+  try {
+    const sb = await getClient();
+    const { data, error } = await sb
+      .from("exam_sessions")
+      .select("part_index")
+      .eq("source_draft_id", draftId)
+      .order("part_index", { ascending: false })
+      .limit(1);
+
+    if (error) throw error;
+    publishedPartCount = Number(data?.[0]?.part_index ?? 0);
+  } catch (error) {
+    console.warn("Failed to load published part metadata", error);
+  }
 }
 
 // --------------------------------
 // GLOBAL STATE
 // --------------------------------
 let pendingSetLoadId = null;
+let publishedPartCount = 0;
 let currentSearchResults = [];
 let selectedQuestionIndex = null;
 let autosaveTimer = null;
@@ -1270,6 +1295,10 @@ if (!data) {
 
 currentDraft = data;
 currentDraft.status = data.status || "draft";
+currentDraft.published_question_ids = Array.isArray(data.published_question_ids)
+  ? data.published_question_ids
+  : [];
+currentDraft.publish_series_id = data.publish_series_id ?? null;
 
 currentDraft.schema_json.sections[0].questions.forEach(q => {
   ensureMetadata(q);
@@ -1286,6 +1315,7 @@ currentDraft.schema_json.sections[0].questions.forEach(q => {
   );
 
   updateComputedDurationDisplay();
+  await refreshPublishedPartMeta();
   setStatus("Loaded");
 
 }
@@ -1383,6 +1413,28 @@ function moveQuestionDown(index) {
 
   renderDraft(currentDraft);
   scheduleAutosave();
+}
+
+function shuffleDraftQuestions() {
+  if (!currentDraft) return;
+
+  const questions = currentDraft.schema_json.sections[0].questions;
+
+  if (questions.length < 2) {
+    alert("Add at least two questions to shuffle.");
+    return;
+  }
+
+  for (let i = questions.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [questions[i], questions[j]] = [questions[j], questions[i]];
+  }
+
+  selectedQuestionIndex = null;
+
+  renderDraft(currentDraft);
+  scheduleAutosave();
+  setStatus("Questions shuffled");
 }
 
 // --------------------------------
@@ -2455,10 +2507,13 @@ async function publishDraft() {
 
     currentDraft.status = "published";
     currentDraft.published_exam_id = examId;
+    currentDraft.published_question_ids =
+      currentDraft?.schema_json?.sections?.[0]?.questions?.map((q) => q.id).filter(Boolean) ??
+      currentDraft.published_question_ids ??
+      [];
 
+    await refreshPublishedPartMeta();
     setStatus("Published ✅");
-
-    // ✅ Use session id
     const linkBox = document.getElementById("examLink");
     if (linkBox) {
       linkBox.classList.remove("hidden");
@@ -3343,7 +3398,39 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("clearDraftBtn")
     ?.addEventListener("click", clearDraftQuestions);
 
+  document.getElementById("shuffleDraftBtn")
+    ?.addEventListener("click", shuffleDraftQuestions);
+
   initAssignExamModal();
+
+  initSplitPublishPanel({
+    getDraft: () => currentDraft,
+    getDraftId: () => draftId,
+    saveDraft,
+    validateDraftForPublish,
+    setStatus,
+    readSecondsPerQuestionInput,
+    getNextPartNumber: () => publishedPartCount + 1,
+    onPublished: async (result) => {
+      if (currentDraft && result) {
+        currentDraft.status = result.fullyPublished
+          ? "published"
+          : "partially_published";
+        currentDraft.publish_series_id =
+          result.seriesId ?? currentDraft.publish_series_id;
+        if (Array.isArray(result.publishedQuestionIds)) {
+          currentDraft.published_question_ids = result.publishedQuestionIds;
+        }
+      }
+
+      publishedPartCount = Math.max(
+        publishedPartCount,
+        ...(result?.parts || []).map((part) => Number(part.partIndex) || 0)
+      );
+
+      await refreshPublishedPartMeta();
+    },
+  });
 
   document.getElementById("secondsPerQuestion")
     ?.addEventListener("input", updateComputedDurationDisplay);

@@ -14,6 +14,7 @@ import {
   collectTopicsFromRawQuestions,
 } from "./student/student-exam-meta.js";
 import { getLearnerProfile } from "./core/learner-profile.js";
+import { assertExamSeriesUnlocked } from "./core/exam-series.js";
 
 let timer;
 let examStarted = false;
@@ -739,6 +740,14 @@ async function loadExam(){
 
     const exam = await fetchExamSession(examId);
     await setupExamHomeLink();
+
+    const sb = await getClient();
+    const { data: userData } = await sb.auth.getUser();
+    const userId = userData?.user?.id ?? null;
+
+    if (userId) {
+      await assertExamSeriesUnlocked(sb, exam, userId);
+    }
 
     console.log("Exam fetch result:", exam);
 
