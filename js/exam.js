@@ -23,6 +23,12 @@ let totalQuestions = 0;
 let visibleQuestionIndex = 1;
 let questionObserver = null;
 
+const EXAM_NAV_MODES = Object.freeze({
+  scroll: "scroll",
+  step: "step",
+});
+let navigationMode = EXAM_NAV_MODES.scroll;
+
 /* ---------- watermark image ---------- */
 
 let watermarkImage = new Image();
@@ -198,6 +204,192 @@ function bindQuestionVisibilityObserver(){
   cards.forEach((card) => questionObserver.observe(card));
 }
 
+function getSelectedNavigationMode(){
+  const selected = document.querySelector('input[name="examNavigationMode"]:checked');
+  return selected?.value === EXAM_NAV_MODES.step
+    ? EXAM_NAV_MODES.step
+    : EXAM_NAV_MODES.scroll;
+}
+
+function resolveNavigationModeFromAttempt(){
+  return attemptState.navigationMode === EXAM_NAV_MODES.step
+    ? EXAM_NAV_MODES.step
+    : EXAM_NAV_MODES.scroll;
+}
+
+function syncNavigationModeRadios(mode){
+  const value =
+    mode === EXAM_NAV_MODES.step ? EXAM_NAV_MODES.step : EXAM_NAV_MODES.scroll;
+  const input = document.querySelector(
+    `input[name="examNavigationMode"][value="${value}"]`
+  );
+  if (input) {
+    input.checked = true;
+  }
+}
+
+function lockNavigationMode(mode){
+  navigationMode =
+    mode === EXAM_NAV_MODES.step ? EXAM_NAV_MODES.step : EXAM_NAV_MODES.scroll;
+  attemptState.navigationMode = navigationMode;
+
+  if (!isInspectSession) {
+    localStorage.setItem(ATTEMPT_KEY, JSON.stringify(attemptState));
+  }
+}
+
+function showAllQuestions(){
+  document.querySelectorAll("#examContent .question-card").forEach((card) => {
+    card.classList.remove("exam-question-hidden");
+  });
+}
+
+function updateStepNavControls(){
+  const total = totalQuestions || window.examQuestionsRaw?.length || 0;
+  const prevBtn = document.getElementById("examStepPrevBtn");
+  const nextBtn = document.getElementById("examStepNextBtn");
+  const label = document.getElementById("examStepNavLabel");
+  const isLast = visibleQuestionIndex >= total;
+
+  if (label) {
+    label.textContent = `Question ${visibleQuestionIndex} of ${total}`;
+  }
+
+  if (prevBtn) {
+    prevBtn.disabled = visibleQuestionIndex <= 1;
+  }
+
+  if (nextBtn) {
+    if (isInspectSession && isLast) {
+      nextBtn.textContent = "Last question";
+      nextBtn.disabled = true;
+      nextBtn.classList.remove("primary-btn");
+      nextBtn.classList.add("secondary-btn");
+    } else if (isLast) {
+      nextBtn.textContent = "Review & Submit";
+      nextBtn.disabled = false;
+      nextBtn.classList.add("primary-btn");
+      nextBtn.classList.remove("secondary-btn");
+    } else {
+      nextBtn.textContent = "Next →";
+      nextBtn.disabled = false;
+      nextBtn.classList.remove("primary-btn");
+      nextBtn.classList.add("secondary-btn");
+    }
+  }
+}
+
+function showStepQuestion(index){
+  const total = totalQuestions || window.examQuestionsRaw?.length || 0;
+  const idx = Math.min(Math.max(Number(index) || 1, 1), Math.max(total, 1));
+  visibleQuestionIndex = idx;
+
+  document.querySelectorAll("#examContent .question-card").forEach((card) => {
+    const cardIndex = Number(card.dataset.questionIndex);
+    card.classList.toggle("exam-question-hidden", cardIndex !== idx);
+  });
+
+  updateQuestionIndicator();
+  updateStepNavControls();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function applyNavigationModeUI(){
+  const container = document.getElementById("examContent");
+  const stepNav = document.getElementById("examStepNav");
+
+  if (navigationMode === EXAM_NAV_MODES.step) {
+    container?.classList.add("exam-content--step");
+    stepNav?.classList.remove("hidden");
+
+    if (questionObserver) {
+      questionObserver.disconnect();
+      questionObserver = null;
+    }
+
+    showStepQuestion(visibleQuestionIndex || 1);
+    updateNavModeToggleLabel();
+    return;
+  }
+
+  container?.classList.remove("exam-content--step");
+  stepNav?.classList.add("hidden");
+  showAllQuestions();
+  bindQuestionVisibilityObserver();
+  updateQuestionIndicator();
+  updateNavModeToggleLabel();
+}
+
+function updateNavModeToggleLabel(){
+  const btn = document.getElementById("examNavModeToggle");
+  if (!btn) {
+    return;
+  }
+
+  const isStep = navigationMode === EXAM_NAV_MODES.step;
+  btn.textContent = isStep ? "Scroll paper" : "One at a time";
+  btn.setAttribute("aria-pressed", String(isStep));
+  btn.title = isStep
+    ? "Show all questions and scroll through the paper"
+    : "Show one question at a time with Previous and Next";
+}
+
+function scrollToQuestionCard(index){
+  const card = document.querySelector(
+    `#examContent .question-card[data-question-index="${index}"]`
+  );
+  card?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function toggleNavigationMode(){
+  if (!examStarted) {
+    return;
+  }
+
+  const nextMode =
+    navigationMode === EXAM_NAV_MODES.step
+      ? EXAM_NAV_MODES.scroll
+      : EXAM_NAV_MODES.step;
+
+  lockNavigationMode(nextMode);
+  syncNavigationModeRadios(nextMode);
+  applyNavigationModeUI();
+
+  if (nextMode === EXAM_NAV_MODES.scroll) {
+    scrollToQuestionCard(visibleQuestionIndex);
+  }
+}
+
+function showNavModeToggle(){
+  document.getElementById("examNavModeToggle")?.classList.remove("hidden");
+  updateNavModeToggleLabel();
+}
+
+function hideNavModeToggle(){
+  document.getElementById("examNavModeToggle")?.classList.add("hidden");
+}
+
+function bindStepNavigation(){
+  document.getElementById("examStepPrevBtn")?.addEventListener("click", () => {
+    if (visibleQuestionIndex > 1) {
+      showStepQuestion(visibleQuestionIndex - 1);
+    }
+  });
+
+  document.getElementById("examStepNextBtn")?.addEventListener("click", () => {
+    const total = totalQuestions || window.examQuestionsRaw?.length || 0;
+
+    if (visibleQuestionIndex >= total) {
+      if (!isInspectSession) {
+        document.getElementById("examReviewFab")?.click();
+      }
+      return;
+    }
+
+    showStepQuestion(visibleQuestionIndex + 1);
+  });
+}
+
 function formatTimerPreview(seconds = 0){
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
@@ -324,6 +516,7 @@ function showActiveExamChrome(){
   document.getElementById("examReviewFab")?.classList.remove("hidden");
   document.getElementById("examQuestionIndicator")?.classList.remove("hidden");
   document.getElementById("examHeader")?.classList.add("exam-header--active");
+  showNavModeToggle();
 }
 
 function hideActiveExamChrome(){
@@ -331,6 +524,8 @@ function hideActiveExamChrome(){
   document.getElementById("examReviewFab")?.classList.add("hidden");
   document.getElementById("examQuestionIndicator")?.classList.add("hidden");
   document.getElementById("examHeader")?.classList.remove("exam-header--active");
+  document.getElementById("examStepNav")?.classList.add("hidden");
+  hideNavModeToggle();
 }
 
 function bindReviewModal(){
@@ -370,6 +565,8 @@ function beginExamSession(examDurationSeconds){
     attemptState.startedAt = Date.now();
     attemptState.duration = examDurationSeconds || attemptState.duration || 1800;
     localStorage.setItem(ATTEMPT_KEY, JSON.stringify(attemptState));
+  } else {
+    navigationMode = resolveNavigationModeFromAttempt();
   }
 
   timer = new TimerEngine({
@@ -385,8 +582,7 @@ function beginExamSession(examDurationSeconds){
   totalQuestions = window.examQuestionsRaw?.length ?? 0;
   visibleQuestionIndex = 1;
   updateExamProgress();
-  updateQuestionIndicator();
-  bindQuestionVisibilityObserver();
+  applyNavigationModeUI();
 
   timer.start({
     onTick: ({ formatted }) => {
@@ -420,8 +616,8 @@ function beginInspectSession(){
 
   totalQuestions = window.examQuestionsRaw?.length ?? 0;
   visibleQuestionIndex = 1;
-  updateQuestionIndicator();
-  bindQuestionVisibilityObserver();
+  applyNavigationModeUI();
+  showNavModeToggle();
 }
 
 async function resolveInspectAccess(sb, exam, userId){
@@ -885,6 +1081,8 @@ async function loadExam(){
       attemptState.startedAt;
 
     if (resumeInProgress) {
+      navigationMode = resolveNavigationModeFromAttempt();
+      syncNavigationModeRadios(navigationMode);
       const studentName = await resolveStudentName();
       if (studentName) {
         localStorage.setItem("studentName", studentName);
@@ -903,6 +1101,7 @@ async function loadExam(){
 
     startBtn?.addEventListener("click", async () => {
       if (isInspectSession) {
+        lockNavigationMode(getSelectedNavigationMode());
         beginInspectSession();
         return;
       }
@@ -915,6 +1114,7 @@ async function loadExam(){
       }
 
       localStorage.setItem("studentName", studentName);
+      lockNavigationMode(getSelectedNavigationMode());
       beginExamSession(window.examDuration);
     });
 
@@ -1561,4 +1761,10 @@ async function imageToBase64(url){
 }
 /* start exam loading */
 
-document.addEventListener("DOMContentLoaded", loadExam);
+document.addEventListener("DOMContentLoaded", () => {
+  bindStepNavigation();
+  document
+    .getElementById("examNavModeToggle")
+    ?.addEventListener("click", toggleNavigationMode);
+  loadExam();
+});
