@@ -825,11 +825,34 @@ function escapeHTML(str){
     .replace(/"/g,"&quot;")
     .replace(/'/g,"&#039;");
 }
-/* ---solves double question number -- */
-function stripLeadingNumber(text){
-  return String(text)
-    .replace(/^(Q?\d+[\).\s]+)/i, "")
-    .trim();
+/* Strip duplicate question label (Q31 / 31.) but keep in-body numbered lists. */
+function stripLeadingNumber(text, displayNumber){
+  const trimmed = String(text ?? "").trim();
+  const n = Number(displayNumber);
+
+  if (!trimmed || !Number.isFinite(n) || n < 1) {
+    return trimmed;
+  }
+
+  const qPrefix = new RegExp(`^Q\\s*${n}(?:[.)\\s]+)`, "i");
+  if (qPrefix.test(trimmed)) {
+    return trimmed.replace(qPrefix, "").trim();
+  }
+
+  const hasNumberedList =
+    /^\d+[.)]\s+\S/.test(trimmed) &&
+    /\n\s*2[.)]\s/.test(trimmed);
+
+  if (hasNumberedList) {
+    return trimmed;
+  }
+
+  const barePrefix = new RegExp(`^${n}(?:[.)\\s]+)`);
+  if (barePrefix.test(trimmed)) {
+    return trimmed.replace(barePrefix, "").trim();
+  }
+
+  return trimmed;
 }
 
 /* ---------- question normalizer ---------- */
@@ -1192,7 +1215,7 @@ function createQuestionCard(q, index){
       </div>
 
      <div class="question-text prepos-text">
-  ${escapeHTML(stripLeadingNumber(q.text || ""))}
+  ${escapeHTML(stripLeadingNumber(q.text || "", index + 1))}
 </div>
 
       <div class="question-options">
@@ -1560,7 +1583,7 @@ function createReviewCard(q, index){
       </div>
 
       <div class="review-question prepos-text">
-  ${escapeHTML(stripLeadingNumber(q.question))}
+  ${escapeHTML(stripLeadingNumber(q.question, index + 1))}
 </div>
 
       <div class="review-options">
