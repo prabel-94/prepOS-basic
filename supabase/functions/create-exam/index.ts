@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
+import { normalizeSecondsPerQuestion } from "../_shared/exam-timing.ts"
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -228,7 +229,7 @@ serve(async (req) => {
       .insert({
         title: title || "Untitled Exam",
         instructions: instructions || "",
-        duration: duration || 30,
+        duration: normalizeSecondsPerQuestion(duration),
         schema_json: schema,
         status: "draft",
         created_by: user.id

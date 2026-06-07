@@ -10,6 +10,11 @@ import {
   closeAssignExamModal,
   initAssignExamModal,
 } from "./ui/assign-exam-modal.js";
+import {
+  DEFAULT_SECONDS_PER_QUESTION,
+  normalizeSecondsPerQuestion,
+  describeComputedExamDuration,
+} from "./core/exam-timing.js";
 
 const SIDE_PANEL_OPTIONS = {
   overlayType: "side-panel",
@@ -19,6 +24,22 @@ const SIDE_PANEL_OPTIONS = {
 function openSidePanel(id, options = {}) {
   return openModal(id, { ...SIDE_PANEL_OPTIONS, ...options });
 }
+function readSecondsPerQuestionInput() {
+  return normalizeSecondsPerQuestion(
+    document.getElementById("secondsPerQuestion")?.value
+  );
+}
+
+function updateComputedDurationDisplay() {
+  const el = document.getElementById("computedExamDuration");
+  if (!el) return;
+
+  el.textContent = describeComputedExamDuration(
+    currentDraft?.schema_json,
+    readSecondsPerQuestionInput()
+  );
+}
+
 // --------------------------------
 // GLOBAL STATE
 // --------------------------------
@@ -1198,14 +1219,20 @@ function createEmptyDraft() {
   currentDraft = {
     id: null,
     title: "",
-    duration: 60,
+    duration: DEFAULT_SECONDS_PER_QUESTION,
     logo_url: null,
     schema_json: {
       sections: [{ questions: [] }]
     }
   };
 
+  const secondsPerQuestionEl = document.getElementById("secondsPerQuestion");
+  if (secondsPerQuestionEl) {
+    secondsPerQuestionEl.value = String(DEFAULT_SECONDS_PER_QUESTION);
+  }
+
   renderDraft(currentDraft);
+  updateComputedDurationDisplay();
 }
 
 // --------------------------------
@@ -1254,8 +1281,11 @@ currentDraft.schema_json.sections[0].questions.forEach(q => {
   renderDraft(currentDraft);
 
   document.getElementById("title").value = data.title || "";
-  document.getElementById("duration").value = data.duration || "";
+  document.getElementById("secondsPerQuestion").value = String(
+    normalizeSecondsPerQuestion(data.duration)
+  );
 
+  updateComputedDurationDisplay();
   setStatus("Loaded");
 
 }
@@ -1374,6 +1404,7 @@ function renderDraft(draft) {
         Click <b>+ New Question</b> to start.
       </div>
     `;
+    updateComputedDurationDisplay();
     return;
   }
 
@@ -1568,6 +1599,8 @@ ${q.generator?.enabled ? `
 
     container.appendChild(div);
   });
+
+  updateComputedDurationDisplay();
 }
 
 function renderMetadataPanel(i) {
@@ -2335,7 +2368,7 @@ document.querySelectorAll('#questions input[type="radio"]:checked').forEach(el =
 
     const payload = {
       title: document.getElementById("title").value || "Untitled Draft",
-      duration: parseInt(document.getElementById("duration").value) || 60,
+      duration: readSecondsPerQuestionInput(),
       schema_json: currentDraft.schema_json,
       logo_url: logoURL,
       status: currentDraft.status || "draft"
@@ -3272,8 +3305,7 @@ async function saveAsQuestionSetSafe() {
   try {
     await saveDraft(true);
 
-    const duration =
-      parseInt(document.getElementById("duration")?.value, 10) || 60;
+    const duration = readSecondsPerQuestionInput();
 
     const { error } = await sb
       .from("draft_exams")
@@ -3312,6 +3344,9 @@ document.addEventListener("DOMContentLoaded", () => {
     ?.addEventListener("click", clearDraftQuestions);
 
   initAssignExamModal();
+
+  document.getElementById("secondsPerQuestion")
+    ?.addEventListener("input", updateComputedDurationDisplay);
 
   document.getElementById("closeQuestionSet")
     ?.addEventListener("click", () => {

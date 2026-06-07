@@ -1,4 +1,8 @@
 import { authenticateTeacherRequest } from "../_shared/edge-auth.ts"
+import {
+  computeExamDurationSeconds,
+  normalizeSecondsPerQuestion,
+} from "../_shared/exam-timing.ts"
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -57,10 +61,6 @@ Deno.serve(async (req) => {
 
     const schema = draft.schema_json
 
-    if (!draft.duration) {
-      return jsonResponse({ error: "Duration missing" }, 400)
-    }
-
     if (!schema?.sections?.length) {
       return jsonResponse({ error: "No sections" }, 400)
     }
@@ -93,11 +93,17 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "No questions" }, 400)
     }
 
+    const secondsPerQuestion = normalizeSecondsPerQuestion(draft.duration)
+    const totalDurationSeconds = computeExamDurationSeconds(
+      questionCount,
+      secondsPerQuestion
+    )
+
     const { data: exam, error: examError } = await adminClient
       .from("exam_sessions")
       .insert({
         title: draft.title,
-        duration: draft.duration,
+        duration: totalDurationSeconds,
         schema_json: draft.schema_json,
         logo_url: draft.logo_url,
         created_by: draft.created_by || user.id,

@@ -40,8 +40,17 @@ DRAFT META
   </div>
 
   <div class="form-group">
-    <label for="duration">Duration (minutes)</label>
-    <input id="duration" name="duration" type="number" placeholder="Enter duration in minutes" />
+    <label for="secondsPerQuestion">Time per question (seconds)</label>
+    <input
+      id="secondsPerQuestion"
+      name="secondsPerQuestion"
+      type="number"
+      min="1"
+      placeholder="45 (PrepOS default)"
+    />
+    <div id="computedExamDuration" class="text-muted mt-5">
+      Total exam time: —
+    </div>
   </div>
 
 </section>
