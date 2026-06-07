@@ -9,6 +9,7 @@ import {
   normalizeWordKey,
   selectSynonymPromptEntry,
 } from "./shared/lexicon-utils.js";
+import { buildDistractors } from "./shared/lexicon-distractors.js";
 import { getClient } from "../core/get-client.js";
 const DEFAULT_ADAPTIVE_MODE = true;
 
@@ -149,33 +150,6 @@ function uniqueEntriesByWord(entries, excludedWords = []) {
   return unique;
 }
 
-function buildDistractors({
-  groups,
-  excludedGroupIds = [],
-  excludedWords = [],
-  count = 3
-}) {
-  const pool = Object.keys(groups)
-    .filter(groupId => !excludedGroupIds.includes(groupId))
-    .flatMap(groupId => groups[groupId]);
-
-  let distractors = uniqueEntriesByWord(pool, excludedWords).slice(0, count);
-
-  if (distractors.length < count) {
-    const fallbackPool = Object.values(groups).flat();
-    distractors = uniqueEntriesByWord(fallbackPool, excludedWords).slice(0, count);
-  }
-
-  if (distractors.length < count) {
-    throw createGeneratorError(
-      "INSUFFICIENT_DISTRACTORS",
-      "Not enough distinct words are available to build this practice question."
-    );
-  }
-
-  return distractors;
-}
-
 /* =========================================
 Group Selection
 ========================================= */
@@ -264,6 +238,13 @@ async function generateSynonym(groups, config = {}) {
     count: 3
   });
 
+  if (distractors.length < 3) {
+    throw createGeneratorError(
+      "INSUFFICIENT_DISTRACTORS",
+      "Not enough distinct words are available to build this practice question."
+    );
+  }
+
   const options = shuffle([
     correctEntry.word,
     ...distractors.map(entry => entry.word)
@@ -341,6 +322,13 @@ async function generateOpposite(groups, _config = {}) {
     excludedWords: [stemEntry.word, correctEntry.word],
     count: 3
   });
+
+  if (distractors.length < 3) {
+    throw createGeneratorError(
+      "INSUFFICIENT_DISTRACTORS",
+      "Not enough distinct words are available to build this practice question."
+    );
+  }
 
   const options = shuffle([
     correctEntry.word,

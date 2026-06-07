@@ -13,6 +13,7 @@ import {
   normalizeWordKey,
   selectSynonymPromptEntry,
 } from "./shared/lexicon-utils.js";
+import { buildDistractors } from "./shared/lexicon-distractors.js";
 import { getClient } from "../core/get-client.js";
 const DEFAULT_ADAPTIVE_MODE = true;
 
@@ -159,78 +160,6 @@ function uniqueEntriesByWord(entries, excludedWords = []) {
   return unique;
 }
 
-function buildDistractors({
-  groups,
-  excludedGroupIds = [],
-  excludedWords = [],
-  preferredLexicalClass = null,
-  count = 3
-}) {
-
-  // ========================================
-  // 1. BASE POOL
-  // ========================================
-
-  const basePool = Object.keys(groups)
-    .filter(groupId => !excludedGroupIds.includes(groupId))
-    .flatMap(groupId => groups[groupId]);
-
-  // ========================================
-  // 2. SAME LEXICAL CLASS POOL
-  // ========================================
-
-  let filteredPool = basePool;
-
-  if (preferredLexicalClass) {
-
-    const sameClassPool = basePool.filter(entry => {
-      return entry.lexical_class === preferredLexicalClass;
-    });
-
-    // Use same-class pool ONLY if enough entries exist
-    if (sameClassPool.length >= count) {
-      filteredPool = sameClassPool;
-    }
-  }
-
-  // ========================================
-  // 3. BUILD DISTRACTORS
-  // ========================================
-
-  let distractors = uniqueEntriesByWord(
-    filteredPool,
-    excludedWords
-  ).slice(0, count);
-
-  // ========================================
-  // 4. FALLBACK TO GLOBAL POOL
-  // ========================================
-
-  if (distractors.length < count) {
-
-    const fallbackPool = Object.values(groups).flat();
-
-    distractors = uniqueEntriesByWord(
-      fallbackPool,
-      excludedWords
-    ).slice(0, count);
-  }
-
-  // ========================================
-  // 5. FINAL VALIDATION
-  // ========================================
-
-  if (distractors.length < count) {
-
-    throw createGeneratorError(
-      "INSUFFICIENT_DISTRACTORS",
-      "Not enough distinct words are available to build this practice question."
-    );
-  }
-
-  return distractors;
-}
-
 /* =========================================
 Group Selection
 ========================================= */
@@ -326,6 +255,13 @@ async function generateSynonymQuestion(config = {}) {
   count: 3
 });
 
+  if (distractors.length < 3) {
+    throw createGeneratorError(
+      "INSUFFICIENT_DISTRACTORS",
+      "Not enough distinct words are available to build this practice question."
+    );
+  }
+
   const options = shuffle([
     correctEntry.word,
     ...distractors.map(entry => entry.word)
@@ -415,6 +351,13 @@ async function generateOppositeWordQuestion(config = {}) {
     stemEntry.lexical_class,
   count: 3
 });
+
+  if (distractors.length < 3) {
+    throw createGeneratorError(
+      "INSUFFICIENT_DISTRACTORS",
+      "Not enough distinct words are available to build this practice question."
+    );
+  }
 
   const options = shuffle([
     correctEntry.word,

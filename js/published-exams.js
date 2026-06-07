@@ -4,6 +4,7 @@
 
 import { bootPage } from "./core/page-boot.js";
 import { getClient } from "./core/get-client.js";
+import { invokeEdgeFunction } from "./core/edge-invoke.js";
 import { resolveAppPath } from "./core/access.js";
 import {
   openAssignExamModal,
@@ -352,13 +353,23 @@ function renderExamSeriesGroup(group) {
             .join("")}
         </div>
       </div>
-      <div>
+      <div class="flex gap-10" style="flex-direction:column; align-items:stretch;">
         <button
           type="button"
           class="primary-btn"
           onclick='openAssignExamModal(${assignPayload}, { examTitle: ${assignTitle} })'
         >
           Assign All Parts
+        </button>
+        <button
+          type="button"
+          class="danger-btn"
+          data-action="delete-series"
+          data-series-id="${escapeHTML(group.seriesId)}"
+          data-series-title="${escapeHTML(group.title)}"
+          data-part-count="${group.parts.length}"
+        >
+          Delete All Parts
         </button>
       </div>
     </div>
@@ -402,8 +413,17 @@ function openAssignForExam(examId, examTitle) {
   });
 }
 
+async function requestDeletePublishedExam(payload) {
+  const result = await invokeEdgeFunction("delete-published-exam", payload);
+
+  if (!result?.success) {
+    throw new Error(result?.error || "Delete failed");
+  }
+
+  return result;
+}
+
 async function deletePublishedExam(examId) {
-  const sb = await getClient();
   const exam = currentExams.find((item) => item.id === examId);
   const title = exam?.title || "this exam";
 
@@ -417,29 +437,31 @@ async function deletePublishedExam(examId) {
   if (typed !== "DELETE") return;
 
   try {
-    const { data: sessionData } = await sb.auth.getSession();
-    const accessToken = sessionData?.session?.access_token;
+    await requestDeletePublishedExam({ examId });
+    await loadPublishedExams();
+  } catch (error) {
+    console.error(error);
+    alert(error.message || "Delete failed");
+  }
+}
 
-    if (!accessToken) {
-      throw new Error("Your session expired. Please sign in again.");
-    }
+async function deletePublishedExamSeries(seriesId, seriesTitle, partCount) {
+  const title = seriesTitle || "this exam series";
+  const count = Number(partCount) || 0;
 
-    const res = await fetch(`${SUPABASE_URL}/functions/v1/delete-published-exam`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        apikey: SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${accessToken}`,
-      },
-      body: JSON.stringify({ examId }),
-    });
+  const confirmed = confirm(
+    `Permanently delete all ${count} part${count === 1 ? "" : "s"} of "${title}"?\n\nThis removes every part, their assignments, and all student attempts. The source draft will be reset so you can publish again. This cannot be undone.`
+  );
 
-    const result = await res.json().catch(() => ({}));
+  if (!confirmed) return;
 
-    if (!res.ok || !result.success) {
-      throw new Error(result.error || `Delete failed (${res.status})`);
-    }
+  const typed = prompt(
+    `Type DELETE to permanently delete all ${count} part${count === 1 ? "" : "s"}.`
+  );
+  if (typed !== "DELETE") return;
 
+  try {
+    await requestDeletePublishedExam({ seriesId });
     await loadPublishedExams();
   } catch (error) {
     console.error(error);
@@ -507,6 +529,16 @@ async function initPublishedExams() {
         openStudentPreview(
           previewButton.dataset.examId,
           previewButton.dataset.examTitle || "Untitled Exam"
+        );
+        return;
+      }
+
+      const deleteSeriesButton = event.target.closest("[data-action='delete-series']");
+      if (deleteSeriesButton) {
+        deletePublishedExamSeries(
+          deleteSeriesButton.dataset.seriesId,
+          deleteSeriesButton.dataset.seriesTitle,
+          deleteSeriesButton.dataset.partCount
         );
       }
     });
