@@ -73,6 +73,73 @@ export function sortWordsWithHeadwordFirst(words = []) {
   return sorted;
 }
 
+export const HEADWORD_FAMILIARITY = Object.freeze({
+  minSeen: 3,
+  maxErrorRate: 0.34,
+});
+
+/**
+ * @param {{ seen_count?: number, wrong_count?: number }|null|undefined} stat
+ * @param {{ minSeen?: number, maxErrorRate?: number }} [options]
+ */
+export function isHeadwordFamiliar(
+  stat,
+  {
+    minSeen = HEADWORD_FAMILIARITY.minSeen,
+    maxErrorRate = HEADWORD_FAMILIARITY.maxErrorRate,
+  } = {}
+) {
+  if (!stat || (stat.seen_count ?? 0) < minSeen) {
+    return false;
+  }
+
+  const seen = stat.seen_count ?? 0;
+  const wrong = stat.wrong_count ?? 0;
+  return wrong / seen <= maxErrorRate;
+}
+
+/**
+ * @template T
+ * @param {T[]} entries
+ * @param {number} [count]
+ * @returns {T[]}
+ */
+export function pickRandomEntries(entries = [], count = 1) {
+  const shuffled = [...entries].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, count);
+}
+
+/**
+ * Synonym prompt: random in normal mode; headword until familiar when adaptive.
+ * @param {Array<{ id?: string, word?: string, is_headword?: boolean }>} words
+ * @param {{ adaptive?: boolean, statsByWordId?: Map<string, { seen_count?: number, wrong_count?: number }> }} [options]
+ */
+export function selectSynonymPromptEntry(
+  words = [],
+  { adaptive = false, statsByWordId = null } = {}
+) {
+  const filled = words.filter((entry) => normalizeWordKey(entry.word));
+  if (!filled.length) {
+    return null;
+  }
+
+  if (!adaptive) {
+    return pickRandomEntries(filled, 1)[0] ?? null;
+  }
+
+  const headword = getHeadwordEntry(filled);
+  if (!headword) {
+    return pickRandomEntries(filled, 1)[0] ?? null;
+  }
+
+  const headwordStat = headword.id ? statsByWordId?.get(headword.id) : null;
+  if (isHeadwordFamiliar(headwordStat)) {
+    return pickRandomEntries(filled, 1)[0] ?? null;
+  }
+
+  return headword;
+}
+
 /**
  * Infer a group default from existing entry classes (mode, then first).
  * @param {Array<{ lexical_class?: string|null }>} words

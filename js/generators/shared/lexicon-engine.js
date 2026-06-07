@@ -64,6 +64,44 @@ export async function fetchGroups(languageCode, options = {}) {
 }
 
 /* =========================================
+Adaptive Stats
+========================================= */
+
+/**
+ * @param {string} [userId]
+ * @returns {Promise<Map<string, { seen_count: number, wrong_count: number }>>}
+ */
+export async function getUserWordStatsByWordId(
+  userId = window.currentUser?.id
+) {
+  if (!userId) {
+    return new Map();
+  }
+
+  const sb = await getClient();
+  const { data, error } = await sb
+    .from("user_lexicon_word_stats")
+    .select("word_id, seen_count, wrong_count")
+    .eq("user_id", userId);
+
+  if (error) {
+    console.error(error);
+    return new Map();
+  }
+
+  const map = new Map();
+
+  (data || []).forEach((row) => {
+    map.set(row.word_id, {
+      seen_count: row.seen_count || 0,
+      wrong_count: row.wrong_count || 0,
+    });
+  });
+
+  return map;
+}
+
+/* =========================================
 BUILD QUESTION
 ========================================= */
 
