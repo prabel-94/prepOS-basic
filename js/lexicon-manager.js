@@ -14,6 +14,7 @@ import {
   applyHeadwordFlags,
   sortWordsWithHeadwordFirst,
   getHeadwordLabel,
+  promoteWordToHeadword,
   renderLexicalClassSelect,
 } from "./generators/shared/lexicon-utils.js";
 
@@ -220,7 +221,10 @@ function renderGroup(group, index) {
                   ${
                     isHeadword
                       ? ""
-                      : '<button type="button" class="delete-word secondary-btn" aria-label="Delete related word">×</button>'
+                      : `<div class="value-row-actions">
+                          <button type="button" class="set-primary-word secondary-btn">Set as primary word</button>
+                          <button type="button" class="delete-word secondary-btn" aria-label="Delete related word">×</button>
+                        </div>`
                   }
                 </div>
               </div>
@@ -860,6 +864,20 @@ el.groupsContainer?.addEventListener("click", async (event) => {
   if (event.target.classList.contains("add-word")) {
     group.words.push({ word: "", is_headword: false });
     renderGroups({ skipSync: true });
+    return;
+  }
+
+  if (event.target.classList.contains("set-primary-word")) {
+    const row = event.target.closest(".value-row");
+    const wordIndex = Number(row?.dataset.index);
+
+    if (!Number.isFinite(wordIndex) || wordIndex <= 0) {
+      return;
+    }
+
+    group.words = promoteWordToHeadword(group.words, wordIndex);
+    renderGroups({ skipSync: true });
+    setStatus("Primary word updated — click Save to keep this change.");
     return;
   }
 

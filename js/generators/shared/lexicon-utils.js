@@ -141,6 +141,20 @@ export function selectSynonymPromptEntry(
 }
 
 /**
+ * @param {Array<object>} words
+ * @param {number} wordIndex
+ */
+export function promoteWordToHeadword(words = [], wordIndex = 0) {
+  if (wordIndex <= 0 || wordIndex >= words.length) {
+    return applyHeadwordFlags(words);
+  }
+
+  const next = [...words];
+  [next[0], next[wordIndex]] = [next[wordIndex], next[0]];
+  return applyHeadwordFlags(next);
+}
+
+/**
  * Infer a group default from existing entry classes (mode, then first).
  * @param {Array<{ lexical_class?: string|null }>} words
  */
