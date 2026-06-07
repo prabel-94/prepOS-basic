@@ -2375,8 +2375,12 @@ async function publishDraft() {
       linkBox.classList.remove("hidden");
       linkBox.innerHTML = `
         <b>Exam Published</b><br>
+        <a href="exam.html?id=${examId}&amp;mode=inspect" target="_blank">
+          Inspect Exam
+        </a>
+        ·
         <a href="exam.html?id=${examId}" target="_blank">
-          Open Exam
+          Student preview
         </a><br>
         <button type="button" class="primary-btn mt-10" onclick="openAssignExamModal('${examId}', { examTitle: ${JSON.stringify(currentDraft?.title || "Untitled Exam")} })">
           Assign to Students

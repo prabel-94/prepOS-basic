@@ -5,6 +5,7 @@ import {
   fetchUserRole,
   getHomePathForRole,
   resolveAppPath,
+  TEACHER_ROLES,
 } from "./core/access.js";
 import { openModal, closeModal } from "./ui/modal-system.js";
 import {
@@ -356,6 +357,11 @@ function bindReviewModal(){
 }
 
 function beginExamSession(examDurationSeconds){
+  if (isInspectSession) {
+    beginInspectSession();
+    return;
+  }
+
   if (examStarted || attemptState.status === "submitted") {
     return;
   }
@@ -391,6 +397,48 @@ function beginExamSession(examDurationSeconds){
       submitExam();
     },
   });
+}
+
+function showInspectBanner(){
+  document.getElementById("examInspectBanner")?.classList.remove("hidden");
+}
+
+function beginInspectSession(){
+  if (examStarted) {
+    return;
+  }
+
+  isInspectSession = true;
+  examStarted = true;
+
+  document.getElementById("examOverviewSection")?.classList.add("hidden");
+  showExam();
+  showInspectBanner();
+  hideActiveExamChrome();
+
+  document.getElementById("examTimer")?.classList.add("hidden");
+
+  totalQuestions = window.examQuestionsRaw?.length ?? 0;
+  visibleQuestionIndex = 1;
+  updateQuestionIndicator();
+  bindQuestionVisibilityObserver();
+}
+
+async function resolveInspectAccess(sb, exam, userId){
+  if (!userId) {
+    return false;
+  }
+
+  const role = await fetchUserRole(sb, userId);
+  if (!role || !TEACHER_ROLES.includes(role)) {
+    return false;
+  }
+
+  if (role === "admin") {
+    return true;
+  }
+
+  return exam.created_by === userId;
 }
 
 function renderExamResults(score, answers, studentName){
@@ -619,6 +667,8 @@ function scrollToResult(){
 /* ---------- get exam id ---------- */
 const params = new URLSearchParams(location.search);
 const examId = params.get("id");
+const inspectModeRequested = params.get("mode") === "inspect";
+let isInspectSession = false;
 
 if(!examId){
   document.getElementById("quiz").innerText="Invalid exam link";
@@ -639,11 +689,36 @@ function createAttemptId(){
   return crypto.randomUUID();
 }
 
-let attemptId = localStorage.getItem(ATTEMPT_ID_KEY);
+let attemptId;
+let attemptState;
 
-if(!isUuid(attemptId)){
+if (inspectModeRequested) {
   attemptId = createAttemptId();
-  localStorage.setItem(ATTEMPT_ID_KEY, attemptId);
+  attemptState = {
+    attemptId,
+    examId,
+    answers: {},
+    status: "in_progress",
+  };
+} else {
+  attemptId = localStorage.getItem(ATTEMPT_ID_KEY);
+
+  if (!isUuid(attemptId)) {
+    attemptId = createAttemptId();
+    localStorage.setItem(ATTEMPT_ID_KEY, attemptId);
+  }
+
+  attemptState = JSON.parse(localStorage.getItem(ATTEMPT_KEY) || "null");
+
+  if (!attemptState || attemptState.attemptId !== attemptId) {
+    attemptState = {
+      attemptId,
+      examId,
+      answers: {},
+      status: "in_progress",
+    };
+    localStorage.setItem(ATTEMPT_KEY, JSON.stringify(attemptState));
+  }
 }
 
 function getDeviceId(){
@@ -657,18 +732,7 @@ function getDeviceId(){
 
   return id
 }
-/* ---------- attempt state ---------- */
-let attemptState = JSON.parse(localStorage.getItem(ATTEMPT_KEY) || "null");
 
-if(!attemptState || attemptState.attemptId !== attemptId){
-  attemptState = {
-    attemptId,
-    examId,
-    answers:{},
-    status:"in_progress"
-  };
-  localStorage.setItem(ATTEMPT_KEY, JSON.stringify(attemptState));
-}
 /* ======================================================
    FETCH EXAM (session-aware + public link fallback)
 ====================================================== */
@@ -745,7 +809,20 @@ async function loadExam(){
     const { data: userData } = await sb.auth.getUser();
     const userId = userData?.user?.id ?? null;
 
-    if (userId) {
+    if (inspectModeRequested) {
+      if (!userId) {
+        throw new Error("Sign in to inspect this exam.");
+      }
+
+      const canInspect = await resolveInspectAccess(sb, exam, userId);
+      if (!canInspect) {
+        throw new Error(
+          "Inspect mode is only available to the exam owner or an admin."
+        );
+      }
+
+      isInspectSession = true;
+    } else if (userId) {
       await assertExamSeriesUnlocked(sb, exam, userId);
     }
 
@@ -788,20 +865,24 @@ async function loadExam(){
     renderExamOverview(exam, overviewTopics);
     await setupOverviewNameField();
 
-    if (exam.duration) {
+    if (exam.duration && !isInspectSession) {
       document.getElementById("examTimer").textContent =
         formatTimerPreview(exam.duration);
+    } else if (isInspectSession) {
+      document.getElementById("examTimer")?.classList.add("hidden");
     }
 
     renderQuiz(window.examQuestionsRaw);
     bindReviewModal();
 
-    if (await restoreCompletedExamState()) {
+    if (!isInspectSession && (await restoreCompletedExamState())) {
       return;
     }
 
     const resumeInProgress =
-      attemptState.status === "in_progress" && attemptState.startedAt;
+      !isInspectSession &&
+      attemptState.status === "in_progress" &&
+      attemptState.startedAt;
 
     if (resumeInProgress) {
       const studentName = await resolveStudentName();
@@ -814,7 +895,18 @@ async function loadExam(){
 
     showOverview();
 
-    document.getElementById("startExamBtn").addEventListener("click", async () => {
+    const startBtn = document.getElementById("startExamBtn");
+    if (isInspectSession && startBtn) {
+      startBtn.textContent = "Inspect Exam";
+      document.getElementById("overviewNameRow")?.classList.add("hidden");
+    }
+
+    startBtn?.addEventListener("click", async () => {
+      if (isInspectSession) {
+        beginInspectSession();
+        return;
+      }
+
       const studentName = await resolveStudentName();
 
       if (!studentName) {
@@ -911,10 +1003,12 @@ function renderQuiz(questions){
       const name = e.target.name;
       attemptState.answers[name] = e.target.value;
 
-      localStorage.setItem(
-        ATTEMPT_KEY,
-        JSON.stringify(attemptState)
-      );
+      if (!isInspectSession) {
+        localStorage.setItem(
+          ATTEMPT_KEY,
+          JSON.stringify(attemptState)
+        );
+      }
 
       updateExamProgress();
     });
@@ -964,6 +1058,7 @@ async function canSubmitCanonicalAttempt(sb, examId, userId) {
 ====================================================== */
 async function submitExam(){
 
+  if (isInspectSession) return;
   if(attemptState.status==="submitted") return;
 
   if (timer) timer.stop(); // stop timer if exists

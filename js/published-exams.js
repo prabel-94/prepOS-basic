@@ -258,16 +258,30 @@ function groupPublishedExams(exams = []) {
 
 function renderExamActions(exam) {
   const assignmentLabel = formatAssignmentSummary(exam);
+  const examTitle = exam.title || "Untitled Exam";
 
   return `
     <div class="flex gap-10" style="flex-wrap:wrap;">
-      <button class="primary-btn" data-action="assign" data-exam-id="${escapeHTML(exam.id)}" data-exam-title="${escapeHTML(exam.title || "Untitled Exam")}">Assign</button>
-      <button type="button" class="secondary-btn" data-prepos-href="exam.html?id=${escapeHTML(exam.id)}">Open</button>
+      <button class="primary-btn" data-action="assign" data-exam-id="${escapeHTML(exam.id)}" data-exam-title="${escapeHTML(examTitle)}">Assign</button>
+      <button type="button" class="secondary-btn" data-prepos-href="exam.html?id=${escapeHTML(exam.id)}&amp;mode=inspect">Inspect</button>
+      <button type="button" class="secondary-btn" data-action="student-preview" data-exam-id="${escapeHTML(exam.id)}" data-exam-title="${escapeHTML(examTitle)}">Student preview</button>
       <button class="secondary-btn" onclick="viewResults('${escapeHTML(exam.id)}')">Results</button>
       <button class="danger-btn" onclick="deletePublishedExam('${escapeHTML(exam.id)}')">Delete</button>
     </div>
     <div class="text-muted mt-5">${escapeHTML(assignmentLabel)}</div>
   `;
+}
+
+function openStudentPreview(examId, examTitle) {
+  const confirmed = confirm(
+    `Student preview: "${examTitle}"\n\nThis simulates the real exam experience:\n• The timer will start and count down\n• Answers may be saved in this browser\n• Submitting records an attempt\n\nContinue?`
+  );
+
+  if (!confirmed) return;
+
+  window.location.href = resolveAppPath(
+    `exam.html?id=${encodeURIComponent(examId)}`
+  );
 }
 
 function renderStandaloneExam(exam) {
@@ -453,7 +467,7 @@ async function initPublishedExams() {
     roles: ["teacher", "admin"],
     nav: {
       title: "Published Exams",
-      subtitle: "Assign students, open exams, and view results",
+      subtitle: "Assign students, inspect exams, and view results",
       preset: "teacherExam",
     },
   });
@@ -479,13 +493,22 @@ async function initPublishedExams() {
 
   document.getElementById("publishedExamList")
     ?.addEventListener("click", (event) => {
-      const button = event.target.closest("[data-action='assign']");
-      if (!button) return;
+      const assignButton = event.target.closest("[data-action='assign']");
+      if (assignButton) {
+        openAssignForExam(
+          assignButton.dataset.examId,
+          assignButton.dataset.examTitle || "Untitled Exam"
+        );
+        return;
+      }
 
-      openAssignForExam(
-        button.dataset.examId,
-        button.dataset.examTitle || "Untitled Exam"
-      );
+      const previewButton = event.target.closest("[data-action='student-preview']");
+      if (previewButton) {
+        openStudentPreview(
+          previewButton.dataset.examId,
+          previewButton.dataset.examTitle || "Untitled Exam"
+        );
+      }
     });
 
   toggleCustomDateInputs();
