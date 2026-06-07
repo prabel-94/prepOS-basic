@@ -143,7 +143,7 @@ export function filterLexiconGroups(groups = [], options = {}) {
       .map((entry) => entry.group);
   } else {
     filtered = [...filtered].sort((a, b) =>
-      getHeadwordLabel(a.group.words).localeCompare(getHeadwordLabel(b.group.words))
+      getHeadwordLabel(a.words).localeCompare(getHeadwordLabel(b.words))
     );
   }
 
