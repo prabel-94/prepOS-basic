@@ -97,22 +97,30 @@
         <p class="text-muted exam-overview-navigation-help">
           Choose how you want to move through questions. You can switch anytime during the exam.
         </p>
-        <fieldset class="exam-navigation-mode-options" aria-label="Exam navigation mode">
-          <label class="exam-navigation-mode-option">
-            <input type="radio" name="examNavigationMode" value="scroll" checked>
-            <span>
-              <strong>Scroll paper</strong>
-              <span class="text-muted">See the whole paper; scroll to move between questions.</span>
-            </span>
-          </label>
-          <label class="exam-navigation-mode-option">
-            <input type="radio" name="examNavigationMode" value="step">
-            <span>
-              <strong>One at a time</strong>
-              <span class="text-muted">Focus on one question; use Previous and Next.</span>
-            </span>
-          </label>
-        </fieldset>
+        <div
+          class="practice-mode-grid exam-navigation-mode-grid"
+          role="radiogroup"
+          aria-label="Exam navigation mode"
+        >
+          <button
+            type="button"
+            class="practice-mode-card active"
+            data-exam-nav-mode="scroll"
+            aria-pressed="true"
+          >
+            <span class="practice-mode-title">Scroll paper</span>
+            <span class="practice-mode-sub">See the whole paper; scroll to move between questions.</span>
+          </button>
+          <button
+            type="button"
+            class="practice-mode-card"
+            data-exam-nav-mode="step"
+            aria-pressed="false"
+          >
+            <span class="practice-mode-title">One at a time</span>
+            <span class="practice-mode-sub">Focus on one question; use Previous and Next.</span>
+          </button>
+        </div>
       </div>
 
       <button type="button" id="startExamBtn" class="primary-btn w-full mt-20">
