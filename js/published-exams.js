@@ -9,6 +9,7 @@ import {
   openAssignExamModal,
   initAssignExamModal,
 } from "./ui/assign-exam-modal.js";
+import { formatExamDuration } from "./student/student-exam-meta.js";
 
 let currentUser = null;
 let currentRole = null;
@@ -231,7 +232,7 @@ function renderExams(exams) {
         <div>
           <b>${escapeHTML(exam.title || "Untitled Exam")}</b>
           <div class="text-muted mt-5">Created: ${createdAt}</div>
-          <div class="text-muted mt-5">Duration: ${Number(exam.duration || 0)} minutes</div>
+          <div class="text-muted mt-5">Duration: ${escapeHTML(formatExamDuration(exam.duration) || "—")}</div>
           <div class="text-muted mt-5">${escapeHTML(assignmentLabel)}</div>
         </div>
         <div class="flex gap-10" style="flex-wrap:wrap;">

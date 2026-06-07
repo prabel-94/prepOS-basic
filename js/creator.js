@@ -615,15 +615,13 @@ async function generate(){
   const title =
     buildExamTitle();
 
-  const duration =
-
+  const secondsPerQuestion =
     parseInt(
       document.getElementById(
-        "duration"
-      ).value
-    )
-
-    || 10;
+        "secondsPerQuestion"
+      )?.value,
+      10
+    ) || 45;
 
   // ============================================
   // STORE
@@ -637,7 +635,7 @@ async function generate(){
 
       title,
 
-      duration,
+      duration: secondsPerQuestion,
 
       questions
 
