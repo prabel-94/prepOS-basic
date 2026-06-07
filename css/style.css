@@ -467,10 +467,34 @@ QUESTION CARD (BUILDER)
 }
 
 .value-row{
-  display:flex;
+  display:grid;
+  grid-template-columns:minmax(88px, 110px) 1fr;
   gap:10px;
   align-items:center;
   width:100%;
+}
+
+.value-row--headword {
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  margin-bottom: 4px;
+}
+
+.value-row-label {
+  margin: 0;
+  color: var(--text-muted, #888);
+}
+
+.value-row-fields {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+}
+
+.value-row-fields .word-input {
+  flex: 1;
+  min-width: 0;
 }
 
 .word-input{
@@ -1450,8 +1474,12 @@ MOBILE
 }
 
   .value-row{
-    flex-direction:column;
+    grid-template-columns:1fr;
     align-items:stretch;
+  }
+
+  .value-row-label {
+    margin-bottom: -4px;
   }
 
   .lexical-class-select{

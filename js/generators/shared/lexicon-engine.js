@@ -1,4 +1,5 @@
 import { getClient } from "../../core/get-client.js";
+import { sortWordsWithHeadwordFirst } from "./lexicon-utils.js";
 
 export const DEFAULT_LEXICON_TOPIC = "vocabulary";
 
@@ -25,7 +26,8 @@ export async function fetchGroups(languageCode, options = {}) {
   difficulty,
   language_code,
   lexical_class,
-  topic
+  topic,
+  is_headword
 `)
     .eq("language_code", languageCode);
 
@@ -53,6 +55,10 @@ export async function fetchGroups(languageCode, options = {}) {
 
     groups[row.group_id].push(row);
   });
+
+  for (const groupId of Object.keys(groups)) {
+    groups[groupId] = sortWordsWithHeadwordFirst(groups[groupId]);
+  }
 
   return groups;
 }

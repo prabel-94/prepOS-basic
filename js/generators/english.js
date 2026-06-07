@@ -3,6 +3,7 @@ import {
   buildQuestion,
   DEFAULT_LEXICON_TOPIC,
 } from "./shared/lexicon-engine.js";
+import { getHeadwordEntry } from "./shared/lexicon-utils.js";
 import { getClient } from "../core/get-client.js";
 const DEFAULT_ADAPTIVE_MODE = true;
 
@@ -229,7 +230,13 @@ async function generateSynonym(groups, config = {}) {
   }
 
   const words = groups[groupId];
-  const questionEntry = pickRandom(words, 1)[0];
+  const questionEntry = getHeadwordEntry(words);
+  if (!questionEntry) {
+    throw createGeneratorError(
+      "INSUFFICIENT_LEXICON_DATA",
+      "Add a primary word and at least one related word in the group."
+    );
+  }
   const correctEntry = pickRandom(
     words.filter(entry => entry.id !== questionEntry.id),
     1
@@ -310,8 +317,8 @@ async function generateOpposite(groups, _config = {}) {
   const baseWords = groups[baseGroupId];
   const oppositeWords = groups[oppositeGroupId];
 
-  const stemEntry = pickRandom(baseWords, 1)[0];
-  const correctEntry = pickRandom(oppositeWords, 1)[0];
+  const stemEntry = getHeadwordEntry(baseWords) ?? pickRandom(baseWords, 1)[0];
+  const correctEntry = getHeadwordEntry(oppositeWords) ?? pickRandom(oppositeWords, 1)[0];
 
   const distractors = buildDistractors({
     groups,

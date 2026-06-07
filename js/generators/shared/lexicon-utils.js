@@ -23,6 +23,57 @@ export function normalizeWordKey(word) {
 }
 
 /**
+ * @param {Array<{ word?: string, is_headword?: boolean }>} words
+ * @returns {{ word?: string, is_headword?: boolean } | null}
+ */
+export function getHeadwordEntry(words = []) {
+  const flagged = words.find(
+    (entry) => entry?.is_headword && normalizeWordKey(entry.word)
+  );
+  if (flagged) {
+    return flagged;
+  }
+
+  return words.find((entry) => normalizeWordKey(entry.word)) ?? null;
+}
+
+/**
+ * @param {Array<{ word?: string, is_headword?: boolean }>} words
+ * @param {string} [fallback]
+ */
+export function getHeadwordLabel(words = [], fallback = "(empty)") {
+  const headword = getHeadwordEntry(words);
+  const label = String(headword?.word ?? "").trim();
+  return label || fallback;
+}
+
+/**
+ * First word in a group is always the headword.
+ * @param {Array<object>} words
+ */
+export function applyHeadwordFlags(words = []) {
+  return words.map((entry, index) => ({
+    ...entry,
+    is_headword: index === 0,
+  }));
+}
+
+/**
+ * @param {Array<{ is_headword?: boolean }>} words
+ */
+export function sortWordsWithHeadwordFirst(words = []) {
+  const headwordIndex = words.findIndex((entry) => entry?.is_headword);
+  if (headwordIndex <= 0) {
+    return words;
+  }
+
+  const sorted = [...words];
+  const [headword] = sorted.splice(headwordIndex, 1);
+  sorted.unshift(headword);
+  return sorted;
+}
+
+/**
  * Infer a group default from existing entry classes (mode, then first).
  * @param {Array<{ lexical_class?: string|null }>} words
  */
@@ -90,7 +141,7 @@ export function validateGroupWords(words = []) {
   const filled = words.filter((entry) => normalizeWordKey(entry.word));
 
   if (!filled.length) {
-    messages.push("Add at least one word.");
+    messages.push("Add a primary word.");
     return messages;
   }
 
