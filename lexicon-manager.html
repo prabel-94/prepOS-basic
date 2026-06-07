@@ -28,9 +28,7 @@
   </div>
 
   <div class="control-bar mt-20">
-    <select id="groupSearchSelect" style="display:none;" aria-label="Select primary word">
-      <option value="">Select primary word</option>
-    </select>
+    <div id="browseGroupPicker" class="lexicon-group-picker-host hidden" aria-label="Find word group"></div>
 
     <select id="modeSelect">
       <option value="SESSION">Session Entry</option>
@@ -96,12 +94,12 @@
     <div class="relation-columns">
       <div class="group-panel">
         <div class="small">Group A</div>
-        <div id="groupA-list" class="group-list"></div>
+        <div id="groupA-picker" class="lexicon-group-picker-host"></div>
       </div>
 
       <div class="group-panel">
         <div class="small">Group B</div>
-        <div id="groupB-list" class="group-list"></div>
+        <div id="groupB-picker" class="lexicon-group-picker-host"></div>
       </div>
     </div>
 

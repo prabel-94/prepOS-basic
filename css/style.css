@@ -1603,6 +1603,123 @@ RELATION BUILDER
   flex: 1;
 }
 
+.lexicon-group-picker-host {
+  min-width: 260px;
+  flex: 1 1 300px;
+}
+
+.control-bar .lexicon-group-picker-host {
+  max-width: 460px;
+}
+
+.lexicon-group-picker-root {
+  position: relative;
+}
+
+.lexicon-group-picker-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.lexicon-group-picker-input {
+  flex: 1 1 180px;
+  min-width: 0;
+  margin-bottom: 0;
+}
+
+.lexicon-group-picker-class {
+  min-width: 130px;
+  margin-bottom: 0;
+}
+
+.lexicon-group-picker-results-wrap {
+  position: relative;
+}
+
+.lexicon-group-picker[data-variant="dropdown"] .lexicon-group-picker-results-wrap {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 1200;
+}
+
+.lexicon-group-picker-results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  background: var(--card, #fff);
+  border: 1px solid var(--border, #ddd);
+  border-radius: 8px;
+  box-shadow: var(--shadow, 0 8px 24px rgba(0, 0, 0, 0.08));
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.lexicon-group-picker[data-variant="panel"] .lexicon-group-picker-results-wrap {
+  margin-top: 8px;
+}
+
+.lexicon-group-picker[data-variant="panel"] .lexicon-group-picker-results {
+  min-height: 180px;
+}
+
+.lexicon-group-picker-option {
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  padding: 8px 10px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-bottom: 1px solid var(--border, #eee);
+}
+
+.lexicon-group-picker-option:last-child {
+  border-bottom: none;
+}
+
+.lexicon-group-picker-option-title {
+  font-size: 14px;
+}
+
+.lexicon-group-picker-option-subtitle {
+  font-size: 12px;
+  color: var(--text-muted, #666);
+}
+
+.lexicon-group-picker-option:hover,
+.lexicon-group-picker-option.is-highlighted {
+  background: #f8fbff;
+}
+
+.lexicon-group-picker-option.is-selected {
+  background: var(--primary);
+  color: white;
+}
+
+.lexicon-group-picker-option.is-selected .lexicon-group-picker-option-subtitle {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.lexicon-group-picker-option--clear {
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.lexicon-group-picker-empty {
+  padding: 10px;
+  color: var(--text-muted, #666);
+}
+
+.lexicon-group-picker-meta {
+  padding: 6px 2px 0;
+}
+
 .group-list {
   border: 1px solid var(--border);
   border-radius: 6px;
