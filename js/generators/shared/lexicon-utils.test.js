@@ -14,6 +14,7 @@ import {
   getHeadwordLabel,
   applyHeadwordFlags,
   sortWordsWithHeadwordFirst,
+  promoteWordToHeadword,
   isHeadwordFamiliar,
   selectSynonymPromptEntry,
   HEADWORD_FAMILIARITY,
@@ -54,6 +55,22 @@ describe("lexicon-utils", () => {
       { word: "a", is_headword: true },
     ]);
     assert.equal(sorted[0].word, "a");
+  });
+
+  it("promoteWordToHeadword swaps a related word to the front", () => {
+    const words = promoteWordToHeadword(
+      [
+        { id: "1", word: "happy", is_headword: true },
+        { id: "2", word: "glad" },
+        { id: "3", word: "joyful" },
+      ],
+      1
+    );
+
+    assert.equal(words[0].word, "glad");
+    assert.equal(words[0].is_headword, true);
+    assert.equal(words[1].word, "happy");
+    assert.equal(words[1].is_headword, false);
   });
 
   it("isHeadwordFamiliar requires enough seen and low error rate", () => {

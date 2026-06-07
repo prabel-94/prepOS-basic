@@ -497,6 +497,17 @@ QUESTION CARD (BUILDER)
   min-width: 0;
 }
 
+.value-row-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.set-primary-word {
+  white-space: nowrap;
+}
+
 .word-input{
   flex:1;
   min-width:0;
@@ -1480,6 +1491,10 @@ MOBILE
 
   .value-row-label {
     margin-bottom: -4px;
+  }
+
+  .value-row-actions {
+    flex-wrap: wrap;
   }
 
   .lexical-class-select{
