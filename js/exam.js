@@ -213,7 +213,10 @@ function bindQuestionVisibilityObserver(){
 }
 
 function getSelectedNavigationMode(){
-  return EXAM_NAV_MODES.scroll;
+  const selected = document.querySelector('input[name="examNavigationMode"]:checked');
+  return selected?.value === EXAM_NAV_MODES.step
+    ? EXAM_NAV_MODES.step
+    : EXAM_NAV_MODES.scroll;
 }
 
 function resolveNavigationModeFromAttempt(){
@@ -222,8 +225,15 @@ function resolveNavigationModeFromAttempt(){
     : EXAM_NAV_MODES.scroll;
 }
 
-function syncNavigationModeRadios(_mode){
-  /* overview mode picker removed; header toggle is the control */
+function syncNavigationModeRadios(mode){
+  const value =
+    mode === EXAM_NAV_MODES.step ? EXAM_NAV_MODES.step : EXAM_NAV_MODES.scroll;
+  const input = document.querySelector(
+    `input[name="examNavigationMode"][value="${value}"]`
+  );
+  if (input) {
+    input.checked = true;
+  }
 }
 
 function lockNavigationMode(mode){
