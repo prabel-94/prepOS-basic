@@ -11,6 +11,9 @@ import {
   validateGeneratorReadiness,
   inferGroupLexicalClass,
   applyGroupLexicalClassToWords,
+  applyHeadwordFlags,
+  sortWordsWithHeadwordFirst,
+  getHeadwordLabel,
   renderLexicalClassSelect,
 } from "./generators/shared/lexicon-utils.js";
 
@@ -74,8 +77,13 @@ function groupRows(rows) {
       id: row.id,
       word: row.word,
       lexical_class: row.lexical_class || "",
+      is_headword: Boolean(row.is_headword),
     });
   });
+
+  for (const groupId of Object.keys(map)) {
+    map[groupId] = sortWordsWithHeadwordFirst(map[groupId]);
+  }
 
   return map;
 }
@@ -89,13 +97,7 @@ function groupLabel(groupId) {
     return groupId.slice(0, 8);
   }
 
-  return (
-    group.words
-      .slice(0, 3)
-      .map((word) => (typeof word === "string" ? word : word.word))
-      .filter(Boolean)
-      .join(", ") || "(empty)"
-  );
+  return getHeadwordLabel(group.words);
 }
 
 function getRelationEligibleGroups() {
@@ -120,17 +122,19 @@ function syncGroup(card) {
 
   const rows = [...card.querySelectorAll(".value-row")];
 
-  group.words = rows
-    .map((row) => {
-      const word = row.querySelector(".word-input")?.value?.trim() ?? "";
-      const entryId = row.dataset.entryId || null;
+  group.words = applyHeadwordFlags(
+    rows
+      .map((row) => {
+        const word = row.querySelector(".word-input")?.value?.trim() ?? "";
+        const entryId = row.dataset.entryId || null;
 
-      return {
-        id: entryId || undefined,
-        word,
-      };
-    })
-    .filter((entry) => entry.word);
+        return {
+          id: entryId || undefined,
+          word,
+        };
+      })
+      .filter((entry) => entry.word)
+  );
 
   group.default_lexical_class =
     card.querySelector(".group-lexical-class-select")?.value || "";
@@ -164,6 +168,9 @@ function findGroupByCard(card) {
 
 function renderGroup(group, index) {
   const defaultClass = group.default_lexical_class ?? inferGroupLexicalClass(group.words);
+  const words = group.words.length
+    ? applyHeadwordFlags(group.words)
+    : [{ word: "", is_headword: true }];
 
   return `
     <div
@@ -185,7 +192,7 @@ function renderGroup(group, index) {
       </div>
 
       <div class="values">
-        ${group.words
+        ${words
           .map((wordEntry, wordIndex) => {
             const word =
               typeof wordEntry === "string" ? wordEntry : wordEntry?.word || "";
@@ -193,13 +200,29 @@ function renderGroup(group, index) {
               typeof wordEntry === "object" && wordEntry?.id
                 ? wordEntry.id
                 : "";
+            const isHeadword = wordIndex === 0;
+            const rowLabel = isHeadword ? "Primary word" : "Related word";
+            const placeholder = isHeadword
+              ? "Primary word (most widely known)"
+              : "Related word";
 
             return `
-              <div class="value-row" data-index="${wordIndex}"${
+              <div class="value-row${
+                isHeadword ? " value-row--headword" : ""
+              }" data-index="${wordIndex}"${
                 entryId ? ` data-entry-id="${escapeHTML(entryId)}"` : ""
               }>
-                <input class="word-input" value="${escapeHTML(word)}" placeholder="Word" />
-                <button type="button" class="delete-word secondary-btn" aria-label="Delete word">×</button>
+                <label class="value-row-label small">${rowLabel}</label>
+                <div class="value-row-fields">
+                  <input class="word-input" value="${escapeHTML(
+                    word
+                  )}" placeholder="${placeholder}" />
+                  ${
+                    isHeadword
+                      ? ""
+                      : '<button type="button" class="delete-word secondary-btn" aria-label="Delete related word">×</button>'
+                  }
+                </div>
               </div>
             `;
           })
@@ -207,7 +230,7 @@ function renderGroup(group, index) {
       </div>
 
       <div class="flex gap-10 mt-10">
-        <button type="button" class="add-word secondary-btn">+ Add Word</button>
+        <button type="button" class="add-word secondary-btn">+ Add Related Word</button>
         <button type="button" class="save-group primary-btn">Save</button>
         <button type="button" class="delete-group secondary-btn">Delete</button>
       </div>
@@ -284,10 +307,7 @@ function renderRelationList(containerId, groups, side) {
     const div = document.createElement("div");
     div.className = "group-item";
     div.dataset.id = groupId;
-    div.textContent = words
-      .slice(0, 3)
-      .map((word) => (typeof word === "string" ? word : word.word))
-      .join(", ");
+    div.textContent = getHeadwordLabel(words);
     div.onclick = () => selectRelationGroup(side, groupId, div);
     container.appendChild(div);
   });
@@ -314,9 +334,13 @@ function populateSearchDropdown() {
     return;
   }
 
-  el.groupSearchSelect.innerHTML = `<option value="">Select Group</option>`;
+  el.groupSearchSelect.innerHTML = `<option value="">Select primary word</option>`;
 
-  state.dbGroups.forEach((group) => {
+  const sortedGroups = [...state.dbGroups].sort((a, b) =>
+    getHeadwordLabel(a.words).localeCompare(getHeadwordLabel(b.words))
+  );
+
+  sortedGroups.forEach((group) => {
     const label = groupLabel(group.group_id);
     const option = document.createElement("option");
     option.value = group.group_id;
@@ -415,7 +439,7 @@ async function loadGroups() {
 
   const { data, error } = await sb
     .from("lexicon_entries")
-    .select("id, word, lexical_class, group_id, topic, language_code")
+    .select("id, word, lexical_class, group_id, topic, language_code, is_headword")
     .eq("topic", state.topic)
     .eq("language_code", state.language);
 
@@ -467,6 +491,17 @@ function mergeSavedGroupIntoBrowseCache(group) {
 }
 
 async function persistGroupEntries(sb, groupId, words) {
+  const flaggedWords = applyHeadwordFlags(words);
+
+  const { error: clearHeadwordError } = await sb
+    .from("lexicon_entries")
+    .update({ is_headword: false })
+    .eq("group_id", groupId);
+
+  if (clearHeadwordError) {
+    throw clearHeadwordError;
+  }
+
   const { data: existing, error: fetchError } = await sb
     .from("lexicon_entries")
     .select("id, word")
@@ -480,7 +515,9 @@ async function persistGroupEntries(sb, groupId, words) {
     (existing || []).map((row) => [normalizeWordKey(row.word), row.id])
   );
 
-  const desiredKeys = new Set(words.map((entry) => normalizeWordKey(entry.word)));
+  const desiredKeys = new Set(
+    flaggedWords.map((entry) => normalizeWordKey(entry.word))
+  );
   const toDelete = (existing || [])
     .filter((row) => !desiredKeys.has(normalizeWordKey(row.word)))
     .map((row) => row.id);
@@ -496,7 +533,7 @@ async function persistGroupEntries(sb, groupId, words) {
     }
   }
 
-  for (const entry of words) {
+  for (const entry of flaggedWords) {
     const key = normalizeWordKey(entry.word);
     const existingId = entry.id || existingByKey.get(key);
 
@@ -506,6 +543,7 @@ async function persistGroupEntries(sb, groupId, words) {
         .update({
           word: entry.word,
           lexical_class: entry.lexical_class || null,
+          is_headword: Boolean(entry.is_headword),
           topic: state.topic,
           language_code: state.language,
         })
@@ -524,6 +562,7 @@ async function persistGroupEntries(sb, groupId, words) {
       .insert({
         word: entry.word,
         lexical_class: entry.lexical_class || null,
+        is_headword: Boolean(entry.is_headword),
         group_id: groupId,
         topic: state.topic,
         language_code: state.language,
@@ -537,6 +576,8 @@ async function persistGroupEntries(sb, groupId, words) {
 
     entry.id = inserted.id;
   }
+
+  words.splice(0, words.length, ...flaggedWords);
 }
 
 async function saveGroup(card) {
@@ -797,7 +838,7 @@ el.addGroupBtn?.addEventListener("click", () => {
     group_id: null,
     original_group_id: null,
     default_lexical_class: state.lastLexicalClass || "",
-    words: [{ word: "" }],
+    words: [{ word: "", is_headword: true }],
     language_code: state.language,
   });
 
@@ -817,7 +858,7 @@ el.groupsContainer?.addEventListener("click", async (event) => {
   }
 
   if (event.target.classList.contains("add-word")) {
-    group.words.push({ word: "" });
+    group.words.push({ word: "", is_headword: false });
     renderGroups({ skipSync: true });
     return;
   }
@@ -825,12 +866,20 @@ el.groupsContainer?.addEventListener("click", async (event) => {
   if (event.target.classList.contains("delete-word")) {
     const row = event.target.closest(".value-row");
     const wordIndex = Number(row?.dataset.index);
+
+    if (wordIndex === 0) {
+      setStatus("The primary word cannot be deleted.", true);
+      return;
+    }
+
     if (Number.isFinite(wordIndex)) {
       group.words.splice(wordIndex, 1);
     }
 
+    group.words = applyHeadwordFlags(group.words);
+
     if (!group.words.length) {
-      group.words.push({ word: "" });
+      group.words.push({ word: "", is_headword: true });
     }
 
     renderGroups({ skipSync: true });
