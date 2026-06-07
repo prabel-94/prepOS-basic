@@ -1568,6 +1568,30 @@ RELATION BUILDER
   color: white;
 }
 
+.lexicon-practice-hint a {
+  font-weight: 600;
+}
+
+.lexicon-relations-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.lexicon-relation-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+}
+
 /* ======================================================
 STUDENT LEARNING INTELLIGENCE (minimal)
 ====================================================== */

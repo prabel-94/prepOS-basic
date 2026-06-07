@@ -1,40 +1,47 @@
 /* =========================================
-PrepOS Lexicon Manager (v2 - Correct Architecture)
+PrepOS Lexicon Manager (v3)
 ========================================= */
 
 import { getClient } from "./core/get-client.js";
 import { bootPage } from "./core/page-boot.js";
+import { DEFAULT_LEXICON_TOPIC } from "./generators/shared/lexicon-engine.js";
+import {
+  LEXICAL_CLASS_OPTIONS,
+  normalizeWordKey,
+  validateGroupWords,
+  validateGeneratorReadiness,
+} from "./generators/shared/lexicon-utils.js";
 
-/* =========================================
-STATE
-========================================= */
 let selectedGroupA = null;
 let selectedGroupB = null;
+
 const state = {
-  topic: "vocabulary",
+  topic: DEFAULT_LEXICON_TOPIC,
   mode: "SESSION",
   language: "ml",
   sessionGroups: [],
   dbGroups: [],
-  selectedGroupId: null
+  dbRelations: [],
+  selectedGroupId: null,
 };
 
 const el = {
   groupSearchSelect: document.getElementById("groupSearchSelect"),
   topicInput: document.getElementById("topicInput"),
   languageSelect: document.getElementById("languageSelect"),
+  modeSelect: document.getElementById("modeSelect"),
   addGroupBtn: document.getElementById("addGroupBtn"),
   groupsContainer: document.getElementById("groupsContainer"),
-  status: document.getElementById("lexiconStatus")
+  status: document.getElementById("lexiconStatus"),
+  relationSessionHint: document.getElementById("relationSessionHint"),
+  relationBuilder: document.getElementById("relationBuilder"),
+  existingRelationsList: document.getElementById("existingRelationsList"),
 };
 
-
-/* =========================================
-UTILS
-========================================= */
-
 function setStatus(msg, isError = false) {
-  if (!el.status) return;
+  if (!el.status) {
+    return;
+  }
   el.status.textContent = msg;
   el.status.style.color = isError ? "var(--danger)" : "";
 }
@@ -48,151 +55,89 @@ function escapeHTML(str = "") {
     .replaceAll("'", "&#039;");
 }
 
-function shuffle(arr) {
-  return arr.sort(() => Math.random() - 0.5);
+function getCurrentGroups() {
+  return state.mode === "SESSION" ? state.sessionGroups : state.dbGroups;
 }
-
-
-/* =========================================
-GROUPING (CORE)
-========================================= */
 
 function groupRows(rows) {
   const map = {};
 
-  rows.forEach(r => {
-    if (!map[r.group_id]) {
-      map[r.group_id] = [];
+  rows.forEach((row) => {
+    if (!map[row.group_id]) {
+      map[row.group_id] = [];
     }
-    map[r.group_id].push({
-  word: r.word,
-  lexical_class: r.lexical_class || ""
-});
+
+    map[row.group_id].push({
+      id: row.id,
+      word: row.word,
+      lexical_class: row.lexical_class || "",
+    });
   });
 
   return map;
 }
 
+function groupLabel(groupId) {
+  const group =
+    state.dbGroups.find((entry) => entry.group_id === groupId) ||
+    state.sessionGroups.find((entry) => entry.group_id === groupId);
 
-/* =========================================
-RENDER
-========================================= */
+  if (!group?.words?.length) {
+    return groupId.slice(0, 8);
+  }
 
-function renderGroup(group, index) {
-
-  return `
-    <div
-      class="group-card"
-      data-group-id="${group.group_id || ''}"
-      data-index="${group.group_id ? '' : index}"
-    >
-
-      <div class="small mb-10">
-        ${
-          group.language_code === "en"
-            ? "🇬🇧 English"
-            : "🇮🇳 Malayalam"
-        }
-      </div>
-
-      <div class="values">
-
-        ${group.words.map((w, i) => {
-
-          const word =
-            typeof w === "string"
-              ? w
-              : (w?.word || "");
-
-          const lexicalClass =
-            typeof w === "object"
-              ? (w?.lexical_class || "")
-              : "";
-
-          return `
-            <div class="value-row" data-index="${i}">
-
-              <input
-                class="word-input"
-                value="${escapeHTML(word)}"
-                placeholder="Word"
-              />
-
-              <div class="lexical-class-wrapper">
-
-                <select class="lexical-class-select">
-
-                  <option value="">
-                    Class
-                  </option>
-
-                  ${[
-                    "ABSTRACT",
-                    "EMOTION",
-                    "STATE",
-                    "QUALITY",
-                    "ACTION",
-                    "OBJECT",
-                    "PLACE",
-                    "COLLECTIVE",
-                    "TITLE",
-                    "PERSON_NEUTRAL",
-                    "PERSON_MALE",
-                    "PERSON_FEMALE"
-                  ].map(type => `
-
-                    <option
-                      value="${type}"
-                      ${
-                        lexicalClass === type
-                          ? "selected"
-                          : ""
-                      }
-                    >
-                      ${type}
-                    </option>
-
-                  `).join("")}
-
-                </select>
-
-              </div>
-
-              <button class="delete-word secondary-btn">
-                ×
-              </button>
-
-            </div>
-          `;
-
-        }).join("")}
-
-      </div>
-
-      <div class="flex gap-10 mt-10">
-
-        <button class="add-word secondary-btn">
-          + Add Word
-        </button>
-
-        <button class="save-group primary-btn">
-          Save
-        </button>
-
-        <button class="delete-group secondary-btn">
-          Delete
-        </button>
-
-      </div>
-
-    </div>
-  `;
+  return (
+    group.words
+      .slice(0, 3)
+      .map((word) => (typeof word === "string" ? word : word.word))
+      .filter(Boolean)
+      .join(", ") || "(empty)"
+  );
 }
 
-function getCurrentGroups() {
-  return state.mode === "SESSION"
-    ? state.sessionGroups
-    : state.dbGroups;
+function getRelationEligibleGroups() {
+  const merged = new Map();
+
+  for (const group of [...state.dbGroups, ...state.sessionGroups]) {
+    if (!group?.group_id || !group.words?.length) {
+      continue;
+    }
+
+    merged.set(group.group_id, group);
+  }
+
+  return [...merged.values()];
+}
+
+function syncGroup(card) {
+  const group = findGroupByCard(card);
+  if (!group) {
+    return null;
+  }
+
+  const rows = [...card.querySelectorAll(".value-row")];
+
+  group.words = rows
+    .map((row) => {
+      const word = row.querySelector(".word-input")?.value?.trim() ?? "";
+      const lexicalClass = row.querySelector(".lexical-class-select")?.value || null;
+      const entryId = row.dataset.entryId || null;
+
+      return {
+        id: entryId || undefined,
+        word,
+        lexical_class: lexicalClass,
+      };
+    })
+    .filter((entry) => entry.word);
+
+  return group;
+}
+
+function syncAllGroupsFromDOM() {
+  el.groupsContainer?.querySelectorAll(".group-card").forEach((card) => {
+    syncGroup(card);
+  });
 }
 
 function findGroupByCard(card) {
@@ -200,24 +145,80 @@ function findGroupByCard(card) {
   const groupId = card.dataset.groupId;
 
   if (groupId) {
-    const group = groups.find(g => g.group_id === groupId);
-    if (group) return group;
+    return groups.find((group) => group.group_id === groupId) ?? null;
   }
 
-  const index = +card.dataset.index;
-  return groups[index] || groups[0];
+  const index = Number(card.dataset.index);
+  return Number.isFinite(index) ? groups[index] ?? null : null;
 }
 
-function renderGroups() {
+function renderGroup(group, index) {
+  return `
+    <div
+      class="group-card"
+      data-group-id="${group.group_id || ""}"
+      data-index="${group.group_id ? "" : index}"
+    >
+      <div class="small mb-10">
+        ${group.language_code === "en" ? "🇬🇧 English" : "🇮🇳 Malayalam"}
+        · topic: ${escapeHTML(state.topic)}
+      </div>
+
+      <div class="values">
+        ${group.words
+          .map((wordEntry, wordIndex) => {
+            const word =
+              typeof wordEntry === "string" ? wordEntry : wordEntry?.word || "";
+            const lexicalClass =
+              typeof wordEntry === "object" ? wordEntry?.lexical_class || "" : "";
+            const entryId =
+              typeof wordEntry === "object" && wordEntry?.id
+                ? wordEntry.id
+                : "";
+
+            return `
+              <div class="value-row" data-index="${wordIndex}"${
+                entryId ? ` data-entry-id="${escapeHTML(entryId)}"` : ""
+              }>
+                <input class="word-input" value="${escapeHTML(word)}" placeholder="Word" />
+                <div class="lexical-class-wrapper">
+                  <select class="lexical-class-select">
+                    <option value="">Class</option>
+                    ${LEXICAL_CLASS_OPTIONS.map(
+                      (type) => `
+                        <option value="${type}"${
+                          lexicalClass === type ? " selected" : ""
+                        }>${type}</option>
+                      `
+                    ).join("")}
+                  </select>
+                </div>
+                <button type="button" class="delete-word secondary-btn" aria-label="Delete word">×</button>
+              </div>
+            `;
+          })
+          .join("")}
+      </div>
+
+      <div class="flex gap-10 mt-10">
+        <button type="button" class="add-word secondary-btn">+ Add Word</button>
+        <button type="button" class="save-group primary-btn">Save</button>
+        <button type="button" class="delete-group secondary-btn">Delete</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderGroups({ skipSync = false } = {}) {
+  if (!skipSync) {
+    syncAllGroupsFromDOM();
+  }
 
   let groups =
-    state.mode === "SESSION"
-      ? state.sessionGroups
-      : state.dbGroups;
+    state.mode === "SESSION" ? state.sessionGroups : state.dbGroups;
 
-  // Apply filter ONLY in browse mode
   if (state.mode === "BROWSE" && state.selectedGroupId) {
-    groups = groups.filter(g => g.group_id === state.selectedGroupId);
+    groups = groups.filter((group) => group.group_id === state.selectedGroupId);
   }
 
   if (!groups.length) {
@@ -225,25 +226,28 @@ function renderGroups() {
       <div class="question-card">
         ${
           state.mode === "SESSION"
-            ? "No groups in this session."
-            : "No groups found."
+            ? "No groups in this session. Add a word group, then Save each card."
+            : "No groups found for this topic and language."
         }
       </div>
     `;
+    updateRelationPanels();
     return;
   }
 
-  el.groupsContainer.innerHTML =
-    groups.map((g, i) => renderGroup(g, i)).join("");
+  el.groupsContainer.innerHTML = groups
+    .map((group, index) => renderGroup(group, index))
+    .join("");
+
+  updateRelationPanels();
 }
 
 function renderRelationGroups(groups) {
-
   const map = {};
 
-  groups.forEach(g => {
-    if (g.group_id) {
-      map[g.group_id] = g.words;
+  groups.forEach((group) => {
+    if (group.group_id) {
+      map[group.group_id] = group.words;
     }
   });
 
@@ -252,91 +256,155 @@ function renderRelationGroups(groups) {
 }
 
 function renderRelationList(containerId, groups, side) {
-
   const container = document.getElementById(containerId);
-  if (!container) return;
+  if (!container) {
+    return;
+  }
 
   container.innerHTML = "";
 
-  Object.entries(groups).forEach(([group_id, words]) => {
+  const entries = Object.entries(groups);
+  if (!entries.length) {
+    container.innerHTML = `<p class="small text-muted">No saved groups available.</p>`;
+    return;
+  }
 
+  entries.forEach(([groupId, words]) => {
     const div = document.createElement("div");
-
     div.className = "group-item";
-    div.dataset.id = group_id;
-
+    div.dataset.id = groupId;
     div.textContent = words
-  .slice(0, 3)
-  .map(w => typeof w === "string" ? w : w.word)
-  .join(", ");
-
-    div.onclick = () => selectRelationGroup(side, group_id, div);
-
+      .slice(0, 3)
+      .map((word) => (typeof word === "string" ? word : word.word))
+      .join(", ");
+    div.onclick = () => selectRelationGroup(side, groupId, div);
     container.appendChild(div);
   });
 }
 
-function selectRelationGroup(side, group_id, el) {
-
+function selectRelationGroup(side, groupId, itemEl) {
   const containerId = side === "A" ? "groupA-list" : "groupB-list";
 
-  document.querySelectorAll(`#${containerId} .group-item`)
-    .forEach(x => x.classList.remove("active"));
+  document
+    .querySelectorAll(`#${containerId} .group-item`)
+    .forEach((node) => node.classList.remove("active"));
 
-  el.classList.add("active");
+  itemEl.classList.add("active");
 
   if (side === "A") {
-    selectedGroupA = group_id;
+    selectedGroupA = groupId;
   } else {
-    selectedGroupB = group_id;
+    selectedGroupB = groupId;
   }
 }
 
 function populateSearchDropdown() {
+  if (!el.groupSearchSelect) {
+    return;
+  }
 
-  if (!el.groupSearchSelect) return;
+  el.groupSearchSelect.innerHTML = `<option value="">Select Group</option>`;
 
-  el.groupSearchSelect.innerHTML = `
-    <option value="">Select Group</option>
-  `;
-
-  state.dbGroups.forEach(g => {
-
-    const label =
-  g.words
-    .slice(0, 3)
-    .map(w => typeof w === "string" ? w : w.word)
-    .join(", ")
-  || "(empty)";
-
+  state.dbGroups.forEach((group) => {
+    const label = groupLabel(group.group_id);
     const option = document.createElement("option");
-    option.value = g.group_id;
+    option.value = group.group_id;
     option.textContent = label;
-
+    if (group.group_id === state.selectedGroupId) {
+      option.selected = true;
+    }
     el.groupSearchSelect.appendChild(option);
   });
-
 }
 
-/* =========================================
-LOAD
-========================================= */
+function renderExistingRelations() {
+  if (!el.existingRelationsList) {
+    return;
+  }
+
+  const eligibleIds = new Set(
+    getRelationEligibleGroups().map((group) => group.group_id)
+  );
+
+  const visibleRelations = state.dbRelations.filter(
+    (relation) =>
+      eligibleIds.has(relation.group_id_1) &&
+      eligibleIds.has(relation.group_id_2)
+  );
+
+  if (!visibleRelations.length) {
+    el.existingRelationsList.innerHTML =
+      '<li class="small text-muted">No opposite links for this topic and language yet.</li>';
+    return;
+  }
+
+  el.existingRelationsList.innerHTML = visibleRelations
+    .map(
+      (relation) => `
+        <li class="lexicon-relation-item">
+          <span>${escapeHTML(groupLabel(relation.group_id_1))} ↔ ${escapeHTML(
+            groupLabel(relation.group_id_2)
+          )}</span>
+          <button
+            type="button"
+            class="secondary-btn delete-relation-btn"
+            data-relation-id="${escapeHTML(relation.id)}"
+          >
+            Remove
+          </button>
+        </li>
+      `
+    )
+    .join("");
+}
+
+function updateRelationPanels() {
+  const browseMode = state.mode === "BROWSE";
+  const eligibleGroups = getRelationEligibleGroups();
+
+  if (el.relationSessionHint) {
+    el.relationSessionHint.classList.toggle("hidden", browseMode);
+  }
+
+  if (el.relationBuilder) {
+    el.relationBuilder.classList.toggle("hidden", !browseMode);
+  }
+
+  const existingPanel = document.getElementById("existingRelationsPanel");
+  if (existingPanel) {
+    existingPanel.classList.toggle("hidden", !browseMode);
+  }
+
+  if (browseMode) {
+    renderRelationGroups(eligibleGroups);
+    renderExistingRelations();
+  }
+}
+
+async function loadRelations() {
+  const sb = await getClient();
+  const { data, error } = await sb
+    .from("lexicon_group_relations")
+    .select("id, group_id_1, group_id_2, relation_type")
+    .eq("relation_type", "ANTONYM");
+
+  if (error) {
+    console.error(error);
+    setStatus("Failed to load opposite links", true);
+    return;
+  }
+
+  state.dbRelations = data || [];
+  renderExistingRelations();
+}
 
 async function loadGroups() {
-
-  const sb = await getClient()
+  const sb = await getClient();
   setStatus("Loading groups...");
 
   const { data, error } = await sb
     .from("lexicon_entries")
-    .select(`
-  id,
-  word,
-  lexical_class,
-  group_id,
-  topic,
-  language_code
-`)
+    .select("id, word, lexical_class, group_id, topic, language_code")
     .eq("topic", state.topic)
     .eq("language_code", state.language);
 
@@ -348,317 +416,282 @@ async function loadGroups() {
 
   const grouped = groupRows(data || []);
 
-  state.dbGroups = Object.entries(grouped).map(([group_id, words]) => ({
-    group_id,
-    original_group_id: group_id,
+  state.dbGroups = Object.entries(grouped).map(([groupId, words]) => ({
+    group_id: groupId,
+    original_group_id: groupId,
     words,
-    language_code: state.language
+    language_code: state.language,
   }));
 
-  renderGroups();
-renderRelationGroups(state.dbGroups);
-populateSearchDropdown();
-setStatus(`${state.dbGroups.length} groups loaded`);
+  populateSearchDropdown();
+  await loadRelations();
+  renderGroups({ skipSync: true });
+  setStatus(`${state.dbGroups.length} groups loaded`);
 }
 
-/* =========================================
-SYNC FROM UI
-========================================= */
-
-function syncGroup(card) {
-  const group = findGroupByCard(card);
-
-  const rows = [...card.querySelectorAll(".value-row")];
-
-group.words = rows.map(row => {
-
-  const word = row
-    .querySelector(".word-input")
-    ?.value
-    .trim();
-
-  const lexicalClass = row
-    .querySelector(".lexical-class-select")
-    ?.value || null;
-
-  return {
-    word,
-    lexical_class: lexicalClass
-  };
-
-}).filter(entry => entry.word);
-
-  return group;
-}
-
-
-/* =========================================
-SAVE GROUP
-========================================= */
-async function saveGroup(card) {
-
-  const sb = await getClient()
-  const group = syncGroup(card);
-
-  if (!group.words.length) {
-    setStatus("Add at least one word", true);
+function mergeSavedGroupIntoBrowseCache(group) {
+  if (!group?.group_id) {
     return;
   }
 
-  let isNew = !group.original_group_id;
-  let group_id = group.original_group_id;
+  const payload = {
+    group_id: group.group_id,
+    original_group_id: group.group_id,
+    words: group.words,
+    language_code: state.language,
+  };
 
-  // ========================================
-  // 1. CREATE GROUP IF NEW
-  // ========================================
+  const index = state.dbGroups.findIndex(
+    (entry) => entry.group_id === group.group_id
+  );
 
-  if (isNew) {
+  if (index >= 0) {
+    state.dbGroups[index] = payload;
+  } else {
+    state.dbGroups.push(payload);
+  }
+}
 
-    group_id = crypto.randomUUID();
+async function persistGroupEntries(sb, groupId, words) {
+  const { data: existing, error: fetchError } = await sb
+    .from("lexicon_entries")
+    .select("id, word")
+    .eq("group_id", groupId);
 
-    const { error: groupError } = await sb
-      .from("lexicon_groups")
-      .insert({
-        id: group_id,
-        language_code: state.language
-      });
+  if (fetchError) {
+    throw fetchError;
+  }
 
-    if (groupError) {
-      console.error(groupError);
-      setStatus("Failed to create group", true);
-      return;
+  const existingByKey = new Map(
+    (existing || []).map((row) => [normalizeWordKey(row.word), row.id])
+  );
+
+  const desiredKeys = new Set(words.map((entry) => normalizeWordKey(entry.word)));
+  const toDelete = (existing || [])
+    .filter((row) => !desiredKeys.has(normalizeWordKey(row.word)))
+    .map((row) => row.id);
+
+  if (toDelete.length) {
+    const { error: deleteError } = await sb
+      .from("lexicon_entries")
+      .delete()
+      .in("id", toDelete);
+
+    if (deleteError) {
+      throw deleteError;
     }
   }
 
-  // ========================================
-  // 2. DELETE OLD ENTRIES (ONLY IF EXISTING)
-  // ========================================
+  for (const entry of words) {
+    const key = normalizeWordKey(entry.word);
+    const existingId = entry.id || existingByKey.get(key);
 
-  if (!isNew) {
-    await sb
+    if (existingId) {
+      const { error: updateError } = await sb
+        .from("lexicon_entries")
+        .update({
+          word: entry.word,
+          lexical_class: entry.lexical_class || null,
+          topic: state.topic,
+          language_code: state.language,
+        })
+        .eq("id", existingId);
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      entry.id = existingId;
+      continue;
+    }
+
+    const { data: inserted, error: insertError } = await sb
       .from("lexicon_entries")
-      .delete()
-      .eq("group_id", group_id);
+      .insert({
+        word: entry.word,
+        lexical_class: entry.lexical_class || null,
+        group_id: groupId,
+        topic: state.topic,
+        language_code: state.language,
+      })
+      .select("id")
+      .single();
+
+    if (insertError) {
+      throw insertError;
+    }
+
+    entry.id = inserted.id;
   }
+}
 
-  // ========================================
-  // 3. INSERT WORDS
-  // ========================================
+async function saveGroup(card) {
+  syncAllGroupsFromDOM();
+  const group = findGroupByCard(card);
 
-  const rows = group.words.map(entry => ({
-  word: entry.word,
-  lexical_class: entry.lexical_class,
-  group_id,
-  topic: state.topic,
-  language_code: state.language
-}));
-
-  const { error } = await sb
-    .from("lexicon_entries")
-    .insert(rows);
-
-  if (error) {
-    console.error(error);
-    setStatus("Save failed", true);
+  if (!group) {
+    setStatus("Could not find group to save", true);
     return;
   }
 
-  // ========================================
-  // 4. UPDATE STATE
-  // ========================================
+  const validationErrors = validateGroupWords(group.words);
+  if (validationErrors.length) {
+    setStatus(validationErrors[0], true);
+    return;
+  }
 
-  group.group_id = group_id;
-  group.original_group_id = group_id;
+  const sb = await getClient();
+  const isNew = !group.original_group_id;
+  let groupId = group.original_group_id;
+  let createdGroupId = null;
+
+  const allGroupsMap = Object.fromEntries(
+    [...state.dbGroups, ...state.sessionGroups]
+      .filter((entry) => entry.group_id)
+      .map((entry) => [entry.group_id, entry.words])
+  );
+
+  const readinessWarnings = validateGeneratorReadiness(
+    group.words,
+    allGroupsMap,
+    groupId
+  );
+
+  try {
+    if (isNew) {
+      groupId = crypto.randomUUID();
+      createdGroupId = groupId;
+
+      const { error: groupError } = await sb.from("lexicon_groups").insert({
+        id: groupId,
+        language_code: state.language,
+      });
+
+      if (groupError) {
+        throw groupError;
+      }
+    }
+
+    await persistGroupEntries(sb, groupId, group.words);
+  } catch (error) {
+    console.error(error);
+
+    if (createdGroupId) {
+      await sb.from("lexicon_groups").delete().eq("id", createdGroupId);
+    }
+
+    setStatus(error.message || "Save failed", true);
+    return;
+  }
+
+  group.group_id = groupId;
+  group.original_group_id = groupId;
+  mergeSavedGroupIntoBrowseCache(group);
+
+  if (state.mode === "BROWSE") {
+    await loadGroups();
+  } else {
+    renderGroups({ skipSync: true });
+    await loadRelations();
+  }
+
+  if (readinessWarnings.length) {
+    setStatus(`Group saved ✅ ${readinessWarnings[0]}`);
+    return;
+  }
 
   setStatus("Group saved ✅");
-  renderGroups();
 }
 
-/* =========================================
-DELETE GROUP
-========================================= */
-
 async function deleteGroup(card) {
+  syncAllGroupsFromDOM();
 
-  const sb = await getClient()
+  const sb = await getClient();
   const groups = getCurrentGroups();
   const groupId = card.dataset.groupId;
   let index = groupId
-    ? groups.findIndex(g => g.group_id === groupId)
-    : +card.dataset.index;
+    ? groups.findIndex((group) => group.group_id === groupId)
+    : Number(card.dataset.index);
 
-  if (Number.isNaN(index) || index < 0) {
+  if (!Number.isFinite(index) || index < 0) {
     index = -1;
   }
 
-  const group = index !== -1 && groups[index]
-    ? groups[index]
-    : groups[0];
+  const group =
+    index !== -1 && groups[index] ? groups[index] : groups[0] ?? null;
 
-  if (!confirm("Delete this group?")) return;
+  if (!group || !confirm("Delete this group?")) {
+    return;
+  }
 
   if (group.original_group_id) {
+    const { error: relationError } = await sb
+      .from("lexicon_group_relations")
+      .delete()
+      .or(
+        `group_id_1.eq.${group.original_group_id},group_id_2.eq.${group.original_group_id}`
+      );
 
-  // ========================================
-  // DELETE RELATIONS
-  // ========================================
+    if (relationError) {
+      console.error(relationError);
+      setStatus("Failed to delete opposite links", true);
+      return;
+    }
 
-  await sb
-    .from("lexicon_group_relations")
-    .delete()
-    .or(`
-      group_id_1.eq.${group.original_group_id},
-      group_id_2.eq.${group.original_group_id}
-    `);
+    const { error: entryError } = await sb
+      .from("lexicon_entries")
+      .delete()
+      .eq("group_id", group.original_group_id);
 
-  // ========================================
-  // DELETE ENTRIES
-  // ========================================
+    if (entryError) {
+      console.error(entryError);
+      setStatus("Failed to delete words", true);
+      return;
+    }
 
-  await sb
-    .from("lexicon_entries")
-    .delete()
-    .eq("group_id", group.original_group_id);
+    const { error: groupError } = await sb
+      .from("lexicon_groups")
+      .delete()
+      .eq("id", group.original_group_id);
 
-  // ========================================
-  // DELETE GROUP
-  // ========================================
-
-  await sb
-    .from("lexicon_groups")
-    .delete()
-    .eq("id", group.original_group_id);
-
-}
+    if (groupError) {
+      console.error(groupError);
+      setStatus("Failed to delete group", true);
+      return;
+    }
+  }
 
   const removeIndex = index !== -1 ? index : groups.indexOf(group);
   if (removeIndex !== -1) {
     groups.splice(removeIndex, 1);
   }
 
-  renderGroups();
+  state.dbGroups = state.dbGroups.filter(
+    (entry) => entry.group_id !== group.original_group_id
+  );
+
+  if (selectedGroupA === group.original_group_id) {
+    selectedGroupA = null;
+  }
+  if (selectedGroupB === group.original_group_id) {
+    selectedGroupB = null;
+  }
+
+  if (state.mode === "BROWSE") {
+    await loadGroups();
+  } else {
+    renderGroups({ skipSync: true });
+    await loadRelations();
+  }
 
   setStatus("Group deleted");
 }
 
-
-/* =========================================
-EVENTS
-========================================= */
-
-document.getElementById("modeSelect")
-  ?.addEventListener("change", async (e) => {
-
-    state.mode = e.target.value;
-
-    if (state.mode === "BROWSE") {
-      el.groupSearchSelect.style.display = "inline-block";
-      await loadGroups();
-    } else {
-      el.groupSearchSelect.style.display = "none";
-      state.selectedGroupId = null;
-      renderGroups();
-    }
-
-});
-
-el.addGroupBtn?.addEventListener("click", () => {
-
-  const target =
-    state.mode === "SESSION"
-      ? state.sessionGroups
-      : state.dbGroups;
-
-  target.unshift({
-    group_id: null,
-    original_group_id: null,
-    words: [
-  {
-    word: "",
-    lexical_class: ""
-  }
-],
-    language_code: state.language
-  });
-
-  renderGroups();
-
-});
-
-
-el.groupsContainer?.addEventListener("click", async (e) => {
-
-  const card = e.target.closest(".group-card");
-  if (!card) return;
-
-  const group = syncGroup(card);
-
-  if (e.target.classList.contains("add-word")) {
-    group.words.push({
-  word: "",
-  lexical_class: ""
-});
-    renderGroups();
-  }
-
-  if (e.target.classList.contains("delete-word")) {
-    const row = e.target.closest(".value-row");
-    const i = +row.dataset.index;
-    group.words.splice(i, 1);
-    if (!group.words.length) {
-
-  group.words.push({
-    word: "",
-    lexical_class: ""
-  });
-
-}
-    renderGroups();
-  }
-
-  if (e.target.classList.contains("save-group")) {
-    await saveGroup(card);
-  }
-
-  if (e.target.classList.contains("delete-group")) {
-    await deleteGroup(card);
-  }
-
-});
-
-el.groupSearchSelect?.addEventListener("change", (e) => {
-
-  state.selectedGroupId = e.target.value || null;
-
-  renderGroups();
-
-});
-
-el.topicInput?.addEventListener("change", async (e) => {
-  state.topic = e.target.value.trim().toLowerCase();
-  await loadGroups();
-});
-
-el.languageSelect?.addEventListener("change", async (e) => {
-
-  state.language = e.target.value;
-
-  if (state.mode === "BROWSE") {
-    await loadGroups();
-  }
-
-  setStatus(
-    state.language === "ml"
-      ? "Malayalam mode"
-      : "English mode"
-  );
-});
-
-document
-  .getElementById("link-opposite-btn")
-  ?.addEventListener("click", linkOpposite);
-
 async function linkOpposite() {
+  if (state.mode !== "BROWSE") {
+    setStatus("Switch to Browse & Edit to link opposites.", true);
+    return;
+  }
 
   if (!selectedGroupA || !selectedGroupB) {
     setStatus("Select both groups", true);
@@ -670,23 +703,31 @@ async function linkOpposite() {
     return;
   }
 
-  const { data: existing } = await sb
+  const sb = await getClient();
+
+  const { data: existing, error: existingError } = await sb
     .from("lexicon_group_relations")
     .select("id")
-    .or(`and(group_id_1.eq.${selectedGroupA},group_id_2.eq.${selectedGroupB}),and(group_id_1.eq.${selectedGroupB},group_id_2.eq.${selectedGroupA})`);
+    .or(
+      `and(group_id_1.eq.${selectedGroupA},group_id_2.eq.${selectedGroupB}),and(group_id_1.eq.${selectedGroupB},group_id_2.eq.${selectedGroupA})`
+    );
 
-  if (existing && existing.length) {
+  if (existingError) {
+    console.error(existingError);
+    setStatus("Could not verify existing links", true);
+    return;
+  }
+
+  if (existing?.length) {
     setStatus("Already linked", true);
     return;
   }
 
-  const { error } = await sb
-    .from("lexicon_group_relations")
-    .insert({
-      group_id_1: selectedGroupA,
-      group_id_2: selectedGroupB,
-      relation_type: "ANTONYM"
-    });
+  const { error } = await sb.from("lexicon_group_relations").insert({
+    group_id_1: selectedGroupA,
+    group_id_2: selectedGroupB,
+    relation_type: "ANTONYM",
+  });
 
   if (error) {
     console.error(error);
@@ -694,13 +735,142 @@ async function linkOpposite() {
     return;
   }
 
+  await loadRelations();
   setStatus("Opposite linked ✅");
 }
 
+async function deleteRelation(relationId) {
+  if (!relationId || !confirm("Remove this opposite link?")) {
+    return;
+  }
 
-/* =========================================
-INIT
-========================================= */
+  const sb = await getClient();
+  const { error } = await sb
+    .from("lexicon_group_relations")
+    .delete()
+    .eq("id", relationId);
+
+  if (error) {
+    console.error(error);
+    setStatus("Could not remove link", true);
+    return;
+  }
+
+  await loadRelations();
+  setStatus("Opposite link removed");
+}
+
+el.modeSelect?.addEventListener("change", async (event) => {
+  state.mode = event.target.value;
+
+  if (state.mode === "BROWSE") {
+    el.groupSearchSelect.style.display = "inline-block";
+    await loadGroups();
+  } else {
+    el.groupSearchSelect.style.display = "none";
+    state.selectedGroupId = null;
+    renderGroups({ skipSync: true });
+  }
+});
+
+el.addGroupBtn?.addEventListener("click", () => {
+  syncAllGroupsFromDOM();
+
+  const target =
+    state.mode === "SESSION" ? state.sessionGroups : state.dbGroups;
+
+  target.unshift({
+    group_id: null,
+    original_group_id: null,
+    words: [{ word: "", lexical_class: "" }],
+    language_code: state.language,
+  });
+
+  renderGroups({ skipSync: true });
+});
+
+el.groupsContainer?.addEventListener("click", async (event) => {
+  const card = event.target.closest(".group-card");
+  if (!card) {
+    return;
+  }
+
+  syncAllGroupsFromDOM();
+  const group = findGroupByCard(card);
+  if (!group) {
+    return;
+  }
+
+  if (event.target.classList.contains("add-word")) {
+    group.words.push({ word: "", lexical_class: "" });
+    renderGroups({ skipSync: true });
+    return;
+  }
+
+  if (event.target.classList.contains("delete-word")) {
+    const row = event.target.closest(".value-row");
+    const wordIndex = Number(row?.dataset.index);
+    if (Number.isFinite(wordIndex)) {
+      group.words.splice(wordIndex, 1);
+    }
+
+    if (!group.words.length) {
+      group.words.push({ word: "", lexical_class: "" });
+    }
+
+    renderGroups({ skipSync: true });
+    return;
+  }
+
+  if (event.target.classList.contains("save-group")) {
+    await saveGroup(card);
+    return;
+  }
+
+  if (event.target.classList.contains("delete-group")) {
+    await deleteGroup(card);
+  }
+});
+
+el.groupSearchSelect?.addEventListener("change", (event) => {
+  state.selectedGroupId = event.target.value || null;
+  renderGroups({ skipSync: true });
+});
+
+el.topicInput?.addEventListener("change", async (event) => {
+  state.topic = event.target.value.trim().toLowerCase() || DEFAULT_LEXICON_TOPIC;
+
+  if (state.mode === "BROWSE") {
+    await loadGroups();
+    return;
+  }
+
+  setStatus(`Topic set to "${state.topic}" for new saves`);
+});
+
+el.languageSelect?.addEventListener("change", async (event) => {
+  state.language = event.target.value;
+
+  if (state.mode === "BROWSE") {
+    await loadGroups();
+  } else {
+    renderGroups({ skipSync: true });
+  }
+
+  setStatus(state.language === "ml" ? "Malayalam mode" : "English mode");
+});
+
+document.getElementById("link-opposite-btn")?.addEventListener("click", linkOpposite);
+
+el.existingRelationsList?.addEventListener("click", async (event) => {
+  const button = event.target.closest(".delete-relation-btn");
+  if (!button) {
+    return;
+  }
+
+  await deleteRelation(button.dataset.relationId);
+});
+
 async function init() {
   const runtime = await bootPage({
     roles: ["teacher", "admin"],
@@ -711,11 +881,17 @@ async function init() {
     },
   });
 
-  if (!runtime) return;
+  if (!runtime) {
+    return;
+  }
+
+  if (el.topicInput) {
+    el.topicInput.value = state.topic;
+  }
 
   state.sessionGroups = [];
-  renderGroups();
-  setStatus("Start adding new word groups");
+  renderGroups({ skipSync: true });
+  setStatus("Session entry mode — save each group, then use Browse & Edit to link opposites.");
 }
 
 init();

@@ -2,6 +2,7 @@ import { runGenerator } from "./generator-core.js";
 import { getClient } from "./core/get-client.js";
 import { bootPage } from "./core/page-boot.js";
 import { normalizeTopicKey } from "./student/student-intelligence.js";
+import { DEFAULT_LEXICON_TOPIC } from "./generators/shared/lexicon-engine.js";
 
 const subjectSelect = document.getElementById("subjectSelect");
 const patternSelect = document.getElementById("patternSelect");
@@ -481,7 +482,8 @@ async function loadQuestion() {
       const result = await runGenerator({
         subject: subjectSelect.value,
         pattern: patternSelect.value,
-        adaptive: adaptiveToggle.checked
+        adaptive: adaptiveToggle.checked,
+        topic: DEFAULT_LEXICON_TOPIC,
       });
 
       if (!result || !result.length) {

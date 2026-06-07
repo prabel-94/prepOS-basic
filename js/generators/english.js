@@ -1,6 +1,7 @@
 import {
   fetchGroups,
-  buildQuestion
+  buildQuestion,
+  DEFAULT_LEXICON_TOPIC,
 } from "./shared/lexicon-engine.js";
 import { getClient } from "../core/get-client.js";
 const DEFAULT_ADAPTIVE_MODE = true;
@@ -10,16 +11,15 @@ ENGLISH GENERATOR
 ========================================= */
 
 export async function runEnglishGenerator(config) {
+  const topic = config.topic || DEFAULT_LEXICON_TOPIC;
+  const groups = await fetchGroups("en", { topic });
 
-  const groups = await fetchGroups("en");
-
-  switch(config.pattern){
-
+  switch (config.pattern) {
     case "SYNONYM":
       return [await generateSynonym(groups, config)];
 
     case "OPPOSITE_WORD":
-      return [await generateOpposite(groups)];
+      return [await generateOpposite(groups, config)];
 
     default:
       return [];
@@ -265,7 +265,7 @@ async function generateSynonym(groups, config = {}) {
 OPPOSITE GENERATOR
 ========================================= */
 
-async function generateOpposite(groups) {
+async function generateOpposite(groups, _config = {}) {
   const relations = await fetchOppositeRelations();
 
   const adjacency = {};
