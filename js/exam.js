@@ -212,9 +212,13 @@ function bindQuestionVisibilityObserver(){
   cards.forEach((card) => questionObserver.observe(card));
 }
 
+function getNavigationModeCards(){
+  return document.querySelectorAll("[data-exam-nav-mode]");
+}
+
 function getSelectedNavigationMode(){
-  const selected = document.querySelector('input[name="examNavigationMode"]:checked');
-  return selected?.value === EXAM_NAV_MODES.step
+  const active = document.querySelector("[data-exam-nav-mode].active");
+  return active?.dataset.examNavMode === EXAM_NAV_MODES.step
     ? EXAM_NAV_MODES.step
     : EXAM_NAV_MODES.scroll;
 }
@@ -225,15 +229,23 @@ function resolveNavigationModeFromAttempt(){
     : EXAM_NAV_MODES.scroll;
 }
 
-function syncNavigationModeRadios(mode){
+function syncNavigationModePicker(mode){
   const value =
     mode === EXAM_NAV_MODES.step ? EXAM_NAV_MODES.step : EXAM_NAV_MODES.scroll;
-  const input = document.querySelector(
-    `input[name="examNavigationMode"][value="${value}"]`
-  );
-  if (input) {
-    input.checked = true;
-  }
+
+  getNavigationModeCards().forEach((card) => {
+    const isActive = card.dataset.examNavMode === value;
+    card.classList.toggle("active", isActive);
+    card.setAttribute("aria-pressed", String(isActive));
+  });
+}
+
+function bindNavigationModePicker(){
+  getNavigationModeCards().forEach((card) => {
+    card.addEventListener("click", () => {
+      syncNavigationModePicker(card.dataset.examNavMode);
+    });
+  });
 }
 
 function lockNavigationMode(mode){
@@ -360,7 +372,7 @@ function toggleNavigationMode(){
       : EXAM_NAV_MODES.step;
 
   lockNavigationMode(nextMode);
-  syncNavigationModeRadios(nextMode);
+  syncNavigationModePicker(nextMode);
   applyNavigationModeUI();
 
   if (nextMode === EXAM_NAV_MODES.scroll) {
@@ -1096,7 +1108,7 @@ async function loadExam(){
 
     if (resumeInProgress) {
       navigationMode = resolveNavigationModeFromAttempt();
-      syncNavigationModeRadios(navigationMode);
+      syncNavigationModePicker(navigationMode);
       const studentName = await resolveStudentName();
       if (studentName) {
         localStorage.setItem("studentName", studentName);
@@ -1777,6 +1789,7 @@ async function imageToBase64(url){
 
 document.addEventListener("DOMContentLoaded", () => {
   bindStepNavigation();
+  bindNavigationModePicker();
   document
     .getElementById("examNavModeToggle")
     ?.addEventListener("click", toggleNavigationMode);
