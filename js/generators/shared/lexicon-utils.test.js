@@ -14,6 +14,9 @@ import {
   getHeadwordLabel,
   applyHeadwordFlags,
   sortWordsWithHeadwordFirst,
+  isHeadwordFamiliar,
+  selectSynonymPromptEntry,
+  HEADWORD_FAMILIARITY,
 } from "./lexicon-utils.js";
 
 describe("lexicon-utils", () => {
@@ -51,6 +54,58 @@ describe("lexicon-utils", () => {
       { word: "a", is_headword: true },
     ]);
     assert.equal(sorted[0].word, "a");
+  });
+
+  it("isHeadwordFamiliar requires enough seen and low error rate", () => {
+    assert.equal(isHeadwordFamiliar(null), false);
+    assert.equal(isHeadwordFamiliar({ seen_count: 2, wrong_count: 0 }), false);
+    assert.equal(isHeadwordFamiliar({ seen_count: 3, wrong_count: 1 }), true);
+    assert.equal(isHeadwordFamiliar({ seen_count: 3, wrong_count: 2 }), false);
+  });
+
+  it("selectSynonymPromptEntry uses random prompt in normal mode", () => {
+    const words = [
+      { id: "1", word: "primary", is_headword: true },
+      { id: "2", word: "related" },
+    ];
+    const seen = new Set();
+
+    for (let i = 0; i < 20; i += 1) {
+      const entry = selectSynonymPromptEntry(words, { adaptive: false });
+      seen.add(entry?.word);
+    }
+
+    assert.ok(seen.has("related"));
+  });
+
+  it("selectSynonymPromptEntry uses headword in adaptive mode until familiar", () => {
+    const words = [
+      { id: "hw", word: "primary", is_headword: true },
+      { id: "rel", word: "related" },
+    ];
+    const stats = new Map();
+
+    const scaffold = selectSynonymPromptEntry(words, {
+      adaptive: true,
+      statsByWordId: stats,
+    });
+    assert.equal(scaffold?.word, "primary");
+
+    stats.set("hw", {
+      seen_count: HEADWORD_FAMILIARITY.minSeen,
+      wrong_count: 0,
+    });
+
+    const seen = new Set();
+    for (let i = 0; i < 20; i += 1) {
+      const entry = selectSynonymPromptEntry(words, {
+        adaptive: true,
+        statsByWordId: stats,
+      });
+      seen.add(entry?.word);
+    }
+
+    assert.ok(seen.has("related"));
   });
 
   it("inferGroupLexicalClass picks the most common class", () => {

@@ -2,8 +2,13 @@ import {
   fetchGroups,
   buildQuestion,
   DEFAULT_LEXICON_TOPIC,
+  getUserWordStatsByWordId,
 } from "./shared/lexicon-engine.js";
-import { getHeadwordEntry } from "./shared/lexicon-utils.js";
+import {
+  getHeadwordEntry,
+  normalizeWordKey,
+  selectSynonymPromptEntry,
+} from "./shared/lexicon-utils.js";
 import { getClient } from "../core/get-client.js";
 const DEFAULT_ADAPTIVE_MODE = true;
 
@@ -230,15 +235,25 @@ async function generateSynonym(groups, config = {}) {
   }
 
   const words = groups[groupId];
-  const questionEntry = getHeadwordEntry(words);
+  const adaptive = getAdaptiveMode(config);
+  const statsByWordId = adaptive ? await getUserWordStatsByWordId() : null;
+  const questionEntry = selectSynonymPromptEntry(words, {
+    adaptive,
+    statsByWordId,
+  });
+
   if (!questionEntry) {
     throw createGeneratorError(
       "INSUFFICIENT_LEXICON_DATA",
       "Add a primary word and at least one related word in the group."
     );
   }
+
   const correctEntry = pickRandom(
-    words.filter(entry => entry.id !== questionEntry.id),
+    words.filter(
+      (entry) =>
+        normalizeWordKey(entry.word) !== normalizeWordKey(questionEntry.word)
+    ),
     1
   )[0];
 
