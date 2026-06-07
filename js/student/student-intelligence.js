@@ -119,7 +119,20 @@ async function fetchQuestionsForAttempts(sb, attempts = []) {
 async function fetchStudentExamAssignments(sb, userId) {
   const { data, error } = await sb
     .from("exam_assignments")
-    .select(`exam_sessions ( id, title, created_at, duration, schema_json )`)
+    .select(`
+      exam_sessions (
+        id,
+        title,
+        created_at,
+        duration,
+        schema_json,
+        source_draft_id,
+        series_id,
+        part_index,
+        part_count,
+        require_sequential_parts
+      )
+    `)
     .eq("student_id", userId);
 
   if (error) {

@@ -170,7 +170,19 @@ async function loadPublishedExams() {
 
     let query = sb
       .from("exam_sessions")
-      .select("id,title,created_at,duration,created_by, exam_assignments(count)")
+      .select(`
+        id,
+        title,
+        created_at,
+        duration,
+        created_by,
+        source_draft_id,
+        series_id,
+        part_index,
+        part_count,
+        require_sequential_parts,
+        exam_assignments(count)
+      `)
       .order("created_at", { ascending: false });
 
     if (currentRole !== "admin") {
@@ -200,6 +212,147 @@ async function loadPublishedExams() {
   }
 }
 
+function groupPublishedExams(exams = []) {
+  const seriesMap = new Map();
+  const standalone = [];
+
+  for (const exam of exams) {
+    if (exam.series_id && exam.part_index) {
+      const bucket = seriesMap.get(exam.series_id) ?? [];
+      bucket.push(exam);
+      seriesMap.set(exam.series_id, bucket);
+      continue;
+    }
+
+    standalone.push(exam);
+  }
+
+  const groups = [...seriesMap.entries()].map(([seriesId, parts]) => {
+    const sortedParts = [...parts].sort(
+      (a, b) => Number(a.part_index) - Number(b.part_index)
+    );
+    const baseTitle =
+      sortedParts[0]?.title?.replace(/\s—\sPart\s\d+$/i, "").trim() ||
+      sortedParts[0]?.title ||
+      "Exam Series";
+
+    return {
+      seriesId,
+      sourceDraftId: sortedParts[0]?.source_draft_id ?? null,
+      title: baseTitle,
+      parts: sortedParts,
+      createdAt: sortedParts.reduce((latest, part) => {
+        const time = new Date(part.created_at).getTime();
+        return Number.isFinite(time) && time > latest ? time : latest;
+      }, 0),
+    };
+  });
+
+  groups.sort((a, b) => b.createdAt - a.createdAt);
+  standalone.sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+
+  return { groups, standalone };
+}
+
+function renderExamActions(exam) {
+  const assignmentLabel = formatAssignmentSummary(exam);
+
+  return `
+    <div class="flex gap-10" style="flex-wrap:wrap;">
+      <button class="primary-btn" data-action="assign" data-exam-id="${escapeHTML(exam.id)}" data-exam-title="${escapeHTML(exam.title || "Untitled Exam")}">Assign</button>
+      <button type="button" class="secondary-btn" data-prepos-href="exam.html?id=${escapeHTML(exam.id)}">Open</button>
+      <button class="secondary-btn" onclick="viewResults('${escapeHTML(exam.id)}')">Results</button>
+      <button class="danger-btn" onclick="deletePublishedExam('${escapeHTML(exam.id)}')">Delete</button>
+    </div>
+    <div class="text-muted mt-5">${escapeHTML(assignmentLabel)}</div>
+  `;
+}
+
+function renderStandaloneExam(exam) {
+  const item = document.createElement("div");
+  item.className = "recent-item mt-10";
+
+  const createdAt = exam.created_at
+    ? new Date(exam.created_at).toLocaleString()
+    : "-";
+
+  item.innerHTML = `
+    <div class="flex" style="justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap;">
+      <div>
+        <b>${escapeHTML(exam.title || "Untitled Exam")}</b>
+        <div class="text-muted mt-5">Created: ${createdAt}</div>
+        <div class="text-muted mt-5">Duration: ${escapeHTML(formatExamDuration(exam.duration) || "—")}</div>
+      </div>
+      <div>${renderExamActions(exam)}</div>
+    </div>
+  `;
+
+  return item;
+}
+
+function renderExamSeriesGroup(group) {
+  const item = document.createElement("div");
+  item.className = "recent-item mt-10 published-series-group";
+
+  const createdAt = group.createdAt
+    ? new Date(group.createdAt).toLocaleString()
+    : "-";
+  const partExamIds = group.parts.map((part) => part.id);
+  const assignPayload = JSON.stringify(partExamIds);
+  const assignTitle = JSON.stringify(`${group.title} (${group.parts.length} parts)`);
+
+  item.innerHTML = `
+    <div class="flex" style="justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap;">
+      <div style="flex:1;">
+        <b>${escapeHTML(group.title)}</b>
+        <div class="text-muted mt-5">${group.parts.length} parts · Latest publish: ${createdAt}</div>
+        ${
+          group.sourceDraftId
+            ? `<div class="text-muted mt-5">From draft · sequential parts enabled</div>`
+            : ""
+        }
+        <div class="mt-10">
+          ${group.parts
+            .map((part) => {
+              const created = part.created_at
+                ? new Date(part.created_at).toLocaleString()
+                : "-";
+
+              return `
+                <div class="question-card mt-10">
+                  <div class="flex" style="justify-content:space-between; gap:10px; flex-wrap:wrap;">
+                    <div>
+                      <b>${escapeHTML(part.title || "Untitled Exam")}</b>
+                      <div class="text-muted mt-5">Part ${part.part_index}${part.part_count ? ` of ${part.part_count}` : ""}</div>
+                      <div class="text-muted mt-5">Created: ${created}</div>
+                      <div class="text-muted mt-5">Duration: ${escapeHTML(formatExamDuration(part.duration) || "—")}</div>
+                      <div class="text-muted mt-5">${escapeHTML(formatAssignmentSummary(part))}</div>
+                    </div>
+                    <div>${renderExamActions(part)}</div>
+                  </div>
+                </div>
+              `;
+            })
+            .join("")}
+        </div>
+      </div>
+      <div>
+        <button
+          type="button"
+          class="primary-btn"
+          onclick='openAssignExamModal(${assignPayload}, { examTitle: ${assignTitle} })'
+        >
+          Assign All Parts
+        </button>
+      </div>
+    </div>
+  `;
+
+  return item;
+}
+
 function renderExams(exams) {
   const list = document.getElementById("publishedExamList");
   const count = document.getElementById("examCount");
@@ -217,34 +370,14 @@ function renderExams(exams) {
     return;
   }
 
-  exams.forEach((exam) => {
-    const item = document.createElement("div");
-    item.className = "recent-item mt-10";
+  const { groups, standalone } = groupPublishedExams(exams);
 
-    const createdAt = exam.created_at
-      ? new Date(exam.created_at).toLocaleString()
-      : "-";
+  groups.forEach((group) => {
+    list.appendChild(renderExamSeriesGroup(group));
+  });
 
-    const assignmentLabel = formatAssignmentSummary(exam);
-
-    item.innerHTML = `
-      <div class="flex" style="justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap;">
-        <div>
-          <b>${escapeHTML(exam.title || "Untitled Exam")}</b>
-          <div class="text-muted mt-5">Created: ${createdAt}</div>
-          <div class="text-muted mt-5">Duration: ${escapeHTML(formatExamDuration(exam.duration) || "—")}</div>
-          <div class="text-muted mt-5">${escapeHTML(assignmentLabel)}</div>
-        </div>
-        <div class="flex gap-10" style="flex-wrap:wrap;">
-          <button class="primary-btn" data-action="assign" data-exam-id="${escapeHTML(exam.id)}" data-exam-title="${escapeHTML(exam.title || "Untitled Exam")}">Assign</button>
-          <button type="button" class="secondary-btn" data-prepos-href="exam.html?id=${escapeHTML(exam.id)}">Open</button>
-          <button class="secondary-btn" onclick="viewResults('${escapeHTML(exam.id)}')">Results</button>
-          <button class="danger-btn" onclick="deletePublishedExam('${escapeHTML(exam.id)}')">Delete</button>
-        </div>
-      </div>
-    `;
-
-    list.appendChild(item);
+  standalone.forEach((exam) => {
+    list.appendChild(renderStandaloneExam(exam));
   });
 }
 
@@ -364,5 +497,6 @@ async function initPublishedExams() {
 
 window.deletePublishedExam = deletePublishedExam;
 window.viewResults = viewResults;
+window.openAssignExamModal = openAssignExamModal;
 
 document.addEventListener("DOMContentLoaded", initPublishedExams);

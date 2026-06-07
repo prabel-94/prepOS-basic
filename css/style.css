@@ -3639,3 +3639,24 @@ PHASE 1 — STUDENT UI UPGRADE
     grid-template-columns: 1fr;
   }
 }
+
+.split-question-row--published {
+  opacity: 0.72;
+}
+
+.split-question-row-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+}
+
+.split-question-part-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+}
+
+.published-series-group .question-card {
+  margin-left: 0;
+}

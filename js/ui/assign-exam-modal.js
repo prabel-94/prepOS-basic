@@ -5,6 +5,7 @@ import { openModal, closeModal, isModalOpen } from "./modal-system.js";
 const MODAL_ID = "assignModal";
 
 let currentExamId = null;
+let currentExamIds = [];
 let selectedStudents = [];
 let selectedBatches = [];
 let assignedStudentIds = new Set();
@@ -23,7 +24,7 @@ function escapeHTML(value = "") {
     .replace(/'/g, "&#039;");
 }
 
-function setModalCopy({ examTitle, assignedCount = 0 } = {}) {
+function setModalCopy({ examTitle, assignedCount = 0, multi = false } = {}) {
   const titleEl = document.getElementById("assignModalTitle");
   const subtitleEl = document.getElementById("assignModalSubtitle");
 
@@ -32,7 +33,11 @@ function setModalCopy({ examTitle, assignedCount = 0 } = {}) {
   }
 
   if (subtitleEl) {
-    if (assignedCount > 0) {
+    if (multi) {
+      subtitleEl.textContent =
+        "The same students and batches will be assigned to every selected exam.";
+      subtitleEl.classList.remove("hidden");
+    } else if (assignedCount > 0) {
       subtitleEl.textContent = `${assignedCount} student${assignedCount === 1 ? "" : "s"} already assigned. Select additional students or batches below.`;
       subtitleEl.classList.remove("hidden");
     } else {
@@ -199,6 +204,7 @@ async function loadBatches(search = "") {
 
 function resetAssignModalState() {
   currentExamId = null;
+  currentExamIds = [];
   selectedStudents = [];
   selectedBatches = [];
   assignedStudentIds = new Set();
@@ -207,10 +213,15 @@ function resetAssignModalState() {
   cachedBatches = [];
 }
 
-export async function openAssignExamModal(examId, { examTitle, onAssigned } = {}) {
-  if (!examId) return;
+export async function openAssignExamModal(examIdOrIds, { examTitle, onAssigned } = {}) {
+  const examIds = Array.isArray(examIdOrIds)
+    ? examIdOrIds.filter(Boolean)
+    : [examIdOrIds].filter(Boolean);
 
-  currentExamId = examId;
+  if (!examIds.length) return;
+
+  currentExamIds = examIds;
+  currentExamId = examIds[0];
   selectedStudents = [];
   selectedBatches = [];
   onAssignedCallback = typeof onAssigned === "function" ? onAssigned : null;
@@ -222,8 +233,9 @@ export async function openAssignExamModal(examId, { examTitle, onAssigned } = {}
 
   setAssignTab("students");
 
-  const assignedCount = await loadAssignedStudents(examId);
-  setModalCopy({ examTitle, assignedCount });
+  const isMulti = examIds.length > 1;
+  const assignedCount = isMulti ? 0 : await loadAssignedStudents(currentExamId);
+  setModalCopy({ examTitle, assignedCount, multi: isMulti });
 
   openModal(MODAL_ID, {
     overlayType: "modal",
@@ -239,7 +251,11 @@ export function closeAssignExamModal() {
 }
 
 export async function assignSelectedStudents() {
-  if (!currentExamId) {
+  const examIds = currentExamIds.length
+    ? [...currentExamIds]
+    : [currentExamId].filter(Boolean);
+
+  if (!examIds.length) {
     alert("No exam selected");
     return false;
   }
@@ -258,36 +274,45 @@ export async function assignSelectedStudents() {
   try {
     if (assignBtn) {
       assignBtn.disabled = true;
-      assignBtn.innerText = "Assigning...";
+      assignBtn.innerText = examIds.length > 1 ? "Assigning all..." : "Assigning...";
     }
 
-    const result = await invokeEdgeFunction("assign-exam", {
-      examId: currentExamId,
-      studentIds: newStudentIds,
-      batchIds,
-    });
+    let totalAssigned = 0;
+    let totalSkipped = 0;
+    let totalBatchesRecorded = 0;
 
-    const assigned = Number(result.assigned ?? 0);
-    const skipped = Number(result.skipped ?? 0);
-    const batchesRecorded = Number(result.batchesRecorded ?? 0);
+    for (const examId of examIds) {
+      const result = await invokeEdgeFunction("assign-exam", {
+        examId,
+        studentIds: newStudentIds,
+        batchIds,
+      });
 
-    let message = `Assigned to ${assigned} student${assigned === 1 ? "" : "s"}.`;
-
-    if (batchesRecorded > 0) {
-      message += ` ${batchesRecorded} batch${batchesRecorded === 1 ? "" : "es"} recorded.`;
+      totalAssigned += Number(result.assigned ?? 0);
+      totalSkipped += Number(result.skipped ?? 0);
+      totalBatchesRecorded += Number(result.batchesRecorded ?? 0);
     }
 
-    if (skipped > 0) {
-      message += ` ${skipped} already assigned.`;
+    let message =
+      examIds.length > 1
+        ? `Assigned ${examIds.length} exams to ${totalAssigned} student assignment${totalAssigned === 1 ? "" : "s"}.`
+        : `Assigned to ${totalAssigned} student${totalAssigned === 1 ? "" : "s"}.`;
+
+    if (totalBatchesRecorded > 0) {
+      message += ` ${totalBatchesRecorded} batch${totalBatchesRecorded === 1 ? "" : "es"} recorded.`;
+    }
+
+    if (totalSkipped > 0) {
+      message += ` ${totalSkipped} already assigned.`;
     }
 
     alert(message);
 
-    const assignedExamId = currentExamId;
+    const assignedExamIds = [...examIds];
     const callback = onAssignedCallback;
     closeAssignExamModal();
     if (callback) {
-      await callback(assignedExamId);
+      await callback(examIds.length === 1 ? assignedExamIds[0] : assignedExamIds);
     }
     return true;
   } catch (error) {
