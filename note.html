@@ -33,6 +33,60 @@
       color: #fff;
       border-color: #1e293b;
     }
+    .canonical-tab-add {
+      border-style: dashed;
+      color: #475569;
+      font-weight: 600;
+    }
+    .canonical-tab-add:hover {
+      border-color: var(--primary, #4f46e5);
+      color: var(--primary, #4f46e5);
+      background: #eef2ff;
+    }
+    .note-add-section-modal {
+      max-width: 560px;
+      width: calc(100% - 32px);
+    }
+    .note-add-section-field {
+      display: block;
+      margin-bottom: 16px;
+    }
+    .note-add-section-label {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: #475569;
+      margin-bottom: 8px;
+    }
+    .note-add-section-select {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      box-sizing: border-box;
+    }
+    .note-add-section-textarea {
+      width: 100%;
+      min-height: 200px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 14px;
+      line-height: 1.55;
+      padding: 12px;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      resize: vertical;
+      box-sizing: border-box;
+    }
+    .note-add-section-hint,
+    .note-add-section-preview {
+      margin: 0 0 12px;
+      font-size: 0.875rem;
+    }
+    .note-add-section-error {
+      margin: 0;
+      font-size: 0.875rem;
+    }
     /* Note reading hierarchy: css/style.css → Semantic hierarchy rendering */
     .topic-link {
       color: var(--primary);

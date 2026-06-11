@@ -25,6 +25,7 @@ import { getClient } from "../core/get-client.js";
 import { closeModal } from "../ui/modal-system.js";
 import { resolveAppPath } from "../core/access.js";
 import { getLanguageLabel, normalizeLanguage } from "./note-variants.js";
+import { openAddSectionModal } from "./note-section-modal.js";
 
 function escapeHTML(value = "") {
   return String(value)
@@ -240,6 +241,50 @@ export function initDraftWorkspace({
     setStatus("Editing semantic markdown source.");
   }
 
+  const addSectionTabButton = `
+      <button
+        type="button"
+        class="canonical-tab canonical-tab-add"
+        data-draft-action="add-section"
+        aria-label="Add section">
+        + Add section
+      </button>`;
+
+  function bindAddSectionButton() {
+    const btn = tabsEl?.querySelector('[data-draft-action="add-section"]');
+    if (!btn) {
+      return;
+    }
+
+    btn.addEventListener("click", () => {
+      handleAddSection();
+    });
+  }
+
+  async function handleAddSection() {
+    const result = await openAddSectionModal({
+      markdown: sourceEditorEl?.value ?? "",
+      language: preferLanguage,
+      title: variant.title,
+      preferSectionId: activeTab,
+    });
+
+    if (!result) {
+      return;
+    }
+
+    if (sourceEditorEl) {
+      sourceEditorEl.value = result.markdown;
+    }
+
+    if (result.representationBucket) {
+      activeTab = result.representationBucket;
+    }
+
+    setStatus("Section added (unsaved). Click Save Draft to persist.");
+    await showPreviewMode();
+  }
+
   function renderPreviewTabs(representations, options) {
     if (contentEl) {
       contentEl.classList.add("semantic-reading-surface");
@@ -248,11 +293,13 @@ export function initDraftWorkspace({
     const tabs = getAvailableTabs(representations);
 
     if (!tabs.length) {
-      tabsEl.innerHTML = "";
+      tabsEl.innerHTML = addSectionTabButton;
+      bindAddSectionButton();
+
       const summaryHtml = previewSummary
         ? renderSemanticStateSummary(previewSummary)
         : "";
-      contentEl.innerHTML = `${summaryHtml}<p class="canonical-empty">No representation blocks in preview. Check section anchors.</p>`;
+      contentEl.innerHTML = `${summaryHtml}<p class="canonical-empty">No sections yet. Click <strong>+ Add section</strong> to start, or use Edit Source for full MSMDF markdown.</p>`;
       return;
     }
 
@@ -260,23 +307,25 @@ export function initDraftWorkspace({
       activeTab = tabs[0].key;
     }
 
-    tabsEl.innerHTML = tabs
-      .map(
-        (tab) =>
-          `<button type="button" class="canonical-tab${tab.key === activeTab ? " active" : ""}" data-tab="${tab.key}">${tab.label}</button>`
-      )
-      .join("");
+    tabsEl.innerHTML =
+      tabs
+        .map(
+          (tab) =>
+            `<button type="button" class="canonical-tab${tab.key === activeTab ? " active" : ""}" data-tab="${tab.key}">${tab.label}</button>`
+        )
+        .join("") + addSectionTabButton;
 
-    tabsEl.querySelectorAll(".canonical-tab").forEach((btn) => {
+    tabsEl.querySelectorAll(".canonical-tab[data-tab]").forEach((btn) => {
       btn.addEventListener("click", () => {
         activeTab = btn.dataset.tab;
         tabsEl
-          .querySelectorAll(".canonical-tab")
+          .querySelectorAll(".canonical-tab[data-tab]")
           .forEach((b) => b.classList.toggle("active", b === btn));
         renderPreviewContent();
       });
     });
 
+    bindAddSectionButton();
     renderPreviewContent();
   }
 
