@@ -177,6 +177,56 @@ function normalizeCueDisplay(cueRaw) {
   return `${trimmed}:`;
 }
 
+function isRetrievalAnchorCueParagraph(block) {
+  return (
+    block?.block_type === "paragraph" &&
+    String(block.content ?? "").trim().toLowerCase() === "retrieval anchor:"
+  );
+}
+
+function isRetrievalChainArrowLine(line) {
+  const trimmed = String(line ?? "").trim();
+  return trimmed === "↓" || trimmed === "->" || trimmed === "→";
+}
+
+function renderRetrievalAnchorChain(content, topicMap, renderOptions) {
+  const lines = String(content ?? "")
+    .split("\n")
+    .map((line) => line.trimEnd())
+    .filter((line) => line.length);
+
+  if (!lines.length) {
+    return "";
+  }
+
+  const steps = lines
+    .map((line) => {
+      if (isRetrievalChainArrowLine(line)) {
+        return `<div class="semantic-retrieval-arrow" aria-hidden="true">↓</div>`;
+      }
+
+      return `<div class="semantic-retrieval-step">${resolveInlineSemantics(
+        line,
+        topicMap,
+        renderOptions
+      )}</div>`;
+    })
+    .join("");
+
+  return `<div class="semantic-retrieval-chain semantic-escalation-resolution">${steps}</div>`;
+}
+
+function renderRetrievalAnchorBlock(cueBlock, payloadBlock, topicMap, renderOptions) {
+  const cue = `<div class="semantic-retrieval-cue">Retrieval Anchor</div>`;
+  const payload = renderRetrievalAnchorChain(
+    payloadBlock?.content ?? "",
+    topicMap,
+    renderOptions
+  );
+
+  return `<div class="semantic-retrieval-block">${cue}${payload}</div>`;
+}
+
 function isDividerOnlyBlock(block) {
   if (block?.block_type !== "paragraph" || !block.content) {
     return false;
@@ -507,6 +557,16 @@ function renderBlockBody(block, topicMap, renderOptions, representationKey = "na
 }
 
 function renderBlock(block, topicMap, renderOptions, representationKey = "narrative") {
+  if (block.block_type === "retrieval_anchor") {
+    const cue = `<div class="semantic-retrieval-cue">Retrieval Anchor</div>`;
+    const payload = renderRetrievalAnchorChain(
+      block.content,
+      topicMap,
+      renderOptions
+    );
+    return `<div class="semantic-retrieval-block">${cue}${payload}</div>`;
+  }
+
   const parserLevel = clampParserHeadingLevel(block.hierarchy_level);
   const semanticLevel = resolveSemanticLevel(parserLevel, {
     representation: representationKey,
@@ -567,11 +627,23 @@ function renderRepresentation(
     const block = blocks[i];
     const next = blocks[i + 1] ?? null;
 
-    // Retrieval cue grouping: "Retrieval Anchor:" paragraph + immediate heading block.
+    // Retrieval cue grouping: "Retrieval Anchor:" + ```text fence or heading block.
     if (
       representationKey === "narrative" &&
-      block?.block_type === "paragraph" &&
-      String(block.content ?? "").trim().toLowerCase() === "retrieval anchor:" &&
+      isRetrievalAnchorCueParagraph(block) &&
+      next?.block_type === "retrieval_anchor"
+    ) {
+      parts.push(
+        renderRetrievalAnchorBlock(block, next, topicMap, readingOpts)
+      );
+      skip.add(i);
+      skip.add(i + 1);
+      continue;
+    }
+
+    if (
+      representationKey === "narrative" &&
+      isRetrievalAnchorCueParagraph(block) &&
       next?.block_type === "section" &&
       next?.heading
     ) {

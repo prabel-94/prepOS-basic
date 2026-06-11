@@ -188,6 +188,37 @@ Be the change you wish to see in the world.`
       )
     );
   });
+
+  it("parses ```text fences as retrieval_anchor blocks", () => {
+    const parsed = parseMapMarkdown(
+      `[NARRATIVE]
+
+Retrieval Anchor:
+\`\`\`text
+[[Seven Years' War]]
+↓
+British Debt
+↓
+New Taxes
+\`\`\`
+
+Following paragraph.`
+    );
+
+    const blocks = parsed.representations.narrative;
+    const cue = blocks.find((b) => b.content === "Retrieval Anchor:");
+    const anchor = blocks.find((b) => b.block_type === "retrieval_anchor");
+
+    assert.ok(cue);
+    assert.equal(cue.block_type, "paragraph");
+    assert.ok(anchor);
+    assert.match(anchor.content, /\[\[Seven Years' War\]\]/);
+    assert.match(anchor.content, /British Debt/);
+    assert.equal(anchor.metadata_json?.fence_lang, "text");
+    assert.ok(
+      parsed.topic_links.some((link) => link.name === "Seven Years' War")
+    );
+  });
 });
 
 /**

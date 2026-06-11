@@ -2470,6 +2470,26 @@ PREPOS SIDE PANEL OVERLAYS
   margin-bottom: 0.25rem;
 }
 
+.semantic-retrieval-chain {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.semantic-retrieval-step {
+  font-size: 0.95rem;
+  line-height: 1.45;
+  color: #1e293b;
+}
+
+.semantic-retrieval-arrow {
+  align-self: center;
+  color: #94a3b8;
+  font-size: 0.9rem;
+  line-height: 1;
+  padding: 0.1rem 0;
+}
+
 .semantic-cue {
   font-size: 0.92rem;
   color: #475569;
