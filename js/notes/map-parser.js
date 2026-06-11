@@ -99,6 +99,18 @@ function isListLine(line) {
   return /^\s*([-*•]|\d+[\.)])\s+/.test(line);
 }
 
+/** Opening fence: ```text (language tag only; content becomes a retrieval anchor payload). */
+const FENCED_TEXT_OPEN_PATTERN = /^```\s*text\s*$/i;
+const FENCED_CODE_CLOSE_PATTERN = /^```\s*$/;
+
+function isFencedTextOpen(line) {
+  return FENCED_TEXT_OPEN_PATTERN.test(String(line ?? "").trim());
+}
+
+function isFencedCodeClose(line) {
+  return FENCED_CODE_CLOSE_PATTERN.test(String(line ?? "").trim());
+}
+
 function extractBlocks(sectionKey, body, extraMetadata = {}) {
   const lines = body.split("\n");
   const blocks = [];
@@ -129,9 +141,46 @@ function extractBlocks(sectionKey, body, extraMetadata = {}) {
     current = null;
   }
 
-  for (const rawLine of lines) {
+  function pushRetrievalAnchorBlock(content) {
+    const trimmed = String(content ?? "").trim();
+    if (!trimmed) {
+      return;
+    }
+
+    blocks.push({
+      representation_type: sectionKey,
+      block_type: "retrieval_anchor",
+      heading: null,
+      content: trimmed,
+      hierarchy_level: null,
+      sequence_order: sequence++,
+      metadata_json: {
+        ...extraMetadata,
+        fence_lang: "text",
+      },
+    });
+  }
+
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
+    const rawLine = lines[lineIndex];
     const line = rawLine.replace(/\s+$/, "");
     const trimmed = line.trim();
+
+    if (isFencedTextOpen(trimmed)) {
+      flush();
+      const fenceLines = [];
+
+      for (lineIndex += 1; lineIndex < lines.length; lineIndex += 1) {
+        const fenceLine = lines[lineIndex].replace(/\s+$/, "");
+        if (isFencedCodeClose(fenceLine.trim())) {
+          break;
+        }
+        fenceLines.push(fenceLine);
+      }
+
+      pushRetrievalAnchorBlock(fenceLines.join("\n"));
+      continue;
+    }
 
     if (!trimmed) {
       if (current?.block_type === "paragraph" && current.lines.length) {
