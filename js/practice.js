@@ -10,8 +10,6 @@ import {
   resolveQuestionDisplay,
 } from "./core/question-assistance.js";
 
-const PRACTICE_ASSISTANCE_SESSION_KEY = "prepos-practice-assistance-mask";
-
 const subjectSelect = document.getElementById("subjectSelect");
 const patternSelect = document.getElementById("patternSelect");
 const sessionLimitSelect = document.getElementById("sessionLimitSelect");
@@ -243,7 +241,7 @@ function resetSession() {
   nextBtn.classList.add("hidden");
   sessionSummary.innerHTML = "";
   sessionSummary.classList.add("hidden");
-  state.questionMaskOverrides = new Map();
+  resetPracticeAssistanceDefaults();
   state.currentAnswer = null;
 
   updateProgress();
@@ -336,8 +334,8 @@ function updatePracticeAssistanceToggleUi() {
     state.assistanceMaskEnabled
   );
   practiceAssistanceToggle.textContent = state.assistanceMaskEnabled
-    ? "മലയാളം: ON"
-    : "മലയാളം";
+    ? "മലയാളം help: ON"
+    : "മലയാളം help";
 }
 
 function syncPracticeAssistanceToggleVisibility() {
@@ -360,16 +358,6 @@ function syncPracticeAssistanceToggleVisibility() {
 
 function setPracticeAssistanceMaskEnabled(enabled) {
   state.assistanceMaskEnabled = Boolean(enabled);
-
-  try {
-    sessionStorage.setItem(
-      PRACTICE_ASSISTANCE_SESSION_KEY,
-      state.assistanceMaskEnabled ? "1" : "0"
-    );
-  } catch {
-    /* ignore */
-  }
-
   updatePracticeAssistanceToggleUi();
 
   if (state.currentQuestion && state.started) {
@@ -406,16 +394,23 @@ function refreshCurrentQuestionDisplay() {
   }
 }
 
+function resetPracticeAssistanceDefaults() {
+  state.assistanceMaskEnabled = false;
+  state.questionMaskOverrides = new Map();
+  updatePracticeAssistanceToggleUi();
+}
+
 function initPracticeAssistanceToggle() {
   if (!practiceAssistanceToggle || practiceAssistanceToggle.dataset.bound) {
     return;
   }
 
+  state.assistanceMaskEnabled = false;
+
   try {
-    state.assistanceMaskEnabled =
-      sessionStorage.getItem(PRACTICE_ASSISTANCE_SESSION_KEY) === "1";
+    sessionStorage.removeItem("prepos-practice-assistance-mask");
   } catch {
-    state.assistanceMaskEnabled = false;
+    /* ignore */
   }
 
   practiceAssistanceToggle.dataset.bound = "1";
@@ -693,9 +688,9 @@ function renderQuestionAssistanceToggle(question) {
         type="button"
         class="exam-assistance-toggle practice-question-assistance-btn${maskOn ? " exam-assistance-toggle--active" : ""}"
         aria-pressed="${maskOn}"
-        title="${maskOn ? "Show English for this question" : "Show Malayalam help for this question"}"
+        title="${maskOn ? "Back to English (default)" : "Malayalam help for this question only"}"
       >
-        ${maskOn ? "English" : "മലയാളം"}
+        ${maskOn ? "English" : "മലയാളം help"}
       </button>
     </div>
   `;
