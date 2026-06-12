@@ -781,7 +781,7 @@ function applyAnswerUi(question, selected) {
 
   if (display.explanation) {
     feedback.innerHTML += `
-      <div class="text-muted mt-10">${escapeHTML(display.explanation)}</div>
+      <div class="practice-explanation text-muted mt-10 prepos-text">${escapeHTML(display.explanation)}</div>
     `;
   }
 }
