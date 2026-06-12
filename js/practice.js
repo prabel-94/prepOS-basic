@@ -3,6 +3,14 @@ import { getClient } from "./core/get-client.js";
 import { bootPage } from "./core/page-boot.js";
 import { normalizeTopicKey } from "./student/student-intelligence.js";
 import { DEFAULT_LEXICON_TOPIC } from "./generators/shared/lexicon-engine.js";
+import {
+  examHasMalayalamAssistance,
+  hasMalayalamAssistance,
+  malayalamAssistanceFromMetadata,
+  resolveQuestionDisplay,
+} from "./core/question-assistance.js";
+
+const PRACTICE_ASSISTANCE_SESSION_KEY = "prepos-practice-assistance-mask";
 
 const subjectSelect = document.getElementById("subjectSelect");
 const patternSelect = document.getElementById("patternSelect");
@@ -23,6 +31,7 @@ const nextBtn = document.getElementById("nextBtn");
 const practiceStatus = document.getElementById("practiceStatus");
 const practiceProgress = document.getElementById("practiceProgress");
 const sessionSummary = document.getElementById("sessionSummary");
+const practiceAssistanceToggle = document.getElementById("practiceAssistanceToggle");
 
 startBtn.disabled = true;
 
@@ -35,7 +44,8 @@ const state = {
   started: false,
   mode: "generator",
   bankQuestions: [],
-  bankCursor: 0
+  bankCursor: 0,
+  assistanceMaskEnabled: false,
 };
 
 /* =========================================
@@ -89,6 +99,7 @@ async function init() {
   const { data } = await sb.auth.getUser();
   window.currentUser = data?.user || null;
   await loadBankTopics();
+  initPracticeAssistanceToggle();
   await applyPracticeTopicFromUrl();
   startBtn.disabled = false;
 }
@@ -234,10 +245,6 @@ function resetSession() {
   updateProgress();
 }
 
-function getCorrectOption(question) {
-  return question.options.find(option => option.id === question.correct);
-}
-
 function setPracticeMode(mode) {
   state.mode = mode;
 
@@ -258,6 +265,7 @@ function setPracticeMode(mode) {
   sessionSummary.classList.add("hidden");
   setStatus("");
   updateProgress();
+  syncPracticeAssistanceToggleVisibility();
 }
 
 function shuffleQuestions(questions) {
@@ -271,8 +279,8 @@ function shuffleQuestions(questions) {
   return shuffled;
 }
 
-function normalizeBankQuestion(row) {
-  return {
+function normalizeBankQuestion(row, metadataValue = null) {
+  const question = {
     id: row.id,
     source: "bank",
     text: row.question_text || "",
@@ -280,11 +288,121 @@ function normalizeBankQuestion(row) {
       { id: "A", text: row.option_a || "" },
       { id: "B", text: row.option_b || "" },
       { id: "C", text: row.option_c || "" },
-      { id: "D", text: row.option_d || "" }
-    ].filter(option => option.text),
+      { id: "D", text: row.option_d || "" },
+    ].filter((option) => option.text),
     correct: String(row.correct_option || "A").toUpperCase(),
-    explanation: row.explanation || ""
+    explanation: row.explanation || "",
   };
+
+  const assistancePatch = malayalamAssistanceFromMetadata(metadataValue);
+  if (assistancePatch) {
+    Object.assign(question, assistancePatch);
+  }
+
+  return question;
+}
+
+function getQuestionDisplay(question) {
+  return resolveQuestionDisplay(question, state.assistanceMaskEnabled);
+}
+
+function updatePracticeAssistanceToggleUi() {
+  if (!practiceAssistanceToggle) {
+    return;
+  }
+
+  practiceAssistanceToggle.setAttribute(
+    "aria-pressed",
+    String(state.assistanceMaskEnabled)
+  );
+  practiceAssistanceToggle.classList.toggle(
+    "exam-assistance-toggle--active",
+    state.assistanceMaskEnabled
+  );
+  practiceAssistanceToggle.textContent = state.assistanceMaskEnabled
+    ? "മലയാളം: ON"
+    : "മലയാളം";
+}
+
+function syncPracticeAssistanceToggleVisibility() {
+  if (!practiceAssistanceToggle) {
+    return;
+  }
+
+  const showToggle =
+    state.mode === "bank" &&
+    examHasMalayalamAssistance(state.bankQuestions);
+
+  practiceAssistanceToggle.classList.toggle("hidden", !showToggle);
+
+  if (!showToggle) {
+    return;
+  }
+
+  updatePracticeAssistanceToggleUi();
+}
+
+function setPracticeAssistanceMaskEnabled(enabled) {
+  state.assistanceMaskEnabled = Boolean(enabled);
+
+  try {
+    sessionStorage.setItem(
+      PRACTICE_ASSISTANCE_SESSION_KEY,
+      state.assistanceMaskEnabled ? "1" : "0"
+    );
+  } catch {
+    /* ignore */
+  }
+
+  updatePracticeAssistanceToggleUi();
+
+  if (
+    state.currentQuestion &&
+    state.started &&
+    nextBtn.classList.contains("hidden")
+  ) {
+    renderQuestion(state.currentQuestion);
+  }
+}
+
+function initPracticeAssistanceToggle() {
+  if (!practiceAssistanceToggle || practiceAssistanceToggle.dataset.bound) {
+    return;
+  }
+
+  try {
+    state.assistanceMaskEnabled =
+      sessionStorage.getItem(PRACTICE_ASSISTANCE_SESSION_KEY) === "1";
+  } catch {
+    state.assistanceMaskEnabled = false;
+  }
+
+  practiceAssistanceToggle.dataset.bound = "1";
+  practiceAssistanceToggle.addEventListener("click", () => {
+    setPracticeAssistanceMaskEnabled(!state.assistanceMaskEnabled);
+  });
+}
+
+async function fetchMalayalamAssistanceByQuestionId(questionIds = []) {
+  if (!questionIds.length) {
+    return new Map();
+  }
+
+  const sb = await getClient();
+  const { data, error } = await sb
+    .from("question_metadata")
+    .select("question_id, value")
+    .in("question_id", questionIds)
+    .eq("key", "assistance_malayalam");
+
+  if (error) {
+    console.error("Malayalam assistance metadata load failed:", error);
+    return new Map();
+  }
+
+  return new Map(
+    (data || []).map((row) => [row.question_id, row.value])
+  );
 }
 
 async function loadBankTopics() {
@@ -373,17 +491,21 @@ async function loadBankQuestions() {
     throw error;
   }
 
-  let questions = data
+  const assistanceMap = await fetchMalayalamAssistanceByQuestionId(
+    data.map((row) => row.id)
+  );
+
+  state.bankQuestions = data
     .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
-    .map(normalizeBankQuestion)
-    .filter(question => question.text && question.options.length >= 2);
+    .map((row) => normalizeBankQuestion(row, assistanceMap.get(row.id)))
+    .filter((question) => question.text && question.options.length >= 2);
 
   if (bankOrderSelect.value === "random") {
-    questions = shuffleQuestions(questions);
+    state.bankQuestions = shuffleQuestions(state.bankQuestions);
   }
 
-  state.bankQuestions = questions;
   state.bankCursor = 0;
+  syncPracticeAssistanceToggleVisibility();
 }
 
 function getNextBankQuestion() {
@@ -517,15 +639,21 @@ async function loadQuestion() {
 }
 
 function renderQuestion(question) {
-    questionCard.innerHTML = `
+  const display = getQuestionDisplay(question);
+  const assistanceHint = state.assistanceMaskEnabled && hasMalayalamAssistance(question)
+    ? `<div class="exam-assistance-active-hint">Malayalam help on</div>`
+    : "";
+
+  questionCard.innerHTML = `
+  ${assistanceHint}
   <div class="question-text prepos-text">
-    ${escapeHTML(question.text)}
+    ${escapeHTML(display.text)}
   </div>
 `;
 
   optionsContainer.innerHTML = "";
 
-  question.options.forEach(option => {
+  display.options.forEach((option) => {
     const button = document.createElement("button");
     button.className = "option-btn";
     button.innerHTML = `
@@ -542,8 +670,12 @@ function renderQuestion(question) {
 async function handleAnswer(selected) {
   if (!state.currentQuestion) return;
 
-  const correct = state.currentQuestion.correct;
-  const correctOption = getCorrectOption(state.currentQuestion);
+  const question = state.currentQuestion;
+  const display = getQuestionDisplay(question);
+  const correct = question.correct;
+  const correctOption =
+    display.options.find((option) => option.id === correct) ||
+    question.options.find((option) => option.id === correct);
   const buttons = document.querySelectorAll(".option-btn");
 
   buttons.forEach(button => {
@@ -567,9 +699,9 @@ async function handleAnswer(selected) {
     feedback.innerHTML = `Wrong. Correct answer: ${correct}. ${escapeHTML(correctOption?.text || "")}`;
   }
 
-  if (state.currentQuestion.explanation) {
+  if (display.explanation) {
     feedback.innerHTML += `
-      <div class="text-muted mt-10">${escapeHTML(state.currentQuestion.explanation)}</div>
+      <div class="text-muted mt-10">${escapeHTML(display.explanation)}</div>
     `;
   }
 
