@@ -334,8 +334,8 @@ function updatePracticeAssistanceToggleUi() {
     state.assistanceMaskEnabled
   );
   practiceAssistanceToggle.textContent = state.assistanceMaskEnabled
-    ? "മലയാളം help: ON"
-    : "മലയാളം help";
+    ? "മലയാളം: ON"
+    : "മലയാളം";
 }
 
 function syncPracticeAssistanceToggleVisibility() {
@@ -544,6 +544,19 @@ async function loadBankQuestions() {
   syncPracticeAssistanceToggleVisibility();
 }
 
+function scrollToPracticeQuestion() {
+  requestAnimationFrame(() => {
+    const target = questionCard?.textContent?.trim()
+      ? questionCard
+      : practiceArea;
+
+    target?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  });
+}
+
 function getNextBankQuestion() {
   if (!state.bankQuestions.length) {
     return null;
@@ -575,6 +588,7 @@ startBtn.addEventListener("click", async () => {
     state.bankCursor = 0;
   }
   await loadQuestion();
+  scrollToPracticeQuestion();
 });
 
 nextBtn.addEventListener("click", loadQuestion);
@@ -690,7 +704,7 @@ function renderQuestionAssistanceToggle(question) {
         aria-pressed="${maskOn}"
         title="${maskOn ? "Back to English (default)" : "Malayalam help for this question only"}"
       >
-        ${maskOn ? "English" : "മലയാളം help"}
+        ${maskOn ? "English" : "മലയാളം"}
       </button>
     </div>
   `;
