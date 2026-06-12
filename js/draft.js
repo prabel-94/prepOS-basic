@@ -17,6 +17,7 @@ import {
   malayalamAssistanceFromMetadata,
   pruneMalayalamAssistance,
 } from "./core/question-assistance.js";
+import { cleanQcpText, parseQuestionPaste, parseBulkQuestionPaste } from "./core/question-parser.js";
 import {
   DEFAULT_SECONDS_PER_QUESTION,
   normalizeSecondsPerQuestion,
@@ -1309,6 +1310,165 @@ function shuffleDraftQuestions() {
   setStatus("Questions shuffled");
 }
 
+function renderQuestionPastePanel(index) {
+  return `
+    <details class="question-paste-panel mt-10">
+      <summary class="question-paste-summary">Paste question (QCP format)</summary>
+      <p class="text-muted question-paste-help">
+        Same format as Exam Creator: Q1. stem, A)–D) options, Answer:, Explanation:.
+        Add <code>--- Malayalam ---</code> below to fill English and Malayalam in one paste.
+      </p>
+      <textarea
+        class="question-paste-input"
+        data-i="${index}"
+        rows="8"
+        placeholder="Q1. Question text&#10;A) Option A&#10;B) Option B&#10;C) Option C&#10;D) Option D&#10;Answer: A&#10;Explanation: Optional"
+      ></textarea>
+      <div class="question-paste-actions mt-10">
+        <label class="question-paste-target-label">
+          Apply to
+          <select class="question-paste-target" data-i="${index}">
+            <option value="auto">Auto (English, or both if Malayalam section)</option>
+            <option value="english">English fields only</option>
+            <option value="malayalam">Malayalam assistance only</option>
+          </select>
+        </label>
+        <label class="question-paste-clean-label">
+          <input type="checkbox" class="question-paste-clean" data-i="${index}">
+          Clean first (QCP)
+        </label>
+        <button type="button" class="secondary-btn question-paste-apply" data-i="${index}">
+          Apply paste
+        </button>
+      </div>
+      <div class="question-paste-status text-muted small mt-5 hidden" data-i="${index}"></div>
+    </details>
+  `;
+}
+
+function applyParsedEnglishFields(question, parsed) {
+  question.text = parsed.text;
+  question.correct = parsed.correct;
+  question.explanation = parsed.explanation;
+  question.options = parsed.options.map((option) => ({ ...option }));
+}
+
+function applyParsedMalayalamFields(question, parsed) {
+  const mask = ensureMalayalamAssistance(question);
+  mask.text = parsed.text;
+  mask.explanation = parsed.explanation;
+
+  for (const option of parsed.options) {
+    mask.options[option.id] = option.text;
+  }
+}
+
+function applyQuestionPasteAtIndex(index) {
+  const card = document.getElementById("questions")?.children[index];
+  const textarea = card?.querySelector(".question-paste-input");
+  const targetSelect = card?.querySelector(".question-paste-target");
+  const cleanCheckbox = card?.querySelector(".question-paste-clean");
+  const statusEl = card?.querySelector(".question-paste-status");
+
+  const rawText = textarea?.value || "";
+  const target = targetSelect?.value || "auto";
+  const clean = Boolean(cleanCheckbox?.checked);
+
+  const result = parseQuestionPaste(rawText, { target, clean });
+  const showStatus = (message, isError = false) => {
+    if (!statusEl) {
+      return;
+    }
+    statusEl.textContent = message;
+    statusEl.classList.toggle("hidden", !message);
+    statusEl.classList.toggle("text-error", isError);
+  };
+
+  if (!result.ok) {
+    showStatus(result.error, true);
+    return;
+  }
+
+  const question = currentDraft?.schema_json?.sections?.[0]?.questions?.[index];
+  if (!question) {
+    showStatus("Question not found.", true);
+    return;
+  }
+
+  if (result.english) {
+    applyParsedEnglishFields(question, result.english);
+  }
+
+  if (result.malayalam) {
+    applyParsedMalayalamFields(question, result.malayalam);
+  }
+
+  const appliedParts = [];
+  if (result.english) {
+    appliedParts.push("English");
+  }
+  if (result.malayalam) {
+    appliedParts.push("Malayalam");
+  }
+
+  renderDraft(currentDraft);
+  scheduleAutosave();
+  showStatus(
+    result.warning || `Applied to ${appliedParts.join(" + ")} fields.`,
+    Boolean(result.warning)
+  );
+}
+
+function setBulkMalayalamPasteStatus(message, isError = false) {
+  const statusEl = document.getElementById("bulkMalayalamPasteStatus");
+  if (!statusEl) {
+    return;
+  }
+
+  statusEl.textContent = message;
+  statusEl.classList.toggle("hidden", !message);
+  statusEl.classList.toggle("text-error", isError);
+}
+
+function applyBulkMalayalamPaste() {
+  const textarea = document.getElementById("bulkMalayalamPasteInput");
+  const clean = Boolean(document.getElementById("bulkMalayalamPasteClean")?.checked);
+  const rawText = textarea?.value || "";
+
+  const result = parseBulkQuestionPaste(rawText, { clean });
+  if (!result.ok) {
+    setBulkMalayalamPasteStatus(result.error, true);
+    return;
+  }
+
+  const draftQuestions = currentDraft?.schema_json?.sections?.[0]?.questions || [];
+  if (!draftQuestions.length) {
+    setBulkMalayalamPasteStatus("Add question cards first, then bulk paste Malayalam.", true);
+    return;
+  }
+
+  const parsedQuestions = result.questions;
+  const appliedCount = Math.min(parsedQuestions.length, draftQuestions.length);
+
+  for (let i = 0; i < appliedCount; i += 1) {
+    applyParsedMalayalamFields(draftQuestions[i], parsedQuestions[i]);
+  }
+
+  renderDraft(currentDraft);
+  scheduleAutosave();
+
+  const cardLabel = draftQuestions.length === 1 ? "card" : "cards";
+  let message = `Applied Malayalam assistance to ${appliedCount} question ${appliedCount === 1 ? "card" : "cards"}.`;
+
+  if (parsedQuestions.length > draftQuestions.length) {
+    message += ` ${parsedQuestions.length - draftQuestions.length} pasted block(s) skipped — draft has only ${draftQuestions.length} ${cardLabel}.`;
+  } else if (parsedQuestions.length < draftQuestions.length) {
+    message += ` ${draftQuestions.length - parsedQuestions.length} question ${cardLabel} still have no Malayalam mask.`;
+  }
+
+  setBulkMalayalamPasteStatus(message, false);
+}
+
 function renderMalayalamAssistancePanel(q, index) {
   const mask = ensureMalayalamAssistance(q);
   const options = mask.options || {};
@@ -1485,6 +1645,7 @@ function renderDraft(draft) {
 </div>
 
       <!-- QUESTION -->
+      ${renderQuestionPastePanel(i)}
       <textarea 
         class="qtext" 
         data-i="${i}" 
@@ -1832,6 +1993,14 @@ document.getElementById("questions")
 });
 
 document.getElementById("questions")?.addEventListener("click", (e) => {
+
+if (e.target.classList.contains("question-paste-apply")) {
+  const index = Number(e.target.dataset.i);
+  if (!Number.isNaN(index)) {
+    applyQuestionPasteAtIndex(index);
+  }
+  return;
+}
 
 if (e.target.classList.contains("generate-btn")) {
 
@@ -3361,6 +3530,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   document.getElementById("shuffleDraftBtnBottom")
     ?.addEventListener("click", shuffleDraftQuestions);
+
+  document.getElementById("bulkMalayalamPasteApply")
+    ?.addEventListener("click", applyBulkMalayalamPaste);
 
   initAssignExamModal();
 
