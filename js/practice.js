@@ -46,6 +46,8 @@ const state = {
   bankQuestions: [],
   bankCursor: 0,
   assistanceMaskEnabled: false,
+  questionMaskOverrides: new Map(),
+  currentAnswer: null,
 };
 
 /* =========================================
@@ -241,6 +243,8 @@ function resetSession() {
   nextBtn.classList.add("hidden");
   sessionSummary.innerHTML = "";
   sessionSummary.classList.add("hidden");
+  state.questionMaskOverrides = new Map();
+  state.currentAnswer = null;
 
   updateProgress();
 }
@@ -302,8 +306,20 @@ function normalizeBankQuestion(row, metadataValue = null) {
   return question;
 }
 
+function isMaskEnabledForQuestion(question) {
+  if (!question?.id) {
+    return state.assistanceMaskEnabled;
+  }
+
+  if (state.questionMaskOverrides.has(question.id)) {
+    return state.questionMaskOverrides.get(question.id);
+  }
+
+  return state.assistanceMaskEnabled;
+}
+
 function getQuestionDisplay(question) {
-  return resolveQuestionDisplay(question, state.assistanceMaskEnabled);
+  return resolveQuestionDisplay(question, isMaskEnabledForQuestion(question));
 }
 
 function updatePracticeAssistanceToggleUi() {
@@ -356,12 +372,37 @@ function setPracticeAssistanceMaskEnabled(enabled) {
 
   updatePracticeAssistanceToggleUi();
 
-  if (
-    state.currentQuestion &&
-    state.started &&
-    nextBtn.classList.contains("hidden")
-  ) {
-    renderQuestion(state.currentQuestion);
+  if (state.currentQuestion && state.started) {
+    refreshCurrentQuestionDisplay();
+  }
+}
+
+function toggleQuestionMask(question) {
+  if (!question?.id || !hasMalayalamAssistance(question)) {
+    return;
+  }
+
+  state.questionMaskOverrides.set(
+    question.id,
+    !isMaskEnabledForQuestion(question)
+  );
+  refreshCurrentQuestionDisplay();
+}
+
+function refreshCurrentQuestionDisplay() {
+  const question = state.currentQuestion;
+  if (!question) {
+    return;
+  }
+
+  const selected = state.currentAnswer?.questionId === question.id
+    ? state.currentAnswer.selected
+    : null;
+
+  renderQuestion(question);
+
+  if (selected) {
+    applyAnswerUi(question, selected);
   }
 }
 
@@ -570,6 +611,7 @@ async function loadQuestion() {
   nextBtn.classList.add("hidden");
   sessionSummary.classList.add("hidden");
   state.currentQuestion = null;
+  state.currentAnswer = null;
   updateProgress();
 
   const loadingLabel =
@@ -638,18 +680,53 @@ async function loadQuestion() {
   }
 }
 
+function renderQuestionAssistanceToggle(question) {
+  if (state.mode !== "bank" || !hasMalayalamAssistance(question)) {
+    return "";
+  }
+
+  const maskOn = isMaskEnabledForQuestion(question);
+
+  return `
+    <div class="practice-question-assistance-row">
+      <button
+        type="button"
+        class="exam-assistance-toggle practice-question-assistance-btn${maskOn ? " exam-assistance-toggle--active" : ""}"
+        aria-pressed="${maskOn}"
+        title="${maskOn ? "Show English for this question" : "Show Malayalam help for this question"}"
+      >
+        ${maskOn ? "English" : "മലയാളം"}
+      </button>
+    </div>
+  `;
+}
+
+function bindQuestionAssistanceToggle(question) {
+  const button = questionCard.querySelector(".practice-question-assistance-btn");
+  if (!button) {
+    return;
+  }
+
+  button.addEventListener("click", () => toggleQuestionMask(question));
+}
+
 function renderQuestion(question) {
   const display = getQuestionDisplay(question);
-  const assistanceHint = state.assistanceMaskEnabled && hasMalayalamAssistance(question)
-    ? `<div class="exam-assistance-active-hint">Malayalam help on</div>`
-    : "";
+  const maskOn = isMaskEnabledForQuestion(question);
+  const assistanceHint =
+    maskOn && hasMalayalamAssistance(question)
+      ? `<div class="exam-assistance-active-hint">Malayalam help on</div>`
+      : "";
 
   questionCard.innerHTML = `
+  ${renderQuestionAssistanceToggle(question)}
   ${assistanceHint}
   <div class="question-text prepos-text">
     ${escapeHTML(display.text)}
   </div>
 `;
+
+  bindQuestionAssistanceToggle(question);
 
   optionsContainer.innerHTML = "";
 
@@ -667,10 +744,7 @@ function renderQuestion(question) {
   });
 }
 
-async function handleAnswer(selected) {
-  if (!state.currentQuestion) return;
-
-  const question = state.currentQuestion;
+function applyAnswerUi(question, selected) {
   const display = getQuestionDisplay(question);
   const correct = question.correct;
   const correctOption =
@@ -678,7 +752,7 @@ async function handleAnswer(selected) {
     question.options.find((option) => option.id === correct);
   const buttons = document.querySelectorAll(".option-btn");
 
-  buttons.forEach(button => {
+  buttons.forEach((button) => {
     button.disabled = true;
 
     if (button.dataset.optionId === correct) {
@@ -690,10 +764,7 @@ async function handleAnswer(selected) {
     }
   });
 
-  state.answeredCount += 1;
-
   if (selected === correct) {
-    state.correctCount += 1;
     feedback.innerHTML = "Correct";
   } else {
     feedback.innerHTML = `Wrong. Correct answer: ${correct}. ${escapeHTML(correctOption?.text || "")}`;
@@ -703,6 +774,26 @@ async function handleAnswer(selected) {
     feedback.innerHTML += `
       <div class="text-muted mt-10">${escapeHTML(display.explanation)}</div>
     `;
+  }
+}
+
+async function handleAnswer(selected) {
+  if (!state.currentQuestion) return;
+
+  const question = state.currentQuestion;
+  const correct = question.correct;
+
+  applyAnswerUi(question, selected);
+
+  state.currentAnswer = {
+    questionId: question.id,
+    selected,
+  };
+
+  state.answeredCount += 1;
+
+  if (selected === correct) {
+    state.correctCount += 1;
   }
 
   nextBtn.classList.remove("hidden");
