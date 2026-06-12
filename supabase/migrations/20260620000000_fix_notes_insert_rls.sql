@@ -4,6 +4,7 @@
 -- which can fail at the PostgREST JWT boundary on INSERT ... RETURNING.
 
 drop policy if exists "notes_insert_staff_owned" on public.notes;
+drop policy if exists "notes_insert_staff" on public.notes;
 
 create policy "notes_insert_staff"
 on public.notes

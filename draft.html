@@ -111,6 +111,34 @@ WORKSPACE
       </div>
     </div>
 
+    <details id="bulkMalayalamPastePanel" class="bulk-malayalam-paste-panel">
+      <summary class="bulk-malayalam-paste-summary">
+        Bulk paste Malayalam assistance
+        <span class="text-muted">(Q1 → Q1 card, Q2 → Q2 card, …)</span>
+      </summary>
+      <p class="text-muted bulk-malayalam-paste-help">
+        Paste all Malayalam versions at once in Exam Creator QCP format. Each block fills the
+        Malayalam mask on the matching question card by order — first block → Q1, second → Q2, etc.
+        English fields and scoring stay unchanged.
+      </p>
+      <textarea
+        id="bulkMalayalamPasteInput"
+        class="bulk-malayalam-paste-input"
+        rows="12"
+        placeholder="Q1. First question in Malayalam&#10;A) …&#10;B) …&#10;C) …&#10;D) …&#10;Answer: A&#10;Explanation: …&#10;&#10;Q2. Second question…&#10;A) …&#10;…"
+      ></textarea>
+      <div class="bulk-malayalam-paste-actions mt-10">
+        <label class="bulk-malayalam-paste-clean-label">
+          <input type="checkbox" id="bulkMalayalamPasteClean">
+          Clean first (QCP)
+        </label>
+        <button type="button" id="bulkMalayalamPasteApply" class="secondary-btn">
+          Apply to question cards
+        </button>
+      </div>
+      <div id="bulkMalayalamPasteStatus" class="bulk-malayalam-paste-status text-muted small mt-5 hidden"></div>
+    </details>
+
     <div id="questions" class="question-list">
       <div class="loading">Loading draft...</div>
     </div>
