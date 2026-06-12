@@ -15,6 +15,7 @@ import {
   ensureMalayalamAssistance,
   hasMalayalamAssistance,
   malayalamAssistanceFromMetadata,
+  malayalamAssistanceToMetadataPayload,
   pruneMalayalamAssistance,
 } from "./core/question-assistance.js";
 import { cleanQcpText, parseQuestionPaste, parseBulkQuestionPaste } from "./core/question-parser.js";
@@ -1469,6 +1470,143 @@ function applyBulkMalayalamPaste() {
   setBulkMalayalamPasteStatus(message, false);
 }
 
+function syncAssistanceFromDomForQuestion(index) {
+  const card = document.getElementById("questions")?.children[index];
+  const question = currentDraft?.schema_json?.sections?.[0]?.questions?.[index];
+  if (!card || !question) {
+    return;
+  }
+
+  const mask = ensureMalayalamAssistance(question);
+  const textEl = card.querySelector(".assistance-text");
+  const explanationEl = card.querySelector(".assistance-explanation");
+
+  if (textEl) {
+    mask.text = textEl.value;
+  }
+
+  if (explanationEl) {
+    mask.explanation = explanationEl.value;
+  }
+
+  card.querySelectorAll(".assistance-opt").forEach((input) => {
+    const letter = input.dataset.letter;
+    if (letter) {
+      mask.options[letter] = input.value;
+    }
+  });
+
+  pruneMalayalamAssistance(question);
+}
+
+async function updateBankMalayalamForQuestion(question, { silent = false } = {}) {
+  if (!question?.question_id) {
+    throw new Error("This question is not linked to the bank.");
+  }
+
+  pruneMalayalamAssistance(question);
+
+  const payload = malayalamAssistanceToMetadataPayload(question);
+  await invokeEdgeFunction("update-question-assistance-malayalam", {
+    questionId: question.question_id,
+    malayalam: payload,
+  });
+
+  if (!silent) {
+    setStatus("Bank Malayalam assistance updated ✅");
+  }
+}
+
+async function updateBankMalayalamAtIndex(index, button = null) {
+  syncAssistanceFromDomForQuestion(index);
+
+  const question = currentDraft?.schema_json?.sections?.[0]?.questions?.[index];
+  if (!question) {
+    setStatus("Question not found.", true);
+    return false;
+  }
+
+  if (!question.question_id) {
+    setStatus("Save this question to the bank first, or add it from the bank.", true);
+    return false;
+  }
+
+  const originalLabel = button?.textContent;
+
+  try {
+    if (button) {
+      button.disabled = true;
+      button.textContent = "Updating…";
+    }
+
+    await updateBankMalayalamForQuestion(question);
+    scheduleAutosave();
+
+    if (button) {
+      button.textContent = "✓ Bank updated";
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Bank Malayalam update failed:", error);
+    setStatus(error?.message || "Bank Malayalam update failed.", true);
+
+    if (button) {
+      button.textContent = originalLabel || "Update Bank (Malayalam)";
+    }
+
+    return false;
+  } finally {
+    if (button) {
+      button.disabled = false;
+    }
+  }
+}
+
+async function updateAllLinkedBankMalayalam() {
+  const questions = currentDraft?.schema_json?.sections?.[0]?.questions || [];
+  const linkedIndexes = questions
+    .map((question, index) => (question?.question_id ? index : -1))
+    .filter((index) => index >= 0);
+
+  if (!linkedIndexes.length) {
+    setBulkMalayalamPasteStatus(
+      "No bank-linked questions in this draft. Add from bank or save questions first.",
+      true
+    );
+    return;
+  }
+
+  let updated = 0;
+  let failed = 0;
+
+  for (const index of linkedIndexes) {
+    syncAssistanceFromDomForQuestion(index);
+    try {
+      await updateBankMalayalamForQuestion(questions[index], { silent: true });
+      updated += 1;
+    } catch (error) {
+      console.error(`Bank update failed for Q${index + 1}:`, error);
+      failed += 1;
+    }
+  }
+
+  scheduleAutosave();
+
+  if (failed === 0) {
+    setBulkMalayalamPasteStatus(
+      `Updated bank Malayalam for ${updated} linked question${updated === 1 ? "" : "s"}.`
+    );
+    setStatus(`Bank Malayalam updated for ${updated} question${updated === 1 ? "" : "s"} ✅`);
+    return;
+  }
+
+  setBulkMalayalamPasteStatus(
+    `Updated ${updated}; ${failed} failed. Check each linked question and try again.`,
+    true
+  );
+}
+
 function renderMalayalamAssistancePanel(q, index) {
   const mask = ensureMalayalamAssistance(q);
   const options = mask.options || {};
@@ -1551,6 +1689,7 @@ function renderDraft(draft) {
     while (opts.length < 4) opts.push({ id: "", text: "" });
 
     const status = q.bank_status || "draft";
+    const bankLinked = Boolean(q.question_id);
 
     // --------------------------
     // TOPICS
@@ -1641,6 +1780,17 @@ function renderDraft(draft) {
         status === "duplicate" ? "Duplicate" :
           "+ Add to Bank"}
   </button>
+
+  ${bankLinked ? `
+  <button
+    type="button"
+    class="secondary-btn update-bank-malayalam-btn"
+    data-q="${i}"
+    title="Sync Malayalam assistance mask to the linked bank question"
+  >
+    Update Bank (Malayalam)
+  </button>
+  ` : ""}
 
 </div>
 
@@ -1998,6 +2148,14 @@ if (e.target.classList.contains("question-paste-apply")) {
   const index = Number(e.target.dataset.i);
   if (!Number.isNaN(index)) {
     applyQuestionPasteAtIndex(index);
+  }
+  return;
+}
+
+if (e.target.classList.contains("update-bank-malayalam-btn")) {
+  const index = Number(e.target.dataset.q);
+  if (!Number.isNaN(index)) {
+    updateBankMalayalamAtIndex(index, e.target);
   }
   return;
 }
@@ -3533,6 +3691,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   document.getElementById("bulkMalayalamPasteApply")
     ?.addEventListener("click", applyBulkMalayalamPaste);
+
+  document.getElementById("bulkMalayalamUpdateBank")
+    ?.addEventListener("click", updateAllLinkedBankMalayalam);
 
   initAssignExamModal();
 

@@ -154,3 +154,22 @@ export function malayalamAssistanceFromMetadata(value) {
     },
   };
 }
+
+/** Payload for bank metadata RPC (assistance_malayalam value). */
+export function malayalamAssistanceToMetadataPayload(question) {
+  const mask = question?.assistance?.[ASSISTANCE_LANG_MALAYALAM];
+  if (!mask || typeof mask !== "object") {
+    return null;
+  }
+
+  return {
+    text: String(mask.text ?? ""),
+    options: {
+      A: String(mask.options?.A ?? ""),
+      B: String(mask.options?.B ?? ""),
+      C: String(mask.options?.C ?? ""),
+      D: String(mask.options?.D ?? ""),
+    },
+    explanation: String(mask.explanation ?? ""),
+  };
+}

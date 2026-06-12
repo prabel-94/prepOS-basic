@@ -6,6 +6,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
   hasMalayalamAssistance,
+  malayalamAssistanceToMetadataPayload,
   resolveQuestionDisplay,
   pruneMalayalamAssistance,
 } from "./question-assistance.js";
@@ -68,5 +69,11 @@ describe("question-assistance", () => {
     const empty = { text: "Q", assistance: { malayalam: { text: "", options: {}, explanation: "" } } };
     pruneMalayalamAssistance(empty);
     assert.equal(empty.assistance, undefined);
+  });
+
+  it("builds bank metadata payload from assistance mask", () => {
+    const payload = malayalamAssistanceToMetadataPayload(question);
+    assert.equal(payload.text, "മലയാളം ചോദ്യം?");
+    assert.equal(payload.options.A, "ഒന്ന്");
   });
 });
