@@ -12,6 +12,12 @@ import {
   initAssignExamModal,
 } from "./ui/assign-exam-modal.js";
 import {
+  ensureMalayalamAssistance,
+  hasMalayalamAssistance,
+  malayalamAssistanceFromMetadata,
+  pruneMalayalamAssistance,
+} from "./core/question-assistance.js";
+import {
   DEFAULT_SECONDS_PER_QUESTION,
   normalizeSecondsPerQuestion,
   describeComputedExamDuration,
@@ -431,11 +437,15 @@ async function addQuestionFromBank(qId, btn) {
 
   const sb = await getClient()
 
-  const { data, error } = await sb
-    .from("questions")
-    .select("*")
-    .eq("id", qId)
-    .single();
+  const [{ data, error }, metaRes] = await Promise.all([
+    sb.from("questions").select("*").eq("id", qId).single(),
+    sb
+      .from("question_metadata")
+      .select("value")
+      .eq("question_id", qId)
+      .eq("key", "assistance_malayalam")
+      .maybeSingle(),
+  ]);
 
   if (error) {
     console.error("Fetch error:", error);
@@ -484,6 +494,11 @@ async function addQuestionFromBank(qId, btn) {
   },
   };
 ensureMetadata(newQuestion);
+
+  const assistancePatch = malayalamAssistanceFromMetadata(metaRes.data?.value);
+  if (assistancePatch) {
+    Object.assign(newQuestion, assistancePatch);
+  }
 
   currentDraft.schema_json.sections[0].questions.push(newQuestion);
 
@@ -826,6 +841,7 @@ async function saveQuestionToBank(q) {
   }
 
   syncDifficultyToMeta(q);
+  pruneMalayalamAssistance(q);
 
   const result = await invokeEdgeFunction("save-question-to-bank", {
     question: q
@@ -1293,6 +1309,56 @@ function shuffleDraftQuestions() {
   setStatus("Questions shuffled");
 }
 
+function renderMalayalamAssistancePanel(q, index) {
+  const mask = ensureMalayalamAssistance(q);
+  const options = mask.options || {};
+  const letters = ["A", "B", "C", "D"];
+
+  const optionFields = letters
+    .map(
+      (letter) => `
+        <label class="question-assistance-option mt-10">
+          <span class="question-assistance-option-label">${letter}</span>
+          <input
+            type="text"
+            class="assistance-opt"
+            data-i="${index}"
+            data-letter="${letter}"
+            value="${escapeHTML(options[letter] || "")}"
+            placeholder="Malayalam text for option ${letter}"
+          />
+        </label>
+      `
+    )
+    .join("");
+
+  return `
+    <details class="question-assistance-panel mt-10"${hasMalayalamAssistance(q) ? " open" : ""}>
+      <summary class="question-assistance-summary">
+        Malayalam assistance
+        <span class="text-muted">(optional — same question, help mask for students)</span>
+      </summary>
+      <p class="text-muted question-assistance-help">
+        English above stays canonical for scoring. Students can toggle Malayalam help during the exam.
+      </p>
+      <label class="mt-10">Question (Malayalam)</label>
+      <textarea
+        class="assistance-text"
+        data-i="${index}"
+        placeholder="Malayalam question stem (optional)"
+      >${escapeHTML(mask.text || "")}</textarea>
+      <div class="mt-10 question-assistance-options-label">Options (Malayalam)</div>
+      ${optionFields}
+      <label class="mt-10">Explanation (Malayalam, optional)</label>
+      <textarea
+        class="assistance-explanation"
+        data-i="${index}"
+        placeholder="Malayalam explanation for review (optional)"
+      >${escapeHTML(mask.explanation || "")}</textarea>
+    </details>
+  `;
+}
+
 // --------------------------------
 // RENDER
 // --------------------------------
@@ -1448,6 +1514,8 @@ function renderDraft(draft) {
         data-i="${i}" 
         placeholder="Explanation (optional)"
       >${escapeHTML(q.explanation || "")}</textarea>
+
+      ${renderMalayalamAssistancePanel(q, i)}
        
       <div class="mt-10 small">
   Difficulty: ${q.difficulty?.label || "Not set"}
@@ -1716,6 +1784,22 @@ if (e.target.classList.contains("pattern-select")) {
 
   if (e.target.classList.contains("explanation")) {
     currentDraft.schema_json.sections[0].questions[+e.target.dataset.i].explanation = e.target.value;
+  }
+
+  if (e.target.classList.contains("assistance-text")) {
+    const q = currentDraft.schema_json.sections[0].questions[+e.target.dataset.i];
+    ensureMalayalamAssistance(q).text = e.target.value;
+  }
+
+  if (e.target.classList.contains("assistance-opt")) {
+    const q = currentDraft.schema_json.sections[0].questions[+e.target.dataset.i];
+    const mask = ensureMalayalamAssistance(q);
+    mask.options[e.target.dataset.letter] = e.target.value;
+  }
+
+  if (e.target.classList.contains("assistance-explanation")) {
+    const q = currentDraft.schema_json.sections[0].questions[+e.target.dataset.i];
+    ensureMalayalamAssistance(q).explanation = e.target.value;
   }
 
   scheduleAutosave();
