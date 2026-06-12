@@ -1,5 +1,5 @@
 /**
- * Draft knowledge workspace — semantic markdown refinement (not WYSIWYG).
+ * Draft knowledge workspace — production preview editing + source fallback.
  */
 
 import { regenerateVariantFromMarkdown } from "./note-storage.js";
@@ -26,6 +26,8 @@ import { closeModal } from "../ui/modal-system.js";
 import { resolveAppPath } from "../core/access.js";
 import { getLanguageLabel, normalizeLanguage } from "./note-variants.js";
 import { openAddSectionModal } from "./note-section-modal.js";
+import { buildEditableUnitMap } from "./note-editable-map.js";
+import { bindPreviewEditor } from "./note-preview-editor.js";
 
 function escapeHTML(value = "") {
   return String(value)
@@ -96,12 +98,14 @@ export function initDraftWorkspace({
   statusEl,
   backlinksEl,
 }) {
-  let viewMode = "preview";
+  let viewMode = "edit-preview";
   let activeTab = "narrative";
   let previewParsed = null;
   let previewSemanticMap = {};
   let previewSummary = null;
+  let previewEditableUnits = new Map();
   let previewRenderOptions = { preferLanguage: normalizeLanguage(variant?.language) };
+  let unbindPreviewEditor = null;
 
   const note = variant?.notes ?? {};
   const topicName = note?.topics?.name ?? note?.title ?? "Topic";
@@ -140,7 +144,7 @@ export function initDraftWorkspace({
   };
 
   async function refreshSemanticPreview() {
-    if (viewMode !== "preview") {
+    if (viewMode !== "preview" && viewMode !== "edit-preview") {
       return;
     }
 
@@ -153,11 +157,14 @@ export function initDraftWorkspace({
     previewParsed = preview.parsed;
     previewSemanticMap = preview.semanticMap;
     previewSummary = preview.summary ?? null;
-    previewRenderOptions = withReadingErgonomics(
-      buildSemanticPreviewRenderOptions(previewSemanticMap, {
+    previewEditableUnits = buildEditableUnitMap(sourceEditorEl?.value ?? "");
+    previewRenderOptions = withReadingErgonomics({
+      ...buildSemanticPreviewRenderOptions(previewSemanticMap, {
         preferLanguage,
-      })
-    );
+      }),
+      draftEditMode: viewMode === "edit-preview",
+      editableUnits: previewEditableUnits,
+    });
 
     logRevisionParityDraft(variant.id, previewParsed.representations);
 
@@ -194,8 +201,9 @@ export function initDraftWorkspace({
 
     toolbarEl.classList.remove("hidden");
     toolbarEl.innerHTML = `
-      <button type="button" class="secondary-btn" data-draft-action="edit">Edit Source</button>
+      <button type="button" class="secondary-btn" data-draft-action="edit-preview">Edit</button>
       <button type="button" class="secondary-btn" data-draft-action="preview">Preview</button>
+      <button type="button" class="secondary-btn" data-draft-action="edit">Source</button>
       <button type="button" class="primary-btn" data-draft-action="save">Save Draft</button>
       <button type="button" class="primary-btn" data-draft-action="publish">Publish Language Variant</button>
     `;
@@ -203,7 +211,9 @@ export function initDraftWorkspace({
     toolbarEl.querySelectorAll("[data-draft-action]").forEach((btn) => {
       btn.addEventListener("click", () => {
         const action = btn.dataset.draftAction;
-        if (action === "edit") {
+        if (action === "edit-preview") {
+          showEditPreviewMode();
+        } else if (action === "edit") {
           showEditMode();
         } else if (action === "preview") {
           showPreviewMode();
@@ -222,9 +232,15 @@ export function initDraftWorkspace({
     });
   }
 
+  function teardownPreviewEditor() {
+    unbindPreviewEditor?.();
+    unbindPreviewEditor = null;
+  }
+
   function showEditMode() {
     viewMode = "edit";
     setToolbarActive("edit");
+    teardownPreviewEditor();
 
     if (sourcePanelEl) {
       sourcePanelEl.classList.remove("hidden");
@@ -236,6 +252,7 @@ export function initDraftWorkspace({
 
     if (contentEl) {
       contentEl.classList.add("hidden");
+      contentEl.classList.remove("note-draft-edit-surface");
     }
 
     setStatus("Editing semantic markdown source.");
@@ -282,7 +299,7 @@ export function initDraftWorkspace({
     }
 
     setStatus("Section added (unsaved). Click Save Draft to persist.");
-    await showPreviewMode();
+    await showEditPreviewMode();
   }
 
   function renderPreviewTabs(representations, options) {
@@ -299,7 +316,7 @@ export function initDraftWorkspace({
       const summaryHtml = previewSummary
         ? renderSemanticStateSummary(previewSummary)
         : "";
-      contentEl.innerHTML = `${summaryHtml}<p class="canonical-empty">No sections yet. Click <strong>+ Add section</strong> to start, or use Edit Source for full MSMDF markdown.</p>`;
+      contentEl.innerHTML = `${summaryHtml}<p class="canonical-empty">No sections yet. Click <strong>+ Add section</strong> to start, or use <strong>Source</strong> for full MSMDF markdown.</p>`;
       return;
     }
 
@@ -334,6 +351,8 @@ export function initDraftWorkspace({
       return;
     }
 
+    teardownPreviewEditor();
+
     const representations = previewParsed.representations ?? {};
     const summaryHtml = previewSummary
       ? renderSemanticStateSummary(previewSummary)
@@ -356,14 +375,30 @@ export function initDraftWorkspace({
       preferLanguage,
       governanceContext,
     });
+
+    if (viewMode === "edit-preview") {
+      unbindPreviewEditor = bindPreviewEditor(contentEl, {
+        editableUnits: previewEditableUnits,
+        getMarkdown: () => sourceEditorEl?.value ?? "",
+        setMarkdown: (markdown) => {
+          if (sourceEditorEl) {
+            sourceEditorEl.value = markdown;
+          }
+        },
+        onPatched: async () => {
+          setStatus("Updated (unsaved). Click Save Draft to persist.");
+          await refreshSemanticPreview();
+        },
+      });
+    }
   }
 
-  async function showPreviewMode() {
-    viewMode = "preview";
-    setToolbarActive("preview");
+  async function showReadSurfaceMode({ mode, statusMessage }) {
+    viewMode = mode;
+    setToolbarActive(mode === "edit-preview" ? "edit-preview" : "preview");
 
     try {
-      setStatus("Building semantic preview…");
+      setStatus(mode === "edit-preview" ? "Loading editor…" : "Building semantic preview…");
 
       const preview = await prepareDraftSemanticPreview(sourceEditorEl?.value ?? "", {
         language: preferLanguage,
@@ -374,11 +409,14 @@ export function initDraftWorkspace({
       previewParsed = preview.parsed;
       previewSemanticMap = preview.semanticMap;
       previewSummary = preview.summary ?? null;
-      previewRenderOptions = withReadingErgonomics(
-        buildSemanticPreviewRenderOptions(previewSemanticMap, {
+      previewEditableUnits = buildEditableUnitMap(sourceEditorEl?.value ?? "");
+      previewRenderOptions = withReadingErgonomics({
+        ...buildSemanticPreviewRenderOptions(previewSemanticMap, {
           preferLanguage,
-        })
-      );
+        }),
+        draftEditMode: mode === "edit-preview",
+        editableUnits: previewEditableUnits,
+      });
 
       logRevisionParityDraft(variant.id, previewParsed.representations);
 
@@ -392,13 +430,29 @@ export function initDraftWorkspace({
 
       if (contentEl) {
         contentEl.classList.remove("hidden");
+        contentEl.classList.toggle("note-draft-edit-surface", mode === "edit-preview");
       }
 
       renderPreviewTabs(previewParsed.representations, previewRenderOptions);
-      setStatus("Semantic preview (not saved). Click anchors to inspect.");
+      setStatus(statusMessage);
     } catch (err) {
       setStatus(err.message || "Preview failed.", true);
     }
+  }
+
+  async function showEditPreviewMode() {
+    await showReadSurfaceMode({
+      mode: "edit-preview",
+      statusMessage:
+        "Click a paragraph to edit. Enter = new paragraph · Shift+Enter = line break · Source for advanced edits.",
+    });
+  }
+
+  async function showPreviewMode() {
+    await showReadSurfaceMode({
+      mode: "preview",
+      statusMessage: "Read-only preview (not saved). Click anchors to inspect.",
+    });
   }
 
   async function handleSaveDraft() {
@@ -420,7 +474,7 @@ export function initDraftWorkspace({
       }
 
       setStatus("Draft saved. Blocks and topic links regenerated.");
-      await showPreviewMode();
+      await showEditPreviewMode();
     } catch (err) {
       setStatus(err.message || "Save failed. Source was not replaced.", true);
     }
@@ -482,6 +536,6 @@ export function initDraftWorkspace({
   }
 
   return loadSource().then(() => {
-    showPreviewMode();
+    showEditPreviewMode();
   });
 }
