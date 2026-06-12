@@ -3914,6 +3914,16 @@ PHASE 1 — STUDENT UI UPGRADE
   font-weight: 600;
 }
 
+.practice-question-assistance-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 10px;
+}
+
+.practice-question-assistance-btn {
+  margin-top: 0;
+}
+
 .question-assistance-panel {
   border: 1px dashed #c4b5fd;
   border-radius: 8px;
