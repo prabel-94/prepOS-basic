@@ -24,6 +24,7 @@ import {
 } from "./reading-ergonomics.js";
 import { getTabEligibleRepresentations } from "./note-representations.js";
 import { stripHighlightedQuoteLines } from "./quote-highlight.js";
+import { lookupEditableUnitId } from "./note-editable-map.js";
 
 function escapeHTML(value = "") {
   return String(value)
@@ -413,6 +414,28 @@ function linkOptions(renderOptions = {}) {
   return { preferLanguage: renderOptions.preferLanguage ?? "english" };
 }
 
+function draftEditSurface(renderOptions, representationKey, block, paraKey) {
+  if (!renderOptions.draftEditMode || !renderOptions.editableUnits) {
+    return { className: "", attrs: "" };
+  }
+
+  const unitId = lookupEditableUnitId(
+    renderOptions.editableUnits,
+    representationKey,
+    block?.sequence_order ?? 0,
+    paraKey
+  );
+
+  if (!unitId) {
+    return { className: "", attrs: "" };
+  }
+
+  return {
+    className: " note-preview-editable",
+    attrs: ` data-editable-id="${escapeHTML(unitId)}" tabindex="0"`,
+  };
+}
+
 function resolveInlineSemantics(text, topicMap, renderOptions = {}) {
   const opts = withReadingErgonomics(renderOptions);
 
@@ -432,19 +455,27 @@ function resolveInlineSemantics(text, topicMap, renderOptions = {}) {
   return resolveTopicLinks(text, topicMap, linkOptions(opts));
 }
 
-function renderSemanticHeading(headingText, parserLevel, representationKey, topicMap, renderOptions) {
+function renderSemanticHeading(
+  headingText,
+  parserLevel,
+  representationKey,
+  topicMap,
+  renderOptions,
+  block
+) {
   const semanticLevel = resolveSemanticLevel(parserLevel, { representation: representationKey });
   const tag = semanticHeadingTag(semanticLevel);
   const classes = semanticHeadingClasses(semanticLevel);
+  const edit = draftEditSurface(renderOptions, representationKey, block, "heading");
 
-  return `<${tag} class="${classes}" data-semantic-level="${semanticLevel}">${resolveInlineSemantics(
+  return `<${tag} class="${classes}${edit.className}" data-semantic-level="${semanticLevel}"${edit.attrs}>${resolveInlineSemantics(
     headingText,
     topicMap,
     renderOptions
   )}</${tag}>`;
 }
 
-function renderListContent(content, topicMap, renderOptions) {
+function renderListContent(content, topicMap, renderOptions, block, representationKey) {
   const lines = String(content ?? "")
     .split("\n")
     .map((l) => l.trim())
@@ -455,16 +486,32 @@ function renderListContent(content, topicMap, renderOptions) {
   }
 
   const items = lines
-    .map((line) => {
+    .map((line, lineIndex) => {
       const text = line.replace(/^\s*([-*•]|\d+[\.)])\s+/, "");
-      return `<li>${resolveInlineSemantics(text, topicMap, renderOptions)}</li>`;
+      const edit = draftEditSurface(
+        renderOptions,
+        representationKey,
+        block,
+        `list-${lineIndex}`
+      );
+      return `<li class="semantic-list-item${edit.className}"${edit.attrs}>${resolveInlineSemantics(
+        text,
+        topicMap,
+        renderOptions
+      )}</li>`;
     })
     .join("");
 
   return `<ul class="canonical-list semantic-list">${items}</ul>`;
 }
 
-function renderHighlightedQuoteBlock(text, topicMap, renderOptions) {
+function renderHighlightedQuoteBlock(
+  text,
+  topicMap,
+  renderOptions,
+  block,
+  paraIndex
+) {
   const quoteLines = stripHighlightedQuoteLines(text);
   if (!quoteLines?.length) {
     return "";
@@ -484,10 +531,19 @@ function renderHighlightedQuoteBlock(text, topicMap, renderOptions) {
           )
           .join("");
 
-  return `<blockquote class="quote-blockquote quote-blockquote--highlighted">${inner}</blockquote>`;
+  const edit = draftEditSurface(renderOptions, "quotes", block, paraIndex);
+
+  return `<blockquote class="quote-blockquote quote-blockquote--highlighted${edit.className}"${edit.attrs}>${inner}</blockquote>`;
 }
 
-function renderSemanticParagraph(p, topicMap, renderOptions, representationKey) {
+function renderSemanticParagraph(
+  p,
+  topicMap,
+  renderOptions,
+  representationKey,
+  block,
+  paraIndex
+) {
   const tracker = renderOptions.anchorOccurrenceTracker;
   tracker?.resetParagraph?.();
 
@@ -498,7 +554,13 @@ function renderSemanticParagraph(p, topicMap, renderOptions, representationKey) 
 
   // Important quotes in [QUOTES]: prefix with > for amber highlight.
   if (representationKey === "quotes") {
-    const highlighted = renderHighlightedQuoteBlock(trimmed, topicMap, renderOptions);
+    const highlighted = renderHighlightedQuoteBlock(
+      trimmed,
+      topicMap,
+      renderOptions,
+      block,
+      paraIndex
+    );
     if (highlighted) {
       return highlighted;
     }
@@ -528,8 +590,9 @@ function renderSemanticParagraph(p, topicMap, renderOptions, representationKey) 
 
   const anchorCount = countWikiLinksInText(trimmed);
   const denseClass = isDenseParagraph(anchorCount) ? " semantic-paragraph--dense" : "";
+  const edit = draftEditSurface(renderOptions, representationKey, block, paraIndex);
 
-  return `<p class="canonical-paragraph semantic-paragraph${denseClass}">${resolveInlineSemantics(
+  return `<p class="canonical-paragraph semantic-paragraph${denseClass}${edit.className}"${edit.attrs}>${resolveInlineSemantics(
     trimmed,
     topicMap,
     renderOptions
@@ -538,7 +601,7 @@ function renderSemanticParagraph(p, topicMap, renderOptions, representationKey) 
 
 function renderBlockBody(block, topicMap, renderOptions, representationKey = "narrative") {
   if (block.block_type === "list") {
-    return renderListContent(block.content, topicMap, renderOptions);
+    return renderListContent(block.content, topicMap, renderOptions, block, representationKey);
   }
 
   if (!block.content) {
@@ -551,7 +614,16 @@ function renderBlockBody(block, topicMap, renderOptions, representationKey = "na
     .filter(Boolean);
 
   return paragraphs
-    .map((p) => renderSemanticParagraph(p, topicMap, renderOptions, representationKey))
+    .map((p, paraIndex) =>
+      renderSemanticParagraph(
+        p,
+        topicMap,
+        renderOptions,
+        representationKey,
+        block,
+        paraIndex
+      )
+    )
     .filter(Boolean)
     .join("");
 }
@@ -581,7 +653,8 @@ function renderBlock(block, topicMap, renderOptions, representationKey = "narrat
         parserLevel,
         representationKey,
         topicMap,
-        renderOptions
+        renderOptions,
+        block
       )
     : "";
 
@@ -756,7 +829,7 @@ export function buildStructuralTree(blocks = []) {
 
 function renderStructuralContentBlock(block, topicMap, renderOptions) {
   if (block.block_type === "list") {
-    return renderListContent(block.content, topicMap, renderOptions);
+    return renderListContent(block.content, topicMap, renderOptions, block, "structural");
   }
 
   if (!block.content?.trim()) {
@@ -769,12 +842,13 @@ function renderStructuralContentBlock(block, topicMap, renderOptions) {
     .split(/\n{2,}/)
     .map((p) => p.trim())
     .filter(Boolean)
-    .map((p) => {
+    .map((p, paraIndex) => {
       tracker?.resetParagraph?.();
       const anchorCount = countWikiLinksInText(p);
       const denseClass = isDenseParagraph(anchorCount) ? " semantic-paragraph--dense" : "";
+      const edit = draftEditSurface(renderOptions, "structural", block, paraIndex);
 
-      return `<p class="canonical-paragraph structural-leaf semantic-paragraph${denseClass}">${resolveInlineSemantics(
+      return `<p class="canonical-paragraph structural-leaf semantic-paragraph${denseClass}${edit.className}"${edit.attrs}>${resolveInlineSemantics(
         p,
         topicMap,
         renderOptions
