@@ -65,16 +65,26 @@
       </p>
     </div>
 
-    <div id="bankControls" class="practice-control-group hidden">
-      <select id="bankTopicSelect">
-        <option value="">All Topics</option>
-      </select>
+  <div id="bankControls" class="practice-control-group hidden">
+    <select id="bankTopicSelect">
+      <option value="">All Topics</option>
+    </select>
 
-      <select id="bankOrderSelect">
-        <option value="random" selected>Random Bank Questions</option>
-        <option value="latest">Latest Bank Questions</option>
-      </select>
-    </div>
+    <select id="bankOrderSelect">
+      <option value="random" selected>Random Bank Questions</option>
+      <option value="latest">Latest Bank Questions</option>
+    </select>
+
+    <button
+      type="button"
+      id="practiceAssistanceToggle"
+      class="exam-assistance-toggle hidden"
+      aria-pressed="false"
+      title="Show Malayalam help text for bank questions"
+    >
+      മലയാളം
+    </button>
+  </div>
 
     <select id="sessionLimitSelect">
       <option value="0">Unlimited</option>
