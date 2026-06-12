@@ -193,6 +193,40 @@
     .note-draft-edit-surface .semantic-paragraph {
       white-space: pre-wrap;
     }
+    .note-preview-format-toolbar {
+      position: absolute;
+      z-index: 40;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      padding: 6px;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+      background: #fff;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+    }
+    .note-preview-format-toolbar.hidden {
+      display: none;
+    }
+    .note-preview-format-btn {
+      border: 1px solid #e2e8f0;
+      background: #f8fafc;
+      color: #334155;
+      border-radius: 6px;
+      padding: 4px 8px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .note-preview-format-btn:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+      background: #eff6ff;
+    }
+    .note-preview-format-btn[hidden] {
+      display: none;
+    }
     #noteSourcePanel {
       margin-bottom: 20px;
       max-width: 720px;
