@@ -379,6 +379,7 @@ export function initDraftWorkspace({
     if (viewMode === "edit-preview") {
       unbindPreviewEditor = bindPreviewEditor(contentEl, {
         editableUnits: previewEditableUnits,
+        getActiveRepresentation: () => activeTab,
         getMarkdown: () => sourceEditorEl?.value ?? "",
         setMarkdown: (markdown) => {
           if (sourceEditorEl) {
@@ -444,7 +445,7 @@ export function initDraftWorkspace({
     await showReadSurfaceMode({
       mode: "edit-preview",
       statusMessage:
-        "Click a paragraph to edit. Enter = new paragraph · Shift+Enter = line break · Source for advanced edits.",
+        "Click a paragraph to edit. Select text for Link, headings, lists, and quotes. Enter = new paragraph · Shift+Enter = line break.",
     });
   }
 

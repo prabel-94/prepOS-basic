@@ -7,6 +7,7 @@ import {
   replaceUnitRange,
   splitParagraphUnitAt,
 } from "./note-source-patch.js";
+import { createPreviewFormatToolbar } from "./note-preview-format-toolbar.js";
 
 function getCaretOffset(element) {
   const selection = window.getSelection();
@@ -28,6 +29,7 @@ function getCaretOffset(element) {
  * @param {() => string} options.getMarkdown
  * @param {(markdown: string) => void} options.setMarkdown
  * @param {() => void|Promise<void>} options.onPatched
+ * @param {() => string} [options.getActiveRepresentation]
  */
 export function bindPreviewEditor(contentEl, options) {
   if (!contentEl) {
@@ -41,6 +43,31 @@ export function bindPreviewEditor(contentEl, options) {
   function getUnit(id) {
     return id ? options.editableUnits.get(id) ?? null : null;
   }
+
+  function commitTextToSource(nextText) {
+    const unit = getUnit(activeUnitId);
+    if (!unit || !activeUnitId) {
+      return;
+    }
+
+    if (nextText === unit.sourceText) {
+      return;
+    }
+
+    const markdown = options.getMarkdown();
+    const updated = replaceUnitRange(markdown, unit, nextText);
+    options.setMarkdown(updated);
+    options.onPatched?.();
+  }
+
+  const formatToolbar = createPreviewFormatToolbar({
+    contentEl,
+    getActiveRepresentation: () => options.getActiveRepresentation?.() ?? "",
+    getActiveElement: () => activeEl,
+    applyText: (nextText) => {
+      commitTextToSource(nextText);
+    },
+  });
 
   function finishEditing({ revert = false } = {}) {
     if (!activeEl || !activeUnitId) {
@@ -57,6 +84,7 @@ export function bindPreviewEditor(contentEl, options) {
 
     activeEl = null;
     activeUnitId = null;
+    formatToolbar.hide();
   }
 
   function beginEditing(el) {
@@ -76,6 +104,7 @@ export function bindPreviewEditor(contentEl, options) {
     el.classList.add("note-preview-editable--editing");
     el.textContent = unit.sourceText;
     el.contentEditable = "true";
+    requestAnimationFrame(() => formatToolbar.refresh());
   }
 
   function commitActiveEdit() {
@@ -115,8 +144,12 @@ export function bindPreviewEditor(contentEl, options) {
       return;
     }
 
+    if (event.target.closest(".note-preview-format-toolbar")) {
+      return;
+    }
+
     const next = event.relatedTarget;
-    if (next && activeEl.contains(next)) {
+    if (next && (activeEl.contains(next) || next.closest?.(".note-preview-format-toolbar"))) {
       return;
     }
 
@@ -169,7 +202,7 @@ export function bindPreviewEditor(contentEl, options) {
   }
 
   function onClick(event) {
-    if (event.target.closest(".semantic-anchor, .topic-link")) {
+    if (event.target.closest(".semantic-anchor, .topic-link, .note-preview-format-toolbar")) {
       return;
     }
 
@@ -194,6 +227,7 @@ export function bindPreviewEditor(contentEl, options) {
     contentEl.removeEventListener("focusout", onFocusOut);
     contentEl.removeEventListener("keydown", onKeyDown);
     contentEl.removeEventListener("click", onClick);
+    formatToolbar.destroy();
     finishEditing();
   };
 }
