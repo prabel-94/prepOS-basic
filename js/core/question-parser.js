@@ -1,12 +1,15 @@
 /**
  * PrepOS QCP question parser — shared by exam creator and draft editor.
  * Expects QCP blocks: Q1. stem, A)–D) options, Answer:, Explanation:
+ * Also accepts: 1. numbering, ഉത്തരം / വിശദീകരണം (Malayalam labels).
  */
 
 const OPTION_LETTERS = ["A", "B", "C", "D"];
 const OPTION_REGEX = /^[A-D][\)\.\:\-]\s+/i;
 const QUESTION_BLOCK_SPLIT = /\n(?=Q\d+[\.\)]\s)/gi;
 const QUESTION_START = /^Q\d+[\.\)]\s/i;
+const ANSWER_LINE_REGEX = /^Answer\s*:/i;
+const EXPLANATION_LINE_REGEX = /^Explanation\s*:/i;
 
 const BILINGUAL_SECTION_SPLIT =
   /(?:^|\n)(?:---+\s*(?:Malayalam|മലയാളം)\s*---+\s*|\[Malayalam\]\s*|Malayalam\s*:\s*)\n/i;
@@ -47,12 +50,34 @@ function createParsedQuestionFields({ text, options, correct, explanation }) {
   };
 }
 
-/**
- * QCP clean — pure function version of exam creator "Clean (QCP)".
- */
-export function cleanQcpText(rawText) {
-  let text = normalizeLineEndings(rawText);
+/** Malayalam + common aliases → canonical Answer / Explanation labels. */
+export function normalizeMalayalamQcpLabels(text) {
+  return text
+    .replace(/^\s*ഉത്തരം\s*[:：\-]?\s*/gim, "Answer: ")
+    .replace(/^\s*വിശദീകരണം\s*[:：\-]?\s*/gim, "Explanation: ")
+    .replace(
+      /\b(Ans|Correct Answer|Correct option|Correct Option)\b\s*[:：\-]?\s*/gi,
+      "Answer: "
+    )
+    .replace(/\bExplanation\b\s*[:：\-]?\s*/gi, "Explanation: ");
+}
 
+/** Convert 1. / Q1) block starters to Q1. for the structural parser. */
+export function normalizeQuestionBlockMarkers(text) {
+  let normalized = text.replace(
+    /(?:^|\n)Q\s*(\d+)[\.\)]\s+/gi,
+    (match, num, offset) => `${offset > 0 ? "\n" : ""}Q${num}. `
+  );
+
+  normalized = normalized.replace(
+    /(?:^|\n)(\d+)[\.\)]\s+/g,
+    (match, num, offset) => `${offset > 0 ? "\n" : ""}Q${num}. `
+  );
+
+  return normalized.trim();
+}
+
+function applyQcpDeepCleanLines(text) {
   text = text.replace(/^---+$/gm, "");
   text = text.replace(/[✅✔️💡⭐✨🔥📌👉•]/g, "");
   text = text.replace(/[ \t]+/g, " ");
@@ -61,12 +86,6 @@ export function cleanQcpText(rawText) {
   if (firstQuestionMatch) {
     text = text.slice(firstQuestionMatch.index);
   }
-
-  text = text.replace(
-    /\b(Ans|Correct Answer|Correct option|Correct Option)\b\s*[:\-]?\s*/gi,
-    "Answer: "
-  );
-  text = text.replace(/\bExplanation\b\s*[:\-]?\s*/gi, "Explanation: ");
 
   const lines = text.split("\n").map((line) => line.trim());
   const cleaned = [];
@@ -84,7 +103,10 @@ export function cleanQcpText(rawText) {
 
     if (isQuestionNumber) {
       const content = line.replace(/^(?:Q\s*)?\d+[\.\)]\s*/i, "");
+      const qNum = line.match(/\d+/)?.[0] || "1";
+      const isBlockStart = i === 0 || cleaned[cleaned.length - 1] === "";
       const hasQuestionPattern =
+        isBlockStart ||
         /[:?]["”']?\s*$/.test(content) ||
         /\bWhich\b/i.test(content) ||
         /\bWhat\b/i.test(content) ||
@@ -100,10 +122,10 @@ export function cleanQcpText(rawText) {
         /\bAssertion\b/i.test(content) ||
         /\bReason\b/i.test(content) ||
         /\bWith reference\b/i.test(content) ||
-        /\bHow many\b/i.test(content);
+        /\bHow many\b/i.test(content) ||
+        /[\u0D00-\u0D7F]/.test(content);
 
       if (hasQuestionPattern) {
-        const qNum = line.match(/\d+/)?.[0] || "1";
         line = `Q${qNum}. ${content}`;
       }
     }
@@ -118,6 +140,41 @@ export function cleanQcpText(rawText) {
   return text.trim();
 }
 
+/**
+ * Minimal normalize before parse (labels + block numbers).
+ * @param {string} rawText
+ * @param {{ deepClean?: boolean }} options
+ */
+export function prepareQcpForParsing(rawText, { deepClean = false } = {}) {
+  let text = normalizeLineEndings(rawText);
+  text = normalizeMalayalamQcpLabels(text);
+  text = normalizeQuestionBlockMarkers(text);
+
+  if (deepClean) {
+    text = applyQcpDeepCleanLines(text);
+  }
+
+  return text.replace(/^---+$/gm, "").trim();
+}
+
+/**
+ * QCP clean — pure function version of exam creator "Clean (QCP)".
+ */
+export function cleanQcpText(rawText) {
+  return prepareQcpForParsing(rawText, { deepClean: true });
+}
+
+function extractAnswerLetter(answerLine) {
+  const match = answerLine.match(
+    /Answer\s*:\s*(?:([A-D])[\)\.\:\-]?\s*|([A-D])\b)/i
+  );
+  if (!match) {
+    return "A";
+  }
+
+  return (match[1] || match[2] || "A").toUpperCase();
+}
+
 function parseQuestionBlock(block) {
   const lines = block
     .split("\n")
@@ -128,16 +185,16 @@ function parseQuestionBlock(block) {
     return null;
   }
 
-  const answerIndex = lines.findIndex((line) => /^Answer\s*:/i.test(line));
+  const answerIndex = lines.findIndex((line) => ANSWER_LINE_REGEX.test(line));
   if (answerIndex === -1) {
     return null;
   }
 
-  const answerLine = lines[answerIndex];
-  const answerMatch = answerLine.match(/Answer\s*:\s*([A-D])\b/i);
-  const correct = answerMatch ? answerMatch[1].toUpperCase() : "A";
+  const correct = extractAnswerLetter(lines[answerIndex]);
 
-  const explanationIndex = lines.findIndex((line) => /^Explanation\s*:/i.test(line));
+  const explanationIndex = lines.findIndex((line) =>
+    EXPLANATION_LINE_REGEX.test(line)
+  );
   let explanation = "";
 
   if (explanationIndex !== -1) {
@@ -179,8 +236,7 @@ function parseQuestionBlock(block) {
  * Parse one or more QCP question blocks from pasted text.
  */
 export function parseQuiz(rawText) {
-  let text = normalizeLineEndings(rawText);
-  text = text.replace(/^---+$/gm, "");
+  const text = prepareQcpForParsing(rawText);
 
   const blocks = text
     .split(QUESTION_BLOCK_SPLIT)
@@ -194,7 +250,7 @@ export function parseQuiz(rawText) {
  * Ensure pasted text is a single Q1. block for parseQuiz.
  */
 export function normalizeSingleQuestionPaste(rawText) {
-  let text = normalizeLineEndings(rawText);
+  let text = prepareQcpForParsing(rawText);
   if (!text) {
     return "";
   }
@@ -202,13 +258,16 @@ export function normalizeSingleQuestionPaste(rawText) {
   if (!QUESTION_START.test(text)) {
     const firstLine = text.split("\n")[0]?.trim() || "";
     if (/^\d+[\.\)]\s+/.test(firstLine)) {
-      text = `Q${text}`;
+      text = normalizeQuestionBlockMarkers(text);
     } else {
       text = `Q1. ${text}`;
     }
   }
 
-  const blocks = text.split(QUESTION_BLOCK_SPLIT).map((block) => block.trim()).filter(Boolean);
+  const blocks = text
+    .split(QUESTION_BLOCK_SPLIT)
+    .map((block) => block.trim())
+    .filter(Boolean);
   return blocks[0] || text;
 }
 
@@ -239,7 +298,7 @@ export function splitBilingualPaste(rawText) {
 }
 
 const PARSE_ERROR =
-  "Could not parse question. Use QCP format: Q1. stem, A)–D) options, Answer: X, Explanation: (optional).";
+  "Could not parse question. Use QCP format: Q1. (or 1.) stem, A)–D) options, Answer: or ഉത്തരം:, Explanation: or വിശദീകരണം: (optional).";
 
 /**
  * Parse a single-question paste for draft cards.
@@ -251,9 +310,7 @@ export function parseQuestionPaste(rawText, { target = "auto", clean = false } =
     return { ok: false, error: "Paste is empty." };
   }
 
-  if (clean) {
-    text = cleanQcpText(text);
-  }
+  text = prepareQcpForParsing(text, { deepClean: clean });
 
   if (target === "english") {
     const english = parseSingleQuestion(text);
@@ -272,7 +329,9 @@ export function parseQuestionPaste(rawText, { target = "auto", clean = false } =
   }
 
   const { english: englishText, malayalam: malayalamText } = splitBilingualPaste(text);
-  const english = parseSingleQuestion(englishText);
+  const english = parseSingleQuestion(
+    prepareQcpForParsing(englishText, { deepClean: clean })
+  );
   if (!english) {
     return { ok: false, error: PARSE_ERROR };
   }
@@ -280,7 +339,9 @@ export function parseQuestionPaste(rawText, { target = "auto", clean = false } =
   const result = { ok: true, english };
 
   if (malayalamText) {
-    const malayalam = parseSingleQuestion(malayalamText);
+    const malayalam = parseSingleQuestion(
+      prepareQcpForParsing(malayalamText, { deepClean: clean })
+    );
     if (!malayalam) {
       result.warning =
         "English was applied, but the Malayalam section could not be parsed.";
@@ -301,15 +362,13 @@ export function parseBulkQuestionPaste(rawText, { clean = false } = {}) {
     return { ok: false, error: "Paste is empty." };
   }
 
-  if (clean) {
-    text = cleanQcpText(text);
-  }
-
+  text = prepareQcpForParsing(text, { deepClean: clean });
   const questions = parseQuiz(text);
+
   if (!questions.length) {
     return {
       ok: false,
-      error: `${PARSE_ERROR} Paste multiple blocks: Q1., Q2., Q3., …`,
+      error: `${PARSE_ERROR} Paste multiple blocks: Q1., Q2., Q3., … (or 1., 2., 3., …)`,
     };
   }
 

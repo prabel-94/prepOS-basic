@@ -117,15 +117,17 @@ WORKSPACE
         <span class="text-muted">(Q1 → Q1 card, Q2 → Q2 card, …)</span>
       </summary>
       <p class="text-muted bulk-malayalam-paste-help">
-        Paste all Malayalam versions at once in Exam Creator QCP format. Each block fills the
-        Malayalam mask on the matching question card by order — first block → Q1, second → Q2, etc.
-        English fields and scoring stay unchanged.
+        Paste all Malayalam versions at once. Each block fills the Malayalam mask on the matching
+        question card by order — first block → Q1, second → Q2, etc. English fields and scoring
+        stay unchanged. Use <code>1.</code> or <code>Q1.</code>, options A)–D), then
+        <code>ഉത്തരം:</code> or <code>Answer:</code> and optional <code>വിശദീകരണം:</code> or
+        <code>Explanation:</code>.
       </p>
       <textarea
         id="bulkMalayalamPasteInput"
         class="bulk-malayalam-paste-input"
         rows="12"
-        placeholder="Q1. First question in Malayalam&#10;A) …&#10;B) …&#10;C) …&#10;D) …&#10;Answer: A&#10;Explanation: …&#10;&#10;Q2. Second question…&#10;A) …&#10;…"
+        placeholder="1. ചോദ്യം മലയാളത്തിൽ&#10;A) …&#10;B) …&#10;C) …&#10;D) …&#10;ഉത്തരം: B&#10;വിശദീകരണം: …&#10;&#10;2. അടുത്ത ചോദ്യം…"
       ></textarea>
       <div class="bulk-malayalam-paste-actions mt-10">
         <label class="bulk-malayalam-paste-clean-label">

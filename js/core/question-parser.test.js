@@ -79,6 +79,45 @@ Answer: B`
     assert.match(result.questions[1].text, /2\+2/);
   });
 
+  it("parses Malayalam labels and 1. numbering", () => {
+    const block = `1. ആദ്യത്തെ ഇംഗ്ലീഷ് കോളനി ഏതാണ്?
+A) Plymouth Colony
+B) Jamestown
+C) Maryland
+D) Pennsylvania
+ഉത്തരം: B) Jamestown
+വിശദീകരണം:
+1607-ൽ സ്ഥാപിച്ച Jamestown ആണ് ആദ്യത്തെ സ്ഥിരതാമസ ഇംഗ്ലീഷ് കോളനി.`;
+
+    const result = parseBulkQuestionPaste(block);
+    assert.equal(result.ok, true);
+    assert.equal(result.questions.length, 1);
+    assert.equal(result.questions[0].correct, "B");
+    assert.match(result.questions[0].text, /കോളനി/);
+    assert.match(result.questions[0].explanation, /Jamestown/);
+  });
+
+  it("parses bulk paste with numbered blocks without clean flag", () => {
+    const bulk = `1. Question one?
+A) One
+B) Two
+C) Three
+D) Four
+ഉത്തരം: A
+
+2. Question two?
+A) Alpha
+B) Beta
+C) Gamma
+D) Delta
+ഉത്തരം: B`;
+
+    const result = parseBulkQuestionPaste(bulk, { clean: false });
+    assert.equal(result.ok, true);
+    assert.equal(result.questions.length, 2);
+    assert.equal(result.questions[1].correct, "B");
+  });
+
   it("uses only first question when multiple blocks pasted", () => {
     const normalized = normalizeSingleQuestionPaste(`${ENGLISH_BLOCK}\n\nQ2. Second question?\nA) One\nB) Two\nC) Three\nD) Four\nAnswer: A`);
     assert.match(normalized, /^Q1\./);
