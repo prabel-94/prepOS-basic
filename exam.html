@@ -48,6 +48,15 @@
         >
           One at a time
         </button>
+        <button
+          type="button"
+          id="examAssistanceToggle"
+          class="exam-assistance-toggle hidden"
+          aria-pressed="false"
+          title="Show Malayalam help text for questions"
+        >
+          മലയാളം
+        </button>
         <div class="timer-box" id="examTimer">00:00</div>
       </div>
 
@@ -90,6 +99,13 @@
           placeholder="Enter your name"
           autocomplete="name"
         >
+      </div>
+
+      <div id="examAssistanceOverviewRow" class="exam-overview-assistance hidden">
+        <label class="exam-overview-assistance-label">
+          <input type="checkbox" id="examAssistanceOverviewToggle">
+          <span>Show Malayalam help during the exam (understand questions in Malayalam; answers stay in English)</span>
+        </label>
       </div>
 
       <div id="examNavigationModeRow" class="exam-overview-navigation">

@@ -3854,6 +3854,101 @@ PHASE 1 — STUDENT UI UPGRADE
   display: none;
 }
 
+.exam-assistance-toggle {
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  margin-top: 4px;
+  border: 1px solid #c4b5fd;
+  border-radius: 999px;
+  background: #f5f3ff;
+  color: #5b21b6;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.exam-assistance-toggle:hover {
+  border-color: #7c3aed;
+  color: #4c1d95;
+}
+
+.exam-assistance-toggle--active {
+  background: #ede9fe;
+  border-color: #7c3aed;
+  color: #4c1d95;
+}
+
+.exam-assistance-toggle.hidden {
+  display: none;
+}
+
+.exam-overview-assistance {
+  margin-top: 16px;
+  padding: 12px;
+  border: 1px solid #ddd6fe;
+  border-radius: 8px;
+  background: #faf5ff;
+}
+
+.exam-overview-assistance-label {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 0.92rem;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.exam-overview-assistance-label input {
+  margin-top: 3px;
+}
+
+.exam-assistance-active-hint {
+  display: inline-block;
+  margin-bottom: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #ede9fe;
+  color: #5b21b6;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.question-assistance-panel {
+  border: 1px dashed #c4b5fd;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #faf5ff;
+}
+
+.question-assistance-summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.question-assistance-help {
+  margin: 8px 0 0;
+  font-size: 0.85rem;
+}
+
+.question-assistance-option {
+  display: grid;
+  grid-template-columns: 1.5rem 1fr;
+  gap: 8px;
+  align-items: center;
+}
+
+.question-assistance-option-label {
+  font-weight: 700;
+  color: #5b21b6;
+}
+
+.question-assistance-panel textarea,
+.question-assistance-panel input[type="text"] {
+  width: 100%;
+  box-sizing: border-box;
+}
+
 .exam-header--active .exam-header-right {
   display: flex;
   flex-direction: column;

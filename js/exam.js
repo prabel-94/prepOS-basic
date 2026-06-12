@@ -16,8 +16,14 @@ import {
 } from "./student/student-exam-meta.js";
 import { getLearnerProfile } from "./core/learner-profile.js";
 import { assertExamSeriesUnlocked } from "./core/exam-series.js";
+import {
+  assistanceSessionKey,
+  examHasMalayalamAssistance,
+  resolveQuestionDisplay,
+} from "./core/question-assistance.js";
 
 let timer;
+let assistanceMaskEnabled = false;
 let examStarted = false;
 let totalQuestions = 0;
 let visibleQuestionIndex = 1;
@@ -605,7 +611,9 @@ function beginExamSession(examDurationSeconds){
   totalQuestions = window.examQuestionsRaw?.length ?? 0;
   visibleQuestionIndex = 1;
   updateExamProgress();
+  renderQuiz(getQuestionsForDisplay());
   applyNavigationModeUI();
+  updateAssistanceToggleUi();
 
   timer.start({
     onTick: ({ formatted }) => {
@@ -690,21 +698,9 @@ function renderExamResults(score, answers, studentName){
 }
 
 function buildReviewDataFromStoredAnswers(answers = []){
-  return window.examQuestionsRaw.map((q, i) => {
-    const entry = answers[i] || {};
-    const student = entry.chosen || "-";
-
-    return {
-      question: q.text,
-      options: (q.options || []).map((o) =>
-        typeof o === "string" ? { id: "", text: o } : o
-      ),
-      correct: q.correct,
-      student,
-      explanation: q.explanation,
-      isCorrect: student === q.correct,
-    };
-  });
+  return window.examQuestionsRaw.map((q, i) =>
+    buildReviewEntry(q, answers[i] || {})
+  );
 }
 
 function bindResultsReviewActions(){
@@ -716,6 +712,9 @@ function bindResultsReviewActions(){
   reviewBtn.onclick = function(){
     this.style.display = "none";
     document.getElementById("downloadPdfBtn")?.classList.remove("hidden");
+    if (Array.isArray(attemptState.answers)) {
+      window.reviewData = buildReviewDataFromStoredAnswers(attemptState.answers);
+    }
     renderReview();
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -878,9 +877,138 @@ function normalizeQuestion(q){
     correct,
     explanation: q.explanation || q.explanation_text || "",
     topics: Array.isArray(q.topics) ? q.topics : [],
-    bank_status: q.bank_status || null
+    bank_status: q.bank_status || null,
+    assistance: q.assistance || null,
   };
 
+}
+
+function getQuestionsForDisplay() {
+  return (window.examQuestionsRaw || []).map((question) => {
+    const display = resolveQuestionDisplay(question, assistanceMaskEnabled);
+
+    return {
+      ...question,
+      text: display.text,
+      options: display.options,
+      explanation: display.explanation,
+    };
+  });
+}
+
+function updateAssistanceToggleUi() {
+  const headerToggle = document.getElementById("examAssistanceToggle");
+  const overviewToggle = document.getElementById("examAssistanceOverviewToggle");
+
+  if (headerToggle) {
+    headerToggle.setAttribute("aria-pressed", String(assistanceMaskEnabled));
+    headerToggle.classList.toggle("exam-assistance-toggle--active", assistanceMaskEnabled);
+    headerToggle.textContent = assistanceMaskEnabled
+      ? "മലയാളം: ON"
+      : "മലയാളം";
+  }
+
+  if (overviewToggle) {
+    overviewToggle.checked = assistanceMaskEnabled;
+  }
+}
+
+function setAssistanceMaskEnabled(enabled) {
+  assistanceMaskEnabled = Boolean(enabled);
+
+  try {
+    sessionStorage.setItem(
+      assistanceSessionKey(examId),
+      assistanceMaskEnabled ? "1" : "0"
+    );
+  } catch {
+    /* ignore */
+  }
+
+  updateAssistanceToggleUi();
+
+  if (
+    examStarted &&
+    attemptState.status !== "submitted" &&
+    document.getElementById("examContent")?.style.display !== "none"
+  ) {
+    rerenderActiveQuiz();
+    return;
+  }
+
+  if (
+    attemptState.status === "submitted" &&
+    Array.isArray(attemptState.answers) &&
+    document.querySelector(".review-card")
+  ) {
+    window.reviewData = buildReviewDataFromStoredAnswers(attemptState.answers);
+    renderReview();
+  }
+}
+
+function rerenderActiveQuiz() {
+  const scrollY = window.scrollY;
+  renderQuiz(getQuestionsForDisplay());
+
+  if (navigationMode === EXAM_NAV_MODES.step) {
+    showStepQuestion(visibleQuestionIndex || 1);
+  } else {
+    applyNavigationModeUI();
+  }
+
+  window.scrollTo({ top: scrollY, behavior: "auto" });
+}
+
+function setupAssistanceMaskUi() {
+  const headerToggle = document.getElementById("examAssistanceToggle");
+  const overviewRow = document.getElementById("examAssistanceOverviewRow");
+  const overviewToggle = document.getElementById("examAssistanceOverviewToggle");
+  const hasAssistance = examHasMalayalamAssistance(window.examQuestionsRaw || []);
+
+  if (!hasAssistance || isInspectSession) {
+    headerToggle?.classList.add("hidden");
+    overviewRow?.classList.add("hidden");
+    return;
+  }
+
+  try {
+    assistanceMaskEnabled =
+      sessionStorage.getItem(assistanceSessionKey(examId)) === "1";
+  } catch {
+    assistanceMaskEnabled = false;
+  }
+
+  headerToggle?.classList.remove("hidden");
+  overviewRow?.classList.remove("hidden");
+  updateAssistanceToggleUi();
+
+  if (!headerToggle?.dataset.bound) {
+    headerToggle.dataset.bound = "1";
+    headerToggle.addEventListener("click", () => {
+      setAssistanceMaskEnabled(!assistanceMaskEnabled);
+    });
+  }
+
+  if (overviewToggle && !overviewToggle.dataset.bound) {
+    overviewToggle.dataset.bound = "1";
+    overviewToggle.addEventListener("change", () => {
+      setAssistanceMaskEnabled(overviewToggle.checked);
+    });
+  }
+}
+
+function buildReviewEntry(question, answerEntry = {}) {
+  const display = resolveQuestionDisplay(question, assistanceMaskEnabled);
+  const student = answerEntry.chosen || "-";
+
+  return {
+    question: display.text,
+    options: display.options,
+    correct: question.correct,
+    student,
+    explanation: display.explanation,
+    isCorrect: student === question.correct,
+  };
 }
 /* ---------- scroll to result ---------- */
 function scrollToResult(){
@@ -1106,6 +1234,8 @@ async function loadExam(){
     /* ---------- STORE ORIGINAL ---------- */
     window.examQuestions = questions;
 
+    setupAssistanceMaskUi();
+
     renderExamOverview(exam, overviewTopics);
     await setupOverviewNameField();
 
@@ -1117,7 +1247,7 @@ async function loadExam(){
       document.getElementById("examTimer")?.classList.add("hidden");
     }
 
-    renderQuiz(window.examQuestionsRaw);
+    renderQuiz(getQuestionsForDisplay());
     bindReviewModal();
 
     if (!isInspectSession && (await restoreCompletedExamState())) {
@@ -1207,12 +1337,17 @@ function createQuestionCard(q, index){
     .map((opt, i) => createOptionRow(index, opt?.text || "", i))
     .join("");
 
+  const assistanceHint = assistanceMaskEnabled
+    ? `<div class="exam-assistance-active-hint">Malayalam help on</div>`
+    : "";
+
   return `
     <div class="question-card" data-question-index="${index + 1}">
 
       <div class="q-number">
         Q${index + 1}
       </div>
+      ${assistanceHint}
 
      <div class="question-text prepos-text">
   ${escapeHTML(stripLeadingNumber(q.text || "", index + 1))}
@@ -1477,23 +1612,7 @@ try{
 
     /* ---------- build review ---------- */
    window.reviewData =
-  window.examQuestionsRaw.map((q,i)=>{
-
-    const student = answers[i]?.chosen || "-";
-
-    return {
-      question: q.text,
-      options: (q.options || []).map(o =>
-        typeof o === "string"
-          ? { id: "", text: o }
-          : o
-      ),
-      correct: q.correct,   // ✅ already normalized
-      student,
-      explanation: q.explanation,
-      isCorrect: student === q.correct
-    };
-  });
+  window.examQuestionsRaw.map((q, i) => buildReviewEntry(q, answers[i]));
 
     renderExamResults(score, answers, studentName);
 
