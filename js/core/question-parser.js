@@ -149,7 +149,7 @@ function applyQcpDeepCleanLines(text) {
       // - it already looks like a question (question keywords / ? / :)
       // - AND it's not the start of a numeric sequence (1.,2.,3.)
       const looksLikeQuestion =
-        /[:?][\"”']?\s*$/.test(content) ||
+        /[:?][\""']?\s*$/.test(content) ||
         /\bWhich\b/i.test(content) ||
         /\bWhat\b/i.test(content) ||
         /\bWho\b/i.test(content) ||
@@ -207,4 +207,222 @@ export function prepareQcpForParsing(rawText, { deepClean = false } = {}) {
   }
 
   return text.replace(/^---+$/gm, "").trim();
+}
+
+/**
+ * QCP clean — pure function version of exam creator "Clean (QCP)".
+ */
+export function cleanQcpText(rawText) {
+  return prepareQcpForParsing(rawText, { deepClean: true });
+}
+
+function extractAnswerLetter(answerLine) {
+  const match = answerLine.match(
+    /Answer\s*:\s*(?:([A-D])[\)\.\:\-]?\s*|([A-D])\b)/i
+  );
+  if (!match) {
+    return "A";
+  }
+
+  return (match[1] || match[2] || "A").toUpperCase();
+}
+
+function parseQuestionBlock(block) {
+  const lines = block
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (!lines.length) {
+    return null;
+  }
+
+  const answerIndex = lines.findIndex((line) => ANSWER_LINE_REGEX.test(line));
+  if (answerIndex === -1) {
+    return null;
+  }
+
+  const correct = extractAnswerLetter(lines[answerIndex]);
+
+  const explanationIndex = lines.findIndex((line) =>
+    EXPLANATION_LINE_REGEX.test(line)
+  );
+  let explanation = "";
+
+  if (explanationIndex !== -1) {
+    explanation = lines
+      .slice(explanationIndex)
+      .join("\n")
+      .replace(/^Explanation\s*:/i, "")
+      .trim();
+  }
+
+  const optionLines = lines.filter(
+    (line, idx) => idx < answerIndex && OPTION_REGEX.test(line)
+  );
+
+  if (optionLines.length !== 4) {
+    return null;
+  }
+
+  const options = optionLines.map((line, idx) => ({
+    id: OPTION_LETTERS[idx],
+    text: line.replace(OPTION_REGEX, "").trim(),
+  }));
+
+  const firstOptionIndex = lines.indexOf(optionLines[0]);
+  if (firstOptionIndex === -1) {
+    return null;
+  }
+
+  const text = lines
+    .slice(0, firstOptionIndex)
+    .join("\n")
+    .replace(/^Q\d+[\.\)]\s*/i, "")
+    .trim();
+
+  return createParsedQuestionFields({ text, options, correct, explanation });
+}
+
+/**
+ * Parse one or more QCP question blocks from pasted text.
+ */
+export function parseQuiz(rawText) {
+  const text = prepareQcpForParsing(rawText);
+
+  const blocks = text
+    .split(QUESTION_BLOCK_SPLIT)
+    .map((block) => block.trim())
+    .filter(Boolean);
+
+  return blocks.map(parseQuestionBlock).filter(Boolean);
+}
+
+/**
+ * Ensure pasted text is a single Q1. block for parseQuiz.
+ */
+export function normalizeSingleQuestionPaste(rawText) {
+  let text = prepareQcpForParsing(rawText);
+  if (!text) {
+    return "";
+  }
+
+  if (!QUESTION_START.test(text)) {
+    const firstLine = text.split("\n")[0]?.trim() || "";
+    if (/^\d+[\.\)]\s+/.test(firstLine)) {
+      text = normalizeQuestionBlockMarkers(text);
+    } else {
+      text = `Q1. ${text}`;
+    }
+  }
+
+  const blocks = text
+    .split(QUESTION_BLOCK_SPLIT)
+    .map((block) => block.trim())
+    .filter(Boolean);
+  return blocks[0] || text;
+}
+
+export function parseSingleQuestion(rawText) {
+  const normalized = normalizeSingleQuestionPaste(rawText);
+  if (!normalized) {
+    return null;
+  }
+
+  return parseQuiz(normalized)[0] || null;
+}
+
+/**
+ * Split bilingual paste into English + optional Malayalam sections.
+ */
+export function splitBilingualPaste(rawText) {
+  const text = normalizeLineEndings(rawText);
+  const match = text.match(BILINGUAL_SECTION_SPLIT);
+
+  if (!match || match.index === undefined) {
+    return { english: text, malayalam: null };
+  }
+
+  return {
+    english: text.slice(0, match.index).trim(),
+    malayalam: text.slice(match.index + match[0].length).trim(),
+  };
+}
+
+const PARSE_ERROR =
+  "Could not parse question. Use QCP format: Q1. (or 1.) stem, A)–D) options, Answer: or ഉത്തരം:, Explanation: or വിശദീകരണം: (optional).";
+
+/**
+ * Parse a single-question paste for draft cards.
+ * @param {"auto"|"english"|"malayalam"} target
+ */
+export function parseQuestionPaste(rawText, { target = "auto", clean = false } = {}) {
+  let text = normalizeLineEndings(rawText);
+  if (!text) {
+    return { ok: false, error: "Paste is empty." };
+  }
+
+  text = prepareQcpForParsing(text, { deepClean: clean });
+
+  if (target === "english") {
+    const english = parseSingleQuestion(text);
+    if (!english) {
+      return { ok: false, error: PARSE_ERROR };
+    }
+    return { ok: true, english };
+  }
+
+  if (target === "malayalam") {
+    const malayalam = parseSingleQuestion(text);
+    if (!malayalam) {
+      return { ok: false, error: PARSE_ERROR };
+    }
+    return { ok: true, malayalam };
+  }
+
+  const { english: englishText, malayalam: malayalamText } = splitBilingualPaste(text);
+  const english = parseSingleQuestion(
+    prepareQcpForParsing(englishText, { deepClean: clean })
+  );
+  if (!english) {
+    return { ok: false, error: PARSE_ERROR };
+  }
+
+  const result = { ok: true, english };
+
+  if (malayalamText) {
+    const malayalam = parseSingleQuestion(
+      prepareQcpForParsing(malayalamText, { deepClean: clean })
+    );
+    if (!malayalam) {
+      result.warning =
+        "English was applied, but the Malayalam section could not be parsed.";
+    } else {
+      result.malayalam = malayalam;
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Parse multiple QCP blocks (Q1., Q2., …) from one paste.
+ */
+export function parseBulkQuestionPaste(rawText, { clean = false } = {}) {
+  let text = normalizeLineEndings(rawText);
+  if (!text) {
+    return { ok: false, error: "Paste is empty." };
+  }
+
+  text = prepareQcpForParsing(text, { deepClean: clean });
+  const questions = parseQuiz(text);
+
+  if (!questions.length) {
+    return {
+      ok: false,
+      error: `${PARSE_ERROR} Paste multiple blocks: Q1., Q2., Q3., … (or 1., 2., 3., …)`,
+    };
+  }
+
+  return { ok: true, questions };
 }
