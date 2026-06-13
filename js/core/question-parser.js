@@ -112,6 +112,10 @@ function applyQcpDeepCleanLines(text) {
   text = text.replace(/[✅✔️💡⭐✨🔥📌👉•]/g, "");
   text = text.replace(/[ \t]+/g, " ");
 
+  // ⭐ NEW: Split A-D options that are on same line with preceding text
+  // e.g., "Select the Answer: A) option" → "Select the Answer:\nA) option"
+  text = text.replace(/([^A-D])\s+([A-D][\)\.\:\-]\s+)/g, "$1\n$2");
+
   const firstQuestionMatch = text.match(/(?:^|\n)\s*(?:Q\s*)?\d+[\.\)]\s+/i);
   if (firstQuestionMatch) {
     text = text.slice(firstQuestionMatch.index);
