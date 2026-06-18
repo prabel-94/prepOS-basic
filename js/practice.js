@@ -101,6 +101,7 @@ async function init() {
   await loadBankTopics();
   initPracticeAssistanceToggle();
   await applyPracticeTopicFromUrl();
+  bindOptionSelection();
   startBtn.disabled = false;
 }
 
@@ -120,6 +121,16 @@ function escapeHTML(value = "") {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+function normalizeOptionId(value = "") {
+  return String(value ?? "").trim().toUpperCase();
+}
+
+function stripLeadingOptionLabel(text = "") {
+  return String(text)
+    .replace(/^[A-Da-d][\).\:\-]\s*/, "")
+    .trim();
 }
 
 function getSessionLimit() {
@@ -282,17 +293,33 @@ function shuffleQuestions(questions) {
 }
 
 function normalizeBankQuestion(row, metadataValue = null) {
+  const rawOptions = [
+    { id: "A", text: String(row.option_a || "").trim() },
+    { id: "B", text: String(row.option_b || "").trim() },
+    { id: "C", text: String(row.option_c || "").trim() },
+    { id: "D", text: String(row.option_d || "").trim() },
+  ];
+
+  const options = rawOptions.filter((option) => option.text);
+  let correct = normalizeOptionId(row.correct_option || "A");
+
+  if (!options.some((option) => option.id === correct)) {
+    const intended = rawOptions.find((option) => option.id === correct);
+    const match = intended?.text
+      ? options.find((option) => option.text === intended.text)
+      : null;
+
+    if (match) {
+      correct = match.id;
+    }
+  }
+
   const question = {
     id: row.id,
     source: "bank",
     text: row.question_text || "",
-    options: [
-      { id: "A", text: row.option_a || "" },
-      { id: "B", text: row.option_b || "" },
-      { id: "C", text: row.option_c || "" },
-      { id: "D", text: row.option_d || "" },
-    ].filter((option) => option.text),
-    correct: String(row.correct_option || "A").toUpperCase(),
+    options,
+    correct,
     explanation: row.explanation || "",
   };
 
@@ -719,6 +746,38 @@ function bindQuestionAssistanceToggle(question) {
   button.addEventListener("click", () => toggleQuestionMask(question));
 }
 
+function bindOptionSelection() {
+  if (!optionsContainer || optionsContainer.dataset.bound) {
+    return;
+  }
+
+  optionsContainer.dataset.bound = "1";
+
+  optionsContainer.addEventListener("pointerdown", (event) => {
+    if (event.pointerType === "mouse") {
+      return;
+    }
+    handleOptionSelection(event);
+  });
+
+  optionsContainer.addEventListener("click", handleOptionSelection);
+}
+
+function handleOptionSelection(event) {
+  const button = event.target.closest(".option-btn");
+  if (!button || button.disabled || !state.currentQuestion || state.currentAnswer) {
+    return;
+  }
+
+  const selected = normalizeOptionId(button.dataset.optionId);
+  if (!selected) {
+    return;
+  }
+
+  event.preventDefault();
+  handleAnswer(selected);
+}
+
 function renderQuestion(question) {
   const display = getQuestionDisplay(question);
   const maskOn = isMaskEnabledForQuestion(question);
@@ -741,42 +800,46 @@ function renderQuestion(question) {
 
   display.options.forEach((option) => {
     const button = document.createElement("button");
+    button.type = "button";
     button.className = "option-btn";
+    const optionText = stripLeadingOptionLabel(option.text);
     button.innerHTML = `
-  <span class="prepos-text">
-    ${escapeHTML(option.id)}. ${escapeHTML(option.text)}
+  <span class="prepos-text option-btn-text">
+    ${escapeHTML(option.id)}. ${escapeHTML(optionText)}
   </span>
 `;
-    button.dataset.optionId = option.id;
-    button.onclick = () => handleAnswer(option.id);
+    button.dataset.optionId = normalizeOptionId(option.id);
     optionsContainer.appendChild(button);
   });
 }
 
 function applyAnswerUi(question, selected) {
   const display = getQuestionDisplay(question);
-  const correct = question.correct;
+  const correct = normalizeOptionId(question.correct);
+  const selectedId = normalizeOptionId(selected);
   const correctOption =
-    display.options.find((option) => option.id === correct) ||
-    question.options.find((option) => option.id === correct);
-  const buttons = document.querySelectorAll(".option-btn");
+    display.options.find((option) => normalizeOptionId(option.id) === correct) ||
+    question.options.find((option) => normalizeOptionId(option.id) === correct);
+  const buttons = optionsContainer.querySelectorAll(".option-btn");
 
   buttons.forEach((button) => {
     button.disabled = true;
 
-    if (button.dataset.optionId === correct) {
+    const optionId = normalizeOptionId(button.dataset.optionId);
+
+    if (optionId === correct) {
       button.classList.add("correct");
     }
 
-    if (button.dataset.optionId === selected && selected !== correct) {
+    if (optionId === selectedId && selectedId !== correct) {
       button.classList.add("wrong");
     }
   });
 
-  if (selected === correct) {
+  if (selectedId === correct) {
     feedback.innerHTML = "Correct";
   } else {
-    feedback.innerHTML = `Wrong. Correct answer: ${correct}. ${escapeHTML(correctOption?.text || "")}`;
+    feedback.innerHTML = `Wrong. Correct answer: ${escapeHTML(correct)}. ${escapeHTML(correctOption?.text || "")}`;
   }
 
   if (display.explanation) {
@@ -787,21 +850,22 @@ function applyAnswerUi(question, selected) {
 }
 
 async function handleAnswer(selected) {
-  if (!state.currentQuestion) return;
+  if (!state.currentQuestion || state.currentAnswer) return;
 
   const question = state.currentQuestion;
-  const correct = question.correct;
-
-  applyAnswerUi(question, selected);
+  const correct = normalizeOptionId(question.correct);
+  const selectedId = normalizeOptionId(selected);
 
   state.currentAnswer = {
     questionId: question.id,
-    selected,
+    selected: selectedId,
   };
+
+  applyAnswerUi(question, selectedId);
 
   state.answeredCount += 1;
 
-  if (selected === correct) {
+  if (selectedId === correct) {
     state.correctCount += 1;
   }
 
@@ -810,7 +874,7 @@ async function handleAnswer(selected) {
 
   if (state.mode === "generator") {
     try {
-      await updateStats(selected === correct);
+      await updateStats(selectedId === correct);
     } catch (error) {
       console.error("Stats update failed:", error);
       setStatus("Question saved locally, but adaptive stats could not be updated.", true);
