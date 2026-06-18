@@ -874,13 +874,24 @@ DIFFICULTY SYSTEM
 }
 
 .option-btn{
+  display:flex;
   width:100%;
   justify-content:flex-start;
+  align-items:flex-start;
   text-align:left;
   background:var(--card);
   border:1px solid var(--border);
   color:var(--text);
   padding:12px 14px;
+  touch-action:manipulation;
+  position:relative;
+  isolation:isolate;
+}
+
+.option-btn-text{
+  pointer-events:none;
+  width:100%;
+  text-align:left;
 }
 
 .option-btn:hover{
