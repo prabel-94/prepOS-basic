@@ -1,15 +1,25 @@
 /**
- * "+ Add section" modal for the draft note workspace.
+ * Section modal for the draft note workspace — add, edit, and custom sections.
  */
 
 import { openModal, closeModal } from "../ui/modal-system.js";
 import {
+  CUSTOM_RENDERER_PROFILES,
   getAddableSectionDefinitions,
+  getDefinitionById,
   mapDefinitionToRepresentationBucket,
+  sectionIdToBoundaryTag,
+  slugifySectionLabel,
 } from "./note-section-catalog.js";
-import { previewSectionAddition, validateSectionBody } from "./note-section-markdown.js";
+import {
+  createCustomSectionDefinition,
+  getSectionBody,
+  previewSectionAddition,
+  previewSectionEdit,
+  validateSectionBody,
+} from "./note-section-markdown.js";
 
-let addSectionOverlay = null;
+let sectionModalOverlay = null;
 
 function escapeHTML(value = "") {
   return String(value ?? "")
@@ -20,27 +30,60 @@ function escapeHTML(value = "") {
     .replaceAll("'", "&#039;");
 }
 
-function ensureAddSectionOverlay() {
-  if (addSectionOverlay) {
-    return addSectionOverlay;
+function ensureSectionModalOverlay() {
+  if (sectionModalOverlay) {
+    return sectionModalOverlay;
   }
 
   const overlay = document.createElement("div");
-  overlay.id = "note-add-section-overlay";
+  overlay.id = "note-section-modal-overlay";
   overlay.className = "prepos-modal hidden";
   overlay.innerHTML = `
     <div class="prepos-modal-backdrop"></div>
     <div class="prepos-modal-content note-add-section-modal">
       <div class="prepos-modal-header">
-        <div class="h2">Add section</div>
-        <p class="text-muted mt-5">Paste section content — the MSMDF tag is added automatically.</p>
+        <div class="h2" data-section-modal-title>Add section</div>
+        <p class="text-muted mt-5" data-section-modal-subtitle>
+          Paste section content — the MSMDF tag is added automatically.
+        </p>
       </div>
       <div class="prepos-modal-body">
-        <label class="note-add-section-field" for="noteAddSectionType">
+        <fieldset class="note-section-kind-field hidden" data-section-kind-field>
+          <legend class="note-section-kind-legend">Section kind</legend>
+          <label class="note-section-kind-option">
+            <input type="radio" name="noteSectionKind" value="builtin" checked>
+            Standard MSMDF section
+          </label>
+          <label class="note-section-kind-option">
+            <input type="radio" name="noteSectionKind" value="custom">
+            Custom section
+          </label>
+        </fieldset>
+
+        <label class="note-add-section-field" for="noteAddSectionType" data-builtin-type-field>
           <span class="note-add-section-label">Section type</span>
           <select id="noteAddSectionType" class="note-add-section-select"></select>
         </label>
+
+        <label class="note-add-section-field hidden" for="noteCustomSectionName" data-custom-name-field>
+          <span class="note-add-section-label">Custom section name</span>
+          <input
+            id="noteCustomSectionName"
+            class="note-add-section-input"
+            type="text"
+            placeholder="e.g. Case Studies"
+            autocomplete="off"
+          >
+        </label>
+
+        <label class="note-add-section-field hidden" for="noteCustomSectionProfile" data-custom-profile-field>
+          <span class="note-add-section-label">Render as</span>
+          <select id="noteCustomSectionProfile" class="note-add-section-select"></select>
+        </label>
+
+        <p class="note-add-section-hint text-muted hidden" data-custom-tag-preview></p>
         <p class="note-add-section-hint text-muted" data-section-hint></p>
+
         <label class="note-add-section-field" for="noteAddSectionBody">
           <span class="note-add-section-label">Section content</span>
           <textarea
@@ -57,14 +100,14 @@ function ensureAddSectionOverlay() {
         <p class="note-add-section-error error hidden" data-section-error></p>
       </div>
       <div class="prepos-modal-footer">
-        <button type="button" class="secondary-btn" data-add-section-cancel>Cancel</button>
-        <button type="button" class="primary-btn" data-add-section-save>Add section</button>
+        <button type="button" class="secondary-btn" data-section-cancel>Cancel</button>
+        <button type="button" class="primary-btn" data-section-save>Save section</button>
       </div>
     </div>
   `;
 
   document.body.appendChild(overlay);
-  addSectionOverlay = overlay;
+  sectionModalOverlay = overlay;
   return overlay;
 }
 
@@ -78,98 +121,161 @@ function setError(overlay, message = "") {
   el.classList.toggle("hidden", !message);
 }
 
-function updatePreview(overlay, options) {
-  const previewEl = overlay.querySelector("[data-section-preview]");
-  const typeEl = overlay.querySelector("#noteAddSectionType");
-  const bodyEl = overlay.querySelector("#noteAddSectionBody");
+function getSelectedKind(overlay) {
+  const selected = overlay.querySelector('input[name="noteSectionKind"]:checked');
+  return selected?.value === "custom" ? "custom" : "builtin";
+}
 
-  if (!previewEl || !typeEl || !bodyEl) {
+function updateKindVisibility(overlay, mode) {
+  const kindField = overlay.querySelector("[data-section-kind-field]");
+  const builtinField = overlay.querySelector("[data-builtin-type-field]");
+  const customNameField = overlay.querySelector("[data-custom-name-field]");
+  const customProfileField = overlay.querySelector("[data-custom-profile-field]");
+  const tagPreview = overlay.querySelector("[data-custom-tag-preview]");
+
+  const isAdd = mode === "add";
+  const kind = getSelectedKind(overlay);
+  const isCustom = isAdd && kind === "custom";
+
+  kindField?.classList.toggle("hidden", !isAdd);
+  builtinField?.classList.toggle("hidden", !isAdd || isCustom);
+  customNameField?.classList.toggle("hidden", !isCustom);
+  customProfileField?.classList.toggle("hidden", !isCustom);
+  tagPreview?.classList.toggle("hidden", !isCustom);
+}
+
+function updateCustomTagPreview(overlay) {
+  const previewEl = overlay.querySelector("[data-custom-tag-preview]");
+  const nameEl = overlay.querySelector("#noteCustomSectionName");
+
+  if (!previewEl || !nameEl) {
     return;
   }
 
-  const definition = options.definitions.find((def) => def.id === typeEl.value);
-  const body = bodyEl.value;
-
-  if (!definition || !body.trim()) {
-    previewEl.textContent = "Preview: enter content to validate.";
+  const slug = slugifySectionLabel(nameEl.value);
+  if (!slug) {
+    previewEl.textContent = "Tag preview: enter a section name.";
     return;
   }
 
   try {
-    validateSectionBody(body);
-    const result = previewSectionAddition(options.markdown, definition, body, {
-      language: options.language,
-      title: options.title,
-    });
-
-    const parts = [`✓ ${result.blockCount} block${result.blockCount === 1 ? "" : "s"}`];
-    if (result.topicLinkCount) {
-      parts.push(
-        `${result.topicLinkCount} topic link${result.topicLinkCount === 1 ? "" : "s"}`
-      );
-    }
-
-    previewEl.textContent = `Preview: ${parts.join(" · ")}`;
-    setError(overlay, "");
-  } catch (err) {
-    previewEl.textContent = "Preview: fix errors before adding.";
-    setError(overlay, err.message || "Invalid section content.");
+    const tag = sectionIdToBoundaryTag(slug);
+    previewEl.textContent = `Will insert [${tag}] in document order.`;
+  } catch {
+    previewEl.textContent = "Tag preview: enter a valid section name.";
   }
 }
 
-function updateHint(overlay, definitions, selectedId) {
+function updateHint(overlay, options) {
   const hintEl = overlay.querySelector("[data-section-hint]");
-  const definition = definitions.find((def) => def.id === selectedId);
+  const typeEl = overlay.querySelector("#noteAddSectionType");
 
+  if (options.mode === "edit") {
+    const definition = getDefinitionById(options.sectionId, options.context ?? {});
+    if (hintEl && definition) {
+      hintEl.textContent = `Editing [${definition.boundaryTag}] — section tag is not shown below.`;
+    }
+    return;
+  }
+
+  if (getSelectedKind(overlay) === "custom") {
+    if (hintEl) {
+      hintEl.textContent = "Custom sections appear as their own reader tab.";
+    }
+    return;
+  }
+
+  const definition = options.definitions.find((def) => def.id === typeEl?.value);
   if (!hintEl || !definition) {
     return;
   }
 
-  hintEl.textContent = `Will insert ${formatSectionBoundaryHint(definition)} in document order.`;
-}
-
-function formatSectionBoundaryHint(definition) {
-  return `[${definition.boundaryTag}]`;
+  hintEl.textContent = `Will insert [${definition.boundaryTag}] in document order.`;
 }
 
 /**
  * @param {object} options
- * @param {string} options.markdown — current source markdown
+ * @param {'add'|'edit'} [options.mode]
+ * @param {string} [options.sectionId]
+ * @param {string} options.markdown
  * @param {string} [options.language]
  * @param {string} [options.title]
- * @param {string} [options.preferSectionId] — pre-select section type
+ * @param {string} [options.preferSectionId]
  * @param {import('./note-section-catalog.js').SectionCatalogContext} [options.context]
- * @returns {Promise<{ markdown: string, definition: object, representationBucket: string }|null>}
+ * @returns {Promise<object|null>}
  */
-export function openAddSectionModal(options = {}) {
-  const overlay = ensureAddSectionOverlay();
+export function openSectionModal(options = {}) {
+  const mode = options.mode === "edit" ? "edit" : "add";
+  const overlay = ensureSectionModalOverlay();
   const definitions = getAddableSectionDefinitions(options.context ?? {});
   const typeEl = overlay.querySelector("#noteAddSectionType");
+  const profileEl = overlay.querySelector("#noteCustomSectionProfile");
   const bodyEl = overlay.querySelector("#noteAddSectionBody");
-  const cancelBtn = overlay.querySelector("[data-add-section-cancel]");
-  const saveBtn = overlay.querySelector("[data-add-section-save]");
+  const cancelBtn = overlay.querySelector("[data-section-cancel]");
+  const saveBtn = overlay.querySelector("[data-section-save]");
+  const nameEl = overlay.querySelector("#noteCustomSectionName");
 
-  if (!definitions.length) {
+  if (mode === "add" && !definitions.length) {
     window.alert("No section types are available to add.");
     return Promise.resolve(null);
   }
 
-  typeEl.innerHTML = definitions
-    .map(
-      (def) =>
-        `<option value="${escapeHTML(def.id)}">${escapeHTML(def.label)}</option>`
-    )
-    .join("");
+  if (mode === "edit" && !options.sectionId) {
+    throw new Error("sectionId is required for edit mode.");
+  }
 
-  const preferred =
-    definitions.find((def) => def.id === options.preferSectionId)?.id ??
-    definitions[0].id;
+  const titleEl = overlay.querySelector("[data-section-modal-title]");
+  const subtitleEl = overlay.querySelector("[data-section-modal-subtitle]");
 
-  typeEl.value = preferred;
-  bodyEl.value = "";
+  if (mode === "edit") {
+    titleEl.textContent = "Edit section";
+    subtitleEl.textContent = "Update section body — the section tag stays in source.";
+    saveBtn.textContent = "Save changes";
+  } else {
+    titleEl.textContent = "Add section";
+    subtitleEl.textContent = "Paste section content — the section tag is added automatically.";
+    saveBtn.textContent = "Add section";
+  }
+
+  updateKindVisibility(overlay, mode);
+
+  if (mode === "add") {
+    typeEl.innerHTML = definitions
+      .map(
+        (def) =>
+          `<option value="${escapeHTML(def.id)}">${escapeHTML(def.label)}</option>`
+      )
+      .join("");
+
+    const preferred =
+      definitions.find((def) => def.id === options.preferSectionId)?.id ??
+      definitions[0].id;
+
+    typeEl.value = preferred;
+
+    profileEl.innerHTML = CUSTOM_RENDERER_PROFILES.map(
+      (profile) =>
+        `<option value="${escapeHTML(profile.id)}">${escapeHTML(profile.label)}</option>`
+    ).join("");
+
+    if (nameEl) {
+      nameEl.value = "";
+    }
+
+    const builtinRadio = overlay.querySelector('input[name="noteSectionKind"][value="builtin"]');
+    if (builtinRadio) {
+      builtinRadio.checked = true;
+    }
+  }
+
+  bodyEl.value =
+    mode === "edit"
+      ? getSectionBody(options.markdown ?? "", options.sectionId, options.context ?? "") ?? ""
+      : "";
+
   setError(overlay, "");
-  updateHint(overlay, definitions, preferred);
-  updatePreview(overlay, { ...options, definitions });
+  updateCustomTagPreview(overlay);
+  updateHint(overlay, { ...options, mode, definitions });
 
   return new Promise((resolve) => {
     let settled = false;
@@ -185,13 +291,88 @@ export function openAddSectionModal(options = {}) {
       resolve(result);
     }
 
-    function onTypeChange() {
-      updateHint(overlay, definitions, typeEl.value);
-      updatePreview(overlay, { ...options, definitions });
+    function updatePreviewLocal() {
+      const previewEl = overlay.querySelector("[data-section-preview]");
+      const body = bodyEl.value;
+
+      if (!previewEl) {
+        return;
+      }
+
+      if (!body.trim()) {
+        previewEl.textContent = "Preview: enter content to validate.";
+        return;
+      }
+
+      try {
+        let definition;
+        if (getSelectedKind(overlay) === "custom" && mode === "add") {
+          definition = createCustomSectionDefinition({
+            label: nameEl?.value ?? "",
+            rendererProfile: profileEl?.value ?? "generic",
+            context: options.context ?? {},
+          });
+        } else {
+          definition =
+            mode === "edit"
+              ? getDefinitionById(options.sectionId, options.context ?? {})
+              : definitions.find((def) => def.id === typeEl.value);
+        }
+
+        if (!definition) {
+          previewEl.textContent = "Preview: choose a section type.";
+          return;
+        }
+
+        validateSectionBody(body);
+
+        const parseOptions = {
+          language: options.language,
+          title: options.title,
+          sectionExtensions: options.context?.customDefinitions ?? [],
+        };
+
+        const result =
+          mode === "edit"
+            ? previewSectionEdit(options.markdown ?? "", options.sectionId, body, parseOptions)
+            : previewSectionAddition(options.markdown ?? "", definition, body, {
+                ...parseOptions,
+                sectionExtensions:
+                  getSelectedKind(overlay) === "custom"
+                    ? [...(options.context?.customDefinitions ?? []), definition]
+                    : parseOptions.sectionExtensions,
+              });
+
+        const parts = [`✓ ${result.blockCount} block${result.blockCount === 1 ? "" : "s"}`];
+        if (result.topicLinkCount) {
+          parts.push(
+            `${result.topicLinkCount} topic link${result.topicLinkCount === 1 ? "" : "s"}`
+          );
+        }
+
+        previewEl.textContent = `Preview: ${parts.join(" · ")}`;
+        setError(overlay, "");
+      } catch (err) {
+        previewEl.textContent = "Preview: fix errors before saving.";
+        setError(overlay, err.message || "Invalid section content.");
+      }
     }
 
-    function onBodyInput() {
-      updatePreview(overlay, { ...options, definitions });
+    function onKindChange() {
+      updateKindVisibility(overlay, mode);
+      updateCustomTagPreview(overlay);
+      updateHint(overlay, { ...options, mode, definitions });
+      updatePreviewLocal();
+    }
+
+    function onTypeChange() {
+      updateHint(overlay, { ...options, mode, definitions });
+      updatePreviewLocal();
+    }
+
+    function onCustomNameInput() {
+      updateCustomTagPreview(overlay);
+      updatePreviewLocal();
     }
 
     function onCancel() {
@@ -199,46 +380,105 @@ export function openAddSectionModal(options = {}) {
     }
 
     function onSave() {
-      const definition = definitions.find((def) => def.id === typeEl.value);
-      if (!definition) {
-        setError(overlay, "Choose a section type.");
-        return;
-      }
-
       try {
-        const result = previewSectionAddition(
-          options.markdown ?? "",
-          definition,
-          bodyEl.value,
-          {
-            language: options.language,
-            title: options.title,
+        const body = bodyEl.value;
+        const parseOptions = {
+          language: options.language,
+          title: options.title,
+          sectionExtensions: options.context?.customDefinitions ?? [],
+        };
+
+        if (mode === "edit") {
+          const definition = getDefinitionById(options.sectionId, options.context ?? {});
+          if (!definition) {
+            setError(overlay, "Section definition not found.");
+            return;
           }
-        );
+
+          const result = previewSectionEdit(
+            options.markdown ?? "",
+            options.sectionId,
+            body,
+            parseOptions
+          );
+
+          finish({
+            mode: "edit",
+            markdown: result.markdown,
+            definition,
+            representationBucket: mapDefinitionToRepresentationBucket(definition),
+            sectionExtensions: options.context?.customDefinitions ?? [],
+          });
+          return;
+        }
+
+        const kind = getSelectedKind(overlay);
+        let definition;
+        let sectionExtensions = [...(options.context?.customDefinitions ?? [])];
+
+        if (kind === "custom") {
+          definition = createCustomSectionDefinition({
+            label: nameEl?.value ?? "",
+            rendererProfile: profileEl?.value ?? "generic",
+            context: { customDefinitions: sectionExtensions },
+          });
+          sectionExtensions = [...sectionExtensions, definition];
+        } else {
+          definition = definitions.find((def) => def.id === typeEl.value);
+        }
+
+        if (!definition) {
+          setError(overlay, "Choose a section type.");
+          return;
+        }
+
+        const result = previewSectionAddition(options.markdown ?? "", definition, body, {
+          ...parseOptions,
+          sectionExtensions,
+        });
 
         finish({
+          mode: "add",
           markdown: result.markdown,
           definition,
           representationBucket: mapDefinitionToRepresentationBucket(definition),
+          sectionExtensions,
+          isCustom: kind === "custom",
         });
       } catch (err) {
-        setError(overlay, err.message || "Could not add section.");
+        setError(overlay, err.message || "Could not save section.");
       }
     }
 
     function cleanup() {
+      overlay.querySelectorAll('input[name="noteSectionKind"]').forEach((input) => {
+        input.removeEventListener("change", onKindChange);
+      });
       typeEl.removeEventListener("change", onTypeChange);
-      bodyEl.removeEventListener("input", onBodyInput);
+      profileEl.removeEventListener("change", onTypeChange);
+      nameEl?.removeEventListener("input", onCustomNameInput);
+      bodyEl.removeEventListener("input", updatePreviewLocal);
       cancelBtn.removeEventListener("click", onCancel);
       saveBtn.removeEventListener("click", onSave);
     }
 
+    overlay.querySelectorAll('input[name="noteSectionKind"]').forEach((input) => {
+      input.addEventListener("change", onKindChange);
+    });
     typeEl.addEventListener("change", onTypeChange);
-    bodyEl.addEventListener("input", onBodyInput);
+    profileEl.addEventListener("change", onTypeChange);
+    nameEl?.addEventListener("input", onCustomNameInput);
+    bodyEl.addEventListener("input", updatePreviewLocal);
     cancelBtn.addEventListener("click", onCancel);
     saveBtn.addEventListener("click", onSave);
 
     openModal(overlay, { overlayType: "modal", onClose: () => finish(null) });
+    updatePreviewLocal();
     bodyEl.focus();
   });
+}
+
+/** @deprecated alias */
+export function openAddSectionModal(options = {}) {
+  return openSectionModal({ ...options, mode: "add" });
 }

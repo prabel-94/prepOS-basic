@@ -2,7 +2,7 @@
  * Draft knowledge workspace — production preview editing + source fallback.
  */
 
-import { regenerateVariantFromMarkdown } from "./note-storage.js";
+import { regenerateVariantFromMarkdown, normalizeSectionExtensions } from "./note-storage.js";
 import {
   beginSemanticPublishReview,
   publishCanonicalVariant,
@@ -25,7 +25,13 @@ import { getClient } from "../core/get-client.js";
 import { closeModal } from "../ui/modal-system.js";
 import { resolveAppPath } from "../core/access.js";
 import { getLanguageLabel, normalizeLanguage } from "./note-variants.js";
-import { openAddSectionModal } from "./note-section-modal.js";
+import { openSectionModal } from "./note-section-modal.js";
+import { deleteSection } from "./note-section-markdown.js";
+import {
+  bindSectionInventory,
+  renderSectionInventory,
+} from "./note-section-inventory.js";
+import { getDefinitionById } from "./note-section-catalog.js";
 import { buildEditableUnitMap } from "./note-editable-map.js";
 import { bindPreviewEditor } from "./note-preview-editor.js";
 
@@ -86,6 +92,7 @@ function logRevisionParityDraft(variantId, representations = {}) {
  * @param {HTMLTextAreaElement} options.sourceEditorEl
  * @param {HTMLElement} options.statusEl
  * @param {HTMLElement} [options.backlinksEl]
+ * @param {HTMLElement} [options.sectionInventoryEl]
  */
 export function initDraftWorkspace({
   variant,
@@ -97,6 +104,7 @@ export function initDraftWorkspace({
   sourceEditorEl,
   statusEl,
   backlinksEl,
+  sectionInventoryEl,
 }) {
   let viewMode = "edit-preview";
   let activeTab = "narrative";
@@ -106,6 +114,12 @@ export function initDraftWorkspace({
   let previewEditableUnits = new Map();
   let previewRenderOptions = { preferLanguage: normalizeLanguage(variant?.language) };
   let unbindPreviewEditor = null;
+  let sectionExtensions = normalizeSectionExtensions(variant?.section_extensions);
+  let unbindSectionInventory = null;
+
+  function catalogContext() {
+    return { customDefinitions: sectionExtensions };
+  }
 
   const note = variant?.notes ?? {};
   const topicName = note?.topics?.name ?? note?.title ?? "Topic";
@@ -152,23 +166,53 @@ export function initDraftWorkspace({
       language: preferLanguage,
       title: variant.title,
       variantId: variant.id,
+      sectionExtensions,
     });
 
     previewParsed = preview.parsed;
     previewSemanticMap = preview.semanticMap;
     previewSummary = preview.summary ?? null;
-    previewEditableUnits = buildEditableUnitMap(sourceEditorEl?.value ?? "");
+    previewEditableUnits = buildEditableUnitMap(sourceEditorEl?.value ?? "", catalogContext());
     previewRenderOptions = withReadingErgonomics({
       ...buildSemanticPreviewRenderOptions(previewSemanticMap, {
         preferLanguage,
       }),
       draftEditMode: viewMode === "edit-preview",
       editableUnits: previewEditableUnits,
+      sectionExtensions,
     });
 
-    logRevisionParityDraft(variant.id, previewParsed.representations);
-
+    renderSectionInventoryStrip();
     renderPreviewTabs(previewParsed.representations, previewRenderOptions);
+  }
+
+  function renderSectionInventoryStrip() {
+    if (!sectionInventoryEl) {
+      return;
+    }
+
+    const showStrip = viewMode === "edit-preview" || viewMode === "preview";
+    sectionInventoryEl.classList.toggle("hidden", !showStrip);
+
+    if (!showStrip) {
+      return;
+    }
+
+    renderSectionInventory(sectionInventoryEl, {
+      markdown: sourceEditorEl?.value ?? "",
+      context: catalogContext(),
+      showActions: viewMode === "edit-preview" || viewMode === "preview",
+    });
+
+    unbindSectionInventory?.();
+    unbindSectionInventory = bindSectionInventory(sectionInventoryEl, {
+      onEdit: (sectionId) => {
+        handleEditSection(sectionId);
+      },
+      onDelete: (sectionId) => {
+        handleDeleteSection(sectionId);
+      },
+    });
   }
 
   function setStatus(message, isError = false) {
@@ -242,6 +286,10 @@ export function initDraftWorkspace({
     setToolbarActive("edit");
     teardownPreviewEditor();
 
+    if (sectionInventoryEl) {
+      sectionInventoryEl.classList.add("hidden");
+    }
+
     if (sourcePanelEl) {
       sourcePanelEl.classList.remove("hidden");
     }
@@ -279,26 +327,87 @@ export function initDraftWorkspace({
   }
 
   async function handleAddSection() {
-    const result = await openAddSectionModal({
+    const result = await openSectionModal({
+      mode: "add",
       markdown: sourceEditorEl?.value ?? "",
       language: preferLanguage,
       title: variant.title,
       preferSectionId: activeTab,
+      context: catalogContext(),
     });
 
     if (!result) {
       return;
     }
 
+    applySectionModalResult(result, "Section added (unsaved). Click Save Draft to persist.");
+  }
+
+  async function handleEditSection(sectionId) {
+    const result = await openSectionModal({
+      mode: "edit",
+      sectionId,
+      markdown: sourceEditorEl?.value ?? "",
+      language: preferLanguage,
+      title: variant.title,
+      context: catalogContext(),
+    });
+
+    if (!result) {
+      return;
+    }
+
+    applySectionModalResult(result, "Section updated (unsaved). Click Save Draft to persist.");
+  }
+
+  async function handleDeleteSection(sectionId) {
+    const definition = getDefinitionById(sectionId, catalogContext());
+    const label = definition?.label ?? sectionId;
+
+    if (
+      !window.confirm(
+        `Delete the "${label}" section from this note?\n\nThis removes the section tag and all of its content from the draft.`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      const markdown = deleteSection(
+        sourceEditorEl?.value ?? "",
+        sectionId,
+        catalogContext()
+      );
+
+      if (sourceEditorEl) {
+        sourceEditorEl.value = markdown;
+      }
+
+      if (definition?.source === "custom") {
+        sectionExtensions = sectionExtensions.filter((def) => def.id !== sectionId);
+      }
+
+      setStatus("Section deleted (unsaved). Click Save Draft to persist.");
+      await showEditPreviewMode();
+    } catch (err) {
+      setStatus(err.message || "Could not delete section.", true);
+    }
+  }
+
+  async function applySectionModalResult(result, statusMessage) {
     if (sourceEditorEl) {
       sourceEditorEl.value = result.markdown;
+    }
+
+    if (Array.isArray(result.sectionExtensions)) {
+      sectionExtensions = result.sectionExtensions;
     }
 
     if (result.representationBucket) {
       activeTab = result.representationBucket;
     }
 
-    setStatus("Section added (unsaved). Click Save Draft to persist.");
+    setStatus(statusMessage);
     await showEditPreviewMode();
   }
 
@@ -307,7 +416,7 @@ export function initDraftWorkspace({
       contentEl.classList.add("semantic-reading-surface");
     }
 
-    const tabs = getAvailableTabs(representations);
+    const tabs = getAvailableTabs(representations, catalogContext());
 
     if (!tabs.length) {
       tabsEl.innerHTML = addSectionTabButton;
@@ -361,7 +470,8 @@ export function initDraftWorkspace({
       activeTab,
       representations,
       {},
-      previewRenderOptions
+      previewRenderOptions,
+      catalogContext()
     );
 
     contentEl.innerHTML = `${summaryHtml}${representationHtml}`;
@@ -405,18 +515,20 @@ export function initDraftWorkspace({
         language: preferLanguage,
         title: variant.title,
         variantId: variant.id,
+        sectionExtensions,
       });
 
       previewParsed = preview.parsed;
       previewSemanticMap = preview.semanticMap;
       previewSummary = preview.summary ?? null;
-      previewEditableUnits = buildEditableUnitMap(sourceEditorEl?.value ?? "");
+      previewEditableUnits = buildEditableUnitMap(sourceEditorEl?.value ?? "", catalogContext());
       previewRenderOptions = withReadingErgonomics({
         ...buildSemanticPreviewRenderOptions(previewSemanticMap, {
           preferLanguage,
         }),
         draftEditMode: mode === "edit-preview",
         editableUnits: previewEditableUnits,
+        sectionExtensions,
       });
 
       logRevisionParityDraft(variant.id, previewParsed.representations);
@@ -434,6 +546,7 @@ export function initDraftWorkspace({
         contentEl.classList.toggle("note-draft-edit-surface", mode === "edit-preview");
       }
 
+      renderSectionInventoryStrip();
       renderPreviewTabs(previewParsed.representations, previewRenderOptions);
       setStatus(statusMessage);
     } catch (err) {
@@ -466,11 +579,13 @@ export function initDraftWorkspace({
         title: variant.title,
         language: variant.language,
         status: "draft",
+        sectionExtensions,
       });
 
       const bundle = await loadVariantBundle(variant.id);
       if (bundle?.variant) {
         variant.updated_at = bundle.variant.updated_at;
+        sectionExtensions = normalizeSectionExtensions(bundle.variant.section_extensions);
         renderDraftHeader();
       }
 
@@ -490,6 +605,7 @@ export function initDraftWorkspace({
         rawMarkdown: sourceEditorEl?.value ?? "",
         title: variant.title,
         language: variant.language,
+        sectionExtensions,
         onReturn: () => {
           setStatus("Returned to draft. Publish when ready.");
         },
@@ -505,6 +621,7 @@ export function initDraftWorkspace({
             rawMarkdown: sourceEditorEl?.value ?? "",
             title: variant.title,
             language: variant.language,
+            sectionExtensions,
           });
 
           window.location.href = resolveAppPath(

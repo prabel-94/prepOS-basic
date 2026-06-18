@@ -58,6 +58,7 @@ export async function publishCanonicalVariant(variantId, options = {}) {
       title: options.title,
       language: options.language,
       status: "draft",
+      sectionExtensions: options.sectionExtensions,
     });
   }
 
@@ -147,6 +148,7 @@ export async function beginSemanticPublishReview({
   rawMarkdown,
   title,
   language,
+  sectionExtensions,
   onReturn,
   onPublish,
 } = {}) {
@@ -155,6 +157,7 @@ export async function beginSemanticPublishReview({
     rawMarkdown,
     title,
     language,
+    sectionExtensions,
     onReturn,
     onPublish,
   });

@@ -2,8 +2,14 @@
  * Section-level markdown composition for the draft editor.
  */
 
-import { matchCanonicalSectionLine, parseMapMarkdown, splitSections } from "./map-parser.js";
 import {
+  matchCanonicalSectionLine,
+  matchExtensionSectionLine,
+  parseMapMarkdown,
+  splitSections,
+} from "./map-parser.js";
+import {
+  buildCustomSectionDefinition,
   getDefinitionByBoundaryTag,
   getDefinitionById,
   mapDefinitionToRepresentationBucket,
@@ -19,6 +25,14 @@ export function formatSectionBoundary(definition) {
 }
 
 /**
+ * @param {string} line
+ * @returns {string|null}
+ */
+function matchNestedSectionTag(line) {
+  return matchCanonicalSectionLine(line) ?? matchExtensionSectionLine(line);
+}
+
+/**
  * @param {string} body
  */
 export function validateSectionBody(body) {
@@ -30,7 +44,7 @@ export function validateSectionBody(body) {
 
   const nested = [];
   for (const line of trimmed.split("\n")) {
-    const tag = matchCanonicalSectionLine(line);
+    const tag = matchNestedSectionTag(line);
     if (tag) {
       nested.push(tag);
     }
@@ -58,11 +72,11 @@ export function formatSectionBlock(definition, body) {
 /**
  * @param {string} markdown
  * @param {import('./note-section-catalog.js').SectionCatalogContext} [context]
- * @returns {{ prelude: boolean, sections: Array<{ id: string, label: string, tag: string, bodyLength: number, bucket: string }> }}
+ * @returns {{ prelude: boolean, sections: Array<{ id: string, label: string, tag: string, bodyLength: number, bucket: string, source: string }> }}
  */
 export function getSectionInventory(markdown, context = {}) {
   const catalog = resolveSectionCatalog(context);
-  const { sections, prelude } = splitSections(markdown ?? "");
+  const { sections, prelude } = splitSections(markdown ?? "", context);
 
   return {
     prelude: Boolean(prelude?.trim()),
@@ -79,9 +93,22 @@ export function getSectionInventory(markdown, context = {}) {
         bucket: definition
           ? mapDefinitionToRepresentationBucket(definition)
           : section.key,
+        source: definition?.source ?? section.source ?? "builtin",
       };
     }),
   };
+}
+
+/**
+ * @param {string} markdown
+ * @param {string} sectionId
+ * @param {import('./note-section-catalog.js').SectionCatalogContext} [context]
+ * @returns {string|null}
+ */
+export function getSectionBody(markdown, sectionId, context = {}) {
+  const { sections } = splitSections(markdown ?? "", context);
+  const match = sections.find((section) => section.key === sectionId);
+  return match?.body ?? null;
 }
 
 /**
@@ -109,6 +136,32 @@ export function serializeMarkdownSections(prelude, sectionRows = []) {
 }
 
 /**
+ * @param {string} markdown
+ * @param {import('./note-section-catalog.js').SectionCatalogContext} [context]
+ * @returns {{ prelude: string|null, rows: Array<{ tag: string, body: string, tabOrder: number, sequence: number, key: string }> }}
+ */
+function collectSectionRows(markdown, context = {}) {
+  const source = String(markdown ?? "").trim();
+  const { sections, prelude } = splitSections(source, context);
+
+  const rows = sections.map((section, index) => {
+    const def =
+      getDefinitionById(section.key, context) ??
+      getDefinitionByBoundaryTag(section.tag, context);
+
+    return {
+      key: section.key,
+      tag: section.tag,
+      body: section.body,
+      tabOrder: def?.tabOrder ?? 999,
+      sequence: index,
+    };
+  });
+
+  return { prelude, rows };
+}
+
+/**
  * Insert or append a section block in registry tabOrder.
  * @param {string} markdown
  * @param {import('./note-section-catalog.js').SectionDefinition} definition
@@ -123,29 +176,15 @@ export function appendSection(markdown, definition, body, context = {}) {
 
   const trimmedBody = validateSectionBody(body);
   const source = String(markdown ?? "").trim();
-  const catalog = resolveSectionCatalog(context);
 
   if (!source) {
     return formatSectionBlock(definition, trimmedBody);
   }
 
-  const { sections, prelude } = splitSections(source);
-
-  /** @type {Array<{ tag: string, body: string, tabOrder: number, sequence: number }>} */
-  const rows = sections.map((section, index) => {
-    const def =
-      getDefinitionById(section.key, context) ??
-      getDefinitionByBoundaryTag(section.tag, context);
-
-    return {
-      tag: section.tag,
-      body: section.body,
-      tabOrder: def?.tabOrder ?? 999,
-      sequence: index,
-    };
-  });
+  const { prelude, rows } = collectSectionRows(source, context);
 
   rows.push({
+    key: definition.id,
     tag: definition.boundaryTag,
     body: trimmedBody,
     tabOrder: definition.tabOrder ?? 999,
@@ -162,14 +201,100 @@ export function appendSection(markdown, definition, body, context = {}) {
 }
 
 /**
+ * @param {string} markdown
+ * @param {string} sectionId
+ * @param {string} body
+ * @param {import('./note-section-catalog.js').SectionCatalogContext} [context]
+ * @returns {string}
+ */
+export function replaceSectionBody(markdown, sectionId, body, context = {}) {
+  const trimmedBody = validateSectionBody(body);
+  const { prelude, rows } = collectSectionRows(markdown, context);
+  const index = rows.findIndex((row) => row.key === sectionId);
+
+  if (index === -1) {
+    throw new Error("Section not found in markdown.");
+  }
+
+  rows[index] = {
+    ...rows[index],
+    body: trimmedBody,
+  };
+
+  return serializeMarkdownSections(prelude, rows);
+}
+
+/**
+ * @param {string} markdown
+ * @param {string} sectionId
+ * @param {import('./note-section-catalog.js').SectionCatalogContext} [context]
+ * @returns {string}
+ */
+export function deleteSection(markdown, sectionId, context = {}) {
+  const { prelude, rows } = collectSectionRows(markdown, context);
+  const nextRows = rows.filter((row) => row.key !== sectionId);
+
+  if (nextRows.length === rows.length) {
+    throw new Error("Section not found in markdown.");
+  }
+
+  return serializeMarkdownSections(prelude, nextRows);
+}
+
+/**
+ * @param {object} options
+ * @param {string} options.label
+ * @param {import('./note-section-catalog.js').RendererProfile} [options.rendererProfile]
+ * @param {number} [options.tabOrder]
+ * @param {import('./note-section-catalog.js').SectionCatalogContext} options.context
+ * @returns {import('./note-section-catalog.js').SectionDefinition}
+ */
+export function createCustomSectionDefinition(options) {
+  return buildCustomSectionDefinition(options);
+}
+
+/**
  * Preview parse stats for modal feedback.
  * @param {string} markdown
  * @param {import('./note-section-catalog.js').SectionDefinition} definition
  * @param {string} body
- * @param {{ language?: string, title?: string }} [parseOptions]
+ * @param {{ language?: string, title?: string, sectionExtensions?: import('./note-section-catalog.js').SectionDefinition[] }} [parseOptions]
  */
 export function previewSectionAddition(markdown, definition, body, parseOptions = {}) {
-  const candidate = appendSection(markdown, definition, body);
+  const context = {
+    customDefinitions: parseOptions.sectionExtensions ?? [],
+  };
+  const candidate = appendSection(markdown, definition, body, context);
+  const parsed = parseMapMarkdown(candidate, parseOptions);
+  const bucket = mapDefinitionToRepresentationBucket(definition);
+  const blocks = bucket ? (parsed.representations?.[bucket] ?? []) : [];
+  const topicLinks = parsed?.topic_links?.length ?? 0;
+
+  return {
+    markdown: candidate,
+    blockCount: blocks.length,
+    topicLinkCount: topicLinks,
+    bucket,
+  };
+}
+
+/**
+ * @param {string} markdown
+ * @param {string} sectionId
+ * @param {string} body
+ * @param {{ language?: string, title?: string, sectionExtensions?: import('./note-section-catalog.js').SectionDefinition[] }} [parseOptions]
+ */
+export function previewSectionEdit(markdown, sectionId, body, parseOptions = {}) {
+  const context = {
+    customDefinitions: parseOptions.sectionExtensions ?? [],
+  };
+  const candidate = replaceSectionBody(markdown, sectionId, body, context);
+  const definition = getDefinitionById(sectionId, context);
+
+  if (!definition) {
+    throw new Error("Section definition not found.");
+  }
+
   const parsed = parseMapMarkdown(candidate, parseOptions);
   const bucket = mapDefinitionToRepresentationBucket(definition);
   const blocks = bucket ? (parsed.representations?.[bucket] ?? []) : [];

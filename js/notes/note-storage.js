@@ -8,7 +8,10 @@ import {
   MSMDF_SECTION_SYNTAX_HELP,
   parseMapMarkdown,
 } from "./map-parser.js";
-import { getPersistedRepresentationIds } from "./note-representations.js";
+import {
+  mapDefinitionToRepresentationBucket,
+  resolveSectionCatalog,
+} from "./note-section-catalog.js";
 import { normalizeLanguage } from "./note-variants.js";
 import {
   buildTopicLinkRows,
@@ -20,10 +23,21 @@ import {
   syncVariantAnchorLinks,
 } from "../anchors/anchor-storage.js";
 
-function flattenBlocks(parsed) {
+function flattenBlocks(parsed, context = {}) {
   const rows = [];
+  const catalog = resolveSectionCatalog(context);
+  const bucketIds = new Set(
+    catalog
+      .filter((def) => def.persist && !def.storageField)
+      .map((def) => mapDefinitionToRepresentationBucket(def))
+      .filter(Boolean)
+  );
 
-  for (const representationType of getPersistedRepresentationIds()) {
+  for (const key of Object.keys(parsed?.representations ?? {})) {
+    bucketIds.add(key);
+  }
+
+  for (const representationType of bucketIds) {
     const blocks = parsed?.representations?.[representationType] ?? [];
     blocks.forEach((block, index) => {
       rows.push({
@@ -32,7 +46,6 @@ function flattenBlocks(parsed) {
         heading: block.heading ?? null,
         content: block.content ?? null,
         hierarchy_level: block.hierarchy_level ?? null,
-        // Global index within representation — parser sequence_order resets per MSMDF section.
         sequence_order: index,
         metadata_json: block.metadata_json ?? {},
       });
@@ -243,6 +256,7 @@ export async function createDraftRevisionFromPublished({
       language: normalized,
       title: revisionTitle,
       status: "draft",
+      section_extensions: published.section_extensions ?? [],
     })
     .select("id, note_id, language, title, status, created_at")
     .single();
@@ -270,6 +284,7 @@ export async function createDraftRevisionFromPublished({
     title: revisionTitle,
     language: normalized,
     status: "draft",
+    sectionExtensions: published.section_extensions ?? [],
   });
 
   return {
@@ -279,8 +294,8 @@ export async function createDraftRevisionFromPublished({
   };
 }
 
-async function insertBlocksAndLinks(sb, variantId, parsed) {
-  const blockRows = flattenBlocks(parsed).map((row) => ({
+async function insertBlocksAndLinks(sb, variantId, parsed, context = {}) {
+  const blockRows = flattenBlocks(parsed, context).map((row) => ({
     variant_id: variantId,
     ...row,
   }));
@@ -372,35 +387,71 @@ async function clearDerivedStructures(sb, variantId) {
 /**
  * Rebuild variant blocks + links from semantic markdown.
  */
+export function normalizeSectionExtensions(value) {
+  if (!value) {
+    return [];
+  }
+
+  if (Array.isArray(value)) {
+    return value;
+  }
+
+  return [];
+}
+
 export async function regenerateVariantFromMarkdown({
   variantId,
   rawMarkdown,
   title,
   language,
   status,
+  sectionExtensions,
 }) {
   if (!variantId) {
     throw new Error("variantId is required");
   }
 
+  const sb = await getClient();
   const markdown = String(rawMarkdown ?? "").trim();
+
+  let resolvedExtensions = normalizeSectionExtensions(sectionExtensions);
+
+  if (sectionExtensions === undefined) {
+    const { data: existingVariant, error: fetchExtensionsError } = await sb
+      .from("note_variants")
+      .select("section_extensions")
+      .eq("id", variantId)
+      .maybeSingle();
+
+    if (fetchExtensionsError) {
+      throw new Error(fetchExtensionsError.message);
+    }
+
+    resolvedExtensions = normalizeSectionExtensions(existingVariant?.section_extensions);
+  }
+
+  const catalogContext = { customDefinitions: resolvedExtensions };
   let parsed;
 
   try {
     parsed = attachSemanticCandidates(
-      parseMapMarkdown(markdown, { language, title })
+      parseMapMarkdown(markdown, {
+        language,
+        title,
+        sectionExtensions: resolvedExtensions,
+      })
     );
     validateParsed(parsed, markdown);
   } catch (err) {
     throw new Error(err.message || "Failed to parse semantic markdown.");
   }
 
-  const sb = await getClient();
   const meta = resolveVariantMeta(parsed, { title, language });
 
   const variantPatch = {
     title: meta.title,
     language: meta.language,
+    section_extensions: resolvedExtensions,
   };
 
   if (status) {
@@ -411,7 +462,7 @@ export async function regenerateVariantFromMarkdown({
     .from("note_variants")
     .update(variantPatch)
     .eq("id", variantId)
-    .select("id, note_id, language, title, status")
+    .select("id, note_id, language, title, status, section_extensions")
     .single();
 
   if (variantError) {
@@ -454,7 +505,7 @@ export async function regenerateVariantFromMarkdown({
   }
 
   await clearDerivedStructures(sb, variantId);
-  const counts = await insertBlocksAndLinks(sb, variantId, parsed);
+  const counts = await insertBlocksAndLinks(sb, variantId, parsed, catalogContext);
 
   return {
     variant,

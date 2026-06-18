@@ -10,6 +10,7 @@ import {
   prefixSelectionAsBulletList,
   wrapSelectionAsWikiLink,
 } from "./note-source-transforms.js";
+import { pickTopicLinkName } from "./note-topic-link-picker.js";
 
 function getSelectionOffsets(element) {
   const selection = window.getSelection();
@@ -135,14 +136,19 @@ export function createPreviewFormatToolbar(options) {
       case "link": {
         if (selection && !selection.collapsed) {
           nextText = wrapSelectionAsWikiLink(currentText, start, end);
-        } else {
-          const topicName = prompt("Link to topic (shown as [[Topic Name]]):");
+          applyUpdatedText(activeEl, nextText);
+          return;
+        }
+
+        pickTopicLinkName().then((topicName) => {
           if (!topicName?.trim()) {
             return;
           }
-          nextText = insertWikiLinkAt(currentText, offset, offset, topicName.trim());
-        }
-        break;
+
+          const linked = insertWikiLinkAt(currentText, offset, offset, topicName.trim());
+          applyUpdatedText(activeEl, linked);
+        });
+        return;
       }
       case "h2":
         if (selection && !selection.collapsed) {

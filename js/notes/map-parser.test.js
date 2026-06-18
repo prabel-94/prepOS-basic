@@ -221,6 +221,40 @@ Following paragraph.`
   });
 });
 
+describe("custom extension sections", () => {
+  it("parses registered [EXT:…] sections into dynamic buckets", () => {
+    const custom = {
+      id: "exam_tips",
+      boundaryTag: "EXT:EXAM_TIPS",
+      label: "Exam Tips",
+      source: "custom",
+      role: "cognition",
+      tabOrder: 510,
+      showTab: true,
+      persist: true,
+      rendererProfile: "generic",
+    };
+
+    const parsed = parseMapMarkdown(
+      `[EXT:EXAM_TIPS]\n\n- Link causes to consequences`,
+      { sectionExtensions: [custom] }
+    );
+
+    assert.ok(parsed.representations.exam_tips?.length >= 1);
+    assert.equal(parsed.parser_diagnostics.warnings.length, 0);
+  });
+
+  it("warns on unknown extension tags without a definition", () => {
+    const parsed = parseMapMarkdown(`[EXT:UNKNOWN]\n\nOrphan body.`);
+    assert.ok(
+      parsed.parser_diagnostics.warnings.some((warning) =>
+        warning.includes("Unknown extension section")
+      )
+    );
+    assert.equal(parsed.representations.unknown, undefined);
+  });
+});
+
 /**
  * Renderer preservation gap (documented — not fixed in parser pass):
  * note-renderer.js caps heading tags at h4 via Math.min(..., 4),

@@ -23,6 +23,12 @@ import {
   withReadingErgonomics,
 } from "./reading-ergonomics.js";
 import { getTabEligibleRepresentations } from "./note-representations.js";
+import {
+  getDefinitionById,
+  getDefinitionByRepresentationBucket,
+  getTabSectionDefinitions,
+  mapDefinitionToRepresentationBucket,
+} from "./note-section-catalog.js";
 import { stripHighlightedQuoteLines } from "./quote-highlight.js";
 import { lookupEditableUnitId } from "./note-editable-map.js";
 
@@ -767,6 +773,24 @@ export function renderNarrative(blocks, topicMap, renderOptions) {
   );
 }
 
+export function renderGeneric(blocks, topicMap, renderOptions, representationKey = "generic") {
+  const definition = getDefinitionByRepresentationBucket(representationKey, {
+    customDefinitions: renderOptions.sectionExtensions ?? [],
+  });
+  const className =
+    definition?.readingClass === "semantic-reading-flow" || !definition?.readingClass
+      ? "representation-narrative"
+      : `representation-${representationKey}`;
+
+  return renderRepresentation(
+    blocks,
+    topicMap,
+    className,
+    renderOptions,
+    representationKey
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Structural hierarchy (semantic depth + subordinated interaction)
 // ---------------------------------------------------------------------------
@@ -1040,18 +1064,64 @@ const RENDERER_FUNCTIONS = Object.freeze({
   timeline: renderTimeline,
   interpretations: renderInterpretations,
   quotes: renderQuotes,
+  generic: renderGeneric,
 });
+
+const PROFILE_RENDERERS = Object.freeze({
+  generic: renderGeneric,
+  narrative: renderNarrative,
+  structural: renderStructural,
+  timeline: renderTimeline,
+  quotes: renderQuotes,
+  revision: renderRevision,
+  interpretations: renderInterpretations,
+});
+
+function resolveRendererForDefinition(def, representationKey) {
+  const profile = def?.rendererProfile ?? "generic";
+  const renderer = PROFILE_RENDERERS[profile] ?? renderGeneric;
+
+  if (profile === "generic" && representationKey) {
+    return (blocks, topicMap, renderOptions) =>
+      renderGeneric(blocks, topicMap, renderOptions, representationKey);
+  }
+
+  return renderer;
+}
 
 const RENDERERS = Object.freeze(
   Object.fromEntries(
     getTabEligibleRepresentations().map((entry) => [
       entry.id,
-      RENDERER_FUNCTIONS[entry.id],
+      RENDERER_FUNCTIONS[entry.id] ?? renderNarrative,
     ])
   )
 );
 
-export function renderRepresentationTab(key, representations, topicMap, renderOptions = {}) {
+export function renderRepresentationTab(
+  key,
+  representations,
+  topicMap,
+  renderOptions = {},
+  context = {}
+) {
+  const catalogContext = {
+    customDefinitions:
+      context.customDefinitions ?? renderOptions.sectionExtensions ?? [],
+  };
+
+  const def =
+    getDefinitionById(key, catalogContext) ??
+    getDefinitionByRepresentationBucket(key, catalogContext);
+
+  if (def) {
+    const renderer = resolveRendererForDefinition(def, key);
+    return renderer(representations[key] ?? [], topicMap, {
+      ...renderOptions,
+      sectionExtensions: catalogContext.customDefinitions,
+    });
+  }
+
   const renderer = RENDERERS[key];
   if (!renderer) {
     return "";
@@ -1060,8 +1130,18 @@ export function renderRepresentationTab(key, representations, topicMap, renderOp
   return renderer(representations[key] ?? [], topicMap, renderOptions);
 }
 
-export function getAvailableTabs(representations = {}) {
-  return getTabEligibleRepresentations()
-    .filter((entry) => (representations[entry.id]?.length ?? 0) > 0)
-    .map((entry) => ({ key: entry.id, label: entry.tabLabel }));
+export function getAvailableTabs(representations = {}, context = {}) {
+  const catalogContext = {
+    customDefinitions: context.customDefinitions ?? [],
+  };
+
+  return getTabSectionDefinitions(catalogContext)
+    .filter((def) => {
+      const bucket = mapDefinitionToRepresentationBucket(def);
+      return (representations[bucket]?.length ?? 0) > 0;
+    })
+    .map((def) => ({
+      key: mapDefinitionToRepresentationBucket(def),
+      label: def.label,
+    }));
 }
