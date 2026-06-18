@@ -178,7 +178,9 @@ async function bootPublishedReader({
     <div class="canonical-meta">${escapeHTML(subtitle)}</div>
   `;
 
-  const tabs = getAvailableTabs(bundle.representations);
+  const tabs = getAvailableTabs(bundle.representations, {
+    customDefinitions: bundle.sectionExtensions ?? [],
+  });
   let activeTab = tabs[0]?.key ?? "narrative";
 
   let renderOptions = withReadingErgonomics({ preferLanguage });
@@ -231,7 +233,8 @@ async function bootPublishedReader({
       activeTab,
       bundle.representations,
       bundle.topicMap,
-      renderOptions
+      renderOptions,
+      { customDefinitions: bundle.sectionExtensions ?? [] }
     );
 
     if (activeTab === "structural") {
@@ -364,6 +367,7 @@ export async function bootNoteReader() {
   const sourcePanelEl = document.getElementById("noteSourcePanel");
   const sourceEditorEl = document.getElementById("semanticSourceEditor");
   const backlinksEl = document.getElementById("noteBacklinks");
+  const sectionInventoryEl = document.getElementById("noteSectionInventory");
   const statusEl = document.getElementById("readerStatus");
 
   if (!contentEl) {
@@ -442,6 +446,7 @@ export async function bootNoteReader() {
         sourceEditorEl,
         statusEl,
         backlinksEl,
+        sectionInventoryEl,
       });
       return runtime;
     }

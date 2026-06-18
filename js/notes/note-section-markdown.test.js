@@ -6,11 +6,14 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
   appendSection,
+  deleteSection,
   formatSectionBlock,
+  getSectionBody,
   getSectionInventory,
+  replaceSectionBody,
   validateSectionBody,
 } from "./note-section-markdown.js";
-import { getDefinitionById } from "./note-section-catalog.js";
+import { buildCustomSectionDefinition, getDefinitionById } from "./note-section-catalog.js";
 import { parseMapMarkdown } from "./map-parser.js";
 
 describe("note-section-markdown", () => {
@@ -65,5 +68,32 @@ describe("note-section-markdown", () => {
     assert.equal(inventory.sections[0].id, "narrative");
     assert.equal(inventory.sections[0].bucket, "narrative");
     assert.ok(inventory.sections[0].bodyLength > 0);
+  });
+
+  it("reads, replaces, and deletes a section body", () => {
+    const narrative = getDefinitionById("narrative");
+    const markdown = appendSection("", narrative, "Original body.");
+
+    assert.equal(getSectionBody(markdown, "narrative"), "Original body.");
+
+    const updated = replaceSectionBody(markdown, "narrative", "Updated body.");
+    assert.match(updated, /Updated body\./);
+    assert.doesNotMatch(updated, /Original body\./);
+
+    const removed = deleteSection(updated, "narrative");
+    assert.equal(removed.trim(), "");
+  });
+
+  it("appends custom sections when registered in catalog context", () => {
+    const custom = buildCustomSectionDefinition({
+      label: "Case Studies",
+      context: { customDefinitions: [] },
+    });
+    const context = { customDefinitions: [custom] };
+    const markdown = appendSection("", custom, "A case study paragraph.", context);
+    const parsed = parseMapMarkdown(markdown, { sectionExtensions: [custom] });
+
+    assert.ok(parsed.representations.case_studies?.length >= 1);
+    assert.equal(getSectionBody(markdown, "case_studies", context), "A case study paragraph.");
   });
 });

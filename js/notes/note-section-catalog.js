@@ -171,7 +171,13 @@ export function getAddableSectionDefinitions(context = {}) {
  */
 export function getTabSectionDefinitions(context = {}) {
   return resolveSectionCatalog(context)
-    .filter((def) => def.showTab !== false && def.role !== "infrastructure")
+    .filter(
+      (def) =>
+        def.showTab !== false &&
+        def.role !== "infrastructure" &&
+        !def.mapsTo &&
+        def.role !== "cognition-merged"
+    )
     .sort((a, b) => (a.tabOrder ?? 999) - (b.tabOrder ?? 999) || a.label.localeCompare(b.label));
 }
 
@@ -208,4 +214,149 @@ export function mapDefinitionToRepresentationBucket(def) {
   }
 
   return def.mapsTo ?? def.id;
+}
+
+export const MAX_CUSTOM_SECTIONS = 10;
+
+export const CUSTOM_RENDERER_PROFILES = Object.freeze([
+  { id: "generic", label: "Generic prose" },
+  { id: "narrative", label: "Narrative" },
+  { id: "structural", label: "Structural" },
+  { id: "timeline", label: "Timeline" },
+  { id: "quotes", label: "Quotes" },
+  { id: "revision", label: "Revision" },
+  { id: "interpretations", label: "Interpretations" },
+]);
+
+/**
+ * @param {string} bucket
+ * @param {SectionCatalogContext} [context]
+ * @returns {SectionDefinition|null}
+ */
+export function getDefinitionByRepresentationBucket(bucket, context = {}) {
+  const key = String(bucket ?? "").trim();
+  if (!key) {
+    return null;
+  }
+
+  return (
+    resolveSectionCatalog(context).find(
+      (def) => mapDefinitionToRepresentationBucket(def) === key
+    ) ?? null
+  );
+}
+
+/**
+ * @param {SectionCatalogContext} [context]
+ * @returns {Record<string, object[]>}
+ */
+export function createRepresentationBuckets(context = {}) {
+  const buckets = {};
+
+  for (const def of resolveSectionCatalog(context)) {
+    if (!def.persist || def.storageField) {
+      continue;
+    }
+
+    const bucket = mapDefinitionToRepresentationBucket(def);
+    if (!bucket) {
+      continue;
+    }
+
+    if (!buckets[bucket]) {
+      buckets[bucket] = [];
+    }
+  }
+
+  return buckets;
+}
+
+/**
+ * @param {string} label
+ * @returns {string}
+ */
+export function slugifySectionLabel(label) {
+  return String(label ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .replace(/_+/g, "_");
+}
+
+/**
+ * @param {string} id — snake_case slug
+ * @returns {string}
+ */
+export function sectionIdToBoundaryTag(id) {
+  const slug = String(id ?? "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9_]/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_+|_+$/g, "");
+
+  if (!slug) {
+    throw new Error("Section name must include letters or numbers.");
+  }
+
+  return `EXT:${slug}`;
+}
+
+/**
+ * @param {object} options
+ * @param {string} options.label
+ * @param {RendererProfile} [options.rendererProfile]
+ * @param {number} [options.tabOrder]
+ * @param {SectionCatalogContext} [options.context]
+ * @returns {SectionDefinition}
+ */
+export function buildCustomSectionDefinition({
+  label,
+  rendererProfile = "generic",
+  tabOrder = 520,
+  context = {},
+}) {
+  const trimmedLabel = String(label ?? "").trim();
+  if (!trimmedLabel) {
+    throw new Error("Custom section name is required.");
+  }
+
+  const id = slugifySectionLabel(trimmedLabel);
+  if (!id) {
+    throw new Error("Section name must include letters or numbers.");
+  }
+
+  const customCount = (context.customDefinitions ?? []).filter(
+    (def) => def.source === "custom"
+  ).length;
+
+  if (customCount >= MAX_CUSTOM_SECTIONS) {
+    throw new Error(`At most ${MAX_CUSTOM_SECTIONS} custom sections per variant.`);
+  }
+
+  if (getDefinitionById(id, context)) {
+    throw new Error(`A section named "${trimmedLabel}" already exists.`);
+  }
+
+  const boundaryTag = sectionIdToBoundaryTag(id);
+  if (getDefinitionByBoundaryTag(boundaryTag, context)) {
+    throw new Error(`Section tag [${boundaryTag}] is already in use.`);
+  }
+
+  return {
+    id,
+    boundaryTag,
+    label: trimmedLabel,
+    source: "custom",
+    role: "cognition",
+    tabOrder,
+    showTab: true,
+    persist: true,
+    rendererProfile,
+    readingClass: "semantic-reading-flow",
+    metadata: {
+      created_at: new Date().toISOString(),
+    },
+  };
 }

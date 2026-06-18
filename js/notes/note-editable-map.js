@@ -2,17 +2,12 @@
  * Maps rendered draft-edit units to character ranges in raw MSMDF markdown.
  */
 
-import { parseMapMarkdown } from "./map-parser.js";
+import { parseMapMarkdown, splitSections } from "./map-parser.js";
 import { isHighlightedQuoteText } from "./quote-highlight.js";
-
-const EDITABLE_REPRESENTATIONS = new Set([
-  "narrative",
-  "revision",
-  "interpretations",
-  "quotes",
-  "timeline",
-  "structural",
-]);
+import {
+  mapDefinitionToRepresentationBucket,
+  resolveSectionCatalog,
+} from "./note-section-catalog.js";
 
 function normalizeNewlines(text) {
   return String(text ?? "")
@@ -77,17 +72,74 @@ function sortBlocks(blocks = []) {
   );
 }
 
+function getEditableRepresentations(context = {}) {
+  return new Set(
+    resolveSectionCatalog(context)
+      .filter((def) => def.persist && !def.storageField && def.role !== "infrastructure")
+      .map((def) => mapDefinitionToRepresentationBucket(def))
+      .filter(Boolean)
+  );
+}
+
+/**
+ * @param {string} markdown
+ * @param {string} needle
+ * @param {number} rangeStart
+ * @param {number} rangeEnd
+ * @param {number} cursor
+ */
+function indexOfInRange(markdown, needle, rangeStart, rangeEnd, cursor) {
+  const from = Math.max(rangeStart, cursor);
+  const slice = markdown.slice(from, rangeEnd);
+  const relative = slice.indexOf(needle);
+
+  if (relative === -1) {
+    return -1;
+  }
+
+  return from + relative;
+}
+
 /**
  * @param {string} rawMarkdown
+ * @param {import('./note-section-catalog.js').SectionCatalogContext} [context]
  * @returns {Map<string, object>}
  */
-export function buildEditableUnitMap(rawMarkdown) {
+export function buildEditableUnitMap(rawMarkdown, context = {}) {
   const markdown = normalizeNewlines(rawMarkdown);
-  const parsed = parseMapMarkdown(markdown);
+  const parsed = parseMapMarkdown(markdown, {
+    sectionExtensions: context.customDefinitions ?? [],
+  });
   const units = new Map();
-  let cursor = 0;
+  const { sections } = splitSections(markdown, context);
 
-  for (const representation of EDITABLE_REPRESENTATIONS) {
+  const sectionRangesByTag = new Map();
+  for (const section of sections) {
+    sectionRangesByTag.set(String(section.tag).toUpperCase(), {
+      start: section.bodyStart ?? 0,
+      end: section.bodyEnd ?? markdown.length,
+    });
+  }
+
+  const sectionCursors = new Map();
+
+  function nextPosition(needle, boundaryTag) {
+    const tag = String(boundaryTag ?? "").toUpperCase();
+    const range = sectionRangesByTag.get(tag) ?? {
+      start: 0,
+      end: markdown.length,
+    };
+    const cursor = sectionCursors.get(tag) ?? range.start;
+    const pos = indexOfInRange(markdown, needle, range.start, range.end, cursor);
+
+    if (pos !== -1) {
+      sectionCursors.set(tag, pos + needle.length);
+    }
+
+    return pos;
+  }
+
+  for (const representation of getEditableRepresentations(context)) {
     const blocks = parsed.representations?.[representation] ?? [];
     if (!blocks.length) {
       continue;
@@ -95,11 +147,12 @@ export function buildEditableUnitMap(rawMarkdown) {
 
     for (const block of sortBlocks(blocks)) {
       const blockSeq = block.sequence_order ?? 0;
+      const boundaryTag = block.metadata_json?.msmdf_boundary ?? null;
 
       if (block.heading && block.block_type === "section") {
         const level = Math.min(Math.max(block.hierarchy_level ?? 2, 1), 6);
         const headingLine = `${"#".repeat(level)} ${block.heading}`;
-        const pos = markdown.indexOf(headingLine, cursor);
+        const pos = nextPosition(headingLine, boundaryTag);
         if (pos !== -1) {
           const id = unitId(representation, blockSeq, "heading");
           units.set(id, {
@@ -113,7 +166,6 @@ export function buildEditableUnitMap(rawMarkdown) {
             end: pos + headingLine.length,
             editable: true,
           });
-          cursor = pos + headingLine.length;
         }
       }
 
@@ -129,7 +181,7 @@ export function buildEditableUnitMap(rawMarkdown) {
             continue;
           }
 
-          const pos = markdown.indexOf(line, cursor);
+          const pos = nextPosition(line, boundaryTag);
           if (pos === -1) {
             continue;
           }
@@ -146,7 +198,6 @@ export function buildEditableUnitMap(rawMarkdown) {
             end: pos + line.length,
             editable: true,
           });
-          cursor = pos + line.length;
         }
         continue;
       }
@@ -167,7 +218,7 @@ export function buildEditableUnitMap(rawMarkdown) {
           continue;
         }
 
-        const pos = markdown.indexOf(para, cursor);
+        const pos = nextPosition(para, boundaryTag);
         if (pos === -1) {
           continue;
         }
@@ -184,7 +235,6 @@ export function buildEditableUnitMap(rawMarkdown) {
           end: pos + para.length,
           editable: true,
         });
-        cursor = pos + para.length;
       }
     }
   }

@@ -5,8 +5,8 @@
 import { getClient } from "../core/get-client.js";
 import { buildTopicMap } from "./note-topic-links.js";
 import {
-  createEmptyRepresentations,
-} from "./note-representations.js";
+  createRepresentationBuckets,
+} from "./note-section-catalog.js";
 import {
   buildLanguageFallbackChain,
   normalizeLanguage,
@@ -61,6 +61,7 @@ export async function fetchVariantById(variantId) {
       status,
       created_at,
       updated_at,
+      section_extensions,
       notes (
         id,
         topic_id,
@@ -236,14 +237,18 @@ export async function fetchNoteById(noteId) {
   return fetchCanonicalNoteById(noteId);
 }
 
-export function groupBlocksByRepresentation(blocks = []) {
-  const grouped = createEmptyRepresentations();
+export function groupBlocksByRepresentation(blocks = [], context = {}) {
+  const catalogContext = {
+    customDefinitions: context.customDefinitions ?? [],
+  };
+  const grouped = createRepresentationBuckets(catalogContext);
 
   for (const block of blocks) {
     const key = block.representation_type;
-    if (grouped[key]) {
-      grouped[key].push(block);
+    if (!grouped[key]) {
+      grouped[key] = [];
     }
+    grouped[key].push(block);
   }
 
   for (const key of Object.keys(grouped)) {
@@ -286,13 +291,20 @@ export async function loadVariantBundle(variantId) {
 
   const topicMap = buildTraversalTopicMap(topicLinks);
 
+  const catalogContext = {
+    customDefinitions: Array.isArray(variant.section_extensions)
+      ? variant.section_extensions
+      : [],
+  };
+
   return {
     note: variant.notes,
     variant,
     blocks,
-    representations: groupBlocksByRepresentation(blocks),
+    representations: groupBlocksByRepresentation(blocks, catalogContext),
     topicLinks,
     topicMap,
+    sectionExtensions: catalogContext.customDefinitions,
   };
 }
 

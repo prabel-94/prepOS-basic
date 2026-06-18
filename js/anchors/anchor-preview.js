@@ -135,6 +135,7 @@ export async function prepareDraftSemanticPreview(rawMarkdown, options = {}) {
     parseMapMarkdown(markdown, {
       language,
       title: options.title ?? null,
+      sectionExtensions: options.sectionExtensions ?? [],
     })
   );
 

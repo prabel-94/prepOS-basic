@@ -8,7 +8,6 @@ import {
   CANONICAL_BOUNDARY_TAGS,
   applyRecallBlockTransform,
   buildBoundaryReport,
-  createEmptyRepresentations,
   getSectionKeyFromTag,
   isEntityIndexSection,
   isMetadataSection,
@@ -16,6 +15,13 @@ import {
   shouldApplyRecallTransform,
   summarizeDetectedSectionsFromRegistry,
 } from "./note-representations.js";
+import {
+  createRepresentationBuckets,
+  getDefinitionByBoundaryTag,
+  getDefinitionById,
+  mapDefinitionToRepresentationBucket,
+  resolveSectionCatalog,
+} from "./note-section-catalog.js";
 
 export { CANONICAL_BOUNDARY_TAGS };
 
@@ -27,6 +33,8 @@ const SECTION_LINE_PATTERN = new RegExp(
   `^\\s*#?\\s*\\[(${CANONICAL_BOUNDARY_TAGS.join("|")})\\]\\s*$`,
   "i"
 );
+
+const EXTENSION_SECTION_LINE_PATTERN = /^\s*#?\s*\[(EXT:[A-Z][A-Z0-9_]+)\]\s*$/i;
 
 export const MSMDF_SECTION_SYNTAX_EXAMPLES = Object.freeze([
   "[NARRATIVE]",
@@ -56,6 +64,50 @@ export function matchCanonicalSectionLine(line) {
   }
 
   return match[1].toUpperCase();
+}
+
+/**
+ * @param {string} line
+ * @returns {string|null}
+ */
+export function matchExtensionSectionLine(line) {
+  const match = String(line ?? "").match(EXTENSION_SECTION_LINE_PATTERN);
+  if (!match) {
+    return null;
+  }
+
+  return match[1].toUpperCase();
+}
+
+/**
+ * @param {string} line
+ * @param {import('./note-section-catalog.js').SectionCatalogContext} [context]
+ * @returns {{ key: string, tag: string, source: 'builtin' | 'custom' }|null}
+ */
+export function matchSectionBoundary(line, context = {}) {
+  const builtinTag = matchCanonicalSectionLine(line);
+  if (builtinTag) {
+    const key = getSectionKeyFromTag(builtinTag);
+    return key
+      ? { key, tag: builtinTag, source: "builtin" }
+      : null;
+  }
+
+  const extTag = matchExtensionSectionLine(line);
+  if (!extTag) {
+    return null;
+  }
+
+  const definition = getDefinitionByBoundaryTag(extTag, context);
+  if (!definition) {
+    return null;
+  }
+
+  return {
+    key: definition.id,
+    tag: definition.boundaryTag.toUpperCase(),
+    source: definition.source === "custom" ? "custom" : "builtin",
+  };
 }
 
 function parseMetadataSection(body) {
@@ -265,34 +317,49 @@ function extractTopicLinks(markdown, sectionKey = null, blockIndex = null) {
 }
 
 /**
- * @returns {{ sections: Array<{ key: string, body: string, tag: string }>, prelude: string|null }}
+ * @param {string} markdown
+ * @param {import('./note-section-catalog.js').SectionCatalogContext} [context]
+ * @returns {{ sections: Array<{ key: string, body: string, tag: string, source?: string, bodyStart?: number, bodyEnd?: number }>, prelude: string|null }}
  */
-export function splitSections(markdown) {
+export function splitSections(markdown, context = {}) {
+  const normalized = normalizeNewlines(markdown);
+  const lines = normalized.split("\n");
   const sections = [];
-  const lines = markdown.split("\n");
   let currentKey = null;
   let currentTag = null;
+  let currentSource = null;
   let buffer = [];
   let preludeLines = [];
   let preludeCaptured = null;
+  let currentBodyStart = null;
+  let offset = 0;
 
   function pushSection() {
     if (currentKey === null) {
       return;
     }
 
+    const body = buffer.join("\n").trim();
+    const bodyEnd = offset;
+
     sections.push({
       key: currentKey,
       tag: currentTag,
-      body: buffer.join("\n").trim(),
+      body,
+      source: currentSource ?? "builtin",
+      bodyStart: currentBodyStart ?? 0,
+      bodyEnd,
     });
     buffer = [];
+    currentBodyStart = null;
   }
 
-  for (const line of lines) {
-    const tag = matchCanonicalSectionLine(line);
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
+    const line = lines[lineIndex];
+    const lineStart = offset;
+    const boundary = matchSectionBoundary(line, context);
 
-    if (tag) {
+    if (boundary) {
       pushSection();
 
       if (preludeCaptured === null) {
@@ -303,8 +370,11 @@ export function splitSections(markdown) {
         preludeLines = [];
       }
 
-      currentTag = tag;
-      currentKey = getSectionKeyFromTag(tag);
+      currentTag = boundary.tag;
+      currentKey = boundary.key;
+      currentSource = boundary.source;
+      currentBodyStart = lineStart + line.length + (lineIndex < lines.length - 1 ? 1 : 0);
+      offset = lineStart + line.length + 1;
       continue;
     }
 
@@ -313,6 +383,8 @@ export function splitSections(markdown) {
     } else {
       preludeLines.push(line);
     }
+
+    offset = lineStart + line.length + (lineIndex < lines.length - 1 ? 1 : 0);
   }
 
   pushSection();
@@ -333,15 +405,19 @@ export function splitSections(markdown) {
 /**
  * Parse MSMDF semantic markdown into a canonical object.
  * @param {string} rawMarkdown
- * @param {{ language?: string, title?: string }} [options]
+ * @param {{ language?: string, title?: string, sectionExtensions?: import('./note-section-catalog.js').SectionDefinition[] }} [options]
  * @returns {object}
  */
 export function parseMapMarkdown(rawMarkdown, options = {}) {
   const markdown = normalizeNewlines(rawMarkdown);
-  const { sections, prelude } = splitSections(markdown);
+  const catalogContext = {
+    customDefinitions: options.sectionExtensions ?? [],
+  };
+  const catalog = resolveSectionCatalog(catalogContext);
+  const { sections, prelude } = splitSections(markdown, catalogContext);
 
   const metadata = {};
-  const representations = createEmptyRepresentations();
+  const representations = createRepresentationBuckets(catalogContext);
   const entityIndexBlocks = [];
   const parserDiagnostics = {
     msmdf_version: "1.2",
@@ -357,6 +433,9 @@ export function parseMapMarkdown(rawMarkdown, options = {}) {
     const preludeBlocks = extractBlocks("narrative", prelude, {
       msmdf_provenance: "prelude",
     });
+    if (!representations.narrative) {
+      representations.narrative = [];
+    }
     representations.narrative.push(...preludeBlocks);
     parserDiagnostics.prelude = {
       preserved: true,
@@ -365,7 +444,22 @@ export function parseMapMarkdown(rawMarkdown, options = {}) {
     };
   }
 
+  for (const line of markdown.split("\n")) {
+    const extTag = matchExtensionSectionLine(line);
+    if (!extTag) {
+      continue;
+    }
+
+    if (!getDefinitionByBoundaryTag(extTag, catalogContext)) {
+      parserDiagnostics.warnings.push(
+        `Unknown extension section [${extTag}] was ignored. Register it as a custom section first.`
+      );
+    }
+  }
+
   for (const section of sections) {
+    const definition = getDefinitionById(section.key, catalogContext);
+
     if (isMetadataSection(section.key)) {
       Object.assign(metadata, parseMetadataSection(section.body));
       continue;
@@ -380,7 +474,12 @@ export function parseMapMarkdown(rawMarkdown, options = {}) {
       continue;
     }
 
-    const representationKey = mapSectionToRepresentation(section.key);
+    let representationKey = mapSectionToRepresentation(section.key);
+
+    if (!representationKey && definition) {
+      representationKey = mapDefinitionToRepresentationBucket(definition);
+    }
+
     if (!representationKey) {
       parserDiagnostics.warnings.push(
         `Unmapped canonical boundary [${section.tag}] was detected but not stored in representations.`
@@ -388,8 +487,14 @@ export function parseMapMarkdown(rawMarkdown, options = {}) {
       continue;
     }
 
+    if (!representations[representationKey]) {
+      representations[representationKey] = [];
+    }
+
     const blocks = extractBlocks(representationKey, section.body, {
       msmdf_boundary: section.tag,
+      section_source: section.source ?? definition?.source ?? "builtin",
+      renderer_profile: definition?.rendererProfile ?? "generic",
     });
 
     if (shouldApplyRecallTransform(section.key)) {
@@ -416,7 +521,10 @@ export function parseMapMarkdown(rawMarkdown, options = {}) {
     });
   }
 
-  if (!sections.length && prelude && !representations.narrative.length) {
+  if (!sections.length && prelude && !representations.narrative?.length) {
+    if (!representations.narrative) {
+      representations.narrative = [];
+    }
     representations.narrative.push(
       ...extractBlocks("narrative", prelude, { msmdf_provenance: "prelude" })
     );

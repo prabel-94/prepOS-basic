@@ -87,6 +87,122 @@
       margin: 0;
       font-size: 0.875rem;
     }
+    .note-add-section-input {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 10px 12px;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      font-size: 0.95rem;
+    }
+    .note-section-kind-field {
+      border: none;
+      margin: 0 0 16px;
+      padding: 0;
+    }
+    .note-section-kind-legend {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: #475569;
+      margin-bottom: 8px;
+    }
+    .note-section-kind-option {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 0.9rem;
+      color: #334155;
+    }
+    #noteSectionInventory {
+      margin: 0 0 16px;
+    }
+    .note-section-inventory {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    .note-section-inventory-label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #64748b;
+      margin-right: 4px;
+    }
+    .note-section-inventory-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    .note-section-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 8px;
+      border: 1px solid #e2e8f0;
+      border-radius: 999px;
+      background: #f8fafc;
+      font-size: 0.85rem;
+    }
+    .note-section-chip-custom {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #6366f1;
+      font-weight: 600;
+    }
+    .note-section-chip-action {
+      border: none;
+      background: transparent;
+      color: #64748b;
+      cursor: pointer;
+      padding: 0 2px;
+      line-height: 1;
+      font-size: 0.9rem;
+    }
+    .note-section-chip-action:hover {
+      color: #1e293b;
+    }
+    .note-section-chip-delete:hover {
+      color: #b91c1c;
+    }
+    .note-section-prelude-note {
+      font-size: 0.8rem;
+      width: 100%;
+    }
+    .note-topic-link-picker-modal {
+      max-width: 480px;
+      width: calc(100% - 32px);
+    }
+    .note-topic-link-search {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 10px 12px;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+    }
+    .note-topic-link-results {
+      list-style: none;
+      margin: 12px 0 0;
+      padding: 0;
+      max-height: 280px;
+      overflow-y: auto;
+    }
+    .note-topic-link-option {
+      width: 100%;
+      text-align: left;
+      padding: 10px 12px;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      background: #f8fafc;
+      cursor: pointer;
+      font-size: 0.95rem;
+    }
+    .note-topic-link-option:hover {
+      border-color: #cbd5e1;
+      background: #fff;
+    }
     /* Note reading hierarchy: css/style.css → Semantic hierarchy rendering */
     .topic-link {
       color: var(--primary);
@@ -310,6 +426,8 @@
   <div id="languageTabs" class="language-tabs hidden" role="navigation" aria-label="Language variants"></div>
 
   <div id="noteDraftToolbar" class="hidden" aria-label="Draft workspace actions"></div>
+
+  <div id="noteSectionInventory" class="hidden" aria-label="Note sections"></div>
 
   <div id="representationTabs" role="tablist" aria-label="Representations"></div>
 

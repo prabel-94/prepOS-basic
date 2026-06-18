@@ -273,6 +273,7 @@ export async function openSemanticPublishReviewForDraft({
   rawMarkdown,
   title,
   language,
+  sectionExtensions,
   onReturn,
   onPublish,
 } = {}) {
@@ -280,6 +281,7 @@ export async function openSemanticPublishReviewForDraft({
     language,
     title,
     variantId: variant?.id,
+    sectionExtensions,
   });
 
   const review = buildSemanticPublishReview({
