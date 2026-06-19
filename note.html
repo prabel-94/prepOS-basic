@@ -343,6 +343,30 @@
     .note-preview-format-btn[hidden] {
       display: none;
     }
+    .note-preview-format-select {
+      font-size: 0.8rem;
+      padding: 6px 8px;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      background: #fff;
+      color: #334155;
+      max-width: 88px;
+    }
+    .note-draft-edit-surface .note-preview-chronology.note-preview-editable {
+      cursor: pointer;
+      border-radius: 6px;
+      transition: box-shadow 0.15s ease;
+    }
+    .note-draft-edit-surface .note-preview-chronology.note-preview-editable:hover {
+      box-shadow: inset 0 0 0 1px #cbd5e1;
+    }
+    .note-draft-edit-surface summary .note-preview-editable {
+      cursor: text;
+    }
+    .note-chronology-editor-modal {
+      max-width: 520px;
+      width: calc(100% - 32px);
+    }
     #noteSourcePanel {
       margin-bottom: 20px;
       max-width: 720px;

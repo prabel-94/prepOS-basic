@@ -67,7 +67,7 @@ export function applyQuoteHighlight(text, start = 0, end = text.length) {
  * @param {number} level
  */
 export function convertTextToHeading(text, level = 2) {
-  const safeLevel = Math.min(Math.max(Number(level) || 2, 2), 4);
+  const safeLevel = Math.min(Math.max(Number(level) || 2, 2), 6);
   const stripped = String(text ?? "")
     .replace(/^>\s+/gm, "")
     .replace(/^#+\s*/, "")
@@ -78,6 +78,85 @@ export function convertTextToHeading(text, level = 2) {
   }
 
   return `${"#".repeat(safeLevel)} ${stripped}`;
+}
+
+/**
+ * @param {string} text
+ * @param {number} [start]
+ * @param {number} [end]
+ */
+export function prefixSelectionAsNumberedList(text, start = 0, end = text.length) {
+  const before = String(text ?? "").slice(0, start);
+  const selected = String(text ?? "").slice(start, end);
+  const after = String(text ?? "").slice(end);
+
+  const list = selected
+    .split("\n")
+    .map((line, index) => {
+      const trimmed = line.trim();
+      if (!trimmed) {
+        return line;
+      }
+
+      if (/^[-*•]\s+/.test(trimmed) || /^\d+[\.)]\s+/.test(trimmed)) {
+        const stripped = trimmed.replace(/^[-*•]\s+/, "").replace(/^\d+[\.)]\s+/, "");
+        return `${index + 1}. ${stripped}`;
+      }
+
+      return `${index + 1}. ${trimmed}`;
+    })
+    .join("\n");
+
+  return before + list + after;
+}
+
+/**
+ * @param {string[]} [steps]
+ * @returns {string}
+ */
+export function formatRetrievalAnchorBlock(steps = []) {
+  const lines = (steps ?? [])
+    .map((step) => String(step ?? "").trim())
+    .filter(Boolean);
+
+  if (!lines.length) {
+    throw new Error("Add at least one retrieval step.");
+  }
+
+  const body = lines.join("\n↓\n");
+  return `Retrieval anchor:\n\n\`\`\`text\n${body}\n\`\`\``;
+}
+
+/**
+ * Insert a block of markdown at the caret within a unit.
+ * @param {string} text
+ * @param {number} offset
+ * @param {string} insertion
+ */
+export function insertBlockAt(text, offset, insertion) {
+  const source = String(text ?? "");
+  const block = String(insertion ?? "").trim();
+  if (!block) {
+    return source;
+  }
+
+  const safeOffset = Math.min(Math.max(offset, 0), source.length);
+  const before = source.slice(0, safeOffset).trimEnd();
+  const after = source.slice(safeOffset).trimStart();
+
+  if (before && after) {
+    return `${before}\n\n${block}\n\n${after}`;
+  }
+
+  if (before) {
+    return `${before}\n\n${block}`;
+  }
+
+  if (after) {
+    return `${block}\n\n${after}`;
+  }
+
+  return block;
 }
 
 /**

@@ -8,6 +8,7 @@ import {
   splitParagraphUnitAt,
 } from "./note-source-patch.js";
 import { createPreviewFormatToolbar } from "./note-preview-format-toolbar.js";
+import { editChronologyParagraph } from "./note-chronology-editor.js";
 
 function getCaretOffset(element) {
   const selection = window.getSelection();
@@ -18,7 +19,7 @@ function getCaretOffset(element) {
   const range = selection.getRangeAt(0);
   const preRange = range.cloneRange();
   preRange.selectNodeContents(element);
-  preRange.setEnd(range.endContainer, range.endOffset);
+  preRange.setEnd(range.endContainer, range.startOffset);
   return preRange.toString().length;
 }
 
@@ -30,6 +31,7 @@ function getCaretOffset(element) {
  * @param {(markdown: string) => void} options.setMarkdown
  * @param {() => void|Promise<void>} options.onPatched
  * @param {() => string} [options.getActiveRepresentation]
+ * @param {() => string} [options.getPreferLanguage]
  */
 export function bindPreviewEditor(contentEl, options) {
   if (!contentEl) {
@@ -63,6 +65,7 @@ export function bindPreviewEditor(contentEl, options) {
   const formatToolbar = createPreviewFormatToolbar({
     contentEl,
     getActiveRepresentation: () => options.getActiveRepresentation?.() ?? "",
+    getPreferLanguage: () => options.getPreferLanguage?.() ?? "english",
     getActiveElement: () => activeEl,
     applyText: (nextText) => {
       commitTextToSource(nextText);
@@ -79,7 +82,11 @@ export function bindPreviewEditor(contentEl, options) {
     activeEl.classList.remove("note-preview-editable--editing");
 
     if (revert && unit) {
-      activeEl.textContent = unit.sourceText;
+      if (unit.kind === "chronology") {
+        activeEl.removeAttribute("data-editing");
+      } else {
+        activeEl.textContent = unit.sourceText;
+      }
     }
 
     activeEl = null;
@@ -87,11 +94,35 @@ export function bindPreviewEditor(contentEl, options) {
     formatToolbar.hide();
   }
 
+  async function beginChronologyEdit(el, unit) {
+    activeEl = el;
+    activeUnitId = unit.id;
+    el.classList.add("note-preview-editable--editing");
+    el.setAttribute("data-editing", "true");
+
+    const nextParagraph = await editChronologyParagraph(unit.sourceText);
+    finishEditing();
+
+    if (!nextParagraph || nextParagraph === unit.sourceText) {
+      return;
+    }
+
+    const markdown = options.getMarkdown();
+    const updated = replaceUnitRange(markdown, unit, nextParagraph);
+    options.setMarkdown(updated);
+    options.onPatched?.();
+  }
+
   function beginEditing(el) {
     const unitId = el?.dataset?.editableId;
     const unit = getUnit(unitId);
 
     if (!unit?.editable || el.classList.contains("note-preview-editable--editing")) {
+      return;
+    }
+
+    if (unit.kind === "chronology") {
+      beginChronologyEdit(el, unit);
       return;
     }
 
@@ -113,7 +144,7 @@ export function bindPreviewEditor(contentEl, options) {
     }
 
     const unit = getUnit(activeUnitId);
-    if (!unit) {
+    if (!unit || unit.kind === "chronology") {
       finishEditing();
       return;
     }
@@ -162,7 +193,7 @@ export function bindPreviewEditor(contentEl, options) {
     }
 
     const unit = getUnit(activeUnitId);
-    if (!unit) {
+    if (!unit || unit.kind === "chronology") {
       return;
     }
 
@@ -206,6 +237,15 @@ export function bindPreviewEditor(contentEl, options) {
       return;
     }
 
+    if (event.target.closest(".structural-toggle")) {
+      return;
+    }
+
+    if (event.target.closest(".structural-heading[data-editable-id], summary [data-editable-id]")) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+
     const el = event.target.closest("[data-editable-id]");
     if (!el || !contentEl.contains(el)) {
       return;
@@ -213,7 +253,9 @@ export function bindPreviewEditor(contentEl, options) {
 
     if (!el.classList.contains("note-preview-editable--editing")) {
       beginEditing(el);
-      el.focus();
+      if (el.contentEditable === "true") {
+        el.focus();
+      }
     }
   }
 
