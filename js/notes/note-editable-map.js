@@ -4,6 +4,7 @@
 
 import { parseMapMarkdown, splitSections } from "./map-parser.js";
 import { isHighlightedQuoteText } from "./quote-highlight.js";
+import { isChronologyParagraph } from "./note-chronology.js";
 import {
   mapDefinitionToRepresentationBucket,
   resolveSectionCatalog,
@@ -18,19 +19,6 @@ function normalizeNewlines(text) {
 function isDividerLine(text) {
   const trimmed = String(text ?? "").trim();
   return trimmed === "---" || /^-{3,}$/.test(trimmed);
-}
-
-function isChronologyParagraph(text) {
-  const lines = String(text ?? "")
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
-
-  if (lines.length < 3) {
-    return false;
-  }
-
-  return lines.some((line) => line === "---" || /^-{3,}$/.test(line));
 }
 
 /**
@@ -48,7 +36,7 @@ export function isParagraphEditableForDraft(text, representation) {
   }
 
   if (isChronologyParagraph(trimmed)) {
-    return false;
+    return representation === "narrative" || representation === "timeline";
   }
 
   if (representation === "quotes" && isHighlightedQuoteText(trimmed)) {
@@ -229,7 +217,7 @@ export function buildEditableUnitMap(rawMarkdown, context = {}) {
           representation,
           blockSequence: blockSeq,
           paraIndex: pi,
-          kind: "paragraph",
+          kind: isChronologyParagraph(para) ? "chronology" : "paragraph",
           sourceText: para,
           start: pos,
           end: pos + para.length,

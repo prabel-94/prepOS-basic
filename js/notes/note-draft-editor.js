@@ -34,6 +34,7 @@ import {
 import { getDefinitionById } from "./note-section-catalog.js";
 import { buildEditableUnitMap } from "./note-editable-map.js";
 import { bindPreviewEditor } from "./note-preview-editor.js";
+import { openMetadataEditor } from "./note-metadata-editor.js";
 
 function escapeHTML(value = "") {
   return String(value)
@@ -248,6 +249,7 @@ export function initDraftWorkspace({
       <button type="button" class="secondary-btn" data-draft-action="edit-preview">Edit</button>
       <button type="button" class="secondary-btn" data-draft-action="preview">Preview</button>
       <button type="button" class="secondary-btn" data-draft-action="edit">Source</button>
+      <button type="button" class="secondary-btn" data-draft-action="metadata">Metadata</button>
       <button type="button" class="primary-btn" data-draft-action="save">Save Draft</button>
       <button type="button" class="primary-btn" data-draft-action="publish">Publish Language Variant</button>
     `;
@@ -259,6 +261,8 @@ export function initDraftWorkspace({
           showEditPreviewMode();
         } else if (action === "edit") {
           showEditMode();
+        } else if (action === "metadata") {
+          handleEditMetadata();
         } else if (action === "preview") {
           showPreviewMode();
         } else if (action === "save") {
@@ -324,6 +328,22 @@ export function initDraftWorkspace({
     btn.addEventListener("click", () => {
       handleAddSection();
     });
+  }
+
+  async function handleEditMetadata() {
+    const result = await openMetadataEditor(sourceEditorEl?.value ?? "");
+    if (!result) {
+      return;
+    }
+
+    if (sourceEditorEl) {
+      sourceEditorEl.value = result;
+    }
+
+    setStatus("Metadata updated (unsaved). Click Save Draft to persist.");
+    if (viewMode === "edit-preview" || viewMode === "preview") {
+      await refreshSemanticPreview();
+    }
   }
 
   async function handleAddSection() {
@@ -490,6 +510,7 @@ export function initDraftWorkspace({
       unbindPreviewEditor = bindPreviewEditor(contentEl, {
         editableUnits: previewEditableUnits,
         getActiveRepresentation: () => activeTab,
+        getPreferLanguage: () => preferLanguage,
         getMarkdown: () => sourceEditorEl?.value ?? "",
         setMarkdown: (markdown) => {
           if (sourceEditorEl) {

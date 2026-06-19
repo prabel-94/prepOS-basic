@@ -31,6 +31,11 @@ import {
 } from "./note-section-catalog.js";
 import { stripHighlightedQuoteLines } from "./quote-highlight.js";
 import { lookupEditableUnitId } from "./note-editable-map.js";
+import {
+  isSemanticDividerLine,
+  parseChronologyEventLine,
+  parseDividerWrappedChronologyNode,
+} from "./note-chronology.js";
 
 function escapeHTML(value = "") {
   return String(value)
@@ -45,27 +50,6 @@ function normalizeDividerLine(line) {
   return String(line ?? "").trim();
 }
 
-function isSemanticDividerLine(line) {
-  const trimmed = normalizeDividerLine(line);
-  if (!trimmed) {
-    return false;
-  }
-
-  // Common semantic divider glyphs used in exported MSMDF specimens.
-  // Keep pattern detection minimal and tolerant (no full grammar).
-  if (trimmed === "---") {
-    return true;
-  }
-
-  // Box / thin dividers: ━━━━━, ─────, and similar.
-  // Accept: only divider-like characters, repeated.
-  if (/^[━─—–-]{3,}$/.test(trimmed)) {
-    return true;
-  }
-
-  return false;
-}
-
 function dividerWeight(line) {
   const trimmed = normalizeDividerLine(line);
   if (trimmed.includes("━")) {
@@ -75,51 +59,6 @@ function dividerWeight(line) {
     return "hr";
   }
   return "thin";
-}
-
-function parseChronologyEventLine(line) {
-  const trimmed = String(line ?? "").trim();
-  const match = trimmed.match(
-    /^(\d{3,4}(?:\s*[–-]\s*\d{3,4})?)\s*[—–-]\s*(.+)$/
-  );
-  if (!match) {
-    return null;
-  }
-
-  return {
-    date: match[1].trim(),
-    label: match[2].trim(),
-  };
-}
-
-function parseDividerWrappedChronologyNode(paragraphText) {
-  const lines = String(paragraphText ?? "")
-    .split("\n")
-    .map((l) => l.trim())
-    .filter(Boolean);
-
-  if (lines.length < 3) {
-    return null;
-  }
-
-  // Divider / event / divider (+ optional annotation lines)
-  if (!isSemanticDividerLine(lines[0]) || !isSemanticDividerLine(lines[2])) {
-    return null;
-  }
-
-  const event = parseChronologyEventLine(lines[1]);
-  if (!event) {
-    return null;
-  }
-
-  const annotationLines = lines.slice(3);
-  const annotation = annotationLines.join(" ").trim() || null;
-
-  return {
-    divider: lines[0],
-    event,
-    annotation,
-  };
 }
 
 function parseParagraphWithEmbeddedChronology(paragraphText) {
@@ -288,21 +227,25 @@ function renderChronologyNode(
   topicMap,
   renderOptions,
   representationKey,
-  { omitLeadingDivider = false } = {}
+  { omitLeadingDivider = false, block = null, paraIndex = 0 } = {}
 ) {
   const eventLabel = resolveInlineSemantics(node.event.label, topicMap, renderOptions);
   const annotation = node.annotation
     ? resolveInlineSemantics(node.annotation, topicMap, renderOptions)
     : "";
 
+  const edit = block
+    ? draftEditSurface(renderOptions, representationKey, block, paraIndex)
+    : { className: "", attrs: "" };
+
   const leadingDivider = omitLeadingDivider
     ? ""
     : `<div class="semantic-divider semantic-divider--${dividerWeight(node.divider)}" aria-hidden="true"></div>`;
 
   return `
-    <div class="semantic-chronology-node chronology-group" data-representation="${escapeHTML(
+    <div class="semantic-chronology-node chronology-group note-preview-chronology${edit.className}" data-representation="${escapeHTML(
       representationKey
-    )}">
+    )}"${edit.attrs} role="${edit.attrs ? "button" : "group"}" tabindex="${edit.attrs ? "0" : "-1"}" title="${edit.attrs ? "Click to edit chronology event" : ""}">
       ${leadingDivider}
       <div class="semantic-chronology-row chronology-row">
         <span class="semantic-chronology-date">${escapeHTML(node.event.date)}</span>
@@ -580,7 +523,10 @@ function renderSemanticParagraph(
   // Minimal chronology node stabilization (Timeline + narrative snippets).
   const node = parseDividerWrappedChronologyNode(trimmed);
   if (node && (representationKey === "timeline" || representationKey === "narrative")) {
-    return renderChronologyNode(node, topicMap, renderOptions, representationKey);
+    return renderChronologyNode(node, topicMap, renderOptions, representationKey, {
+      block,
+      paraIndex,
+    });
   }
 
   // Chronology blocks embedded in a paragraph with leading cue text.
@@ -588,10 +534,18 @@ function renderSemanticParagraph(
   if (embedded && (representationKey === "timeline" || representationKey === "narrative")) {
     const transition = renderSemanticDividerElement(embedded.node.divider);
     const cue = renderCueLines(embedded.prefix, topicMap, renderOptions);
-    const block = renderChronologyNode(embedded.node, topicMap, renderOptions, representationKey, {
-      omitLeadingDivider: true,
-    });
-    return `${transition}<div class="semantic-escalation-group">${cue}${block}</div>`;
+    const chronologyHtml = renderChronologyNode(
+      embedded.node,
+      topicMap,
+      renderOptions,
+      representationKey,
+      {
+        omitLeadingDivider: true,
+        block,
+        paraIndex,
+      }
+    );
+    return `${transition}<div class="semantic-escalation-group">${cue}${chronologyHtml}</div>`;
   }
 
   const anchorCount = countWikiLinksInText(trimmed);
@@ -669,9 +623,16 @@ function renderBlock(block, topicMap, renderOptions, representationKey = "narrat
   }
 
   const open = defaultCollapsibleOpen(representationKey, semanticLevel, block);
-  const summaryLabel = block.heading
-    ? resolveInlineSemantics(block.heading, topicMap, renderOptions)
-    : escapeHTML(block.block_type);
+  const headingEdit = block.heading
+    ? draftEditSurface(renderOptions, representationKey, block, "heading")
+    : { className: "", attrs: "" };
+
+  const summaryLabel =
+    block.heading && headingEdit.attrs
+      ? `<span class="semantic-collapsible-summary-text${headingEdit.className}"${headingEdit.attrs}>${escapeHTML(block.heading)}</span>`
+      : block.heading
+        ? resolveInlineSemantics(block.heading, topicMap, renderOptions)
+        : escapeHTML(block.block_type);
 
   return `
     <details class="${blockClass}${sectionEntryClass} collapsible semantic-collapsible semantic-collapsible--${representationKey}" data-semantic-level="${semanticLevel}" ${open ? "open" : ""}>
@@ -821,6 +782,7 @@ export function buildStructuralTree(blocks = []) {
       const level = block.hierarchy_level ?? 2;
       const node = {
         id: `structural-${block.sequence_order ?? 0}`,
+        sequenceOrder: block.sequence_order ?? 0,
         heading: block.heading,
         hierarchy_level: level,
         blocks: [],
@@ -899,6 +861,8 @@ function renderStructuralSectionNode(node, topicMap, depth, renderOptions) {
   const levelClass = semanticLevelClass(semanticLevel);
   const headingTag = semanticHeadingTag(semanticLevel);
   const headingClasses = semanticHeadingClasses(semanticLevel);
+  const headingBlock = { sequence_order: node.sequenceOrder ?? 0 };
+  const headingEdit = draftEditSurface(renderOptions, "structural", headingBlock, "heading");
 
   const bodyParts = [
     ...node.blocks.map((b) => renderStructuralContentBlock(b, topicMap, renderOptions)),
@@ -922,7 +886,7 @@ function renderStructuralSectionNode(node, topicMap, depth, renderOptions) {
         >
           <span class="structural-indicator" aria-hidden="true">${indicator}</span>
         </button>
-        <${headingTag} id="structural-heading-${escapeHTML(node.id)}" class="${headingClasses} structural-heading">${resolveInlineSemantics(node.heading, topicMap, {
+        <${headingTag} id="structural-heading-${escapeHTML(node.id)}" class="${headingClasses} structural-heading${headingEdit.className}"${headingEdit.attrs}>${headingEdit.attrs ? escapeHTML(node.heading) : resolveInlineSemantics(node.heading, topicMap, {
     ...renderOptions,
     semanticAnchorElement: "span",
   })}</${headingTag}>

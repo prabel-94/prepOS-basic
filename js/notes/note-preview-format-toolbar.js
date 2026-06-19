@@ -5,12 +5,20 @@
 import {
   applyQuoteHighlight,
   convertTextToHeading,
+  insertBlockAt,
   insertDividerAt,
   insertWikiLinkAt,
   prefixSelectionAsBulletList,
+  prefixSelectionAsNumberedList,
   wrapSelectionAsWikiLink,
 } from "./note-source-transforms.js";
 import { pickTopicLinkName } from "./note-topic-link-picker.js";
+import { pickSemanticAnchorName } from "./note-semantic-anchor-picker.js";
+import { openChronologyEditor } from "./note-chronology-editor.js";
+import { openRetrievalAnchorInserter } from "./note-retrieval-anchor-inserter.js";
+
+const CHRONOLOGY_REPS = new Set(["narrative", "timeline"]);
+const RETRIEVAL_REPS = new Set(["narrative"]);
 
 function getSelectionOffsets(element) {
   const selection = window.getSelection();
@@ -38,6 +46,10 @@ function getSelectionOffsets(element) {
  * @param {() => string} options.getActiveRepresentation
  * @param {() => HTMLElement|null} options.getActiveElement
  * @param {(text: string) => void} options.applyText
+ * @param {() => string} [options.getMarkdown]
+ * @param {(markdown: string) => void} [options.setMarkdown]
+ * @param {() => void|Promise<void>} [options.onPatched]
+ * @param {() => string} [options.getPreferLanguage]
  */
 export function createPreviewFormatToolbar(options) {
   const toolbar = document.createElement("div");
@@ -45,11 +57,21 @@ export function createPreviewFormatToolbar(options) {
   toolbar.setAttribute("role", "toolbar");
   toolbar.setAttribute("aria-label", "Format selection");
   toolbar.innerHTML = `
-    <button type="button" class="note-preview-format-btn" data-format="link" title="Wiki link">Link</button>
-    <button type="button" class="note-preview-format-btn" data-format="h2" title="Heading 2">H2</button>
-    <button type="button" class="note-preview-format-btn" data-format="h3" title="Heading 3">H3</button>
+    <button type="button" class="note-preview-format-btn" data-format="link" title="Topic wiki link">Topic</button>
+    <button type="button" class="note-preview-format-btn" data-format="anchor" title="Semantic anchor link">Anchor</button>
+    <select class="note-preview-format-select" data-format="heading" title="Heading level" aria-label="Heading level">
+      <option value="">Heading…</option>
+      <option value="2">H2</option>
+      <option value="3">H3</option>
+      <option value="4">H4</option>
+      <option value="5">H5</option>
+      <option value="6">H6</option>
+    </select>
     <button type="button" class="note-preview-format-btn" data-format="bullet" title="Bullet list">• List</button>
+    <button type="button" class="note-preview-format-btn" data-format="numbered" title="Numbered list">1. List</button>
     <button type="button" class="note-preview-format-btn" data-format="quote" title="Highlight quote" hidden>Quote</button>
+    <button type="button" class="note-preview-format-btn" data-format="chronology" title="Insert chronology event" hidden>Chrono</button>
+    <button type="button" class="note-preview-format-btn" data-format="retrieval" title="Insert retrieval anchor" hidden>Retrieve</button>
     <button type="button" class="note-preview-format-btn" data-format="divider" title="Insert divider">Divider</button>
   `;
 
@@ -63,14 +85,25 @@ export function createPreviewFormatToolbar(options) {
     toolbar.classList.remove("hidden");
   }
 
-  function updateQuoteButton() {
-    const quoteBtn = toolbar.querySelector('[data-format="quote"]');
-    if (!quoteBtn) {
-      return;
-    }
+  function activeRepresentation() {
+    return options.getActiveRepresentation?.() ?? "";
+  }
 
-    const isQuotes = options.getActiveRepresentation?.() === "quotes";
-    quoteBtn.hidden = !isQuotes;
+  function updateSectionButtons() {
+    const rep = activeRepresentation();
+    const quoteBtn = toolbar.querySelector('[data-format="quote"]');
+    const chronoBtn = toolbar.querySelector('[data-format="chronology"]');
+    const retrievalBtn = toolbar.querySelector('[data-format="retrieval"]');
+
+    if (quoteBtn) {
+      quoteBtn.hidden = rep !== "quotes";
+    }
+    if (chronoBtn) {
+      chronoBtn.hidden = !CHRONOLOGY_REPS.has(rep);
+    }
+    if (retrievalBtn) {
+      retrievalBtn.hidden = !RETRIEVAL_REPS.has(rep);
+    }
   }
 
   function positionToolbar(range) {
@@ -100,7 +133,7 @@ export function createPreviewFormatToolbar(options) {
       return;
     }
 
-    updateQuoteButton();
+    updateSectionButtons();
 
     const selection = getSelectionOffsets(activeEl);
     if (!selection) {
@@ -118,7 +151,15 @@ export function createPreviewFormatToolbar(options) {
     hide();
   }
 
-  function handleFormat(action) {
+  function insertAtCaret(activeEl, blockText) {
+    const currentText = activeEl.textContent.replace(/\r\n/g, "\n");
+    const selection = getSelectionOffsets(activeEl);
+    const offset = selection?.start ?? currentText.length;
+    const nextText = insertBlockAt(currentText, offset, blockText);
+    applyUpdatedText(activeEl, nextText);
+  }
+
+  function handleFormat(action, value = "") {
     const activeEl = options.getActiveElement?.();
     if (!activeEl) {
       return;
@@ -150,20 +191,34 @@ export function createPreviewFormatToolbar(options) {
         });
         return;
       }
-      case "h2":
+      case "anchor": {
         if (selection && !selection.collapsed) {
-          nextText = `${currentText.slice(0, start)}${convertTextToHeading(currentText.slice(start, end), 2)}${currentText.slice(end)}`;
+          nextText = wrapSelectionAsWikiLink(currentText, start, end);
+          applyUpdatedText(activeEl, nextText);
+          return;
+        }
+
+        pickSemanticAnchorName({
+          language: options.getPreferLanguage?.() ?? "english",
+        }).then((anchorName) => {
+          if (!anchorName?.trim()) {
+            return;
+          }
+
+          const linked = insertWikiLinkAt(currentText, offset, offset, anchorName.trim());
+          applyUpdatedText(activeEl, linked);
+        });
+        return;
+      }
+      case "heading": {
+        const level = Number(value) || 2;
+        if (selection && !selection.collapsed) {
+          nextText = `${currentText.slice(0, start)}${convertTextToHeading(currentText.slice(start, end), level)}${currentText.slice(end)}`;
         } else {
-          nextText = convertTextToHeading(currentText, 2);
+          nextText = convertTextToHeading(currentText, level);
         }
         break;
-      case "h3":
-        if (selection && !selection.collapsed) {
-          nextText = `${currentText.slice(0, start)}${convertTextToHeading(currentText.slice(start, end), 3)}${currentText.slice(end)}`;
-        } else {
-          nextText = convertTextToHeading(currentText, 3);
-        }
-        break;
+      }
       case "bullet":
         if (selection && !selection.collapsed) {
           nextText = prefixSelectionAsBulletList(currentText, start, end);
@@ -171,8 +226,15 @@ export function createPreviewFormatToolbar(options) {
           nextText = prefixSelectionAsBulletList(currentText, 0, currentText.length);
         }
         break;
+      case "numbered":
+        if (selection && !selection.collapsed) {
+          nextText = prefixSelectionAsNumberedList(currentText, start, end);
+        } else {
+          nextText = prefixSelectionAsNumberedList(currentText, 0, currentText.length);
+        }
+        break;
       case "quote":
-        if (options.getActiveRepresentation?.() !== "quotes") {
+        if (activeRepresentation() !== "quotes") {
           return;
         }
         if (selection && !selection.collapsed) {
@@ -181,6 +243,28 @@ export function createPreviewFormatToolbar(options) {
           nextText = applyQuoteHighlight(currentText, 0, currentText.length);
         }
         break;
+      case "chronology":
+        if (!CHRONOLOGY_REPS.has(activeRepresentation())) {
+          return;
+        }
+        openChronologyEditor({ mode: "insert" }).then((paragraph) => {
+          if (!paragraph) {
+            return;
+          }
+          insertAtCaret(activeEl, paragraph);
+        });
+        return;
+      case "retrieval":
+        if (!RETRIEVAL_REPS.has(activeRepresentation())) {
+          return;
+        }
+        openRetrievalAnchorInserter().then((block) => {
+          if (!block) {
+            return;
+          }
+          insertAtCaret(activeEl, block);
+        });
+        return;
       case "divider":
         nextText = insertDividerAt(currentText, offset);
         break;
@@ -196,6 +280,18 @@ export function createPreviewFormatToolbar(options) {
   }
 
   function onToolbarClick(event) {
+    const select = event.target.closest("[data-format='heading']");
+    if (select && toolbar.contains(select)) {
+      event.preventDefault();
+      event.stopPropagation();
+      const level = select.value;
+      if (level) {
+        handleFormat("heading", level);
+        select.value = "";
+      }
+      return;
+    }
+
     const button = event.target.closest("[data-format]");
     if (!button || !toolbar.contains(button)) {
       return;
