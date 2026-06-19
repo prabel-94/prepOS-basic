@@ -67,8 +67,19 @@ export function bindPreviewEditor(contentEl, options) {
     getActiveRepresentation: () => options.getActiveRepresentation?.() ?? "",
     getPreferLanguage: () => options.getPreferLanguage?.() ?? "english",
     getActiveElement: () => activeEl,
+    onToolbarPointerDown: () => {
+      suppressBlurCommit = true;
+    },
+    onToolbarPointerUp: () => {
+      window.setTimeout(() => {
+        if (!document.activeElement?.closest?.(".note-preview-format-toolbar")) {
+          suppressBlurCommit = false;
+        }
+      }, 0);
+    },
     applyText: (nextText) => {
       commitTextToSource(nextText);
+      suppressBlurCommit = false;
     },
   });
 
@@ -175,16 +186,22 @@ export function bindPreviewEditor(contentEl, options) {
       return;
     }
 
-    if (event.target.closest(".note-preview-format-toolbar")) {
-      return;
-    }
-
     const next = event.relatedTarget;
-    if (next && (activeEl.contains(next) || next.closest?.(".note-preview-format-toolbar"))) {
+    if (next?.closest?.(".note-preview-format-toolbar")) {
       return;
     }
 
-    commitActiveEdit();
+    window.setTimeout(() => {
+      if (!activeEl?.classList.contains("note-preview-editable--editing")) {
+        return;
+      }
+
+      if (document.activeElement?.closest?.(".note-preview-format-toolbar")) {
+        return;
+      }
+
+      commitActiveEdit();
+    }, 0);
   }
 
   function onKeyDown(event) {
