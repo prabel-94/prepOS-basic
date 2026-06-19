@@ -49,7 +49,8 @@ function getSelectionOffsets(element) {
  * @param {() => string} [options.getMarkdown]
  * @param {(markdown: string) => void} [options.setMarkdown]
  * @param {() => void|Promise<void>} [options.onPatched]
- * @param {() => string} [options.getPreferLanguage]
+ * @param {() => void} [options.onToolbarPointerDown]
+ * @param {() => void} [options.onToolbarPointerUp]
  */
 export function createPreviewFormatToolbar(options) {
   const toolbar = document.createElement("div");
@@ -76,6 +77,55 @@ export function createPreviewFormatToolbar(options) {
   `;
 
   document.body.appendChild(toolbar);
+
+  const headingSelect = toolbar.querySelector("select[data-format='heading']");
+
+  /** @type {{ start: number, end: number, collapsed: boolean, activeEl: HTMLElement } | null} */
+  let savedSelection = null;
+
+  function saveSelection(activeEl) {
+    if (!activeEl) {
+      return;
+    }
+
+    const selection = getSelectionOffsets(activeEl);
+    if (selection) {
+      savedSelection = {
+        start: selection.start,
+        end: selection.end,
+        collapsed: selection.collapsed,
+        activeEl,
+      };
+      return;
+    }
+
+    const text = activeEl.textContent.replace(/\r\n/g, "\n");
+    savedSelection = {
+      start: text.length,
+      end: text.length,
+      collapsed: true,
+      activeEl,
+    };
+  }
+
+  function getEffectiveSelection(activeEl) {
+    const live = getSelectionOffsets(activeEl);
+    if (live) {
+      savedSelection = {
+        start: live.start,
+        end: live.end,
+        collapsed: live.collapsed,
+        activeEl,
+      };
+      return live;
+    }
+
+    if (savedSelection?.activeEl === activeEl) {
+      return savedSelection;
+    }
+
+    return null;
+  }
 
   function hide() {
     toolbar.classList.add("hidden");
@@ -142,6 +192,7 @@ export function createPreviewFormatToolbar(options) {
     }
 
     positionToolbar(selection.range);
+    saveSelection(activeEl);
     show();
   }
 
@@ -166,16 +217,17 @@ export function createPreviewFormatToolbar(options) {
     }
 
     const currentText = activeEl.textContent.replace(/\r\n/g, "\n");
-    const selection = getSelectionOffsets(activeEl);
+    const selection = getEffectiveSelection(activeEl);
     const start = selection?.start ?? 0;
     const end = selection?.end ?? currentText.length;
     const offset = selection?.start ?? currentText.length;
+    const hasRange = selection && !selection.collapsed;
 
     let nextText = currentText;
 
     switch (action) {
       case "link": {
-        if (selection && !selection.collapsed) {
+        if (hasRange) {
           nextText = wrapSelectionAsWikiLink(currentText, start, end);
           applyUpdatedText(activeEl, nextText);
           return;
@@ -192,7 +244,7 @@ export function createPreviewFormatToolbar(options) {
         return;
       }
       case "anchor": {
-        if (selection && !selection.collapsed) {
+        if (hasRange) {
           nextText = wrapSelectionAsWikiLink(currentText, start, end);
           applyUpdatedText(activeEl, nextText);
           return;
@@ -212,7 +264,7 @@ export function createPreviewFormatToolbar(options) {
       }
       case "heading": {
         const level = Number(value) || 2;
-        if (selection && !selection.collapsed) {
+        if (hasRange) {
           nextText = `${currentText.slice(0, start)}${convertTextToHeading(currentText.slice(start, end), level)}${currentText.slice(end)}`;
         } else {
           nextText = convertTextToHeading(currentText, level);
@@ -220,14 +272,14 @@ export function createPreviewFormatToolbar(options) {
         break;
       }
       case "bullet":
-        if (selection && !selection.collapsed) {
+        if (hasRange) {
           nextText = prefixSelectionAsBulletList(currentText, start, end);
         } else {
           nextText = prefixSelectionAsBulletList(currentText, 0, currentText.length);
         }
         break;
       case "numbered":
-        if (selection && !selection.collapsed) {
+        if (hasRange) {
           nextText = prefixSelectionAsNumberedList(currentText, start, end);
         } else {
           nextText = prefixSelectionAsNumberedList(currentText, 0, currentText.length);
@@ -237,7 +289,7 @@ export function createPreviewFormatToolbar(options) {
         if (activeRepresentation() !== "quotes") {
           return;
         }
-        if (selection && !selection.collapsed) {
+        if (hasRange) {
           nextText = applyQuoteHighlight(currentText, start, end);
         } else {
           nextText = applyQuoteHighlight(currentText, 0, currentText.length);
@@ -279,20 +331,18 @@ export function createPreviewFormatToolbar(options) {
     applyUpdatedText(activeEl, nextText);
   }
 
-  function onToolbarClick(event) {
-    const select = event.target.closest("[data-format='heading']");
-    if (select && toolbar.contains(select)) {
-      event.preventDefault();
-      event.stopPropagation();
-      const level = select.value;
-      if (level) {
-        handleFormat("heading", level);
-        select.value = "";
-      }
+  function onHeadingChange(event) {
+    const level = event.target.value;
+    if (!level) {
       return;
     }
 
-    const button = event.target.closest("[data-format]");
+    handleFormat("heading", level);
+    event.target.value = "";
+  }
+
+  function onToolbarClick(event) {
+    const button = event.target.closest("button[data-format]");
     if (!button || !toolbar.contains(button)) {
       return;
     }
@@ -325,9 +375,23 @@ export function createPreviewFormatToolbar(options) {
   }
 
   toolbar.addEventListener("mousedown", (event) => {
-    event.preventDefault();
+    const activeEl = options.getActiveElement?.();
+    if (activeEl) {
+      saveSelection(activeEl);
+    }
+
+    options.onToolbarPointerDown?.();
+
+    // Allow <select> to open; preventDefault on buttons preserves text selection.
+    if (!event.target.closest("select")) {
+      event.preventDefault();
+    }
   });
   toolbar.addEventListener("click", onToolbarClick);
+  headingSelect?.addEventListener("change", onHeadingChange);
+  toolbar.addEventListener("mouseup", () => {
+    options.onToolbarPointerUp?.();
+  });
   options.contentEl?.addEventListener("mouseup", onMouseUp);
   document.addEventListener("selectionchange", onSelectionChange);
   document.addEventListener("mousedown", onDocumentMouseDown);
@@ -341,6 +405,7 @@ export function createPreviewFormatToolbar(options) {
       hide();
       toolbar.remove();
       toolbar.removeEventListener("click", onToolbarClick);
+      headingSelect?.removeEventListener("change", onHeadingChange);
       options.contentEl?.removeEventListener("mouseup", onMouseUp);
       document.removeEventListener("selectionchange", onSelectionChange);
       document.removeEventListener("mousedown", onDocumentMouseDown);
