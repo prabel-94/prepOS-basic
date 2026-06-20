@@ -810,6 +810,36 @@ DIFFICULTY SYSTEM
   color:var(--muted);
 }
 
+.practice-explanation{
+  padding:10px 12px;
+  border-left:3px solid var(--primary);
+  background:#f9fafb;
+  border-radius:6px;
+  color:var(--text);
+}
+
+.practice-explanation--compact{
+  font-size:14px;
+  line-height:1.5;
+}
+
+.practice-explanation-section + .practice-explanation-section{
+  margin-top:10px;
+}
+
+.practice-explanation-label{
+  font-size:12px;
+  font-weight:600;
+  color:var(--muted);
+  letter-spacing:0.04em;
+  text-transform:uppercase;
+}
+
+.practice-explanation-body{
+  margin-top:4px;
+  line-height:1.5;
+}
+
 /* OPTIONS */
 
 .options{

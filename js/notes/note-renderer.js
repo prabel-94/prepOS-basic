@@ -31,6 +31,7 @@ import {
 } from "./note-section-catalog.js";
 import { stripHighlightedQuoteLines } from "./quote-highlight.js";
 import { lookupEditableUnitId } from "./note-editable-map.js";
+import { isDraftParagraphPlaceholder } from "./note-draft-paragraph.js";
 import {
   isSemanticDividerLine,
   parseChronologyEventLine,
@@ -501,6 +502,11 @@ function renderSemanticParagraph(
     return "";
   }
 
+  if (isDraftParagraphPlaceholder(trimmed)) {
+    const edit = draftEditSurface(renderOptions, representationKey, block, paraIndex);
+    return `<p class="canonical-paragraph semantic-paragraph note-preview-editable--empty${edit.className}"${edit.attrs}>\u200b</p>`;
+  }
+
   // Important quotes in [QUOTES]: prefix with > for amber highlight.
   if (representationKey === "quotes") {
     const highlighted = renderHighlightedQuoteBlock(
@@ -571,7 +577,7 @@ function renderBlockBody(block, topicMap, renderOptions, representationKey = "na
   const paragraphs = String(block.content)
     .split(/\n{2,}/)
     .map((p) => p.trim())
-    .filter(Boolean);
+    .filter((p) => p.length > 0);
 
   return paragraphs
     .map((p, paraIndex) =>

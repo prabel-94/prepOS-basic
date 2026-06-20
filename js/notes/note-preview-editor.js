@@ -7,6 +7,10 @@ import {
   replaceUnitRange,
   splitParagraphUnitAt,
 } from "./note-source-patch.js";
+import {
+  isDraftParagraphPlaceholder,
+  normalizeDraftParagraphForSave,
+} from "./note-draft-paragraph.js";
 import { createPreviewFormatToolbar } from "./note-preview-format-toolbar.js";
 import { editChronologyParagraph } from "./note-chronology-editor.js";
 
@@ -29,13 +33,13 @@ function getCaretOffset(element) {
  * @param {Map<string, object>} options.editableUnits
  * @param {() => string} options.getMarkdown
  * @param {(markdown: string) => void} options.setMarkdown
- * @param {() => void|Promise<void>} options.onPatched
+ * @param {(detail?: { focusOffset?: number }) => void|Promise<void>} [options.onPatched]
  * @param {() => string} [options.getActiveRepresentation]
  * @param {() => string} [options.getPreferLanguage]
  */
 export function bindPreviewEditor(contentEl, options) {
   if (!contentEl) {
-    return () => {};
+    return { destroy: () => {}, focusUnit: () => {} };
   }
 
   let activeEl = null;
@@ -144,7 +148,7 @@ export function bindPreviewEditor(contentEl, options) {
     activeEl = el;
     activeUnitId = unitId;
     el.classList.add("note-preview-editable--editing");
-    el.textContent = unit.sourceText;
+    el.textContent = isDraftParagraphPlaceholder(unit.sourceText) ? "" : unit.sourceText;
     el.contentEditable = "true";
     requestAnimationFrame(() => formatToolbar.refresh());
   }
@@ -160,7 +164,9 @@ export function bindPreviewEditor(contentEl, options) {
       return;
     }
 
-    const newText = activeEl.textContent.replace(/\r\n/g, "\n");
+    const newText = normalizeDraftParagraphForSave(
+      activeEl.textContent.replace(/\r\n/g, "\n")
+    );
     finishEditing();
 
     if (newText === unit.sourceText) {
@@ -210,7 +216,7 @@ export function bindPreviewEditor(contentEl, options) {
     }
 
     const unit = getUnit(activeUnitId);
-    if (!unit || unit.kind === "chronology") {
+    if (!unit || unit.kind === "chronology" || unit.kind === "list-item") {
       return;
     }
 
@@ -239,14 +245,43 @@ export function bindPreviewEditor(contentEl, options) {
       event.preventDefault();
       const offset = getCaretOffset(activeEl);
       const markdown = options.getMarkdown();
-      const updated = splitParagraphUnitAt(markdown, unit, offset);
+      const { markdown: updated, focusOffset } = splitParagraphUnitAt(markdown, unit, offset);
       options.setMarkdown(updated);
 
       suppressBlurCommit = true;
       finishEditing();
       suppressBlurCommit = false;
-      options.onPatched?.();
+      options.onPatched?.({ focusOffset });
     }
+  }
+
+  function focusUnitById(unitId) {
+    if (!unitId) {
+      return;
+    }
+
+    const el = contentEl.querySelector(`[data-editable-id="${CSS.escape(unitId)}"]`);
+    if (!el) {
+      return;
+    }
+
+    beginEditing(el);
+    if (el.contentEditable !== "true") {
+      return;
+    }
+
+    el.focus();
+    const selection = window.getSelection();
+    if (!selection) {
+      return;
+    }
+
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    requestAnimationFrame(() => formatToolbar.refresh());
   }
 
   function onClick(event) {
@@ -281,12 +316,15 @@ export function bindPreviewEditor(contentEl, options) {
   contentEl.addEventListener("keydown", onKeyDown);
   contentEl.addEventListener("click", onClick);
 
-  return () => {
-    contentEl.removeEventListener("focusin", onFocusIn);
-    contentEl.removeEventListener("focusout", onFocusOut);
-    contentEl.removeEventListener("keydown", onKeyDown);
-    contentEl.removeEventListener("click", onClick);
-    formatToolbar.destroy();
-    finishEditing();
+  return {
+    destroy: () => {
+      contentEl.removeEventListener("focusin", onFocusIn);
+      contentEl.removeEventListener("focusout", onFocusOut);
+      contentEl.removeEventListener("keydown", onKeyDown);
+      contentEl.removeEventListener("click", onClick);
+      formatToolbar.destroy();
+      finishEditing();
+    },
+    focusUnit: focusUnitById,
   };
 }

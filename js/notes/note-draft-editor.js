@@ -33,6 +33,7 @@ import {
 } from "./note-section-inventory.js";
 import { getDefinitionById } from "./note-section-catalog.js";
 import { buildEditableUnitMap } from "./note-editable-map.js";
+import { findEditableUnitIdAtOffset } from "./note-source-patch.js";
 import { bindPreviewEditor } from "./note-preview-editor.js";
 import { openMetadataEditor } from "./note-metadata-editor.js";
 
@@ -115,6 +116,7 @@ export function initDraftWorkspace({
   let previewEditableUnits = new Map();
   let previewRenderOptions = { preferLanguage: normalizeLanguage(variant?.language) };
   let unbindPreviewEditor = null;
+  let pendingFocusUnitId = null;
   let sectionExtensions = normalizeSectionExtensions(variant?.section_extensions);
   let unbindSectionInventory = null;
 
@@ -281,7 +283,7 @@ export function initDraftWorkspace({
   }
 
   function teardownPreviewEditor() {
-    unbindPreviewEditor?.();
+    unbindPreviewEditor?.destroy?.();
     unbindPreviewEditor = null;
   }
 
@@ -517,11 +519,25 @@ export function initDraftWorkspace({
             sourceEditorEl.value = markdown;
           }
         },
-        onPatched: async () => {
+        onPatched: async ({ focusOffset } = {}) => {
           setStatus("Updated (unsaved). Click Save Draft to persist.");
           await refreshSemanticPreview();
+          if (Number.isFinite(focusOffset) && focusOffset >= 0) {
+            pendingFocusUnitId = findEditableUnitIdAtOffset(
+              previewEditableUnits,
+              focusOffset
+            );
+          }
         },
       });
+
+      if (pendingFocusUnitId) {
+        const focusId = pendingFocusUnitId;
+        pendingFocusUnitId = null;
+        requestAnimationFrame(() => {
+          unbindPreviewEditor?.focusUnit?.(focusId);
+        });
+      }
     }
   }
 
@@ -579,7 +595,7 @@ export function initDraftWorkspace({
     await showReadSurfaceMode({
       mode: "edit-preview",
       statusMessage:
-        "Click a paragraph to edit. Select text for Link, headings, lists, and quotes. Enter = new paragraph · Shift+Enter = line break.",
+        "Click a paragraph to edit. Select text for Link, headings, lists, and quotes. Enter = new paragraph (keeps typing at end) · Shift+Enter = line break.",
     });
   }
 

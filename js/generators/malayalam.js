@@ -14,6 +14,7 @@ import {
   selectSynonymPromptEntry,
 } from "./shared/lexicon-utils.js";
 import { buildDistractors } from "./shared/lexicon-distractors.js";
+import { buildMalayalamLexiconExplanation } from "./shared/lexicon-explanation.js";
 import { getClient } from "../core/get-client.js";
 const DEFAULT_ADAPTIVE_MODE = true;
 
@@ -267,6 +268,13 @@ async function generateSynonymQuestion(config = {}) {
     ...distractors.map(entry => entry.word)
   ]);
 
+  const { explanation, explanationMeta } = buildMalayalamLexiconExplanation({
+    pattern: "SYNONYM",
+    promptWord: questionEntry.word,
+    correctWord: correctEntry.word,
+    groupWords: words,
+  });
+
   return [
     buildQuestion({
       text: `${questionEntry.word} എന്ന വാക്കിന്റെ പര്യായം ഏത്?`,
@@ -275,6 +283,8 @@ async function generateSynonymQuestion(config = {}) {
       pattern: "SYNONYM",
       difficulty: { score: 2, label: "easy" },
       topics: ["MALAYALAM", "VOCABULARY", "SYNONYM"],
+      explanation,
+      explanationMeta,
       tracking: {
         promptEntryIds: [questionEntry.id],
         correctEntryIds: [correctEntry.id]
@@ -364,6 +374,14 @@ async function generateOppositeWordQuestion(config = {}) {
     ...distractors.map(entry => entry.word)
   ]);
 
+  const { explanation, explanationMeta } = buildMalayalamLexiconExplanation({
+    pattern: "OPPOSITE_WORD",
+    promptWord: stemEntry.word,
+    correctWord: correctEntry.word,
+    groupWords: baseWords,
+    relatedGroupWords: oppositeWords,
+  });
+
   return [
     buildQuestion({
       text: `${stemEntry.word} എന്ന വാക്കിന്റെ വിരുദ്ധം ഏത്?`,
@@ -372,6 +390,8 @@ async function generateOppositeWordQuestion(config = {}) {
       pattern: "OPPOSITE_WORD",
       difficulty: { score: 2, label: "easy" },
       topics: ["MALAYALAM", "VOCABULARY", "ANTONYM"],
+      explanation,
+      explanationMeta,
       tracking: {
         promptEntryIds: [stemEntry.id],
         correctEntryIds: [correctEntry.id]

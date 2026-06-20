@@ -117,7 +117,7 @@ In **Edit** mode, editable blocks show a subtle hover outline. Click to edit:
 
 | Key | Action |
 |-----|--------|
-| **Enter** | Split into two paragraphs (blank line in source) |
+| **Enter** | Split into two paragraphs (blank line in source); at the **end** of a block, opens a new empty paragraph and keeps you typing |
 | **Shift+Enter** | Soft line break within the same paragraph |
 | **Escape** | Discard edits and revert |
 

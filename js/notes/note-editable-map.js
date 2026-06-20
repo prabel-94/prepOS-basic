@@ -9,6 +9,7 @@ import {
   mapDefinitionToRepresentationBucket,
   resolveSectionCatalog,
 } from "./note-section-catalog.js";
+import { isDraftParagraphPlaceholder } from "./note-draft-paragraph.js";
 
 function normalizeNewlines(text) {
   return String(text ?? "")
@@ -29,6 +30,10 @@ export function isParagraphEditableForDraft(text, representation) {
   const trimmed = String(text ?? "").trim();
   if (!trimmed) {
     return false;
+  }
+
+  if (isDraftParagraphPlaceholder(trimmed)) {
+    return true;
   }
 
   if (isDividerLine(trimmed)) {
@@ -198,7 +203,7 @@ export function buildEditableUnitMap(rawMarkdown, context = {}) {
       const paragraphs = content
         .split(/\n{2,}/)
         .map((part) => part.trim())
-        .filter(Boolean);
+        .filter((part) => part.length > 0);
 
       for (let pi = 0; pi < paragraphs.length; pi += 1) {
         const para = paragraphs[pi];
