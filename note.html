@@ -306,6 +306,14 @@
       outline: none;
       white-space: pre-wrap;
     }
+    .note-draft-edit-surface .note-preview-editable--empty {
+      min-height: 1.5em;
+    }
+    .note-draft-edit-surface .note-preview-editable--empty.note-preview-editable--editing:empty::before {
+      color: #94a3b8;
+      content: "New paragraph";
+      pointer-events: none;
+    }
     .note-draft-edit-surface .semantic-paragraph {
       white-space: pre-wrap;
     }

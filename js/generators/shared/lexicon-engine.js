@@ -114,6 +114,8 @@ export function buildQuestion({
   difficulty = "easy",
   topics = [],
   tracking = null,
+  explanation = "",
+  explanationMeta = null,
 }) {
   const optionIds = ["A", "B", "C", "D"];
   const normalizedOptions = options.map((option, index) => {
@@ -133,7 +135,8 @@ export function buildQuestion({
     text,
     options: normalizedOptions,
     correct: correct || optionIds[correctIndex],
-    explanation: "",
+    explanation,
+    explanationMeta,
     topics,
     primary_pattern: pattern,
     bank_status: "draft",

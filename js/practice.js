@@ -133,6 +133,74 @@ function stripLeadingOptionLabel(text = "") {
     .trim();
 }
 
+function renderExplanationSection(label, body) {
+  if (!body) {
+    return "";
+  }
+
+  return `
+    <div class="practice-explanation-section">
+      <div class="practice-explanation-label">${escapeHTML(label)}</div>
+      <div class="practice-explanation-body prepos-text">${escapeHTML(body)}</div>
+    </div>
+  `;
+}
+
+function renderLexiconExplanationHtml(meta = {}, { isCorrect = false } = {}) {
+  if (!meta?.pattern) {
+    return "";
+  }
+
+  if (isCorrect) {
+    const lines = [meta.compact || meta.why].filter(Boolean);
+
+    if (meta.pattern === "SYNONYM" && meta.siblings?.length) {
+      lines.push(`Same group: ${meta.siblings.join(" · ")}`);
+    }
+
+    return `
+      <div class="practice-explanation practice-explanation--compact mt-10 prepos-text">
+        ${lines.map((line) => `<div>${escapeHTML(line)}</div>`).join("")}
+      </div>
+    `;
+  }
+
+  const sections = [renderExplanationSection("Why", meta.why)];
+
+  if (meta.pattern === "SYNONYM" && meta.siblings?.length) {
+    sections.push(
+      renderExplanationSection("Same group", meta.siblings.join(" · "))
+    );
+  }
+
+  if (meta.pattern === "OPPOSITE_WORD" && meta.relatedWords?.length) {
+    sections.push(
+      renderExplanationSection("Opposite group", meta.relatedWords.join(" · "))
+    );
+  }
+
+  return `
+    <div class="practice-explanation mt-10">
+      ${sections.filter(Boolean).join("")}
+    </div>
+  `;
+}
+
+function renderPracticeExplanationHtml(question, { isCorrect = false } = {}) {
+  if (question?.explanationMeta?.pattern) {
+    return renderLexiconExplanationHtml(question.explanationMeta, { isCorrect });
+  }
+
+  const display = getQuestionDisplay(question);
+  if (!display.explanation) {
+    return "";
+  }
+
+  return `
+    <div class="practice-explanation text-muted mt-10 prepos-text">${escapeHTML(display.explanation)}</div>
+  `;
+}
+
 function getSessionLimit() {
   const value = Number(sessionLimitSelect.value || 0);
   return value > 0 ? value : Infinity;
@@ -842,10 +910,12 @@ function applyAnswerUi(question, selected) {
     feedback.innerHTML = `Wrong. Correct answer: ${escapeHTML(correct)}. ${escapeHTML(correctOption?.text || "")}`;
   }
 
-  if (display.explanation) {
-    feedback.innerHTML += `
-      <div class="practice-explanation text-muted mt-10 prepos-text">${escapeHTML(display.explanation)}</div>
-    `;
+  const explanationHtml = renderPracticeExplanationHtml(question, {
+    isCorrect: selectedId === correct,
+  });
+
+  if (explanationHtml) {
+    feedback.innerHTML += explanationHtml;
   }
 }
 
