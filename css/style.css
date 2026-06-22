@@ -935,6 +935,7 @@ DIFFICULTY SYSTEM
 
 .practice-option-btn{
   gap:12px;
+  touch-action:pan-y;
 }
 
 .practice-option-btn .option-letter{

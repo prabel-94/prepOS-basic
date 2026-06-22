@@ -70,8 +70,12 @@ const state = {
 
 const OPTION_GATE_MIN_MS = 320;
 const OPTION_GATE_MAX_MS = 1000;
+const OPTION_TAP_MOVE_THRESHOLD_PX = 10;
+const OPTION_TAP_MAX_MS = 450;
 
 let pointerIsDown = false;
+let optionTouchTap = null;
+let suppressOptionClick = false;
 
 function trackPracticePointerState() {
   window.addEventListener("pointerdown", () => {
@@ -999,6 +1003,7 @@ async function loadQuestion() {
 
   clearPracticeFeedback();
   closeOptionGate();
+  resetOptionTouchTap();
   nextBtn.classList.add("hidden");
   sessionSummary.classList.add("hidden");
   state.currentQuestion = null;
@@ -1104,31 +1109,70 @@ function bindQuestionAssistanceToggle(question) {
   button.addEventListener("click", () => toggleQuestionMask(question));
 }
 
-function bindOptionSelection() {
-  if (!optionsContainer || optionsContainer.dataset.bound) {
-    return;
-  }
-
-  optionsContainer.dataset.bound = "1";
-
-  optionsContainer.addEventListener("pointerdown", (event) => {
-    if (event.pointerType === "mouse") {
-      return;
-    }
-    handleOptionSelection(event);
-  });
-
-  optionsContainer.addEventListener("click", handleOptionSelection);
+function resetOptionTouchTap() {
+  optionTouchTap = null;
 }
 
-function handleOptionSelection(event) {
-  if (!state.optionGateOpen) {
-    event.preventDefault();
-    event.stopPropagation();
+function beginOptionTouchTap(event) {
+  if (event.pointerType === "mouse") {
     return;
   }
 
   const button = event.target.closest(".option-btn");
+  if (!button) {
+    resetOptionTouchTap();
+    return;
+  }
+
+  optionTouchTap = {
+    pointerId: event.pointerId,
+    button,
+    x: event.clientX,
+    y: event.clientY,
+    startedAt: performance.now(),
+    cancelled: false,
+  };
+}
+
+function trackOptionTouchTap(event) {
+  if (!optionTouchTap || event.pointerId !== optionTouchTap.pointerId || optionTouchTap.cancelled) {
+    return;
+  }
+
+  const dx = event.clientX - optionTouchTap.x;
+  const dy = event.clientY - optionTouchTap.y;
+
+  if (Math.hypot(dx, dy) > OPTION_TAP_MOVE_THRESHOLD_PX) {
+    optionTouchTap.cancelled = true;
+  }
+}
+
+function commitOptionTouchTap(event) {
+  if (!optionTouchTap || event.pointerId !== optionTouchTap.pointerId) {
+    return;
+  }
+
+  const candidate = optionTouchTap;
+  resetOptionTouchTap();
+
+  if (candidate.cancelled) {
+    return;
+  }
+
+  if (performance.now() - candidate.startedAt > OPTION_TAP_MAX_MS) {
+    return;
+  }
+
+  selectPracticeOption(candidate.button, event);
+}
+
+function selectPracticeOption(button, event) {
+  if (!state.optionGateOpen) {
+    event?.preventDefault();
+    event?.stopPropagation();
+    return;
+  }
+
   if (!button || button.disabled || !state.currentQuestion || state.currentAnswer) {
     return;
   }
@@ -1138,8 +1182,38 @@ function handleOptionSelection(event) {
     return;
   }
 
-  event.preventDefault();
+  if (event?.pointerType && event.pointerType !== "mouse") {
+    suppressOptionClick = true;
+    window.setTimeout(() => {
+      suppressOptionClick = false;
+    }, 400);
+  }
+
+  event?.preventDefault();
   handleAnswer(selected);
+}
+
+function bindOptionSelection() {
+  if (!optionsContainer || optionsContainer.dataset.bound) {
+    return;
+  }
+
+  optionsContainer.dataset.bound = "1";
+
+  optionsContainer.addEventListener("pointerdown", beginOptionTouchTap);
+  optionsContainer.addEventListener("pointermove", trackOptionTouchTap);
+  optionsContainer.addEventListener("pointerup", commitOptionTouchTap);
+  optionsContainer.addEventListener("pointercancel", resetOptionTouchTap);
+
+  optionsContainer.addEventListener("click", (event) => {
+    if (suppressOptionClick) {
+      event.preventDefault();
+      return;
+    }
+
+    const button = event.target.closest(".option-btn");
+    selectPracticeOption(button, event);
+  });
 }
 
 function renderQuestion(question) {
@@ -1171,6 +1245,7 @@ function renderQuestion(question) {
   bindQuestionAssistanceToggle(question);
 
   optionsContainer.innerHTML = "";
+  resetOptionTouchTap();
 
   display.options.forEach((option) => {
     const button = document.createElement("button");
