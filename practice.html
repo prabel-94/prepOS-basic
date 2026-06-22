@@ -101,17 +101,31 @@
 
   <div id="practiceStatus" class="practice-status hidden"></div>
   <div id="practiceProgress" class="practice-progress hidden"></div>
+  <div
+    id="practiceProgressBar"
+    class="practice-progress-bar hidden"
+    role="progressbar"
+    aria-valuemin="0"
+    aria-valuemax="100"
+    aria-valuenow="0"
+  >
+    <div id="practiceProgressFill" class="practice-progress-fill"></div>
+  </div>
 
   <!-- QUESTION AREA -->
   <div id="practiceArea" class="mt-30 hidden">
 
-    <div id="questionCard" class="question-card"></div>
+    <div id="questionCard" class="practice-question-card">
+      <div id="questionPrompt"></div>
+      <div id="optionsContainer" class="practice-options options"></div>
+    </div>
 
-    <div id="optionsContainer" class="options mt-20"></div>
+    <div id="feedback" class="practice-feedback mt-20" aria-live="polite" aria-atomic="true">
+      <div id="feedbackVerdict" class="practice-feedback-verdict hidden"></div>
+      <div id="feedbackExplanation" class="practice-feedback-explanation hidden"></div>
+    </div>
 
-    <div id="feedback" class="mt-20"></div>
-
-    <div id="sessionSummary" class="question-card hidden"></div>
+    <div id="sessionSummary" class="practice-session-summary hidden"></div>
 
     <button id="nextBtn" class="primary-btn mt-20 hidden">
       Next Question
