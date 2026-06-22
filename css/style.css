@@ -810,6 +810,151 @@ DIFFICULTY SYSTEM
   color:var(--muted);
 }
 
+.practice-progress-bar{
+  height:6px;
+  margin-top:10px;
+  border-radius:999px;
+  background:#e8edf5;
+  overflow:hidden;
+}
+
+.practice-progress-fill{
+  height:100%;
+  width:0;
+  border-radius:999px;
+  background:var(--primary);
+  transition:width 0.2s ease;
+}
+
+#practiceArea .practice-question-card{
+  background:var(--card);
+  border-radius:var(--radius);
+  padding:18px;
+  margin-bottom:0;
+  box-shadow:var(--shadow);
+  border:1px solid var(--border);
+  max-width:100%;
+  word-wrap:break-word;
+  overflow-wrap:break-word;
+}
+
+#practiceArea .practice-question-card:hover{
+  transform:none;
+  box-shadow:var(--shadow);
+}
+
+.practice-question-header{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:12px;
+}
+
+.practice-question-meta{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:8px;
+}
+
+.practice-question-meta-item{
+  font-size:13px;
+  font-weight:600;
+  color:var(--muted);
+}
+
+.practice-pattern-badge{
+  display:inline-flex;
+  align-items:center;
+  padding:2px 10px;
+  border-radius:999px;
+  background:#eef4ff;
+  color:#3b5bdb;
+  font-size:12px;
+  font-weight:600;
+}
+
+.practice-options{
+  margin-top:16px;
+  margin-bottom:0;
+}
+
+.practice-option-btn{
+  gap:12px;
+}
+
+.practice-option-btn .option-letter{
+  flex-shrink:0;
+  width:28px;
+  height:28px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:6px;
+  background:#eef4ff;
+  color:var(--primary);
+  font-weight:700;
+  font-size:13px;
+}
+
+.practice-option-btn.correct .option-letter{
+  background:var(--success-bg);
+  color:var(--success);
+}
+
+.practice-option-btn.wrong .option-letter{
+  background:var(--danger-bg);
+  color:var(--danger);
+}
+
+.practice-feedback{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+
+.practice-feedback-card{
+  padding:14px 16px;
+  border-radius:var(--radius);
+  border:1px solid var(--border);
+  background:var(--card);
+  box-shadow:var(--shadow);
+}
+
+.practice-feedback-card--correct{
+  border-color:var(--success);
+  background:var(--success-bg);
+}
+
+.practice-feedback-card--wrong{
+  border-color:var(--danger);
+  background:var(--danger-bg);
+}
+
+.practice-feedback-title{
+  font-size:16px;
+  font-weight:700;
+}
+
+.practice-feedback-card--correct .practice-feedback-title{
+  color:var(--success);
+}
+
+.practice-feedback-card--wrong .practice-feedback-title{
+  color:var(--danger);
+}
+
+.practice-feedback-answer{
+  margin-top:8px;
+  font-size:14px;
+  line-height:1.5;
+}
+
+.practice-session-summary{
+  margin-top:20px;
+}
+
 .practice-explanation{
   padding:10px 12px;
   border-left:3px solid var(--primary);
@@ -838,6 +983,24 @@ DIFFICULTY SYSTEM
 .practice-explanation-body{
   margin-top:4px;
   line-height:1.5;
+}
+
+.practice-word-chips{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin-top:6px;
+}
+
+.practice-word-chip{
+  display:inline-flex;
+  align-items:center;
+  padding:4px 10px;
+  border-radius:999px;
+  background:#fff;
+  border:1px solid var(--border);
+  font-size:13px;
+  line-height:1.4;
 }
 
 /* OPTIONS */
@@ -3958,7 +4121,8 @@ PHASE 1 — STUDENT UI UPGRADE
 .practice-question-assistance-row {
   display: flex;
   justify-content: flex-end;
-  margin-bottom: 10px;
+  margin-bottom: 0;
+  flex-shrink: 0;
 }
 
 .practice-question-assistance-btn {

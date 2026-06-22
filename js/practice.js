@@ -23,13 +23,29 @@ const modeButtons = document.querySelectorAll(".practice-mode-card");
 
 const practiceArea = document.getElementById("practiceArea");
 const questionCard = document.getElementById("questionCard");
+const questionPrompt = document.getElementById("questionPrompt");
 const optionsContainer = document.getElementById("optionsContainer");
 const feedback = document.getElementById("feedback");
+const feedbackVerdict = document.getElementById("feedbackVerdict");
+const feedbackExplanation = document.getElementById("feedbackExplanation");
 const nextBtn = document.getElementById("nextBtn");
 const practiceStatus = document.getElementById("practiceStatus");
 const practiceProgress = document.getElementById("practiceProgress");
+const practiceProgressBar = document.getElementById("practiceProgressBar");
+const practiceProgressFill = document.getElementById("practiceProgressFill");
 const sessionSummary = document.getElementById("sessionSummary");
 const practiceAssistanceToggle = document.getElementById("practiceAssistanceToggle");
+
+const LEXICON_EXPLANATION_LABELS = {
+  why: "എന്തുകൊണ്ട്",
+  sameGroup: "ഇതേ കൂട്ടം",
+  oppositeGroup: "വിരുദ്ധ കൂട്ടം",
+};
+
+const PATTERN_LABELS = {
+  SYNONYM: { ml: "പര്യായം", en: "Synonym" },
+  OPPOSITE_WORD: { ml: "വിരുദ്ധം", en: "Opposite" },
+};
 
 startBtn.disabled = true;
 
@@ -146,6 +162,18 @@ function renderExplanationSection(label, body) {
   `;
 }
 
+function renderWordChipList(words = []) {
+  if (!words.length) {
+    return "";
+  }
+
+  return `
+    <div class="practice-word-chips">
+      ${words.map((word) => `<span class="practice-word-chip prepos-text">${escapeHTML(word)}</span>`).join("")}
+    </div>
+  `;
+}
+
 function renderLexiconExplanationHtml(meta = {}, { isCorrect = false } = {}) {
   if (!meta?.pattern) {
     return "";
@@ -154,33 +182,45 @@ function renderLexiconExplanationHtml(meta = {}, { isCorrect = false } = {}) {
   if (isCorrect) {
     const lines = [meta.compact || meta.why].filter(Boolean);
 
-    if (meta.pattern === "SYNONYM" && meta.siblings?.length) {
-      lines.push(`Same group: ${meta.siblings.join(" · ")}`);
-    }
-
     return `
-      <div class="practice-explanation practice-explanation--compact mt-10 prepos-text">
-        ${lines.map((line) => `<div>${escapeHTML(line)}</div>`).join("")}
+      <div class="practice-explanation practice-explanation--compact">
+        ${lines.map((line) => `<div class="practice-explanation-body prepos-text">${escapeHTML(line)}</div>`).join("")}
+        ${
+          meta.pattern === "SYNONYM" && meta.siblings?.length
+            ? `
+              <div class="practice-explanation-section mt-10">
+                <div class="practice-explanation-label">${escapeHTML(LEXICON_EXPLANATION_LABELS.sameGroup)}</div>
+                ${renderWordChipList(meta.siblings)}
+              </div>
+            `
+            : ""
+        }
       </div>
     `;
   }
 
-  const sections = [renderExplanationSection("Why", meta.why)];
+  const sections = [renderExplanationSection(LEXICON_EXPLANATION_LABELS.why, meta.why)];
 
   if (meta.pattern === "SYNONYM" && meta.siblings?.length) {
-    sections.push(
-      renderExplanationSection("Same group", meta.siblings.join(" · "))
-    );
+    sections.push(`
+      <div class="practice-explanation-section">
+        <div class="practice-explanation-label">${escapeHTML(LEXICON_EXPLANATION_LABELS.sameGroup)}</div>
+        ${renderWordChipList(meta.siblings)}
+      </div>
+    `);
   }
 
   if (meta.pattern === "OPPOSITE_WORD" && meta.relatedWords?.length) {
-    sections.push(
-      renderExplanationSection("Opposite group", meta.relatedWords.join(" · "))
-    );
+    sections.push(`
+      <div class="practice-explanation-section">
+        <div class="practice-explanation-label">${escapeHTML(LEXICON_EXPLANATION_LABELS.oppositeGroup)}</div>
+        ${renderWordChipList(meta.relatedWords)}
+      </div>
+    `);
   }
 
   return `
-    <div class="practice-explanation mt-10">
+    <div class="practice-explanation">
       ${sections.filter(Boolean).join("")}
     </div>
   `;
@@ -197,8 +237,81 @@ function renderPracticeExplanationHtml(question, { isCorrect = false } = {}) {
   }
 
   return `
-    <div class="practice-explanation text-muted mt-10 prepos-text">${escapeHTML(display.explanation)}</div>
+    <div class="practice-explanation">
+      ${renderExplanationSection("Explanation", display.explanation)}
+    </div>
   `;
+}
+
+function clearPracticeFeedback() {
+  if (feedbackVerdict) {
+    feedbackVerdict.innerHTML = "";
+    feedbackVerdict.classList.add("hidden");
+  }
+
+  if (feedbackExplanation) {
+    feedbackExplanation.innerHTML = "";
+    feedbackExplanation.classList.add("hidden");
+  }
+}
+
+function renderPracticeFeedbackVerdict({ isCorrect, correct, correctOptionText }) {
+  const className = isCorrect
+    ? "practice-feedback-card practice-feedback-card--correct"
+    : "practice-feedback-card practice-feedback-card--wrong";
+
+  if (isCorrect) {
+    return `
+      <div class="${className}" role="status">
+        <div class="practice-feedback-title">Correct</div>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="${className}" role="status">
+      <div class="practice-feedback-title">Wrong</div>
+      <div class="practice-feedback-answer">
+        Correct answer:
+        <strong class="prepos-text">${escapeHTML(correct)}. ${escapeHTML(correctOptionText || "")}</strong>
+      </div>
+    </div>
+  `;
+}
+
+function getQuestionPositionLabel() {
+  const nextQuestionNumber =
+    state.sessionLimit === Infinity
+      ? state.answeredCount + 1
+      : Math.min(state.answeredCount + 1, state.sessionLimit);
+
+  if (state.sessionLimit === Infinity) {
+    return `Question ${nextQuestionNumber}`;
+  }
+
+  return `Question ${nextQuestionNumber} of ${state.sessionLimit}`;
+}
+
+function getPatternBadgeHtml(question) {
+  const pattern = question?.primary_pattern || question?.explanationMeta?.pattern;
+  if (!pattern || !PATTERN_LABELS[pattern]) {
+    return "";
+  }
+
+  const useMalayalam =
+    state.mode === "generator" && subjectSelect.value === "malayalam";
+  const label = useMalayalam
+    ? PATTERN_LABELS[pattern].ml
+    : PATTERN_LABELS[pattern].en;
+
+  return `<span class="practice-pattern-badge">${escapeHTML(label)}</span>`;
+}
+
+function focusPracticeFeedback() {
+  requestAnimationFrame(() => {
+    feedback?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    feedbackVerdict?.focus?.();
+  });
 }
 
 function getSessionLimit() {
@@ -236,22 +349,32 @@ function updateProgress() {
   if (!state.started) {
     practiceProgress.textContent = "";
     practiceProgress.classList.add("hidden");
+    practiceProgressBar?.classList.add("hidden");
     return;
   }
 
-  const limitLabel =
-    state.sessionLimit === Infinity ? "Unlimited" : state.sessionLimit;
-  const nextQuestionNumber =
-    state.sessionLimit === Infinity
-      ? state.answeredCount + 1
-      : Math.min(state.answeredCount + 1, state.sessionLimit);
-
   practiceProgress.textContent =
     state.currentQuestion
-      ? `${getModeLabel()} | Question ${nextQuestionNumber}${state.sessionLimit === Infinity ? "" : ` of ${limitLabel}`} | Correct ${state.correctCount}/${state.answeredCount}`
-      : `${getModeLabel()} | Answered ${state.answeredCount}${state.sessionLimit === Infinity ? "" : ` of ${limitLabel}`} | Correct ${state.correctCount}/${state.answeredCount}`;
+      ? `${getModeLabel()} | ${getQuestionPositionLabel()} | Correct ${state.correctCount}/${state.answeredCount}`
+      : `${getModeLabel()} | Answered ${state.answeredCount}${state.sessionLimit === Infinity ? "" : ` of ${state.sessionLimit}`} | Correct ${state.correctCount}/${state.answeredCount}`;
 
   practiceProgress.classList.remove("hidden");
+
+  if (practiceProgressBar && practiceProgressFill) {
+    if (state.sessionLimit === Infinity) {
+      practiceProgressBar.classList.add("hidden");
+      return;
+    }
+
+    const pct = Math.min(
+      100,
+      Math.round((state.answeredCount / state.sessionLimit) * 100)
+    );
+
+    practiceProgressFill.style.width = `${pct}%`;
+    practiceProgressBar.setAttribute("aria-valuenow", String(pct));
+    practiceProgressBar.classList.remove("hidden");
+  }
 }
 
 function setLoading(isLoading, label = "Generating question...") {
@@ -299,8 +422,11 @@ function getEmptyBankMessage() {
 }
 
 function showBankUnavailable(message) {
-  questionCard.innerHTML = `<div class="empty-state">${escapeHTML(message)}</div>`;
+  if (questionPrompt) {
+    questionPrompt.innerHTML = `<div class="empty-state">${escapeHTML(message)}</div>`;
+  }
   optionsContainer.innerHTML = "";
+  clearPracticeFeedback();
   nextBtn.classList.add("hidden");
   setStatus(message, true);
   updateProgress();
@@ -314,8 +440,10 @@ function resetSession() {
   state.sessionLimit = getSessionLimit();
   state.started = true;
 
-  feedback.innerHTML = "";
-  questionCard.innerHTML = "";
+  clearPracticeFeedback();
+  if (questionPrompt) {
+    questionPrompt.innerHTML = "";
+  }
   optionsContainer.innerHTML = "";
   nextBtn.classList.add("hidden");
   sessionSummary.innerHTML = "";
@@ -339,8 +467,10 @@ function setPracticeMode(mode) {
   practiceArea.classList.add("hidden");
   state.started = false;
   state.currentQuestion = null;
-  feedback.innerHTML = "";
-  questionCard.innerHTML = "";
+  clearPracticeFeedback();
+  if (questionPrompt) {
+    questionPrompt.innerHTML = "";
+  }
   optionsContainer.innerHTML = "";
   nextBtn.classList.add("hidden");
   sessionSummary.classList.add("hidden");
@@ -711,7 +841,7 @@ async function loadQuestion() {
     return;
   }
 
-  feedback.innerHTML = "";
+  clearPracticeFeedback();
   nextBtn.classList.add("hidden");
   sessionSummary.classList.add("hidden");
   state.currentQuestion = null;
@@ -766,9 +896,11 @@ async function loadQuestion() {
     updateProgress();
   } catch (error) {
     console.error("Question load failed:", error);
-    questionCard.innerHTML = `
-      <div class="empty-state">${escapeHTML(getFriendlyError(error))}</div>
-    `;
+    if (questionPrompt) {
+      questionPrompt.innerHTML = `
+        <div class="empty-state">${escapeHTML(getFriendlyError(error))}</div>
+      `;
+    }
     optionsContainer.innerHTML = "";
     nextBtn.classList.add("hidden");
     setStatus(
@@ -806,7 +938,7 @@ function renderQuestionAssistanceToggle(question) {
 }
 
 function bindQuestionAssistanceToggle(question) {
-  const button = questionCard.querySelector(".practice-question-assistance-btn");
+  const button = questionPrompt?.querySelector(".practice-question-assistance-btn");
   if (!button) {
     return;
   }
@@ -853,14 +985,24 @@ function renderQuestion(question) {
     maskOn && hasMalayalamAssistance(question)
       ? `<div class="exam-assistance-active-hint">Malayalam help on</div>`
       : "";
+  const patternBadge = getPatternBadgeHtml(question);
+  const metaHtml = `
+    <div class="practice-question-meta">
+      <span class="q-number">${escapeHTML(getQuestionPositionLabel())}</span>
+      ${patternBadge}
+    </div>
+  `;
 
-  questionCard.innerHTML = `
-  ${renderQuestionAssistanceToggle(question)}
-  ${assistanceHint}
-  <div class="question-text prepos-text">
-    ${escapeHTML(display.text)}
-  </div>
-`;
+  questionPrompt.innerHTML = `
+    <div class="practice-question-header">
+      ${metaHtml}
+      ${renderQuestionAssistanceToggle(question)}
+    </div>
+    ${assistanceHint}
+    <div class="question-text prepos-text">
+      ${escapeHTML(display.text)}
+    </div>
+  `;
 
   bindQuestionAssistanceToggle(question);
 
@@ -869,13 +1011,12 @@ function renderQuestion(question) {
   display.options.forEach((option) => {
     const button = document.createElement("button");
     button.type = "button";
-    button.className = "option-btn";
+    button.className = "option-btn practice-option-btn";
     const optionText = stripLeadingOptionLabel(option.text);
     button.innerHTML = `
-  <span class="prepos-text option-btn-text">
-    ${escapeHTML(option.id)}. ${escapeHTML(optionText)}
-  </span>
-`;
+      <span class="option-letter">${escapeHTML(option.id)}</span>
+      <span class="prepos-text option-btn-text">${escapeHTML(optionText)}</span>
+    `;
     button.dataset.optionId = normalizeOptionId(option.id);
     optionsContainer.appendChild(button);
   });
@@ -905,18 +1046,40 @@ function applyAnswerUi(question, selected) {
   });
 
   if (selectedId === correct) {
-    feedback.innerHTML = "Correct";
+    if (feedbackVerdict) {
+      feedbackVerdict.innerHTML = renderPracticeFeedbackVerdict({
+        isCorrect: true,
+        correct,
+        correctOptionText: correctOption?.text || "",
+      });
+      feedbackVerdict.classList.remove("hidden");
+      feedbackVerdict.setAttribute("tabindex", "-1");
+    }
   } else {
-    feedback.innerHTML = `Wrong. Correct answer: ${escapeHTML(correct)}. ${escapeHTML(correctOption?.text || "")}`;
+    if (feedbackVerdict) {
+      feedbackVerdict.innerHTML = renderPracticeFeedbackVerdict({
+        isCorrect: false,
+        correct,
+        correctOptionText: correctOption?.text || "",
+      });
+      feedbackVerdict.classList.remove("hidden");
+      feedbackVerdict.setAttribute("tabindex", "-1");
+    }
   }
 
   const explanationHtml = renderPracticeExplanationHtml(question, {
     isCorrect: selectedId === correct,
   });
 
-  if (explanationHtml) {
-    feedback.innerHTML += explanationHtml;
+  if (explanationHtml && feedbackExplanation) {
+    feedbackExplanation.innerHTML = explanationHtml;
+    feedbackExplanation.classList.remove("hidden");
+  } else if (feedbackExplanation) {
+    feedbackExplanation.innerHTML = "";
+    feedbackExplanation.classList.add("hidden");
   }
+
+  focusPracticeFeedback();
 }
 
 async function handleAnswer(selected) {
@@ -960,11 +1123,11 @@ async function handleAnswer(selected) {
 
 function finishSession(message = "Session finished. Start again for a new set.") {
   state.currentQuestion = null;
-  questionCard.innerHTML = `
-    <div class="qtext">Session complete</div>
-  `;
+  if (questionPrompt) {
+    questionPrompt.innerHTML = `<div class="qtext">Session complete</div>`;
+  }
   optionsContainer.innerHTML = "";
-  feedback.innerHTML = "";
+  clearPracticeFeedback();
   nextBtn.classList.add("hidden");
 
   const accuracy =
@@ -973,10 +1136,23 @@ function finishSession(message = "Session finished. Start again for a new set.")
       : Math.round((state.correctCount / state.answeredCount) * 100);
 
   sessionSummary.innerHTML = `
-    <div class="h3">Practice Summary</div>
-    <div class="mt-10">Answered: ${state.answeredCount}</div>
-    <div class="mt-10">Correct: ${state.correctCount}</div>
-    <div class="mt-10">Accuracy: ${accuracy}%</div>
+    <div class="exam-results-card">
+      <div class="exam-results-kicker">Session Complete</div>
+      <div class="exam-results-grid mt-20">
+        <div class="exam-results-stat">
+          <div class="exam-results-stat-label">Answered</div>
+          <div class="exam-results-stat-value">${state.answeredCount}</div>
+        </div>
+        <div class="exam-results-stat">
+          <div class="exam-results-stat-label">Correct</div>
+          <div class="exam-results-stat-value">${state.correctCount}</div>
+        </div>
+        <div class="exam-results-stat">
+          <div class="exam-results-stat-label">Accuracy</div>
+          <div class="exam-results-stat-value">${accuracy}%</div>
+        </div>
+      </div>
+    </div>
   `;
   sessionSummary.classList.remove("hidden");
 
