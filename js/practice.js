@@ -25,6 +25,8 @@ const practiceArea = document.getElementById("practiceArea");
 const questionCard = document.getElementById("questionCard");
 const questionPrompt = document.getElementById("questionPrompt");
 const optionsContainer = document.getElementById("optionsContainer");
+const practiceOptionShield = document.getElementById("practiceOptionShield");
+const practiceOptionShieldText = document.getElementById("practiceOptionShieldText");
 const feedback = document.getElementById("feedback");
 const feedbackVerdict = document.getElementById("feedbackVerdict");
 const feedbackExplanation = document.getElementById("feedbackExplanation");
@@ -62,7 +64,28 @@ const state = {
   assistanceMaskEnabled: false,
   questionMaskOverrides: new Map(),
   currentAnswer: null,
+  optionGateId: 0,
+  optionGateOpen: false,
 };
+
+const OPTION_GATE_MIN_MS = 320;
+const OPTION_GATE_MAX_MS = 1000;
+
+let pointerIsDown = false;
+
+function trackPracticePointerState() {
+  window.addEventListener("pointerdown", () => {
+    pointerIsDown = true;
+  });
+
+  window.addEventListener("pointerup", () => {
+    pointerIsDown = false;
+  });
+
+  window.addEventListener("pointercancel", () => {
+    pointerIsDown = false;
+  });
+}
 
 /* =========================================
 Init
@@ -118,6 +141,7 @@ async function init() {
   initPracticeAssistanceToggle();
   await applyPracticeTopicFromUrl();
   bindOptionSelection();
+  trackPracticePointerState();
   startBtn.disabled = false;
 }
 
@@ -358,6 +382,91 @@ function focusPracticeFeedback() {
   });
 }
 
+function getOptionShieldMessage() {
+  if (pointerIsDown) {
+    return "Release to continue";
+  }
+
+  return "Choose an answer";
+}
+
+function closeOptionGate() {
+  state.optionGateId += 1;
+  state.optionGateOpen = false;
+  questionCard?.classList.remove("practice-question-card--gated");
+  practiceOptionShield?.classList.add("hidden");
+  practiceOptionShield?.setAttribute("aria-hidden", "true");
+  optionsContainer?.classList.remove("practice-options--ready");
+}
+
+function updateOptionShieldMessage() {
+  if (!practiceOptionShieldText) {
+    return;
+  }
+
+  practiceOptionShieldText.textContent = getOptionShieldMessage();
+}
+
+function beginOptionGate() {
+  const gateId = ++state.optionGateId;
+  state.optionGateOpen = false;
+
+  questionCard?.classList.add("practice-question-card--gated");
+  optionsContainer?.classList.remove("practice-options--ready");
+
+  if (practiceOptionShield) {
+    updateOptionShieldMessage();
+    practiceOptionShield.classList.remove("hidden");
+    practiceOptionShield.setAttribute("aria-hidden", "false");
+  }
+
+  const gateStartedAt = performance.now();
+
+  const tryOpenGate = () => {
+    if (gateId !== state.optionGateId || state.optionGateOpen) {
+      return;
+    }
+
+    const elapsed = performance.now() - gateStartedAt;
+    const pointerClear = !pointerIsDown;
+    const minDelayMet = elapsed >= OPTION_GATE_MIN_MS;
+
+    if (!minDelayMet || !pointerClear) {
+      updateOptionShieldMessage();
+      requestAnimationFrame(tryOpenGate);
+      return;
+    }
+
+    state.optionGateOpen = true;
+    questionCard?.classList.remove("practice-question-card--gated");
+    practiceOptionShield?.classList.add("hidden");
+    practiceOptionShield?.setAttribute("aria-hidden", "true");
+    optionsContainer?.classList.add("practice-options--ready");
+
+    window.setTimeout(() => {
+      optionsContainer?.classList.remove("practice-options--ready");
+    }, 450);
+  };
+
+  requestAnimationFrame(tryOpenGate);
+
+  window.setTimeout(() => {
+    if (gateId !== state.optionGateId || state.optionGateOpen) {
+      return;
+    }
+
+    state.optionGateOpen = true;
+    questionCard?.classList.remove("practice-question-card--gated");
+    practiceOptionShield?.classList.add("hidden");
+    practiceOptionShield?.setAttribute("aria-hidden", "true");
+    optionsContainer?.classList.add("practice-options--ready");
+
+    window.setTimeout(() => {
+      optionsContainer?.classList.remove("practice-options--ready");
+    }, 450);
+  }, OPTION_GATE_MAX_MS);
+}
+
 function getSessionLimit() {
   const value = Number(sessionLimitSelect.value || 0);
   return value > 0 ? value : Infinity;
@@ -471,6 +580,7 @@ function showBankUnavailable(message) {
   }
   optionsContainer.innerHTML = "";
   clearPracticeFeedback();
+  closeOptionGate();
   nextBtn.classList.add("hidden");
   setStatus(message, true);
   updateProgress();
@@ -485,6 +595,7 @@ function resetSession() {
   state.started = true;
 
   clearPracticeFeedback();
+  closeOptionGate();
   if (questionPrompt) {
     questionPrompt.innerHTML = "";
   }
@@ -512,6 +623,7 @@ function setPracticeMode(mode) {
   state.started = false;
   state.currentQuestion = null;
   clearPracticeFeedback();
+  closeOptionGate();
   if (questionPrompt) {
     questionPrompt.innerHTML = "";
   }
@@ -886,6 +998,7 @@ async function loadQuestion() {
   }
 
   clearPracticeFeedback();
+  closeOptionGate();
   nextBtn.classList.add("hidden");
   sessionSummary.classList.add("hidden");
   state.currentQuestion = null;
@@ -946,6 +1059,7 @@ async function loadQuestion() {
       `;
     }
     optionsContainer.innerHTML = "";
+    closeOptionGate();
     nextBtn.classList.add("hidden");
     setStatus(
       error?.message ||
@@ -1008,6 +1122,12 @@ function bindOptionSelection() {
 }
 
 function handleOptionSelection(event) {
+  if (!state.optionGateOpen) {
+    event.preventDefault();
+    event.stopPropagation();
+    return;
+  }
+
   const button = event.target.closest(".option-btn");
   if (!button || button.disabled || !state.currentQuestion || state.currentAnswer) {
     return;
@@ -1064,6 +1184,13 @@ function renderQuestion(question) {
     button.dataset.optionId = normalizeOptionId(option.id);
     optionsContainer.appendChild(button);
   });
+
+  if (state.answeredCount > 0) {
+    beginOptionGate();
+  } else {
+    closeOptionGate();
+    state.optionGateOpen = true;
+  }
 }
 
 function applyAnswerUi(question, selected) {
