@@ -307,10 +307,54 @@ function getPatternBadgeHtml(question) {
   return `<span class="practice-pattern-badge">${escapeHTML(label)}</span>`;
 }
 
+function isPracticeFeedbackVisible() {
+  if (!feedback || feedback.classList.contains("hidden")) {
+    return true;
+  }
+
+  const rect = feedback.getBoundingClientRect();
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+
+  return rect.top >= 0 && rect.bottom <= viewportHeight + 2;
+}
+
+function scrollPracticeFeedbackIntoView() {
+  if (!feedback || isPracticeFeedbackVisible()) {
+    return;
+  }
+
+  const startY = window.scrollY;
+  const rect = feedback.getBoundingClientRect();
+  const targetY = Math.max(0, startY + rect.top - 24);
+  const distance = targetY - startY;
+
+  if (Math.abs(distance) < 12) {
+    return;
+  }
+
+  const duration = Math.min(900, Math.max(500, Math.abs(distance) * 1.1));
+  const startTime = performance.now();
+
+  function step(now) {
+    const progress = Math.min(1, (now - startTime) / duration);
+    const eased = progress * (2 - progress);
+    window.scrollTo(0, startY + distance * eased);
+
+    if (progress < 1) {
+      requestAnimationFrame(step);
+    }
+  }
+
+  requestAnimationFrame(step);
+}
+
 function focusPracticeFeedback() {
   requestAnimationFrame(() => {
-    feedback?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    feedbackVerdict?.focus?.();
+    if (feedbackVerdict && !feedbackVerdict.classList.contains("hidden")) {
+      feedbackVerdict.focus({ preventScroll: true });
+    }
+
+    scrollPracticeFeedbackIntoView();
   });
 }
 
