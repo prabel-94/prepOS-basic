@@ -117,7 +117,16 @@
 
     <div id="questionCard" class="practice-question-card">
       <div id="questionPrompt"></div>
-      <div id="optionsContainer" class="practice-options options"></div>
+      <div class="practice-options-wrap">
+        <div id="optionsContainer" class="practice-options options"></div>
+        <div
+          id="practiceOptionShield"
+          class="practice-option-shield hidden"
+          aria-hidden="true"
+        >
+          <span id="practiceOptionShieldText" class="practice-option-shield-text"></span>
+        </div>
+      </div>
     </div>
 
     <div id="feedback" class="practice-feedback mt-20" aria-live="polite" aria-atomic="true">

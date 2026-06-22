@@ -880,6 +880,59 @@ DIFFICULTY SYSTEM
   margin-bottom:0;
 }
 
+.practice-options-wrap{
+  position:relative;
+  margin-top:16px;
+}
+
+.practice-options-wrap .practice-options{
+  margin-top:0;
+}
+
+.practice-question-card--gated .practice-options{
+  pointer-events:none;
+  opacity:0.72;
+}
+
+.practice-option-shield{
+  position:absolute;
+  inset:0;
+  z-index:2;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:8px;
+  background:rgba(255,255,255,0.88);
+  border:1px dashed var(--primary);
+  pointer-events:auto;
+}
+
+.practice-option-shield-text{
+  font-size:13px;
+  font-weight:600;
+  color:var(--primary);
+  padding:8px 14px;
+  border-radius:999px;
+  background:#f8fbff;
+  box-shadow:var(--shadow);
+}
+
+.practice-options--ready .practice-option-btn{
+  animation:practice-option-ready 0.35s ease-out;
+}
+
+@keyframes practice-option-ready{
+  from{
+    opacity:0.75;
+    transform:translateY(4px);
+  }
+
+  to{
+    opacity:1;
+    transform:translateY(0);
+  }
+}
+
 .practice-option-btn{
   gap:12px;
 }
