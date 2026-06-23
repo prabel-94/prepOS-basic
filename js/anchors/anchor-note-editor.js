@@ -184,6 +184,12 @@ function applyLanguageSelection(overlay, session) {
   setEditorStatus(overlay);
 
   if (!entry) {
+    if (textarea) {
+      textarea.value = "";
+      textarea.disabled = true;
+    }
+    saveBtn?.setAttribute("disabled", "true");
+    previewEl && (previewEl.innerHTML = "");
     return;
   }
 
@@ -291,24 +297,25 @@ export async function openAnchorNoteEditor({
 
   draftContentByLanguage.clear();
 
-  const currentEntry = findVariantEntry(context, lang);
-  if (currentEntry?.hasVariant && initialContent !== undefined) {
-    draftContentByLanguage.set(lang, initialContent ?? "");
+  let selectedLanguage = context.selectedLanguage;
+
+  if (anchorVariantId) {
+    const matched = context.variants.find(
+      (entry) => entry.anchorVariantId === anchorVariantId
+    );
+    if (matched) {
+      selectedLanguage = normalizeLanguage(matched.language);
+    }
   }
 
-  if (anchorVariantId && currentEntry?.anchorVariantId !== anchorVariantId) {
-    const matched = context.variants.find((entry) => entry.anchorVariantId === anchorVariantId);
-    if (matched) {
-      context.selectedLanguage = normalizeLanguage(matched.language);
-      if (initialContent !== undefined) {
-        draftContentByLanguage.set(context.selectedLanguage, initialContent ?? "");
-      }
-    }
+  const currentEntry = findVariantEntry(context, selectedLanguage);
+  if (currentEntry?.hasVariant && initialContent !== undefined) {
+    draftContentByLanguage.set(selectedLanguage, initialContent ?? "");
   }
 
   const session = {
     context,
-    selectedLanguage: context.selectedLanguage,
+    selectedLanguage,
     onSave,
     onCancel,
   };

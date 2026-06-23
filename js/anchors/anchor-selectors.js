@@ -450,58 +450,42 @@ export async function loadAnchorNoteEditorContext(
     throw new Error("anchorId is required.");
   }
 
-  const selectedLanguage = normalizeLanguage(preferLanguage);
-  const resolvedNoteId = await resolveNoteIdForEditor(sb, { noteId, variantId });
+  const preferredLanguage = normalizeLanguage(preferLanguage);
   const anchorVariants = await fetchActiveAnchorVariantsForAnchor(sb, anchorId);
   const variantByLanguage = new Map(
     anchorVariants.map((variant) => [normalizeLanguage(variant.language), variant])
   );
 
-  const languageSet = new Set(
-    anchorVariants.map((variant) => normalizeLanguage(variant.language))
-  );
-
-  if (resolvedNoteId) {
-    const noteVariants = await fetchVariantsForNote(resolvedNoteId);
-    for (const noteVariant of noteVariants) {
-      languageSet.add(normalizeLanguage(noteVariant.language));
-    }
-  }
-
-  if (!languageSet.size) {
-    languageSet.add(selectedLanguage);
-  }
-
-  let languages = [...languageSet]
+  // Only languages with an existing anchor variant belong in the editor.
+  // Do not infer tabs from canonical note_variants — that showed a second tab
+  // and auto-provisioned siblings, making tab switches look like the wrong note.
+  let languages = [...variantByLanguage.keys()]
     .filter((lang) => SUPPORTED_LANGUAGES.includes(lang))
     .sort((a, b) => getLanguageLabel(a).localeCompare(getLanguageLabel(b)));
 
   if (!languages.length) {
     languages = [
-      SUPPORTED_LANGUAGES.includes(selectedLanguage)
-        ? selectedLanguage
+      SUPPORTED_LANGUAGES.includes(preferredLanguage)
+        ? preferredLanguage
         : "english",
     ];
   }
 
-  const fallbackDisplayName =
-    String(displayName ?? "").trim() ||
-    anchorVariants.find((row) => String(row.display_name ?? "").trim())
-      ?.display_name ||
-    "Anchor";
-
   const variants = [];
 
   for (const language of languages) {
-    let variant = variantByLanguage.get(language) ?? null;
+    const variant = variantByLanguage.get(language) ?? null;
 
     if (!variant) {
-      variant = await ensureAnchorVariantForLanguage(sb, {
-        anchorId,
+      variants.push({
+        anchorVariantId: null,
         language,
-        displayName: fallbackDisplayName,
+        hasVariant: false,
+        hasNote: false,
+        noteId: null,
+        noteContent: "",
       });
-      variantByLanguage.set(language, variant);
+      continue;
     }
 
     const note = await fetchActiveAnchorNote(sb, variant.id);
@@ -518,6 +502,19 @@ export async function loadAnchorNoteEditorContext(
     });
   }
 
+  const selectedEntry =
+    variants.find(
+      (entry) =>
+        entry.hasVariant && normalizeLanguage(entry.language) === preferredLanguage
+    ) ??
+    variants.find((entry) => entry.hasNote) ??
+    variants.find((entry) => entry.hasVariant) ??
+    null;
+
+  const selectedLanguage = selectedEntry
+    ? normalizeLanguage(selectedEntry.language)
+    : preferredLanguage;
+
   const context = {
     anchorId,
     displayName,
@@ -526,13 +523,11 @@ export async function loadAnchorNoteEditorContext(
   };
 
   if (normalizeAnchorName(displayName) === "william laud") {
-    const currentEntry =
-      variants.find((entry) => normalizeLanguage(entry.language) === selectedLanguage) ??
-      null;
-
     console.log("[Anchor Note Editor Context] William Laud", {
       anchorId,
-      currentVariantId: currentEntry?.anchorVariantId ?? null,
+      noteId,
+      variantId,
+      currentVariantId: selectedEntry?.anchorVariantId ?? null,
       siblingVariants: variants,
     });
   }
