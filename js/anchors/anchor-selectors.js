@@ -337,9 +337,9 @@ export async function buildAnchorNoteLinkMap(sb, markdown = "", language = "engl
 }
 
 /**
- * Load anchor + variant + note for inspector rendering.
+ * Student inspector payload — existing anchor variants only (no auto-provision).
  */
-export async function loadAnchorInspectorPayload(
+export async function loadStudentAnchorInspectorPayload(
   sb,
   semanticEntry = {},
   { preferLanguage = "english" } = {}
@@ -352,7 +352,103 @@ export async function loadAnchorInspectorPayload(
       variant: null,
       note: null,
       noteLinkMap: {},
+      variantCatalog: [],
+      selectedLanguage: normalizeLanguage(preferLanguage),
     };
+  }
+
+  const preferredLanguage = normalizeLanguage(preferLanguage);
+  const anchor = await fetchAnchorById(sb, anchorId);
+  const anchorVariants = await fetchActiveAnchorVariantsForAnchor(sb, anchorId);
+  const variantCatalog = [];
+
+  for (const row of anchorVariants) {
+    const language = normalizeLanguage(row.language);
+    if (!SUPPORTED_LANGUAGES.includes(language)) {
+      continue;
+    }
+
+    const note = await fetchActiveAnchorNote(sb, row.id);
+    const noteContent = note?.note_content ?? "";
+    const hasNote = Boolean(String(noteContent).trim());
+    const noteLinkMap = hasNote
+      ? await buildAnchorNoteLinkMap(sb, noteContent, language)
+      : {};
+
+    variantCatalog.push({
+      anchorVariantId: row.id,
+      language,
+      variant: row,
+      note,
+      noteContent,
+      hasNote,
+      noteLinkMap,
+    });
+  }
+
+  variantCatalog.sort((a, b) =>
+    getLanguageLabel(a.language).localeCompare(getLanguageLabel(b.language))
+  );
+
+  const selectedEntry =
+    variantCatalog.find(
+      (entry) => entry.language === preferredLanguage && entry.hasNote
+    ) ??
+    variantCatalog.find((entry) => entry.language === preferredLanguage) ??
+    variantCatalog.find((entry) => entry.hasNote) ??
+    variantCatalog[0] ??
+    null;
+
+  const selectedLanguage = selectedEntry?.language ?? preferredLanguage;
+  const variant = selectedEntry?.variant ?? null;
+  const note = selectedEntry?.note ?? null;
+  const noteLinkMap = selectedEntry?.noteLinkMap ?? {};
+
+  return {
+    semanticEntry: {
+      ...semanticEntry,
+      anchor_id: anchorId,
+      anchor_variant_id: variant?.id ?? semanticEntry.anchor_variant_id ?? null,
+      anchor_type: anchor?.anchor_type ?? semanticEntry.anchor_type,
+      canonical_topic_id:
+        anchor?.canonical_topic_id ?? semanticEntry.canonical_topic_id,
+      display_name:
+        variant?.display_name ??
+        semanticEntry.display_name ??
+        semanticEntry.source_text,
+    },
+    anchor,
+    variant,
+    note,
+    noteLinkMap,
+    variantCatalog,
+    selectedLanguage,
+  };
+}
+
+/**
+ * Load anchor + variant + note for inspector rendering.
+ */
+export async function loadAnchorInspectorPayload(
+  sb,
+  semanticEntry = {},
+  { preferLanguage = "english", studentMode = false } = {}
+) {
+  const anchorId = semanticEntry.anchor_id;
+  if (!anchorId) {
+    return {
+      semanticEntry,
+      anchor: null,
+      variant: null,
+      note: null,
+      noteLinkMap: {},
+      variantCatalog: [],
+      selectedLanguage: normalizeLanguage(preferLanguage),
+    };
+  }
+
+  if (studentMode) {
+    return loadStudentAnchorInspectorPayload(sb, semanticEntry, { preferLanguage });
   }
 
   const { ensureAnchorVariantForLanguage, fetchActiveAnchorNote } = await import(
@@ -386,6 +482,8 @@ export async function loadAnchorInspectorPayload(
     variant,
     note,
     noteLinkMap,
+    variantCatalog: [],
+    selectedLanguage: normalizeLanguage(language),
   };
 }
 

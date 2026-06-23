@@ -22,7 +22,7 @@ import {
 import { ANCHOR_TYPES } from "../anchors/anchor-types.js";
 import { normalizeAnchorName } from "../anchors/anchor-normalization.js";
 import { filterNoteLinkMapForStudent } from "../anchors/anchor-renderer.js";
-import { getLanguageLabel } from "../notes/note-variants.js";
+import { getLanguageLabel, normalizeLanguage } from "../notes/note-variants.js";
 
 const INSPECTOR_LABELS = {
   "mastery-inspector": "Mastery Inspector",
@@ -494,6 +494,58 @@ function renderCanonicalTopicSection(topicId, preferLanguage) {
   `;
 }
 
+function renderStudentAnchorVariantTabStatus(entry) {
+  if (entry?.hasNote) {
+    return `<span class="anchor-note-lang-status anchor-note-lang-status--has" aria-hidden="true">✓</span>`;
+  }
+
+  return `<span class="anchor-note-lang-status anchor-note-lang-status--missing" aria-hidden="true"></span>`;
+}
+
+function renderStudentAnchorVariantTabs(variantCatalog = [], selectedLanguage = "english") {
+  if (variantCatalog.length < 2) {
+    return "";
+  }
+
+  const activeLanguage = normalizeLanguage(selectedLanguage);
+
+  return `
+    <div class="anchor-inspector-language-tabs" role="tablist" aria-label="Anchor note language">
+      ${variantCatalog
+        .map((entry) => {
+          const lang = normalizeLanguage(entry.language);
+          const isActive = lang === activeLanguage;
+          return `
+            <button
+              type="button"
+              class="anchor-inspector-lang-tab${isActive ? " active" : ""}"
+              role="tab"
+              aria-selected="${isActive ? "true" : "false"}"
+              data-language="${escapeHTML(lang)}"
+            >
+              ${escapeHTML(getLanguageLabel(lang))}
+              ${renderStudentAnchorVariantTabStatus(entry)}
+            </button>
+          `;
+        })
+        .join("")}
+    </div>
+  `;
+}
+
+function renderStudentAnchorNoteBody(catalogEntry, studentSemanticMap = null) {
+  if (!catalogEntry?.hasNote) {
+    return `<p class="anchor-note-empty text-muted">No anchor note in ${escapeHTML(getLanguageLabel(catalogEntry?.language ?? "english"))} yet.</p>`;
+  }
+
+  let noteLinkMap = catalogEntry.noteLinkMap ?? {};
+  if (studentSemanticMap) {
+    noteLinkMap = filterNoteLinkMapForStudent(noteLinkMap, studentSemanticMap);
+  }
+
+  return `<div class="anchor-note-body">${renderAnchorNote(catalogEntry.noteContent, noteLinkMap)}</div>`;
+}
+
 /**
  * Student read-only anchor cognition inspector (no governance metadata).
  */
@@ -502,33 +554,89 @@ export function renderStudentAnchorInspector(
   { preferLanguage = "english", studentSemanticMap = null } = {}
 ) {
   const semanticEntry = payload.semanticEntry ?? payload;
-  const note = payload.note ?? null;
-  let noteLinkMap = payload.noteLinkMap ?? {};
-
-  if (studentSemanticMap) {
-    noteLinkMap = filterNoteLinkMapForStudent(noteLinkMap, studentSemanticMap);
-  }
-
+  const variantCatalog = payload.variantCatalog ?? [];
+  const selectedLanguage =
+    payload.selectedLanguage ?? preferLanguage ?? "english";
+  const activeEntry =
+    variantCatalog.find(
+      (entry) => normalizeLanguage(entry.language) === normalizeLanguage(selectedLanguage)
+    ) ?? null;
   const displayName =
     semanticEntry.display_name ?? semanticEntry.source_text ?? "Anchor";
   const topicId = semanticEntry.canonical_topic_id;
-  const noteContent = String(note?.note_content ?? "").trim();
+  const noteBody = activeEntry
+    ? renderStudentAnchorNoteBody(activeEntry, studentSemanticMap)
+    : "";
+  const hasNotePanel = Boolean(noteBody) || variantCatalog.length >= 2;
 
   return `
     <section class="anchor-inspector-section anchor-inspector-header student-anchor-inspector">
       <p class="teacher-intel-inspector-lead student-anchor-inspector-title">${escapeHTML(displayName)}</p>
+      ${renderStudentAnchorVariantTabs(variantCatalog, selectedLanguage)}
     </section>
     ${
-      noteContent
+      hasNotePanel
         ? `
-      <section class="anchor-inspector-section">
-        <div class="anchor-note-body">${renderAnchorNote(noteContent, noteLinkMap)}</div>
+      <section class="anchor-inspector-section" data-student-anchor-note-panel data-selected-language="${escapeHTML(normalizeLanguage(selectedLanguage))}">
+        ${noteBody}
       </section>
     `
         : ""
     }
-    ${renderCanonicalTopicSection(topicId, preferLanguage)}
+    <div data-student-anchor-canonical-panel>
+      ${renderCanonicalTopicSection(topicId, selectedLanguage)}
+    </div>
   `;
+}
+
+function bindStudentAnchorVariantTabs(
+  bodyEl,
+  { variantCatalog = [], topicId = null, inspectorOptions = {} } = {}
+) {
+  const tabsEl = bodyEl?.querySelector(".anchor-inspector-language-tabs");
+  const notePanel = bodyEl?.querySelector("[data-student-anchor-note-panel]");
+  const canonicalPanel = bodyEl?.querySelector("[data-student-anchor-canonical-panel]");
+
+  if (!tabsEl || variantCatalog.length < 2) {
+    return;
+  }
+
+  tabsEl.addEventListener("click", (event) => {
+    const tab = event.target.closest(".anchor-inspector-lang-tab");
+    if (!tab || !tabsEl.contains(tab) || tab.classList.contains("active")) {
+      return;
+    }
+
+    const nextLanguage = normalizeLanguage(tab.dataset.language ?? "");
+    const catalogEntry = variantCatalog.find(
+      (entry) => normalizeLanguage(entry.language) === nextLanguage
+    );
+    if (!catalogEntry) {
+      return;
+    }
+
+    tabsEl.querySelectorAll(".anchor-inspector-lang-tab").forEach((button) => {
+      const isActive = button === tab;
+      button.classList.toggle("active", isActive);
+      button.setAttribute("aria-selected", isActive ? "true" : "false");
+    });
+
+    if (notePanel) {
+      notePanel.dataset.selectedLanguage = nextLanguage;
+      notePanel.innerHTML = renderStudentAnchorNoteBody(
+        catalogEntry,
+        inspectorOptions.studentSemanticMap
+      );
+      bindAnchorNoteSemanticLinks(notePanel, {
+        ...inspectorOptions,
+        preferLanguage: nextLanguage,
+      });
+    }
+
+    if (canonicalPanel && topicId) {
+      canonicalPanel.innerHTML = renderCanonicalTopicSection(topicId, nextLanguage);
+    }
+  });
 }
 
 /**
@@ -825,7 +933,10 @@ export async function openAnchorInspector(semanticEntry = {}, options = {}) {
   if (semanticEntry.anchor_id) {
     try {
       const sb = await getClient();
-      payload = await loadAnchorInspectorPayload(sb, semanticEntry, { preferLanguage });
+      payload = await loadAnchorInspectorPayload(sb, semanticEntry, {
+        preferLanguage,
+        studentMode,
+      });
 
       if (!studentMode && normalizeAnchorName(displayName) === "william laud") {
         await auditCrossLanguageAnchorResolution(sb, displayName, {
@@ -864,6 +975,14 @@ export async function openAnchorInspector(semanticEntry = {}, options = {}) {
     governanceContext: studentMode ? null : options.governanceContext,
     onBodyReady: (bodyEl) => {
       bindAnchorNoteSemanticLinks(bodyEl, inspectorOptions);
+
+      if (studentMode) {
+        bindStudentAnchorVariantTabs(bodyEl, {
+          variantCatalog: payload.variantCatalog ?? [],
+          topicId: entry.canonical_topic_id ?? semanticEntry.canonical_topic_id,
+          inspectorOptions,
+        });
+      }
 
       if (!studentMode) {
         bindAnchorNoteEditorActions(bodyEl, {
