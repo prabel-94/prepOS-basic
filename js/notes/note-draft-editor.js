@@ -628,13 +628,20 @@ export function initDraftWorkspace({
 
       setStatus("Draft saved. Blocks and topic links regenerated.");
       await showEditPreviewMode();
+      return true;
     } catch (err) {
       setStatus(err.message || "Save failed. Source was not replaced.", true);
+      return false;
     }
   }
 
   async function handlePublish() {
     try {
+      const saved = await handleSaveDraft();
+      if (!saved) {
+        return;
+      }
+
       setStatus("Preparing semantic publish review…");
 
       await beginSemanticPublishReview({
