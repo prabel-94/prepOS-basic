@@ -3,6 +3,12 @@ import { getClient } from "./core/get-client.js";
 import { bootPage } from "./core/page-boot.js";
 import { normalizeTopicKey } from "./student/student-intelligence.js";
 import { submitPracticeBankSession } from "./analytics/analytics-submission.js";
+import { loadTopicQuestionProgress } from "./practice/topic-progress-service.js";
+import {
+  hideTopicProgressPanel,
+  renderTopicProgressLoading,
+  renderTopicProgressPanel,
+} from "./practice/topic-progress-ui.js";
 import { DEFAULT_LEXICON_TOPIC } from "./generators/shared/lexicon-engine.js";
 import {
   examHasMalayalamAssistance,
@@ -38,6 +44,7 @@ const practiceProgressBar = document.getElementById("practiceProgressBar");
 const practiceProgressFill = document.getElementById("practiceProgressFill");
 const sessionSummary = document.getElementById("sessionSummary");
 const practiceAssistanceToggle = document.getElementById("practiceAssistanceToggle");
+const topicProgressPanel = document.getElementById("topicProgressPanel");
 
 const LEXICON_EXPLANATION_LABELS = {
   why: "എന്തുകൊണ്ട്",
@@ -53,6 +60,7 @@ const PATTERN_LABELS = {
 startBtn.disabled = true;
 
 let practiceRuntime = null;
+let topicProgressRequestId = 0;
 
 const state = {
   currentQuestion: null,
@@ -151,6 +159,7 @@ async function init() {
   await loadBankTopics();
   initPracticeAssistanceToggle();
   await applyPracticeTopicFromUrl();
+  await refreshTopicProgressPanel();
   bindOptionSelection();
   trackPracticePointerState();
   startBtn.disabled = false;
@@ -622,6 +631,67 @@ function resetSession() {
   updateProgress();
 }
 
+function getSelectedBankTopicLabel() {
+  return (
+    bankTopicSelect.options[bankTopicSelect.selectedIndex]?.text?.replace(
+      /\s+\(\d+\)$/,
+      ""
+    ) || ""
+  );
+}
+
+async function refreshTopicProgressPanel() {
+  if (!topicProgressPanel) {
+    return;
+  }
+
+  if (state.mode !== "bank" || !bankTopicSelect.value) {
+    hideTopicProgressPanel(topicProgressPanel);
+    return;
+  }
+
+  const userId = window.currentUser?.id;
+  const topicId = bankTopicSelect.value;
+  const topicName = getSelectedBankTopicLabel();
+
+  if (!userId) {
+    hideTopicProgressPanel(topicProgressPanel);
+    return;
+  }
+
+  const requestId = ++topicProgressRequestId;
+  renderTopicProgressLoading(topicProgressPanel, topicName);
+
+  try {
+    const progress = await loadTopicQuestionProgress({
+      topicId,
+      topicName,
+      userId,
+    });
+
+    if (requestId !== topicProgressRequestId) {
+      return;
+    }
+
+    renderTopicProgressPanel(topicProgressPanel, progress);
+  } catch (error) {
+    console.warn("[PrepOS Practice] Topic progress load failed:", error);
+
+    if (requestId !== topicProgressRequestId) {
+      return;
+    }
+
+    topicProgressPanel.classList.remove("hidden");
+    topicProgressPanel.innerHTML = `
+      <div class="practice-topic-progress-card practice-topic-progress-card--empty">
+        <div class="practice-topic-progress-kicker">Question bank progress</div>
+        <div class="practice-topic-progress-title">${escapeHTML(topicName)}</div>
+        <div class="text-muted mt-10">Could not load your topic progress right now.</div>
+      </div>
+    `;
+  }
+}
+
 function setPracticeMode(mode) {
   state.mode = mode;
 
@@ -646,6 +716,7 @@ function setPracticeMode(mode) {
   setStatus("");
   updateProgress();
   syncPracticeAssistanceToggleVisibility();
+  refreshTopicProgressPanel();
 }
 
 function shuffleQuestions(questions) {
@@ -995,6 +1066,7 @@ modeButtons.forEach(button => {
   select.addEventListener("change", () => {
     state.bankQuestions = [];
     state.bankCursor = 0;
+    refreshTopicProgressPanel();
   });
 });
 
@@ -1464,6 +1536,7 @@ async function finishSession(message = "Session finished. Start again for a new 
 
   setStatus(statusMessage);
   updateProgress();
+  await refreshTopicProgressPanel();
 }
 
 /* =========================================
