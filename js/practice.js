@@ -3,7 +3,12 @@ import { getClient } from "./core/get-client.js";
 import { bootPage } from "./core/page-boot.js";
 import { normalizeTopicKey } from "./student/student-intelligence.js";
 import { submitPracticeBankSession } from "./analytics/analytics-submission.js";
-import { loadTopicQuestionProgress } from "./practice/topic-progress-service.js";
+import { loadTopicQuestionProgress, loadQuestionKnowledgeContext } from "./practice/topic-progress-service.js";
+import {
+  sortQuestionsByFocusGaps,
+  countNewlyMasteredQuestions,
+  buildQuestionStateById,
+} from "./analytics/topic-question-progress.js";
 import {
   hideTopicProgressPanel,
   renderTopicProgressLoading,
@@ -79,6 +84,8 @@ const state = {
   optionGateOpen: false,
   sessionAnswers: [],
   sessionStartedAt: null,
+  knowledgeContext: null,
+  questionStateAtSessionStart: null,
 };
 
 const OPTION_GATE_MIN_MS = 320;
@@ -134,6 +141,7 @@ async function applyPracticeTopicFromUrl() {
 
   setPracticeMode("bank");
   bankTopicSelect.value = match.value;
+  bankOrderSelect.value = "focus_gaps";
   setStatus(
     `Practice focus: ${match.text.replace(/\s+\(\d+\)$/, "")}`
   );
@@ -615,6 +623,9 @@ function resetSession() {
   state.started = true;
   state.sessionAnswers = [];
   state.sessionStartedAt = Date.now();
+  state.questionStateAtSessionStart = state.knowledgeContext?.questionStateById
+    ? new Map(state.knowledgeContext.questionStateById)
+    : new Map();
 
   clearPracticeFeedback();
   closeOptionGate();
@@ -629,6 +640,114 @@ function resetSession() {
   state.currentAnswer = null;
 
   updateProgress();
+}
+
+function syncKnowledgeContextFromProgress(progress = null) {
+  if (!progress?.questionStateById) {
+    return;
+  }
+
+  state.knowledgeContext = {
+    knowledgeAttempts: progress.knowledgeAttempts ?? [],
+    questions: progress.questions ?? [],
+    questionStateById: progress.questionStateById,
+    topicId: progress.topicId ?? null,
+  };
+}
+
+async function ensureBankKnowledgeContext(questionIds = []) {
+  const userId = window.currentUser?.id;
+  const topicId = bankTopicSelect.value || null;
+
+  if (!userId || !questionIds.length) {
+    state.knowledgeContext = {
+      knowledgeAttempts: [],
+      questions: [],
+      questionStateById: new Map(),
+      topicId,
+    };
+    return;
+  }
+
+  if (
+    topicId &&
+    state.knowledgeContext?.topicId === topicId
+  ) {
+    return;
+  }
+
+  if (topicId) {
+    const topicName = getSelectedBankTopicLabel();
+    const progress = await loadTopicQuestionProgress({
+      topicId,
+      topicName,
+      userId,
+    });
+    syncKnowledgeContextFromProgress(progress);
+    return;
+  }
+
+  state.knowledgeContext = {
+    topicId: null,
+    ...(await loadQuestionKnowledgeContext({
+      userId,
+      questionIds,
+    })),
+  };
+}
+
+function getEffectiveQuestionStates() {
+  const context = state.knowledgeContext;
+
+  if (!context?.questionStateById) {
+    return new Map();
+  }
+
+  if (!state.sessionAnswers.length) {
+    return new Map(context.questionStateById);
+  }
+
+  const questionIds = [
+    ...new Set(
+      state.bankQuestions
+        .map(question => question.id)
+        .filter(Boolean)
+        .map(String)
+    ),
+  ];
+
+  if (!questionIds.length) {
+    return new Map(context.questionStateById);
+  }
+
+  return buildQuestionStateById({
+    questionIds,
+    knowledgeAttempts: [
+      ...(context.knowledgeAttempts ?? []),
+      {
+        submitted_at: new Date().toISOString(),
+        answers: state.sessionAnswers,
+      },
+    ],
+    questions: context.questions ?? [],
+  });
+}
+
+function orderBankQuestions(questions = []) {
+  const order = bankOrderSelect.value;
+
+  if (order === "latest") {
+    return questions;
+  }
+
+  if (order === "focus_gaps") {
+    return sortQuestionsByFocusGaps(
+      questions,
+      state.knowledgeContext?.questionStateById ?? new Map()
+    );
+  }
+
+  return shuffleQuestions(questions);
 }
 
 function getSelectedBankTopicLabel() {
@@ -674,6 +793,7 @@ async function refreshTopicProgressPanel() {
     }
 
     renderTopicProgressPanel(topicProgressPanel, progress);
+    syncKnowledgeContextFromProgress(progress);
   } catch (error) {
     console.warn("[PrepOS Practice] Topic progress load failed:", error);
 
@@ -1001,9 +1121,13 @@ async function loadBankQuestions() {
     .map((row) => normalizeBankQuestion(row, assistanceMap.get(row.id)))
     .filter((question) => question.text && question.options.length >= 2);
 
-  if (bankOrderSelect.value === "random") {
-    state.bankQuestions = shuffleQuestions(state.bankQuestions);
+  const questionIds = state.bankQuestions.map((question) => question.id).filter(Boolean);
+
+  if (bankOrderSelect.value === "focus_gaps") {
+    await ensureBankKnowledgeContext(questionIds);
   }
+
+  state.bankQuestions = orderBankQuestions(state.bankQuestions);
 
   state.bankCursor = 0;
   syncPracticeAssistanceToggleVisibility();
@@ -1029,7 +1153,17 @@ function getNextBankQuestion() {
 
   if (state.bankCursor >= state.bankQuestions.length) {
     if (state.sessionLimit === Infinity) {
-      state.bankQuestions = shuffleQuestions(state.bankQuestions);
+      const order = bankOrderSelect.value;
+
+      if (order === "focus_gaps") {
+        state.bankQuestions = sortQuestionsByFocusGaps(
+          state.bankQuestions,
+          getEffectiveQuestionStates()
+        );
+      } else {
+        state.bankQuestions = shuffleQuestions(state.bankQuestions);
+      }
+
       state.bankCursor = 0;
     } else {
       return null;
@@ -1471,6 +1605,19 @@ async function finishSession(message = "Session finished. Start again for a new 
       ? 0
       : Math.round((state.correctCount / state.answeredCount) * 100);
 
+  const newlyMastered =
+    state.mode === "bank" &&
+    state.sessionAnswers.length > 0 &&
+    state.knowledgeContext
+      ? countNewlyMasteredQuestions({
+          questionStateByIdBefore:
+            state.questionStateAtSessionStart ?? new Map(),
+          sessionAnswers: state.sessionAnswers,
+          knowledgeAttempts: state.knowledgeContext.knowledgeAttempts ?? [],
+          questions: state.knowledgeContext.questions ?? [],
+        })
+      : 0;
+
   sessionSummary.innerHTML = `
     <div class="exam-results-card">
       <div class="exam-results-kicker">Session Complete</div>
@@ -1487,7 +1634,27 @@ async function finishSession(message = "Session finished. Start again for a new 
           <div class="exam-results-stat-label">Accuracy</div>
           <div class="exam-results-stat-value">${accuracy}%</div>
         </div>
+        ${
+          newlyMastered > 0
+            ? `
+        <div class="exam-results-stat">
+          <div class="exam-results-stat-label">Newly Mastered</div>
+          <div class="exam-results-stat-value">${newlyMastered}</div>
+        </div>
+        `
+            : ""
+        }
       </div>
+      ${
+        state.mode === "bank" && bankOrderSelect.value === "focus_gaps"
+          ? `<div class="text-muted mt-10">Focus Gaps mode prioritized new and weak questions in this session.</div>`
+          : ""
+      }
+      ${
+        newlyMastered > 0
+          ? `<div class="mt-10"><strong>+${newlyMastered}</strong> question${newlyMastered === 1 ? "" : "s"} newly mastered this session.</div>`
+          : ""
+      }
     </div>
   `;
   sessionSummary.classList.remove("hidden");

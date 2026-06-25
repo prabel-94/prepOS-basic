@@ -3,7 +3,7 @@
  */
 
 import { getClient } from "../core/get-client.js";
-import { buildTopicQuestionProgress } from "../analytics/topic-question-progress.js";
+import { buildTopicQuestionProgress, buildQuestionStateById } from "../analytics/topic-question-progress.js";
 import {
   buildAttemptRecord,
   buildPracticeAttemptRecord,
@@ -136,4 +136,43 @@ export async function loadTopicQuestionProgress({
     knowledgeAttempts,
     questions,
   });
+}
+
+/**
+ * Load knowledge context for a set of bank question ids (e.g. all-topics mode).
+ */
+export async function loadQuestionKnowledgeContext({
+  questionIds = [],
+  userId = null,
+  sb: client = null,
+} = {}) {
+  if (!userId || !questionIds.length) {
+    return {
+      knowledgeAttempts: [],
+      questions: [],
+      questionStateById: new Map(),
+    };
+  }
+
+  const sb = client ?? (await getClient());
+  const uniqueIds = [...new Set(questionIds.filter(Boolean))];
+
+  const [examRows, practiceRows] = await Promise.all([
+    fetchExamAttemptRows(sb, userId),
+    fetchPracticeAttemptRows(sb, userId),
+  ]);
+
+  const knowledgeAttempts = toKnowledgeAttempts(examRows, practiceRows);
+  const questions = await fetchQuestionCatalogByIds(uniqueIds, { sb });
+  const questionStateById = buildQuestionStateById({
+    questionIds: uniqueIds,
+    knowledgeAttempts,
+    questions,
+  });
+
+  return {
+    knowledgeAttempts,
+    questions,
+    questionStateById,
+  };
 }

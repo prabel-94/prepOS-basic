@@ -15,6 +15,13 @@ export const QUESTION_PROGRESS_STATES = [
   "mastered",
 ];
 
+const QUESTION_STATE_PRIORITY = {
+  not_started: 0,
+  needs_review: 1,
+  learning: 2,
+  mastered: 3,
+};
+
 /**
  * Walk attempts chronologically and record the latest result per question.
  */
@@ -93,6 +100,130 @@ function deriveProgressConfidence(attemptedCount = 0, totalQuestions = 0) {
 }
 
 /**
+ * Map each question id to its bank progress state.
+ */
+export function buildQuestionStateById({
+  questionIds = [],
+  knowledgeAttempts = [],
+  questions = [],
+} = {}) {
+  const uniqueIds = [...new Set(questionIds.map(id => String(id)).filter(Boolean))];
+  const statsById = new Map(
+    buildKnowledgeQuestionStats(knowledgeAttempts, { questions }).map(stat => [
+      String(stat.questionId),
+      stat,
+    ])
+  );
+  const lastByQuestion = buildLastAnswerByQuestion(knowledgeAttempts);
+  const result = new Map();
+
+  for (const questionId of uniqueIds) {
+    const stat = statsById.get(questionId);
+
+    if (!stat) {
+      result.set(questionId, "not_started");
+      continue;
+    }
+
+    result.set(
+      questionId,
+      classifyQuestionMasteryState({
+        attempts: stat.attempts ?? 0,
+        accuracy: stat.accuracy ?? 0,
+        lastCorrect: lastByQuestion.has(questionId)
+          ? lastByQuestion.get(questionId)
+          : null,
+      })
+    );
+  }
+
+  return result;
+}
+
+function shuffleList(items = []) {
+  const shuffled = [...items];
+
+  for (let i = shuffled.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+
+  return shuffled;
+}
+
+/**
+ * Order bank questions: unseen → review → learning → mastered (light shuffle per tier).
+ */
+export function sortQuestionsByFocusGaps(
+  questions = [],
+  stateById = new Map()
+) {
+  const buckets = [[], [], [], []];
+
+  for (const question of questions) {
+    const questionId = String(question?.id ?? "");
+    const progressState = stateById.get(questionId) ?? "not_started";
+    const priority = QUESTION_STATE_PRIORITY[progressState] ?? 0;
+    buckets[priority].push(question);
+  }
+
+  return [
+    ...shuffleList(buckets[0]),
+    ...shuffleList(buckets[1]),
+    ...shuffleList(buckets[2]),
+    ...shuffleList(buckets[3]),
+  ];
+}
+
+/**
+ * Count questions that reached mastered during a session.
+ */
+export function countNewlyMasteredQuestions({
+  questionStateByIdBefore = new Map(),
+  sessionAnswers = [],
+  knowledgeAttempts = [],
+  questions = [],
+} = {}) {
+  if (!sessionAnswers.length) {
+    return 0;
+  }
+
+  const affectedIds = [
+    ...new Set(
+      sessionAnswers
+        .map(answer => answer.question_id ?? answer.questionId)
+        .filter(Boolean)
+        .map(String)
+    ),
+  ];
+
+  const stateAfter = buildQuestionStateById({
+    questionIds: affectedIds,
+    knowledgeAttempts: [
+      ...knowledgeAttempts,
+      {
+        submitted_at: new Date().toISOString(),
+        answers: sessionAnswers,
+      },
+    ],
+    questions,
+  });
+
+  let count = 0;
+
+  for (const questionId of affectedIds) {
+    if (
+      stateAfter.get(questionId) === "mastered" &&
+      questionStateByIdBefore.get(questionId) !== "mastered"
+    ) {
+      count += 1;
+    }
+  }
+
+  return count;
+}
+
+/**
  * Build topic-level question bank progress for a fixed question catalog.
  */
 export function buildTopicQuestionProgress({
@@ -122,6 +253,9 @@ export function buildTopicQuestionProgress({
       confidence: "low",
       hasData: false,
       counts,
+      questionStateById: new Map(),
+      knowledgeAttempts: [],
+      questions: [],
     };
   }
 
@@ -132,12 +266,18 @@ export function buildTopicQuestionProgress({
     ])
   );
   const lastByQuestion = buildLastAnswerByQuestion(knowledgeAttempts);
+  const questionStateById = buildQuestionStateById({
+    questionIds: uniqueIds,
+    knowledgeAttempts,
+    questions,
+  });
 
   let accuracySum = 0;
   let accuracyCount = 0;
 
   for (const questionId of uniqueIds) {
     const stat = statsById.get(questionId);
+    const progressState = questionStateById.get(questionId) ?? "not_started";
 
     if (!stat) {
       counts.not_started += 1;
@@ -146,16 +286,7 @@ export function buildTopicQuestionProgress({
 
     accuracySum += stat.accuracy ?? 0;
     accuracyCount += 1;
-
-    const state = classifyQuestionMasteryState({
-      attempts: stat.attempts ?? 0,
-      accuracy: stat.accuracy ?? 0,
-      lastCorrect: lastByQuestion.has(questionId)
-        ? lastByQuestion.get(questionId)
-        : null,
-    });
-
-    counts[state] += 1;
+    counts[progressState] += 1;
   }
 
   const attemptedCount = totalQuestions - counts.not_started;
@@ -176,5 +307,8 @@ export function buildTopicQuestionProgress({
     confidence: deriveProgressConfidence(attemptedCount, totalQuestions),
     hasData: true,
     counts,
+    questionStateById,
+    knowledgeAttempts,
+    questions,
   };
 }
