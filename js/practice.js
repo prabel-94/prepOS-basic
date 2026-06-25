@@ -10,6 +10,10 @@ import {
   buildQuestionStateById,
 } from "./analytics/topic-question-progress.js";
 import {
+  upsertBankQuestionStat,
+  applyPersistedStatLocally,
+} from "./practice/question-stats.js";
+import {
   hideTopicProgressPanel,
   renderTopicProgressLoading,
   renderTopicProgressPanel,
@@ -649,10 +653,63 @@ function syncKnowledgeContextFromProgress(progress = null) {
 
   state.knowledgeContext = {
     knowledgeAttempts: progress.knowledgeAttempts ?? [],
+    examAttempts: progress.examAttempts ?? [],
     questions: progress.questions ?? [],
     questionStateById: progress.questionStateById,
+    persistedStatsById: progress.persistedStatsById ?? new Map(),
     topicId: progress.topicId ?? null,
   };
+}
+
+function rebuildKnowledgeContextQuestionStates(questionIds = []) {
+  const context = state.knowledgeContext;
+
+  if (!context) {
+    return;
+  }
+
+  const ids =
+    questionIds.length > 0
+      ? questionIds
+      : state.bankQuestions.map(question => question.id).filter(Boolean);
+
+  if (!ids.length) {
+    return;
+  }
+
+  context.questionStateById = buildQuestionStateById({
+    questionIds: ids,
+    knowledgeAttempts: context.knowledgeAttempts ?? [],
+    examAttempts: context.examAttempts ?? [],
+    questions: context.questions ?? [],
+    persistedStatsById: context.persistedStatsById ?? new Map(),
+  });
+}
+
+async function updateBankQuestionStat(questionId, isCorrect) {
+  if (
+    practiceRuntime?.role !== "student" ||
+    !window.currentUser?.id ||
+    !questionId
+  ) {
+    return;
+  }
+
+  const row = await upsertBankQuestionStat({
+    userId: window.currentUser.id,
+    questionId,
+    isCorrect,
+  });
+
+  if (!row || !state.knowledgeContext) {
+    return;
+  }
+
+  state.knowledgeContext.persistedStatsById = applyPersistedStatLocally(
+    state.knowledgeContext.persistedStatsById ?? new Map(),
+    row
+  );
+  rebuildKnowledgeContextQuestionStates([questionId]);
 }
 
 async function ensureBankKnowledgeContext(questionIds = []) {
@@ -697,40 +754,7 @@ async function ensureBankKnowledgeContext(questionIds = []) {
 }
 
 function getEffectiveQuestionStates() {
-  const context = state.knowledgeContext;
-
-  if (!context?.questionStateById) {
-    return new Map();
-  }
-
-  if (!state.sessionAnswers.length) {
-    return new Map(context.questionStateById);
-  }
-
-  const questionIds = [
-    ...new Set(
-      state.bankQuestions
-        .map(question => question.id)
-        .filter(Boolean)
-        .map(String)
-    ),
-  ];
-
-  if (!questionIds.length) {
-    return new Map(context.questionStateById);
-  }
-
-  return buildQuestionStateById({
-    questionIds,
-    knowledgeAttempts: [
-      ...(context.knowledgeAttempts ?? []),
-      {
-        submitted_at: new Date().toISOString(),
-        answers: state.sessionAnswers,
-      },
-    ],
-    questions: context.questions ?? [],
-  });
+  return new Map(state.knowledgeContext?.questionStateById ?? []);
 }
 
 function orderBankQuestions(questions = []) {
@@ -1570,6 +1594,16 @@ async function handleAnswer(selected) {
       correct,
       is_correct: selectedId === correct,
     });
+
+    try {
+      await updateBankQuestionStat(question.id, selectedId === correct);
+    } catch (error) {
+      console.warn("[PrepOS Practice] Question stat update failed:", error);
+      setStatus(
+        "Answer recorded locally, but your question progress could not be saved.",
+        true
+      );
+    }
   }
 
   nextBtn.classList.remove("hidden");
@@ -1612,9 +1646,8 @@ async function finishSession(message = "Session finished. Start again for a new 
       ? countNewlyMasteredQuestions({
           questionStateByIdBefore:
             state.questionStateAtSessionStart ?? new Map(),
-          sessionAnswers: state.sessionAnswers,
-          knowledgeAttempts: state.knowledgeContext.knowledgeAttempts ?? [],
-          questions: state.knowledgeContext.questions ?? [],
+          questionStateByIdAfter:
+            state.knowledgeContext.questionStateById ?? new Map(),
         })
       : 0;
 

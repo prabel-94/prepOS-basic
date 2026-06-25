@@ -9,6 +9,7 @@ import {
   buildPracticeAttemptRecord,
   fetchQuestionCatalogByIds,
 } from "../analytics/analytics-submission.js";
+import { fetchUserQuestionStats } from "../practice/question-stats.js";
 
 async function fetchTopicQuestionIds(sb, topicId) {
   const { data, error } = await sb
@@ -95,6 +96,35 @@ function toKnowledgeAttempts(examRows = [], practiceRows = []) {
   return [...examAttempts, ...practiceAttempts];
 }
 
+async function loadKnowledgeInputs(sb, userId, questionIds = []) {
+  const uniqueIds = [...new Set(questionIds.filter(Boolean))];
+
+  const [examRows, practiceRows, persistedStatsById] = await Promise.all([
+    fetchExamAttemptRows(sb, userId),
+    fetchPracticeAttemptRows(sb, userId),
+    fetchUserQuestionStats({
+      userId,
+      questionIds: uniqueIds,
+      sb,
+    }),
+  ]);
+
+  const examAttempts = toKnowledgeAttempts(examRows, []);
+  const practiceAttempts = toKnowledgeAttempts([], practiceRows);
+  const knowledgeAttempts = [...examAttempts, ...practiceAttempts];
+  const questions = uniqueIds.length
+    ? await fetchQuestionCatalogByIds(uniqueIds, { sb })
+    : [];
+
+  return {
+    knowledgeAttempts,
+    examAttempts,
+    practiceAttempts,
+    questions,
+    persistedStatsById,
+  };
+}
+
 /**
  * Load read-only topic bank progress for the signed-in student.
  */
@@ -121,20 +151,21 @@ export async function loadTopicQuestionProgress({
     });
   }
 
-  const [examRows, practiceRows] = await Promise.all([
-    fetchExamAttemptRows(sb, userId),
-    fetchPracticeAttemptRows(sb, userId),
-  ]);
-
-  const knowledgeAttempts = toKnowledgeAttempts(examRows, practiceRows);
-  const questions = await fetchQuestionCatalogByIds(questionIds, { sb });
+  const {
+    knowledgeAttempts,
+    examAttempts,
+    questions,
+    persistedStatsById,
+  } = await loadKnowledgeInputs(sb, userId, questionIds);
 
   return buildTopicQuestionProgress({
     topicId,
     topicName,
     questionIds,
     knowledgeAttempts,
+    examAttempts,
     questions,
+    persistedStatsById,
   });
 }
 
@@ -156,23 +187,26 @@ export async function loadQuestionKnowledgeContext({
 
   const sb = client ?? (await getClient());
   const uniqueIds = [...new Set(questionIds.filter(Boolean))];
+  const {
+    knowledgeAttempts,
+    examAttempts,
+    questions,
+    persistedStatsById,
+  } = await loadKnowledgeInputs(sb, userId, uniqueIds);
 
-  const [examRows, practiceRows] = await Promise.all([
-    fetchExamAttemptRows(sb, userId),
-    fetchPracticeAttemptRows(sb, userId),
-  ]);
-
-  const knowledgeAttempts = toKnowledgeAttempts(examRows, practiceRows);
-  const questions = await fetchQuestionCatalogByIds(uniqueIds, { sb });
   const questionStateById = buildQuestionStateById({
     questionIds: uniqueIds,
     knowledgeAttempts,
+    examAttempts,
     questions,
+    persistedStatsById,
   });
 
   return {
     knowledgeAttempts,
+    examAttempts,
     questions,
+    persistedStatsById,
     questionStateById,
   };
 }

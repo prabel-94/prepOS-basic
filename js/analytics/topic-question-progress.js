@@ -26,14 +26,7 @@ const QUESTION_STATE_PRIORITY = {
  * Walk attempts chronologically and record the latest result per question.
  */
 export function buildLastAnswerByQuestion(attempts = []) {
-  const sorted = [...attempts].sort((a, b) => {
-    const left = normalizeAttempt(a);
-    const right = normalizeAttempt(b);
-    const ta = new Date(left.submittedAt ?? 0).getTime();
-    const tb = new Date(right.submittedAt ?? 0).getTime();
-    return ta - tb;
-  });
-
+  const sorted = sortAttemptsChronologically(attempts);
   const last = new Map();
 
   for (const attempt of sorted) {
@@ -47,6 +40,115 @@ export function buildLastAnswerByQuestion(attempts = []) {
   }
 
   return last;
+}
+
+function sortAttemptsChronologically(attempts = []) {
+  return [...attempts].sort((a, b) => {
+    const left = normalizeAttempt(a);
+    const right = normalizeAttempt(b);
+    const ta = new Date(left.submittedAt ?? 0).getTime();
+    const tb = new Date(right.submittedAt ?? 0).getTime();
+    return ta - tb;
+  });
+}
+
+/**
+ * Latest attempt timestamp per question from attempt rows.
+ */
+export function buildLastAnswerAtByQuestion(attempts = []) {
+  const sorted = sortAttemptsChronologically(attempts);
+  const lastAt = new Map();
+
+  for (const attempt of sorted) {
+    const normalized = normalizeAttempt(attempt);
+    const submittedAt = normalized.submittedAt ?? null;
+
+    for (const answer of normalized.answers) {
+      if (answer.questionId && submittedAt) {
+        lastAt.set(String(answer.questionId), submittedAt);
+      }
+    }
+  }
+
+  return lastAt;
+}
+
+function resolveLastCorrect({
+  persistedCorrect = null,
+  persistedAt = null,
+  attemptCorrect = null,
+  attemptAt = null,
+} = {}) {
+  if (persistedAt == null) {
+    return attemptCorrect ?? null;
+  }
+
+  if (attemptAt == null) {
+    return persistedCorrect ?? null;
+  }
+
+  const persistedTime = new Date(persistedAt).getTime();
+  const attemptTime = new Date(attemptAt).getTime();
+
+  if (Number.isNaN(persistedTime)) {
+    return attemptCorrect ?? persistedCorrect ?? null;
+  }
+
+  if (Number.isNaN(attemptTime)) {
+    return persistedCorrect ?? null;
+  }
+
+  return persistedTime >= attemptTime ? persistedCorrect : attemptCorrect;
+}
+
+function buildMergedQuestionMetrics(
+  questionId,
+  {
+    persisted = null,
+    examStat = null,
+    fallbackStat = null,
+    examLastCorrect = null,
+    examLastAt = null,
+    fallbackLastCorrect = null,
+  } = {}
+) {
+  if (persisted) {
+    const attempts = (persisted.seen_count ?? 0) + (examStat?.attempts ?? 0);
+    const correct = (persisted.correct_count ?? 0) + (examStat?.correct ?? 0);
+    const accuracy = attempts > 0 ? (correct / attempts) * 100 : 0;
+
+    return {
+      attempts,
+      correct,
+      accuracy,
+      lastCorrect: resolveLastCorrect({
+        persistedCorrect: persisted.last_correct,
+        persistedAt: persisted.last_seen_at,
+        attemptCorrect: examLastCorrect,
+        attemptAt: examLastAt,
+      }),
+    };
+  }
+
+  if (!fallbackStat) {
+    return {
+      attempts: 0,
+      correct: 0,
+      accuracy: 0,
+      lastCorrect: null,
+    };
+  }
+
+  return {
+    attempts: fallbackStat.attempts ?? 0,
+    correct: fallbackStat.correct ?? 0,
+    accuracy: fallbackStat.accuracy ?? 0,
+    lastCorrect: fallbackLastCorrect ?? null,
+  };
+}
+
+export function filterExamKnowledgeAttempts(attempts = []) {
+  return attempts.filter(attempt => attempt?.submissionMode !== "practice");
 }
 
 /**
@@ -105,34 +207,42 @@ function deriveProgressConfidence(attemptedCount = 0, totalQuestions = 0) {
 export function buildQuestionStateById({
   questionIds = [],
   knowledgeAttempts = [],
+  examAttempts = null,
   questions = [],
+  persistedStatsById = new Map(),
 } = {}) {
   const uniqueIds = [...new Set(questionIds.map(id => String(id)).filter(Boolean))];
-  const statsById = new Map(
-    buildKnowledgeQuestionStats(knowledgeAttempts, { questions }).map(stat => [
-      String(stat.questionId),
-      stat,
-    ])
+  const examOnlyAttempts =
+    examAttempts ?? filterExamKnowledgeAttempts(knowledgeAttempts);
+  const examStats = buildKnowledgeQuestionStats(examOnlyAttempts, { questions });
+  const fallbackStats = buildKnowledgeQuestionStats(knowledgeAttempts, { questions });
+  const examStatsById = new Map(
+    examStats.map(stat => [String(stat.questionId), stat])
   );
-  const lastByQuestion = buildLastAnswerByQuestion(knowledgeAttempts);
+  const fallbackStatsById = new Map(
+    fallbackStats.map(stat => [String(stat.questionId), stat])
+  );
+  const examLastByQuestion = buildLastAnswerByQuestion(examOnlyAttempts);
+  const examLastAtByQuestion = buildLastAnswerAtByQuestion(examOnlyAttempts);
+  const fallbackLastByQuestion = buildLastAnswerByQuestion(knowledgeAttempts);
   const result = new Map();
 
   for (const questionId of uniqueIds) {
-    const stat = statsById.get(questionId);
-
-    if (!stat) {
-      result.set(questionId, "not_started");
-      continue;
-    }
+    const metrics = buildMergedQuestionMetrics(questionId, {
+      persisted: persistedStatsById.get(questionId) ?? null,
+      examStat: examStatsById.get(questionId) ?? null,
+      fallbackStat: fallbackStatsById.get(questionId) ?? null,
+      examLastCorrect: examLastByQuestion.get(questionId),
+      examLastAt: examLastAtByQuestion.get(questionId),
+      fallbackLastCorrect: fallbackLastByQuestion.get(questionId),
+    });
 
     result.set(
       questionId,
       classifyQuestionMasteryState({
-        attempts: stat.attempts ?? 0,
-        accuracy: stat.accuracy ?? 0,
-        lastCorrect: lastByQuestion.has(questionId)
-          ? lastByQuestion.get(questionId)
-          : null,
+        attempts: metrics.attempts,
+        accuracy: metrics.accuracy,
+        lastCorrect: metrics.lastCorrect,
       })
     );
   }
@@ -180,10 +290,27 @@ export function sortQuestionsByFocusGaps(
  */
 export function countNewlyMasteredQuestions({
   questionStateByIdBefore = new Map(),
+  questionStateByIdAfter = null,
   sessionAnswers = [],
   knowledgeAttempts = [],
   questions = [],
+  persistedStatsById = new Map(),
 } = {}) {
+  if (questionStateByIdAfter) {
+    let count = 0;
+
+    for (const [questionId, after] of questionStateByIdAfter.entries()) {
+      if (
+        after === "mastered" &&
+        questionStateByIdBefore.get(questionId) !== "mastered"
+      ) {
+        count += 1;
+      }
+    }
+
+    return count;
+  }
+
   if (!sessionAnswers.length) {
     return 0;
   }
@@ -199,14 +326,9 @@ export function countNewlyMasteredQuestions({
 
   const stateAfter = buildQuestionStateById({
     questionIds: affectedIds,
-    knowledgeAttempts: [
-      ...knowledgeAttempts,
-      {
-        submitted_at: new Date().toISOString(),
-        answers: sessionAnswers,
-      },
-    ],
+    knowledgeAttempts,
     questions,
+    persistedStatsById,
   });
 
   let count = 0;
@@ -231,11 +353,15 @@ export function buildTopicQuestionProgress({
   topicName = "",
   questionIds = [],
   knowledgeAttempts = [],
+  examAttempts = null,
   questions = [],
+  persistedStatsById = new Map(),
 } = {}) {
   const uniqueIds = [...new Set(questionIds.map(id => String(id)).filter(Boolean))];
   const totalQuestions = uniqueIds.length;
   const counts = emptyCounts();
+  const examOnlyAttempts =
+    examAttempts ?? filterExamKnowledgeAttempts(knowledgeAttempts);
 
   if (!totalQuestions) {
     return {
@@ -254,37 +380,52 @@ export function buildTopicQuestionProgress({
       hasData: false,
       counts,
       questionStateById: new Map(),
+      persistedStatsById,
       knowledgeAttempts: [],
+      examAttempts: [],
       questions: [],
     };
   }
 
-  const statsById = new Map(
-    buildKnowledgeQuestionStats(knowledgeAttempts, { questions }).map(stat => [
-      String(stat.questionId),
-      stat,
-    ])
+  const examStats = buildKnowledgeQuestionStats(examOnlyAttempts, { questions });
+  const fallbackStats = buildKnowledgeQuestionStats(knowledgeAttempts, { questions });
+  const examStatsById = new Map(
+    examStats.map(stat => [String(stat.questionId), stat])
   );
-  const lastByQuestion = buildLastAnswerByQuestion(knowledgeAttempts);
+  const fallbackStatsById = new Map(
+    fallbackStats.map(stat => [String(stat.questionId), stat])
+  );
+  const examLastByQuestion = buildLastAnswerByQuestion(examOnlyAttempts);
+  const examLastAtByQuestion = buildLastAnswerAtByQuestion(examOnlyAttempts);
+  const fallbackLastByQuestion = buildLastAnswerByQuestion(knowledgeAttempts);
   const questionStateById = buildQuestionStateById({
     questionIds: uniqueIds,
     knowledgeAttempts,
+    examAttempts: examOnlyAttempts,
     questions,
+    persistedStatsById,
   });
 
   let accuracySum = 0;
   let accuracyCount = 0;
 
   for (const questionId of uniqueIds) {
-    const stat = statsById.get(questionId);
     const progressState = questionStateById.get(questionId) ?? "not_started";
+    const metrics = buildMergedQuestionMetrics(questionId, {
+      persisted: persistedStatsById.get(questionId) ?? null,
+      examStat: examStatsById.get(questionId) ?? null,
+      fallbackStat: fallbackStatsById.get(questionId) ?? null,
+      examLastCorrect: examLastByQuestion.get(questionId),
+      examLastAt: examLastAtByQuestion.get(questionId),
+      fallbackLastCorrect: fallbackLastByQuestion.get(questionId),
+    });
 
-    if (!stat) {
+    if (!metrics.attempts) {
       counts.not_started += 1;
       continue;
     }
 
-    accuracySum += stat.accuracy ?? 0;
+    accuracySum += metrics.accuracy ?? 0;
     accuracyCount += 1;
     counts[progressState] += 1;
   }
@@ -308,7 +449,9 @@ export function buildTopicQuestionProgress({
     hasData: true,
     counts,
     questionStateById,
+    persistedStatsById,
     knowledgeAttempts,
+    examAttempts: examOnlyAttempts,
     questions,
   };
 }
