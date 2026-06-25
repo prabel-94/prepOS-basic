@@ -62,6 +62,7 @@ export async function fetchVariantById(variantId) {
       status,
       created_at,
       updated_at,
+      scheduled_delete_at,
       section_extensions,
       notes (
         id,
@@ -102,6 +103,27 @@ export async function fetchVariantsForNote(noteId, { includeArchived = false } =
   }
 
   return data ?? [];
+}
+
+/**
+ * Archived variants for a canonical note, optionally filtered by language.
+ * @param {string} noteId
+ * @param {string} [language]
+ */
+export async function fetchArchivedVariantsForNote(noteId, language) {
+  const variants = await fetchVariantsForNote(noteId, { includeArchived: true });
+  const normalized = language ? normalizeLanguage(language) : null;
+
+  return variants
+    .filter((variant) => variant.status === "archived")
+    .filter((variant) =>
+      normalized ? normalizeLanguage(variant.language) === normalized : true
+    )
+    .sort(
+      (a, b) =>
+        new Date(b.updated_at ?? 0).getTime() -
+        new Date(a.updated_at ?? 0).getTime()
+    );
 }
 
 export async function fetchNoteSource(variantId) {

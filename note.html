@@ -442,6 +442,90 @@
     .referenced-in-link {
       font-weight: 500;
     }
+    .note-version-history {
+      max-width: 720px;
+      margin-top: 32px;
+      padding-top: 20px;
+      border-top: 1px solid #e2e8f0;
+    }
+    .note-version-history-heading {
+      margin: 0 0 8px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #475569;
+      letter-spacing: 0.02em;
+    }
+    .note-version-history-intro {
+      margin: 0 0 16px;
+      font-size: 0.875rem;
+    }
+    .note-version-history-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .note-version-history-item {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 14px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      background: #f8fafc;
+    }
+    .note-version-history-item.is-active {
+      border-color: #94a3b8;
+      background: #f1f5f9;
+    }
+    .note-version-history-title {
+      font-weight: 600;
+      color: #1e293b;
+    }
+    .note-version-history-meta {
+      font-size: 0.85rem;
+      margin-top: 4px;
+    }
+    .note-version-history-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    .note-version-history-current {
+      font-size: 0.85rem;
+    }
+    .note-archive-banner {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 16px;
+      padding: 12px 14px;
+      border: 1px solid #fcd34d;
+      border-radius: 8px;
+      background: #fffbeb;
+    }
+    .note-archive-banner-main {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+    .note-archive-banner-text {
+      font-size: 0.875rem;
+      color: #92400e;
+    }
+    .note-archive-banner-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
   </style>
 </head>
 <body>
@@ -470,6 +554,8 @@
 
   <div id="noteContent"></div>
 
+  <div id="noteVersionHistory" class="hidden" aria-label="Archived versions"></div>
+
   <div id="noteBacklinks"></div>
 
   <div id="readerStatus">Loading…</div>
@@ -479,7 +565,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/config.js?v=20260520"></script>
 <script type="module" src="js/auth.js"></script>
-<script type="module" src="js/notes/note-reader.js?v=20260608"></script>
+<script type="module" src="js/notes/note-reader.js?v=20260625"></script>
 
 </body>
 </html>
