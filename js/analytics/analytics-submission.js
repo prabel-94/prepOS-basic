@@ -6,7 +6,8 @@
  *
  * Used by:
  * - exam.js (student submission)
- * - future: practice.js, teacher dashboards
+ * - practice.js (bank mode submission)
+ * - teacher dashboards (future)
  *
  * PrepOS Analytics Architecture v1
  */
@@ -45,6 +46,9 @@ import {
 
 
 const KNOWLEDGE_CACHE_KEY = "prepos_knowledge_analytics";
+
+/** Portfolio cache key for bank practice knowledge snapshots. */
+export const PRACTICE_PORTFOLIO_KEY = "__practice__";
 
 let observabilityBootstrapped = false;
 
@@ -705,5 +709,386 @@ export function registerDefaultAnalyticsListeners({
       onKnowledgeSnapshot
     );
   }
+
+}
+
+
+
+/* =========================================================
+   PRACTICE BANK SUBMISSION
+========================================================= */
+
+function getDeviceId() {
+  if (typeof localStorage === "undefined") {
+    return null;
+  }
+
+  let id = localStorage.getItem("prepos_device_id");
+
+  if (!id) {
+    id = crypto.randomUUID();
+    localStorage.setItem("prepos_device_id", id);
+  }
+
+  return id;
+}
+
+
+
+function mapQuestionCatalogRow(row = {}) {
+  const topics = (row.question_topics || [])
+    .map(link => link.topics?.name)
+    .filter(Boolean);
+
+  return {
+    id: row.id,
+    question_id: row.id,
+    question_text: row.question_text ?? "",
+    text: row.question_text ?? "",
+    topics,
+    topic_count: topics.length,
+    bank_status: "saved",
+    is_bank_question: true,
+    is_published: true,
+    published: true,
+  };
+}
+
+
+
+/**
+ * Fetch question bank catalog rows for knowledge analytics.
+ */
+export async function fetchQuestionCatalogByIds(
+  questionIds = [],
+  { sb: client = null } = {}
+) {
+
+  if (!questionIds.length) {
+    return [];
+  }
+
+  const sb = client ?? await getClient();
+
+  const { data, error } = await sb
+    .from("questions")
+    .select(`
+      id,
+      question_text,
+      question_topics (
+        topic_id,
+        topics ( id, name )
+      )
+    `)
+    .in("id", [...new Set(questionIds)]);
+
+  if (error) {
+    console.warn("[PrepOS Analytics] Practice question fetch failed:", error);
+    return [];
+  }
+
+  return (data ?? []).map(mapQuestionCatalogRow);
+
+}
+
+
+
+function collectQuestionIdsFromAttempts(attempts = []) {
+  const questionIds = new Set();
+
+  for (const attempt of attempts) {
+    for (const answer of attempt.answers ?? []) {
+      const id = answer.question_id ?? answer.questionId;
+      if (id) {
+        questionIds.add(id);
+      }
+    }
+  }
+
+  return [...questionIds];
+}
+
+
+
+/**
+ * Fetch prior bank practice attempts for a student (best-effort).
+ */
+export async function fetchPriorPracticeAttempts({
+  studentId,
+  limit = 200,
+  sb: client = null
+} = {}) {
+
+  if (!studentId) {
+    return [];
+  }
+
+  const sb = client ?? await getClient();
+
+  const { data, error } = await sb
+    .from("practice_attempts")
+    .select(`
+      id,
+      student_id,
+      topic_id,
+      topic_name,
+      answers,
+      score,
+      question_count,
+      time_taken,
+      submitted_at,
+      attempt_id
+    `)
+    .eq("student_id", studentId)
+    .order("submitted_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.warn("[PrepOS Analytics] Prior practice attempts fetch failed:", error);
+    return [];
+  }
+
+  return (data ?? []).map(row => ({
+    ...row,
+    exam_id: PRACTICE_PORTFOLIO_KEY,
+    examId: PRACTICE_PORTFOLIO_KEY,
+    submissionMode: "practice",
+  }));
+
+}
+
+
+
+/**
+ * Normalize a practice_attempts row for analytics engines.
+ */
+export function buildPracticeAttemptRecord(row = {}) {
+
+  return buildAttemptRecord({
+    examId: PRACTICE_PORTFOLIO_KEY,
+    attemptId: row.id ?? row.attempt_id ?? null,
+    studentId: row.student_id ?? null,
+    studentName: row.student_name ?? "",
+    answers: row.answers ?? [],
+    score: row.score ?? 0,
+    timeTaken: row.time_taken ?? 0,
+    submittedAt: row.submitted_at ?? null,
+    submissionMode: "practice",
+  });
+
+}
+
+
+
+/**
+ * Run knowledge analytics after a bank practice session.
+ */
+export async function runPracticeSubmissionAnalytics({
+
+  attempt = {},
+
+  priorAttempts = [],
+
+  questions = [],
+
+  topicName = "Practice Bank"
+
+} = {}) {
+
+  if (!PREPOS_ANALYTICS_ENABLED) {
+    return analyticsDisabledResult(
+      PRACTICE_PORTFOLIO_KEY,
+      attempt?.id ?? null
+    );
+  }
+
+  ensureObservability();
+
+  const allAttempts = [
+    ...priorAttempts,
+    attempt
+  ];
+
+  const exam = {
+    id: PRACTICE_PORTFOLIO_KEY,
+    title: topicName || "Practice Bank",
+    is_published: true,
+  };
+
+  const knowledgeResult = buildKnowledgeAnalytics({
+    exam,
+    attempt,
+    allAttempts,
+    questions,
+  });
+
+  await emit(
+    "knowledge_analytics_snapshot",
+    knowledgeResult
+  );
+
+  cacheKnowledgeAnalytics(
+    PRACTICE_PORTFOLIO_KEY,
+    knowledgeResult
+  );
+
+  const combined = {
+    examId: PRACTICE_PORTFOLIO_KEY,
+    attemptId: attempt.id ?? null,
+    submissionMode: "practice",
+    submissionScope: attempt.submissionScope ?? {
+      knowledgeEligible: true,
+      assessmentEligible: true,
+      canonical: true,
+    },
+    assessment: null,
+    knowledge: knowledgeResult,
+    processedAt: new Date().toISOString(),
+  };
+
+  try {
+    observeSubmissionAnalytics(combined);
+  } catch {
+    /* observability must not block analytics */
+  }
+
+  if (typeof window !== "undefined") {
+    window.__preposLastPracticeAnalytics = combined;
+  }
+
+  return combined;
+
+}
+
+
+
+/**
+ * Practice submission with historical attempts and question catalog.
+ */
+export async function runPracticeSubmissionAnalyticsWithHistory({
+
+  attempt = {},
+
+  studentId = null,
+
+  sb: client = null
+
+} = {}) {
+
+  let priorAttempts = [];
+
+  try {
+    const rows = await fetchPriorPracticeAttempts({
+      studentId,
+      sb: client,
+    });
+
+    priorAttempts = rows
+      .map(buildPracticeAttemptRecord)
+      .filter(row => row.id !== attempt.id);
+  } catch {
+    priorAttempts = [];
+  }
+
+  const questionIds = collectQuestionIdsFromAttempts([
+    ...priorAttempts,
+    attempt,
+  ]);
+
+  const questions = await fetchQuestionCatalogByIds(
+    questionIds,
+    { sb: client }
+  );
+
+  return runPracticeSubmissionAnalytics({
+    attempt,
+    priorAttempts,
+    questions,
+    topicName: attempt.topicName ?? "Practice Bank",
+  });
+
+}
+
+
+
+/**
+ * Persist a bank practice session and update knowledge analytics.
+ * Non-blocking safe for practice UI.
+ */
+export async function submitPracticeBankSession({
+
+  answers = [],
+
+  score = 0,
+
+  questionCount = 0,
+
+  timeTaken = 0,
+
+  topicId = null,
+
+  topicName = null,
+
+  studentId = null,
+
+  studentName = "",
+
+  sb: client = null
+
+} = {}) {
+
+  if (!PREPOS_ANALYTICS_ENABLED || !studentId || !answers.length) {
+    return null;
+  }
+
+  const sb = client ?? await getClient();
+  const attemptUuid = crypto.randomUUID();
+
+  const { data, error } = await sb
+    .from("practice_attempts")
+    .insert([
+      {
+        student_id: studentId,
+        attempt_id: attemptUuid,
+        device_id: getDeviceId(),
+        topic_id: topicId || null,
+        topic_name: topicName || null,
+        answers,
+        score,
+        question_count: questionCount,
+        time_taken: timeTaken,
+        submitted_at: new Date().toISOString(),
+      },
+    ])
+    .select(`
+      id,
+      student_id,
+      topic_id,
+      topic_name,
+      answers,
+      score,
+      question_count,
+      time_taken,
+      submitted_at,
+      attempt_id
+    `)
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  const attempt = buildPracticeAttemptRecord({
+    ...data,
+    student_name: studentName,
+  });
+
+  attempt.topicName = topicName;
+
+  return runPracticeSubmissionAnalyticsWithHistory({
+    attempt,
+    studentId,
+    sb,
+  });
 
 }

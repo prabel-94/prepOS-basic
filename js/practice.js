@@ -2,6 +2,7 @@ import { runGenerator } from "./generator-core.js";
 import { getClient } from "./core/get-client.js";
 import { bootPage } from "./core/page-boot.js";
 import { normalizeTopicKey } from "./student/student-intelligence.js";
+import { submitPracticeBankSession } from "./analytics/analytics-submission.js";
 import { DEFAULT_LEXICON_TOPIC } from "./generators/shared/lexicon-engine.js";
 import {
   examHasMalayalamAssistance,
@@ -51,6 +52,8 @@ const PATTERN_LABELS = {
 
 startBtn.disabled = true;
 
+let practiceRuntime = null;
+
 const state = {
   currentQuestion: null,
   loading: false,
@@ -66,6 +69,8 @@ const state = {
   currentAnswer: null,
   optionGateId: 0,
   optionGateOpen: false,
+  sessionAnswers: [],
+  sessionStartedAt: null,
 };
 
 const OPTION_GATE_MIN_MS = 320;
@@ -136,6 +141,8 @@ async function init() {
   });
 
   if (!runtime) return;
+
+  practiceRuntime = runtime;
 
   const sb = await getClient();
 
@@ -597,6 +604,8 @@ function resetSession() {
   state.correctCount = 0;
   state.sessionLimit = getSessionLimit();
   state.started = true;
+  state.sessionAnswers = [];
+  state.sessionStartedAt = Date.now();
 
   clearPracticeFeedback();
   closeOptionGate();
@@ -997,7 +1006,7 @@ async function loadQuestion() {
   if (state.loading) return;
 
   if (state.answeredCount >= state.sessionLimit) {
-    finishSession();
+    await finishSession();
     return;
   }
 
@@ -1025,7 +1034,7 @@ async function loadQuestion() {
 
       if (!bankQuestion) {
         if (state.answeredCount > 0) {
-          finishSession(
+          await finishSession(
             bankTopicSelect.value
               ? "No more questions are available for this topic."
               : "No more bank questions are available in this session."
@@ -1348,6 +1357,15 @@ async function handleAnswer(selected) {
     state.correctCount += 1;
   }
 
+  if (state.mode === "bank" && question.id) {
+    state.sessionAnswers.push({
+      question_id: question.id,
+      chosen: selectedId,
+      correct,
+      is_correct: selectedId === correct,
+    });
+  }
+
   nextBtn.classList.remove("hidden");
   updateProgress();
 
@@ -1367,7 +1385,7 @@ async function handleAnswer(selected) {
   }
 }
 
-function finishSession(message = "Session finished. Start again for a new set.") {
+async function finishSession(message = "Session finished. Start again for a new set.") {
   state.currentQuestion = null;
   if (questionPrompt) {
     questionPrompt.innerHTML = `<div class="qtext">Session complete</div>`;
@@ -1402,7 +1420,49 @@ function finishSession(message = "Session finished. Start again for a new set.")
   `;
   sessionSummary.classList.remove("hidden");
 
-  setStatus(message);
+  let statusMessage = message;
+
+  if (
+    state.mode === "bank" &&
+    state.sessionAnswers.length > 0 &&
+    practiceRuntime?.role === "student" &&
+    window.currentUser?.id
+  ) {
+    const elapsed = state.sessionStartedAt
+      ? Math.floor((Date.now() - state.sessionStartedAt) / 1000)
+      : 0;
+    const topicLabel =
+      bankTopicSelect.options[bankTopicSelect.selectedIndex]?.text?.replace(
+        /\s+\(\d+\)$/,
+        ""
+      ) || null;
+
+    try {
+      await submitPracticeBankSession({
+        answers: state.sessionAnswers,
+        score: state.correctCount,
+        questionCount: state.sessionAnswers.length,
+        timeTaken: elapsed,
+        topicId: bankTopicSelect.value || null,
+        topicName: topicLabel,
+        studentId: window.currentUser.id,
+        studentName:
+          window.currentUser.user_metadata?.full_name ??
+          window.currentUser.user_metadata?.name ??
+          "",
+      });
+      statusMessage = `${message} Your learning profile was updated.`;
+    } catch (error) {
+      console.warn("[PrepOS Practice] Knowledge analytics submission failed:", error);
+      statusMessage =
+        "Session complete. Your answers were not saved to your learning profile.";
+    }
+  }
+
+  state.sessionAnswers = [];
+  state.sessionStartedAt = null;
+
+  setStatus(statusMessage);
   updateProgress();
 }
 
