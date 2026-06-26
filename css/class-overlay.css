@@ -25,6 +25,24 @@
   cursor: default;
 }
 
+.prepos-class-overlay-canvas--fade-ink:not(.prepos-class-overlay-canvas--inactive) {
+  cursor: crosshair;
+}
+
+.prepos-class-overlay-canvas--sticky-ink:not(.prepos-class-overlay-canvas--inactive) {
+  cursor: cell;
+}
+
+.prepos-class-overlay-root:has(.prepos-class-overlay-canvas--fade-ink:not(.prepos-class-overlay-canvas--inactive))
+  .prepos-class-overlay-fab {
+  box-shadow: 0 8px 20px rgba(124, 58, 237, 0.35);
+}
+
+.prepos-class-overlay-root:has(.prepos-class-overlay-canvas--sticky-ink:not(.prepos-class-overlay-canvas--inactive))
+  .prepos-class-overlay-fab {
+  box-shadow: 0 8px 20px rgba(15, 118, 110, 0.35);
+}
+
 .prepos-class-overlay-toolbar {
   position: fixed;
   right: 16px;

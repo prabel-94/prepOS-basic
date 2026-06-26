@@ -83,7 +83,9 @@ export function createClassOverlayToolbar(controller, actions = {}) {
       <button type="button" class="prepos-class-overlay-btn" data-clear-all>Clear all</button>
       <button type="button" class="prepos-class-overlay-btn" data-end-session>End session</button>
     </div>
-    <p class="prepos-class-overlay-hint text-muted">Fade ink disappears automatically. Use Sticky to keep marks across pages.</p>
+    <p class="prepos-class-overlay-hint text-muted">
+      <strong>Fade</strong> = dashed, lighter (disappears). <strong>Sticky</strong> = solid, bold (kept until cleared).
+    </p>
   `;
 
   const statusEl = root.querySelector("[data-overlay-status]");

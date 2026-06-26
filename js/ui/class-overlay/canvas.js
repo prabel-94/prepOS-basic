@@ -29,29 +29,10 @@ function clonePoints(points) {
  * @param {object} stroke
  * @param {number} width
  * @param {number} height
- * @param {number} [opacity=1]
+ * @param {{ opacity?: number, layer?: "fade" | "sticky" }} [options]
  */
-function drawStroke(ctx, stroke, width, height, opacity = 1) {
+function traceStrokePath(ctx, stroke, width, height) {
   const points = stroke.points;
-  if (!points?.length) {
-    return;
-  }
-
-  const lineWidth = stroke.width * Math.min(width, height);
-  const isHighlighter = stroke.tool === "highlighter";
-
-  ctx.save();
-  ctx.globalAlpha = opacity * (isHighlighter ? 0.38 : 0.95);
-  ctx.strokeStyle = stroke.color;
-  ctx.lineWidth = lineWidth;
-  ctx.lineCap = "round";
-  ctx.lineJoin = "round";
-
-  if (isHighlighter) {
-    ctx.globalCompositeOperation = "multiply";
-  }
-
-  ctx.beginPath();
   const [x0, y0] = points[0];
   ctx.moveTo(x0 * width, y0 * height);
 
@@ -59,7 +40,61 @@ function drawStroke(ctx, stroke, width, height, opacity = 1) {
     const [x, y] = points[i];
     ctx.lineTo(x * width, y * height);
   }
+}
 
+function drawStroke(ctx, stroke, width, height, options = {}) {
+  const points = stroke.points;
+  if (!points?.length) {
+    return;
+  }
+
+  const opacity = options.opacity ?? 1;
+  const layer = options.layer ?? stroke.layer ?? "sticky";
+  const isFade = layer === "fade";
+  const isHighlighter = stroke.tool === "highlighter";
+  const minDim = Math.min(width, height);
+  const widthScale = isFade ? 0.82 : 1.12;
+  const lineWidth = stroke.width * minDim * widthScale;
+
+  ctx.save();
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.setLineDash([]);
+
+  if (isFade) {
+    ctx.globalAlpha = opacity * (isHighlighter ? 0.28 : 0.52);
+    ctx.strokeStyle = stroke.color;
+    ctx.lineWidth = lineWidth;
+    ctx.setLineDash([
+      Math.max(3, lineWidth * 1.2),
+      Math.max(5, lineWidth * 2),
+    ]);
+    ctx.beginPath();
+    traceStrokePath(ctx, stroke, width, height);
+    ctx.stroke();
+    ctx.restore();
+    return;
+  }
+
+  // Sticky: solid stroke with a subtle outline for legibility on any background.
+  if (!isHighlighter) {
+    ctx.globalAlpha = opacity * 0.35;
+    ctx.strokeStyle = "#0f172a";
+    ctx.lineWidth = lineWidth + Math.max(2, lineWidth * 0.35);
+    ctx.beginPath();
+    traceStrokePath(ctx, stroke, width, height);
+    ctx.stroke();
+  }
+
+  ctx.globalAlpha = opacity * (isHighlighter ? 0.42 : 0.98);
+  ctx.strokeStyle = stroke.color;
+  ctx.lineWidth = lineWidth;
+  if (isHighlighter) {
+    ctx.globalCompositeOperation = "multiply";
+  }
+
+  ctx.beginPath();
+  traceStrokePath(ctx, stroke, width, height);
   ctx.stroke();
   ctx.restore();
 }
@@ -144,7 +179,7 @@ export function createClassOverlayCanvas({ canvas, pageKey, isDrawingAllowed }) 
     ctx.clearRect(0, 0, width, height);
 
     for (const stroke of stickyStrokes) {
-      drawStroke(ctx, stroke, width, height, 1);
+      drawStroke(ctx, stroke, width, height, { opacity: 1, layer: "sticky" });
     }
 
     fadeStrokes = fadeStrokes.filter((stroke) => now - stroke.createdAt < stroke.ttlMs);
@@ -158,12 +193,20 @@ export function createClassOverlayCanvas({ canvas, pageKey, isDrawingAllowed }) 
         opacity = Math.max(0, remaining / stroke.fadeWindowMs);
       }
 
-      drawStroke(ctx, stroke, width, height, opacity);
+      drawStroke(ctx, stroke, width, height, { opacity, layer: "fade" });
     }
 
     if (activeStroke) {
-      drawStroke(ctx, activeStroke, width, height, inkMode === "fade" ? 0.9 : 1);
+      drawStroke(ctx, activeStroke, width, height, {
+        opacity: inkMode === "fade" ? 0.85 : 1,
+        layer: inkMode,
+      });
     }
+  }
+
+  function syncInkModeClass() {
+    canvas.classList.toggle("prepos-class-overlay-canvas--fade-ink", inkMode === "fade");
+    canvas.classList.toggle("prepos-class-overlay-canvas--sticky-ink", inkMode === "sticky");
   }
 
   function tick() {
@@ -359,12 +402,14 @@ export function createClassOverlayCanvas({ canvas, pageKey, isDrawingAllowed }) 
 
   window.addEventListener("resize", resize);
   syncPointerEvents();
+  syncInkModeClass();
   animationFrame = window.requestAnimationFrame(tick);
   resize();
 
   return {
     setInkMode(mode) {
       inkMode = mode === "sticky" ? "sticky" : "fade";
+      syncInkModeClass();
     },
 
     getInkMode() {
