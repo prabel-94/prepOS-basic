@@ -13,7 +13,7 @@ import {
 } from "./session.js";
 import {
   createClassOverlayToolbar,
-  createToolbarToggleButton,
+  createClassOverlayDock,
 } from "./toolbar.js";
 
 let booted = false;
@@ -79,19 +79,19 @@ export function bootClassOverlay(runtime) {
       toolbar.element.classList.add("prepos-class-overlay-toolbar--hidden");
     },
     onDrawingStateChange: () => {
-      updatePointerPolicy(canvas, controller);
+      syncOverlayUi();
     },
     onClearPage: () => {
       controller.clearFade();
       controller.clearSticky();
       clearCurrentPageSticky(pageKey);
-      toolbar.updateStatus();
+      syncOverlayUi();
     },
     onClearAll: () => {
       controller.clearFade();
       controller.clearSticky();
       clearAllSticky();
-      toolbar.updateStatus();
+      syncOverlayUi();
     },
     onEndSession: () => {
       controller.clearFade();
@@ -100,21 +100,40 @@ export function bootClassOverlay(runtime) {
       controller.reloadSticky();
       controller.setOverlayActive(false);
       controller.setOverlayVisible(true);
-      toolbar.syncToggleLabels();
-      toolbar.updateStatus();
-      updatePointerPolicy(canvas, controller);
+      syncOverlayUi();
     },
   });
 
-  const fab = createToolbarToggleButton();
-  fab.addEventListener("click", () => {
-    toolbar.element.classList.toggle("prepos-class-overlay-toolbar--hidden");
+  function syncOverlayUi() {
+    toolbar.syncToggleLabels();
+    toolbar.syncInkMode();
+    toolbar.syncTool();
+    toolbar.updateStatus();
+    dock.sync();
+    updatePointerPolicy(canvas, controller);
+  }
+
+  const dock = createClassOverlayDock(controller, {
+    onDrawingToggle: () => {
+      controller.setOverlayActive(!controller.isOverlayActive());
+      syncOverlayUi();
+    },
+    onOpenToolbar: () => {
+      toolbar.element.classList.remove("prepos-class-overlay-toolbar--hidden");
+    },
+    onInkOrToolChange: () => {
+      toolbar.syncInkMode();
+      toolbar.syncTool();
+      toolbar.updateStatus();
+      dock.sync();
+      updatePointerPolicy(canvas, controller);
+    },
   });
 
   root.appendChild(canvas);
   root.appendChild(toolbar.element);
   toolbar.element.classList.add("prepos-class-overlay-toolbar--hidden");
-  root.appendChild(fab);
+  root.appendChild(dock.element);
   document.body.appendChild(root);
 
   const modalObserver = new MutationObserver(() => {
@@ -137,14 +156,12 @@ export function bootClassOverlay(runtime) {
 
     event.preventDefault();
     controller.setOverlayActive(!controller.isOverlayActive());
-    toolbar.syncToggleLabels();
-    toolbar.updateStatus();
-    updatePointerPolicy(canvas, controller);
+    syncOverlayUi();
   }
 
   function onPageShow() {
     controller.reloadSticky();
-    toolbar.updateStatus();
+    syncOverlayUi();
   }
 
   window.addEventListener("pagehide", onPageHide);
@@ -155,9 +172,7 @@ export function bootClassOverlay(runtime) {
   controller.setTool("pen");
   controller.setOverlayActive(false);
   controller.setOverlayVisible(true);
-  updatePointerPolicy(canvas, controller);
-  toolbar.syncToggleLabels();
-  toolbar.updateStatus();
+  syncOverlayUi();
 
   teardown = () => {
     window.removeEventListener("pagehide", onPageHide);

@@ -33,14 +33,94 @@
   cursor: cell;
 }
 
-.prepos-class-overlay-root:has(.prepos-class-overlay-canvas--fade-ink:not(.prepos-class-overlay-canvas--inactive))
-  .prepos-class-overlay-fab {
-  box-shadow: 0 8px 20px rgba(124, 58, 237, 0.35);
+.prepos-class-overlay-dock {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2590;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  pointer-events: none;
 }
 
-.prepos-class-overlay-root:has(.prepos-class-overlay-canvas--sticky-ink:not(.prepos-class-overlay-canvas--inactive))
-  .prepos-class-overlay-fab {
-  box-shadow: 0 8px 20px rgba(15, 118, 110, 0.35);
+.prepos-class-overlay-dock > * {
+  pointer-events: auto;
+}
+
+.prepos-class-overlay-quick {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 48px;
+}
+
+.prepos-class-overlay-quick--hidden {
+  display: none;
+}
+
+.prepos-class-overlay-quick-row {
+  display: flex;
+  gap: 4px;
+}
+
+.prepos-class-overlay-quick-btn {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.96);
+  color: #1e293b;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.1;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.12);
+  backdrop-filter: blur(8px);
+  touch-action: manipulation;
+}
+
+.prepos-class-overlay-quick-btn:hover {
+  border-color: #94a3b8;
+  background: #f8fafc;
+}
+
+.prepos-class-overlay-quick-btn.is-active[data-quick-ink="fade"] {
+  background: #7c3aed;
+  border-color: #7c3aed;
+  color: #fff;
+}
+
+.prepos-class-overlay-quick-btn.is-active[data-quick-ink="sticky"] {
+  background: #0f766e;
+  border-color: #0f766e;
+  color: #fff;
+}
+
+.prepos-class-overlay-quick-btn--erase.is-active {
+  background: #b45309;
+  border-color: #b45309;
+  color: #fff;
+}
+
+.prepos-class-overlay-dock--fade-ink .prepos-class-overlay-fab--drawing {
+  background: #7c3aed;
+  border-color: #6d28d9;
+  box-shadow: 0 8px 20px rgba(124, 58, 237, 0.45);
+}
+
+.prepos-class-overlay-dock--sticky-ink .prepos-class-overlay-fab--drawing {
+  background: #0f766e;
+  border-color: #0d9488;
+  box-shadow: 0 8px 20px rgba(15, 118, 110, 0.45);
+}
+
+.prepos-class-overlay-dock--eraser .prepos-class-overlay-fab--drawing {
+  background: #b45309;
+  border-color: #d97706;
+  box-shadow: 0 8px 20px rgba(180, 83, 9, 0.45);
 }
 
 .prepos-class-overlay-toolbar {
@@ -181,11 +261,6 @@
 }
 
 .prepos-class-overlay-fab {
-  position: fixed;
-  right: 16px;
-  bottom: 16px;
-  z-index: 2590;
-  pointer-events: auto;
   width: 48px;
   height: 48px;
   border-radius: 999px;
@@ -196,11 +271,18 @@
   line-height: 1;
   cursor: pointer;
   box-shadow: 0 8px 20px rgba(15, 23, 42, 0.25);
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.prepos-class-overlay-fab--drawing {
+  transform: scale(1.04);
 }
 
 .prepos-class-overlay-root:has(.prepos-class-overlay-toolbar:not(.prepos-class-overlay-toolbar--hidden))
-  .prepos-class-overlay-fab {
-  bottom: calc(16px + 220px);
+  .prepos-class-overlay-dock {
+  bottom: calc(16px + 248px);
 }
 
 @media (max-width: 640px) {
@@ -211,8 +293,13 @@
     max-width: none;
   }
 
-  .prepos-class-overlay-fab {
+  .prepos-class-overlay-dock {
     right: 12px;
     bottom: 12px;
+  }
+
+  .prepos-class-overlay-root:has(.prepos-class-overlay-toolbar:not(.prepos-class-overlay-toolbar--hidden))
+    .prepos-class-overlay-dock {
+    bottom: calc(8px + 248px);
   }
 }

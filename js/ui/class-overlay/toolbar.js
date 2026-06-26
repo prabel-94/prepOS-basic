@@ -84,7 +84,8 @@ export function createClassOverlayToolbar(controller, actions = {}) {
       <button type="button" class="prepos-class-overlay-btn" data-end-session>End session</button>
     </div>
     <p class="prepos-class-overlay-hint text-muted">
-      <strong>Fade</strong> = dashed, lighter (disappears). <strong>Sticky</strong> = solid, bold (kept until cleared).
+      Tap ✎ to draw. Long-press ✎ for colors, fade time, and session controls.
+      <strong>Fade</strong> = dashed (disappears). <strong>Sticky</strong> = solid (kept).
     </p>
   `;
 
@@ -122,16 +123,26 @@ export function createClassOverlayToolbar(controller, actions = {}) {
     if (inkBtn) {
       const mode = inkBtn.dataset.inkMode;
       controller.setInkMode(mode);
+      if (mode === "fade" && controller.getTool() === "eraser") {
+        controller.setTool("pen");
+      }
       setActiveButton("[data-ink-mode]", mode, "data-ink-mode");
+      setActiveButton("[data-tool]", controller.getTool(), "data-tool");
       updateStatus();
+      actions.onDrawingStateChange?.();
       return;
     }
 
     const toolBtn = event.target.closest("[data-tool]");
     if (toolBtn) {
       const nextTool = toolBtn.dataset.tool;
+      if (nextTool === "eraser") {
+        controller.setInkMode("sticky");
+        setActiveButton("[data-ink-mode]", "sticky", "data-ink-mode");
+      }
       controller.setTool(nextTool);
       setActiveButton("[data-tool]", nextTool, "data-tool");
+      actions.onDrawingStateChange?.();
       return;
     }
 
@@ -182,18 +193,185 @@ export function createClassOverlayToolbar(controller, actions = {}) {
   });
 
   syncToggleLabels();
+  setActiveButton("[data-ink-mode]", controller.getInkMode(), "data-ink-mode");
+  setActiveButton("[data-tool]", controller.getTool(), "data-tool");
   updateStatus();
 
   return {
     element: root,
     updateStatus,
     syncToggleLabels,
+    syncInkMode() {
+      setActiveButton("[data-ink-mode]", controller.getInkMode(), "data-ink-mode");
+    },
+    syncTool() {
+      setActiveButton("[data-tool]", controller.getTool(), "data-tool");
+    },
     collapse() {
       root.classList.toggle("prepos-class-overlay-toolbar--collapsed");
     },
   };
 }
 
+const LONG_PRESS_MS = 480;
+
+/**
+ * Bottom dock: quick controls (when drawing) + FAB draw toggle. Long-press FAB opens toolbar.
+ *
+ * @param {object} controller
+ * @param {object} actions
+ * @param {() => void} actions.onDrawingToggle
+ * @param {() => void} actions.onOpenToolbar
+ * @param {() => void} actions.onInkOrToolChange
+ */
+export function createClassOverlayDock(controller, actions = {}) {
+  const dock = document.createElement("div");
+  dock.className = "prepos-class-overlay-dock";
+  dock.setAttribute("aria-label", "Class markup controls");
+
+  const quick = document.createElement("div");
+  quick.className = "prepos-class-overlay-quick prepos-class-overlay-quick--hidden";
+  quick.setAttribute("role", "toolbar");
+  quick.setAttribute("aria-label", "Quick markup controls");
+  quick.innerHTML = `
+    <div class="prepos-class-overlay-quick-row" role="group" aria-label="Ink mode">
+      <button
+        type="button"
+        class="prepos-class-overlay-quick-btn is-active"
+        data-quick-ink="fade"
+        title="Fade ink (disappears)"
+      >Fade</button>
+      <button
+        type="button"
+        class="prepos-class-overlay-quick-btn"
+        data-quick-ink="sticky"
+        title="Sticky ink (keeps until cleared)"
+      >Sticky</button>
+    </div>
+    <button
+      type="button"
+      class="prepos-class-overlay-quick-btn prepos-class-overlay-quick-btn--erase"
+      data-quick-eraser
+      title="Erase sticky ink"
+    >Erase</button>
+  `;
+
+  const fab = document.createElement("button");
+  fab.type = "button";
+  fab.className = "prepos-class-overlay-fab";
+  fab.title = "Toggle drawing (long-press for settings)";
+  fab.setAttribute("aria-label", "Toggle class markup drawing");
+  fab.setAttribute("aria-pressed", "false");
+  fab.textContent = "✎";
+
+  dock.appendChild(quick);
+  dock.appendChild(fab);
+
+  let longPressTimer = 0;
+  let longPressFired = false;
+
+  function setQuickActive(selector, activeValue, attr) {
+    quick.querySelectorAll(selector).forEach((btn) => {
+      btn.classList.toggle("is-active", btn.getAttribute(attr) === activeValue);
+    });
+  }
+
+  function sync() {
+    const drawing = controller.isOverlayActive();
+    const inkMode = controller.getInkMode();
+    const tool = controller.getTool();
+
+    quick.classList.toggle("prepos-class-overlay-quick--hidden", !drawing);
+    fab.classList.toggle("prepos-class-overlay-fab--drawing", drawing);
+    fab.setAttribute("aria-pressed", drawing ? "true" : "false");
+    fab.title = drawing
+      ? "Stop drawing (long-press for settings)"
+      : "Start drawing (long-press for settings)";
+
+    dock.classList.toggle("prepos-class-overlay-dock--fade-ink", drawing && inkMode === "fade");
+    dock.classList.toggle("prepos-class-overlay-dock--sticky-ink", drawing && inkMode === "sticky");
+    dock.classList.toggle(
+      "prepos-class-overlay-dock--eraser",
+      drawing && tool === "eraser"
+    );
+
+    setQuickActive("[data-quick-ink]", inkMode, "data-quick-ink");
+    quick.querySelector("[data-quick-eraser]")?.classList.toggle(
+      "is-active",
+      tool === "eraser"
+    );
+  }
+
+  function clearLongPress() {
+    window.clearTimeout(longPressTimer);
+    longPressTimer = 0;
+  }
+
+  fab.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0) {
+      return;
+    }
+
+    longPressFired = false;
+    clearLongPress();
+    longPressTimer = window.setTimeout(() => {
+      longPressFired = true;
+      actions.onOpenToolbar?.();
+    }, LONG_PRESS_MS);
+  });
+
+  fab.addEventListener("pointerup", (event) => {
+    if (event.button !== 0) {
+      return;
+    }
+
+    clearLongPress();
+    if (longPressFired) {
+      event.preventDefault();
+      return;
+    }
+
+    actions.onDrawingToggle?.();
+  });
+
+  fab.addEventListener("pointercancel", clearLongPress);
+  fab.addEventListener("pointerleave", clearLongPress);
+  fab.addEventListener("contextmenu", (event) => {
+    event.preventDefault();
+  });
+
+  quick.addEventListener("click", (event) => {
+    const inkBtn = event.target.closest("[data-quick-ink]");
+    if (inkBtn) {
+      const mode = inkBtn.dataset.quickInk;
+      controller.setInkMode(mode);
+      if (controller.getTool() === "eraser") {
+        controller.setTool("pen");
+      }
+      actions.onInkOrToolChange?.();
+      sync();
+      return;
+    }
+
+    if (event.target.closest("[data-quick-eraser]")) {
+      controller.setInkMode("sticky");
+      controller.setTool("eraser");
+      actions.onInkOrToolChange?.();
+      sync();
+    }
+  });
+
+  sync();
+
+  return {
+    element: dock,
+    fab,
+    quick,
+    sync,
+  };
+}
+
+/** @deprecated Use createClassOverlayDock */
 export function createToolbarToggleButton() {
   const btn = document.createElement("button");
   btn.type = "button";
