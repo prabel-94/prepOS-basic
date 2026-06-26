@@ -12,6 +12,9 @@ import {
   hasMalayalamAssistance,
   malayalamAssistanceFromMetadata,
   malayalamAssistanceToMetadataPayload,
+  ML_VARIANT_VERIFICATION_KEY,
+  computeMalayalamAssistanceHash,
+  getMlVariantVerificationRecord,
 } from "./core/question-assistance.js";
 import { openModal, closeModal } from "./ui/modal-system.js";
 
@@ -74,9 +77,10 @@ function questionWithAssistance(question = {}) {
   return { ...question, ...patch };
 }
 
-function renderMalayalamInlineBlock(questionId, mlQuestion) {
+function renderMalayalamInlineBlock(questionId, mlQuestion, mlVerified = false) {
   const mask = ensureMalayalamAssistance({ ...mlQuestion });
   const options = mask.options || {};
+  const hasMl = hasMalayalamAssistance(mlQuestion);
 
   return `
 <div class="malayalam-block hidden" id="ml-${questionId}">
@@ -142,13 +146,29 @@ function renderMalayalamInlineBlock(questionId, mlQuestion) {
     placeholder="Malayalam explanation for review (optional)"
   >${mask.explanation || ""}</textarea>
 
-  <button
-    class="primary-btn save-malayalam mt-10"
-    data-id="${questionId}"
-    type="button"
-  >
-    Save Malayalam
-  </button>
+  <div class="flex gap-10 mt-10 malayalam-block-actions">
+    <button
+      class="primary-btn save-malayalam"
+      data-id="${questionId}"
+      type="button"
+    >
+      Save Malayalam
+    </button>
+    <button
+      class="secondary-btn certify-malayalam${hasMl ? "" : " hidden"}"
+      data-id="${questionId}"
+      type="button"
+    >
+      Mark verified
+    </button>
+    <button
+      class="secondary-btn revoke-malayalam-cert${mlVerified ? "" : " hidden"}"
+      data-id="${questionId}"
+      type="button"
+    >
+      Remove verification
+    </button>
+  </div>
 </div>
   `.trim();
 }
@@ -200,6 +220,68 @@ async function saveMalayalamAssistance(questionId, payload) {
   });
 }
 
+async function clearMlVariantVerification(questionId) {
+  const sb = await getClient();
+  await sb
+    .from("question_metadata")
+    .delete()
+    .eq("question_id", questionId)
+    .eq("key", ML_VARIANT_VERIFICATION_KEY);
+}
+
+async function certifyMlVariant(questionId) {
+  const payload = readMalayalamFromCard(questionId);
+  const question = { assistance: { malayalam: payload } };
+  const normalized = malayalamAssistanceToMetadataPayload(question);
+
+  if (!normalized || !hasMalayalamAssistance(question)) {
+    throw new Error("Add Malayalam content before marking as verified");
+  }
+
+  const contentHash = await computeMalayalamAssistanceHash(normalized);
+  const sb = await getClient();
+  const { data: userData } = await sb.auth.getUser();
+
+  const { error } = await sb
+    .from("question_metadata")
+    .upsert(
+      {
+        question_id: questionId,
+        key: ML_VARIANT_VERIFICATION_KEY,
+        value: {
+          content_hash: contentHash,
+          verified_at: new Date().toISOString(),
+          verified_by: userData?.user?.id ?? null,
+        },
+      },
+      { onConflict: "question_id,key" }
+    );
+
+  if (error) {
+    throw error;
+  }
+}
+
+async function enrichQuestionMlStatus(question) {
+  const mlQuestion = questionWithAssistance(question);
+  const hasMl = hasMalayalamAssistance(mlQuestion);
+  let verified = false;
+
+  if (hasMl) {
+    const record = getMlVariantVerificationRecord(question);
+    const payload = malayalamAssistanceToMetadataPayload(mlQuestion);
+
+    if (record?.content_hash && payload) {
+      const currentHash = await computeMalayalamAssistanceHash(payload);
+      verified = currentHash === record.content_hash;
+    }
+  }
+
+  question._mlHasContent = hasMl;
+  question._mlVerified = verified;
+  question._mlNeedsReview = hasMl && !verified;
+}
+
 function setRadioGroup(name, value) {
   if (!value) return;
 
@@ -229,7 +311,8 @@ const state = {
   search: "",
   topicFilter: null,
   topicSearch: "",
-  caFilter: "all"
+  caFilter: "all",
+  mlFilter: "all",
 };
 
 // --------------------------------
@@ -712,6 +795,7 @@ async function fetchQuestions() {
   }
 
   state.questions = data || [];
+  await Promise.all(state.questions.map((question) => enrichQuestionMlStatus(question)));
   render();
 }
 
@@ -786,12 +870,15 @@ function renderOverview() {
 // QUESTIONS VIEW
 // --------------------------------
 function renderQuestions() {
+  const hasListTrigger =
+    state.search ||
+    state.topicFilter ||
+    state.mlFilter !== "all";
 
-  // 🔥 BLOCK rendering unless filter/search applied
-  if (!state.search && !state.topicFilter) {
+  if (!hasListTrigger) {
     el.questionsView.innerHTML = `
       <div class="empty-state">
-        Search or select a topic to view questions
+        Search, select a topic, or choose a Malayalam filter to view questions
       </div>
     `;
     return;
@@ -816,6 +903,14 @@ function renderQuestions() {
   });
 }
 
+  if (state.mlFilter === "ml-unverified") {
+    list = list.filter((q) => q._mlNeedsReview);
+  }
+
+  if (state.mlFilter === "ml-verified") {
+    list = list.filter((q) => q._mlVerified);
+  }
+
   if (state.search) {
     list = list.filter(q =>
       q.question_text.toLowerCase().includes(state.search.toLowerCase())
@@ -831,8 +926,17 @@ function renderQuestions() {
   }
 
   if (!list.length) {
+    const emptyMessage =
+      state.mlFilter === "ml-unverified" && state.topicFilter
+        ? "No unverified Malayalam questions in this topic"
+        : state.mlFilter === "ml-unverified"
+          ? "No unverified Malayalam questions found"
+          : state.mlFilter === "ml-verified"
+            ? "No verified Malayalam questions found"
+            : "No questions found";
+
     el.questionsView.innerHTML =
-      `<div class="empty-state">No questions found</div>`;
+      `<div class="empty-state">${emptyMessage}</div>`;
     return;
   }
 
@@ -873,7 +977,11 @@ const caBadge = caEvent
     `).join("");
 
     const mlQuestion = questionWithAssistance(q);
-    const hasMl = hasMalayalamAssistance(mlQuestion);
+    const hasMl = q._mlHasContent ?? hasMalayalamAssistance(mlQuestion);
+    const mlVerified = Boolean(q._mlVerified);
+    const mlVerifiedBadge = mlVerified
+      ? `<div class="ml-verified-badge" title="Malayalam verified">ML ✓</div>`
+      : "";
 
     return `
       <div class="question-card">
@@ -895,6 +1003,7 @@ const caBadge = caEvent
     ${pattern || "PATTERN"}
   </div>
   ${caBadge}
+  ${mlVerifiedBadge}
 
 </div>
 
@@ -921,7 +1030,7 @@ const caBadge = caEvent
   ${topicsHTML}
 </div>
 
-${renderMalayalamInlineBlock(q.id, mlQuestion)}
+${renderMalayalamInlineBlock(q.id, mlQuestion, mlVerified)}
 
 ${q.explanation ? `
   <div class="explanation-toggle clickable" data-id="${q.id}">
@@ -1641,12 +1750,45 @@ if (saveMl) {
 
   try {
     await saveMalayalamAssistance(id, normalized);
+    await clearMlVariantVerification(id);
   } catch (error) {
     showQbStatus(formatDbError(error), true);
     return;
   }
 
   showQbStatus(normalized ? "Malayalam assistance saved" : "Malayalam assistance cleared");
+  await fetchQuestions();
+  return;
+}
+
+const certifyMl = e.target.closest(".certify-malayalam");
+if (certifyMl) {
+  const id = certifyMl.dataset.id;
+
+  try {
+    await certifyMlVariant(id);
+  } catch (error) {
+    showQbStatus(formatDbError(error), true);
+    return;
+  }
+
+  showQbStatus("Malayalam marked as verified");
+  await fetchQuestions();
+  return;
+}
+
+const revokeMl = e.target.closest(".revoke-malayalam-cert");
+if (revokeMl) {
+  const id = revokeMl.dataset.id;
+
+  try {
+    await clearMlVariantVerification(id);
+  } catch (error) {
+    showQbStatus(formatDbError(error), true);
+    return;
+  }
+
+  showQbStatus("Malayalam verification removed");
   await fetchQuestions();
   return;
 }
@@ -1688,6 +1830,12 @@ if (saveMl) {
   renderQuestions();
 
 });
+
+  document.getElementById("ml-filter")
+    ?.addEventListener("change", (e) => {
+      state.mlFilter = e.target.value || "all";
+      renderQuestions();
+    });
 
   document.getElementById("view-questions")
     .addEventListener("click", () => {

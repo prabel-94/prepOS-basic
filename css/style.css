@@ -675,6 +675,21 @@ QUESTION CARD (BUILDER)
   margin-top:6px;
 }
 
+.malayalam-block-actions{
+  flex-wrap:wrap;
+}
+
+.ml-verified-badge{
+  background: var(--success-bg);
+  color: var(--success);
+  border: 1px solid rgba(22, 163, 74, 0.2);
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
 /* STATUS */
 
 .status{

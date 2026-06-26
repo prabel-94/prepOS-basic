@@ -5,10 +5,14 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
+  computeMalayalamAssistanceHash,
+  getMlVariantVerificationRecord,
   hasMalayalamAssistance,
   malayalamAssistanceToMetadataPayload,
-  resolveQuestionDisplay,
+  ML_VARIANT_VERIFICATION_KEY,
+  normalizeMalayalamAssistanceForHash,
   pruneMalayalamAssistance,
+  resolveQuestionDisplay,
 } from "./question-assistance.js";
 
 describe("question-assistance", () => {
@@ -75,5 +79,41 @@ describe("question-assistance", () => {
     const payload = malayalamAssistanceToMetadataPayload(question);
     assert.equal(payload.text, "മലയാളം ചോദ്യം?");
     assert.equal(payload.options.A, "ഒന്ന്");
+  });
+
+  it("normalizes Malayalam assistance for stable hashing", () => {
+    const normalized = normalizeMalayalamAssistanceForHash({
+      text: " Stem ",
+      options: { A: " One ", B: "Two", C: "", D: "" },
+      explanation: " Note ",
+    });
+
+    assert.equal(normalized, "stemonetwonote");
+  });
+
+  it("computes Malayalam assistance hash", async () => {
+    const payload = malayalamAssistanceToMetadataPayload(question);
+    const hash = await computeMalayalamAssistanceHash(payload);
+
+    assert.match(hash, /^[a-f0-9]{64}$/);
+    assert.equal(await computeMalayalamAssistanceHash(payload), hash);
+  });
+
+  it("reads Malayalam verification record from question metadata", () => {
+    const record = getMlVariantVerificationRecord({
+      question_metadata: [
+        {
+          key: ML_VARIANT_VERIFICATION_KEY,
+          value: {
+            content_hash: "abc123",
+            verified_at: "2026-06-26T00:00:00.000Z",
+            verified_by: "user-1",
+          },
+        },
+      ],
+    });
+
+    assert.equal(record.content_hash, "abc123");
+    assert.equal(record.verified_by, "user-1");
   });
 });
