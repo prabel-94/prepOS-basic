@@ -55,6 +55,10 @@ export function loadStickyStrokes(pageKey) {
     }
 
     const parsed = JSON.parse(raw);
+    if (!parsed || parsed.version !== 2 || parsed.coordSpace !== "document-px") {
+      return [];
+    }
+
     return (parsed?.strokes ?? [])
       .map(deserializeStroke)
       .filter(Boolean)
@@ -78,7 +82,8 @@ export function saveStickyStrokes(pageKey, strokes = []) {
   registerStickyPage(pageKey);
 
   const payload = {
-    version: 1,
+    version: 2,
+    coordSpace: "document-px",
     strokes: strokes.slice(-MAX_STICKY_STROKES_PER_PAGE).map(serializeStroke),
   };
 

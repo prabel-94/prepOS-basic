@@ -130,10 +130,10 @@ export function bootClassOverlay(runtime) {
     },
   });
 
-  root.appendChild(canvas);
   root.appendChild(toolbar.element);
   toolbar.element.classList.add("prepos-class-overlay-toolbar--hidden");
   root.appendChild(dock.element);
+  root.insertBefore(canvas, root.firstChild);
   document.body.appendChild(root);
 
   const modalObserver = new MutationObserver(() => {

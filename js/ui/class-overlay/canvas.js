@@ -27,22 +27,22 @@ function clonePoints(points) {
 /**
  * @param {CanvasRenderingContext2D} ctx
  * @param {object} stroke
- * @param {number} width
- * @param {number} height
+ * @param {number} scrollX
+ * @param {number} scrollY
  * @param {{ opacity?: number, layer?: "fade" | "sticky" }} [options]
  */
-function traceStrokePath(ctx, stroke, width, height) {
+function traceStrokePath(ctx, stroke, scrollX, scrollY) {
   const points = stroke.points;
   const [x0, y0] = points[0];
-  ctx.moveTo(x0 * width, y0 * height);
+  ctx.moveTo(x0 - scrollX, y0 - scrollY);
 
   for (let i = 1; i < points.length; i += 1) {
     const [x, y] = points[i];
-    ctx.lineTo(x * width, y * height);
+    ctx.lineTo(x - scrollX, y - scrollY);
   }
 }
 
-function drawStroke(ctx, stroke, width, height, options = {}) {
+function drawStroke(ctx, stroke, scrollX, scrollY, options = {}) {
   const points = stroke.points;
   if (!points?.length) {
     return;
@@ -52,7 +52,7 @@ function drawStroke(ctx, stroke, width, height, options = {}) {
   const layer = options.layer ?? stroke.layer ?? "sticky";
   const isFade = layer === "fade";
   const isHighlighter = stroke.tool === "highlighter";
-  const minDim = Math.min(width, height);
+  const minDim = Math.min(window.innerWidth, window.innerHeight);
   const widthScale = isFade ? 0.82 : 1.12;
   const lineWidth = stroke.width * minDim * widthScale;
 
@@ -70,7 +70,7 @@ function drawStroke(ctx, stroke, width, height, options = {}) {
       Math.max(5, lineWidth * 2),
     ]);
     ctx.beginPath();
-    traceStrokePath(ctx, stroke, width, height);
+    traceStrokePath(ctx, stroke, scrollX, scrollY);
     ctx.stroke();
     ctx.restore();
     return;
@@ -82,7 +82,7 @@ function drawStroke(ctx, stroke, width, height, options = {}) {
     ctx.strokeStyle = "#0f172a";
     ctx.lineWidth = lineWidth + Math.max(2, lineWidth * 0.35);
     ctx.beginPath();
-    traceStrokePath(ctx, stroke, width, height);
+    traceStrokePath(ctx, stroke, scrollX, scrollY);
     ctx.stroke();
   }
 
@@ -94,7 +94,7 @@ function drawStroke(ctx, stroke, width, height, options = {}) {
   }
 
   ctx.beginPath();
-  traceStrokePath(ctx, stroke, width, height);
+  traceStrokePath(ctx, stroke, scrollX, scrollY);
   ctx.stroke();
   ctx.restore();
 }
@@ -115,6 +115,10 @@ function strokeBounds(stroke) {
   return { minX, minY, maxX, maxY };
 }
 
+function eraserRadiusPx() {
+  return ERASER_WIDTH * Math.min(window.innerWidth, window.innerHeight);
+}
+
 function boundsIntersect(a, b, padding = 0) {
   return !(
     a.maxX + padding < b.minX - padding ||
@@ -122,6 +126,26 @@ function boundsIntersect(a, b, padding = 0) {
     a.maxY + padding < b.minY - padding ||
     a.minY - padding > b.maxY + padding
   );
+}
+
+function getDocumentMetrics() {
+  const docEl = document.documentElement;
+  const body = document.body;
+
+  return {
+    width: Math.max(
+      body?.scrollWidth ?? 0,
+      docEl.scrollWidth,
+      window.innerWidth
+    ),
+    height: Math.max(
+      body?.scrollHeight ?? 0,
+      docEl.scrollHeight,
+      window.innerHeight
+    ),
+    scrollX: window.scrollX || docEl.scrollLeft || 0,
+    scrollY: window.scrollY || docEl.scrollTop || 0,
+  };
 }
 
 /**
@@ -146,6 +170,7 @@ export function createClassOverlayCanvas({ canvas, pageKey, isDrawingAllowed }) 
   let saveTimer = 0;
   let width = 0;
   let height = 0;
+  let resizeObserver = null;
 
   function resize() {
     const dpr = window.devicePixelRatio || 1;
@@ -156,6 +181,10 @@ export function createClassOverlayCanvas({ canvas, pageKey, isDrawingAllowed }) 
     canvas.style.width = `${width}px`;
     canvas.style.height = `${height}px`;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    redraw();
+  }
+
+  function onLayoutChange() {
     redraw();
   }
 
@@ -176,10 +205,11 @@ export function createClassOverlayCanvas({ canvas, pageKey, isDrawingAllowed }) 
       return;
     }
 
+    const { scrollX, scrollY } = getDocumentMetrics();
     ctx.clearRect(0, 0, width, height);
 
     for (const stroke of stickyStrokes) {
-      drawStroke(ctx, stroke, width, height, { opacity: 1, layer: "sticky" });
+      drawStroke(ctx, stroke, scrollX, scrollY, { opacity: 1, layer: "sticky" });
     }
 
     fadeStrokes = fadeStrokes.filter((stroke) => now - stroke.createdAt < stroke.ttlMs);
@@ -193,11 +223,11 @@ export function createClassOverlayCanvas({ canvas, pageKey, isDrawingAllowed }) 
         opacity = Math.max(0, remaining / stroke.fadeWindowMs);
       }
 
-      drawStroke(ctx, stroke, width, height, { opacity, layer: "fade" });
+      drawStroke(ctx, stroke, scrollX, scrollY, { opacity, layer: "fade" });
     }
 
     if (activeStroke) {
-      drawStroke(ctx, activeStroke, width, height, {
+      drawStroke(ctx, activeStroke, scrollX, scrollY, {
         opacity: inkMode === "fade" ? 0.85 : 1,
         layer: inkMode,
       });
@@ -215,7 +245,8 @@ export function createClassOverlayCanvas({ canvas, pageKey, isDrawingAllowed }) 
   }
 
   function normalizePoint(clientX, clientY) {
-    return [clientX / width, clientY / height];
+    const { scrollX, scrollY } = getDocumentMetrics();
+    return [clientX + scrollX, clientY + scrollY];
   }
 
   function canDraw() {
@@ -265,7 +296,7 @@ export function createClassOverlayCanvas({ canvas, pageKey, isDrawingAllowed }) 
   }
 
   function eraseAt(point) {
-    const radius = ERASER_WIDTH;
+    const radius = eraserRadiusPx();
     const hitBox = {
       minX: point[0] - radius,
       minY: point[1] - radius,
@@ -276,7 +307,7 @@ export function createClassOverlayCanvas({ canvas, pageKey, isDrawingAllowed }) 
     const before = stickyStrokes.length;
     stickyStrokes = stickyStrokes.filter((stroke) => {
       const bounds = strokeBounds(stroke);
-      return !boundsIntersect(bounds, hitBox, ERASER_WIDTH * 0.5);
+      return !boundsIntersect(bounds, hitBox, radius * 0.5);
     });
 
     if (stickyStrokes.length !== before) {
@@ -401,6 +432,18 @@ export function createClassOverlayCanvas({ canvas, pageKey, isDrawingAllowed }) 
   canvas.addEventListener("pointercancel", onPointerCancel);
 
   window.addEventListener("resize", resize);
+  window.addEventListener("scroll", onLayoutChange, { passive: true });
+
+  if (typeof ResizeObserver !== "undefined") {
+    resizeObserver = new ResizeObserver(() => {
+      onLayoutChange();
+    });
+    resizeObserver.observe(document.documentElement);
+    if (document.body) {
+      resizeObserver.observe(document.body);
+    }
+  }
+
   syncPointerEvents();
   syncInkModeClass();
   animationFrame = window.requestAnimationFrame(tick);
@@ -483,6 +526,8 @@ export function createClassOverlayCanvas({ canvas, pageKey, isDrawingAllowed }) 
       window.cancelAnimationFrame(animationFrame);
       window.clearTimeout(saveTimer);
       window.removeEventListener("resize", resize);
+      window.removeEventListener("scroll", onLayoutChange);
+      resizeObserver?.disconnect();
       canvas.removeEventListener("pointerdown", onPointerDown);
       canvas.removeEventListener("pointermove", onPointerMove);
       canvas.removeEventListener("pointerup", onPointerUp);
