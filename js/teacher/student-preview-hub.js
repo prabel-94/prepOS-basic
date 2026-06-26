@@ -79,16 +79,10 @@ async function initStudentPreviewHub() {
   const examsEl = document.getElementById("previewAvailableExams");
   const intelligenceEl = document.getElementById("previewIntelligenceMock");
   const notesEl = document.getElementById("previewTopicNotes");
-  const practiceNoteEl = document.getElementById("previewPracticeNote");
 
   document
     .getElementById("previewBrowseNotesBtn")
     ?.addEventListener("click", scrollToPreviewNotes);
-
-  if (practiceNoteEl) {
-    practiceNoteEl.textContent =
-      "Practice and saved progress require a student login. Use your prep student account for real attempts, or upgrade to a linked learner account (Phase 2).";
-  }
 
   const linkedCtaEl = document.getElementById("previewLinkedLearnerCta");
   if (linkedCtaEl && isLinkedLearnerEnabled()) {

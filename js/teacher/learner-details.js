@@ -189,6 +189,21 @@ function normalizeDeletionImpact(raw) {
     examAssignments: Number(raw.examAssignments ?? raw.exam_assignments ?? 0),
     examAttempts: Number(raw.examAttempts ?? raw.exam_attempts ?? 0),
     practiceAttempts: Number(raw.practiceAttempts ?? raw.practice_attempts ?? 0),
+    practiceSessions: Number(
+      raw.practiceSessions ?? raw.practice_sessions ?? raw.practiceAttempts ?? 0
+    ),
+    practiceQuestionsInSessions: Number(
+      raw.practiceQuestionsInSessions ?? raw.practice_questions_in_sessions ?? 0
+    ),
+    bankQuestionsTracked: Number(
+      raw.bankQuestionsTracked ?? raw.bank_questions_tracked ?? raw.questionStats ?? 0
+    ),
+    bankQuestionAnswers: Number(
+      raw.bankQuestionAnswers ?? raw.bank_question_answers ?? 0
+    ),
+    lexiconWordsTracked: Number(
+      raw.lexiconWordsTracked ?? raw.lexicon_words_tracked ?? 0
+    ),
     questionStats: Number(raw.questionStats ?? raw.question_stats ?? 0),
     batchMemberships,
     warnings,
@@ -213,12 +228,19 @@ function renderDeletionImpact(impact) {
     <ul class="learner-delete-impact-list mt-10">
       <li>${impact.examAssignments} assigned exam(s)</li>
       <li>${impact.examAttempts} exam attempt(s)</li>
-      <li>${impact.practiceAttempts} practice attempt(s)</li>
-      <li>${impact.questionStats} question stat row(s)</li>
+      <li>${impact.practiceSessions} completed bank practice session(s)</li>
+      <li>${impact.practiceQuestionsInSessions} question(s) in those sessions</li>
+      <li>${impact.bankQuestionsTracked} bank question(s) with saved progress</li>
+      <li>${impact.bankQuestionAnswers} total bank answer(s) recorded</li>
+      <li>${impact.lexiconWordsTracked} generator lexicon word(s) tracked</li>
       <li>${impact.batchMemberships.length} batch membership(s)${
         batchNames ? `: ${batchNames}` : ""
       }</li>
     </ul>
+    <p class="text-muted mt-10">
+      Bank practice saves per-question progress; completed sessions are stored separately.
+      Generator mode only saves Malayalam lexicon stats, not bank sessions.
+    </p>
     ${
       warningItems
         ? `<ul class="learner-delete-warning-list mt-10">${warningItems}</ul>`

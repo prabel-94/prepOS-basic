@@ -184,6 +184,7 @@ async function init() {
   await refreshTopicProgressPanel();
   bindOptionSelection();
   trackPracticePointerState();
+  renderPracticePersistenceNotice();
   startBtn.disabled = false;
 }
 
@@ -713,6 +714,30 @@ function canPersistPracticeStats() {
   return isLinkedStudentMode(practiceRuntime);
 }
 
+function renderPracticePersistenceNotice() {
+  if (!practiceRuntime) {
+    return;
+  }
+
+  if (!canPersistPracticeStats()) {
+    setStatus(
+      "Practice is not saving to a student profile. Log in as a student, or switch to My Learning mode on Teacher Home.",
+      true
+    );
+    return;
+  }
+
+  if (state.mode === "generator") {
+    setStatus(
+      "Generator mode saves Malayalam word stats only. Use Question Bank mode for dashboard learning analytics.",
+      false
+    );
+    return;
+  }
+
+  setStatus("");
+}
+
 async function updateBankQuestionStat(questionId, isCorrect) {
   if (!canPersistPracticeStats()) {
     return;
@@ -885,10 +910,10 @@ function setPracticeMode(mode) {
   optionsContainer.innerHTML = "";
   nextBtn.classList.add("hidden");
   sessionSummary.classList.add("hidden");
-  setStatus("");
   updateProgress();
   syncPracticeAssistanceToggleVisibility();
   refreshTopicProgressPanel();
+  renderPracticePersistenceNotice();
 }
 
 function shuffleQuestions(questions) {
@@ -1778,7 +1803,7 @@ Adaptive Stats
 ========================================= */
 
 async function updateStats(isCorrect) {
-  const userId = window.currentUser?.id;
+  const userId = getPracticeStudentId();
   const entryIds = [...new Set(state.currentQuestion?.tracking?.promptEntryIds || [])];
 
   if (!userId || !entryIds.length) {
