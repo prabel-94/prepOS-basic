@@ -128,9 +128,16 @@ async function handleProvisionLinkedLearner() {
     document.getElementById("learnerDisplayName")?.value?.trim() ||
     "My learning";
 
-  const displayName =
-    window.prompt("Display name for your learning account:", defaultName)?.trim() ||
-    defaultName;
+  const rawName = window.prompt(
+    "Display name for your learning account:",
+    defaultName
+  );
+
+  if (rawName === null) {
+    return;
+  }
+
+  const displayName = rawName.trim() || defaultName;
 
   if (!displayName) {
     setLinkedLearnerStatus("Display name is required.", { isError: true });
