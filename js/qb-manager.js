@@ -6,6 +6,13 @@ import { getClient } from "./core/get-client.js";
 import { bootPage } from "./core/page-boot.js";
 import { resolveAppPath } from "./core/access.js";
 import { computeQuestionHash } from "./core/question-hash.js";
+import { invokeEdgeFunction } from "./core/edge-invoke.js";
+import {
+  ensureMalayalamAssistance,
+  hasMalayalamAssistance,
+  malayalamAssistanceFromMetadata,
+  malayalamAssistanceToMetadataPayload,
+} from "./core/question-assistance.js";
 import { openModal, closeModal } from "./ui/modal-system.js";
 
 const SIDE_PANEL_OPTIONS = {
@@ -53,6 +60,144 @@ function extractQuestionMeta(question = {}) {
     meta[row.key] = unwrapMetaValue(row.value);
   });
   return meta;
+}
+
+function questionWithAssistance(question = {}) {
+  const row = (question.question_metadata || []).find(
+    entry => entry.key === "assistance_malayalam"
+  );
+  const patch = malayalamAssistanceFromMetadata(row?.value);
+  if (!patch) {
+    return question;
+  }
+
+  return { ...question, ...patch };
+}
+
+function renderMalayalamInlineBlock(questionId, mlQuestion) {
+  const mask = ensureMalayalamAssistance({ ...mlQuestion });
+  const options = mask.options || {};
+
+  return `
+<div class="malayalam-block hidden" id="ml-${questionId}">
+  <p class="text-muted question-assistance-help">
+    English stays canonical for scoring. Students can toggle Malayalam help during exams and practice.
+  </p>
+
+  <label class="malayalam-field-label">Question (Malayalam)</label>
+  <textarea
+    class="ml-question-input"
+    data-id="${questionId}"
+    rows="3"
+    placeholder="Malayalam question stem (optional)"
+  >${mask.text || ""}</textarea>
+
+  <div class="malayalam-options-label">Options (Malayalam)</div>
+
+  <label class="malayalam-field-label">A</label>
+  <input
+    class="ml-option-input"
+    data-id="${questionId}"
+    data-letter="A"
+    type="text"
+    value="${options.A || ""}"
+    placeholder="Malayalam text for option A"
+  />
+
+  <label class="malayalam-field-label">B</label>
+  <input
+    class="ml-option-input"
+    data-id="${questionId}"
+    data-letter="B"
+    type="text"
+    value="${options.B || ""}"
+    placeholder="Malayalam text for option B"
+  />
+
+  <label class="malayalam-field-label">C</label>
+  <input
+    class="ml-option-input"
+    data-id="${questionId}"
+    data-letter="C"
+    type="text"
+    value="${options.C || ""}"
+    placeholder="Malayalam text for option C"
+  />
+
+  <label class="malayalam-field-label">D</label>
+  <input
+    class="ml-option-input"
+    data-id="${questionId}"
+    data-letter="D"
+    type="text"
+    value="${options.D || ""}"
+    placeholder="Malayalam text for option D"
+  />
+
+  <label class="malayalam-field-label">Explanation (Malayalam, optional)</label>
+  <textarea
+    class="ml-explanation-input"
+    data-id="${questionId}"
+    rows="3"
+    placeholder="Malayalam explanation for review (optional)"
+  >${mask.explanation || ""}</textarea>
+
+  <button
+    class="primary-btn save-malayalam mt-10"
+    data-id="${questionId}"
+    type="button"
+  >
+    Save Malayalam
+  </button>
+</div>
+  `.trim();
+}
+
+function readMalayalamFromCard(questionId) {
+  const block = document.getElementById(`ml-${questionId}`);
+  if (!block) {
+    return null;
+  }
+
+  const readOption = letter =>
+    block.querySelector(`.ml-option-input[data-letter="${letter}"]`)?.value ?? "";
+
+  return {
+    text: block.querySelector(".ml-question-input")?.value ?? "",
+    options: {
+      A: readOption("A"),
+      B: readOption("B"),
+      C: readOption("C"),
+      D: readOption("D"),
+    },
+    explanation: block.querySelector(".ml-explanation-input")?.value ?? "",
+  };
+}
+
+function toggleMalayalamBlock(questionId, button = null) {
+  const block = document.getElementById(`ml-${questionId}`);
+  if (!block) {
+    return;
+  }
+
+  block.classList.toggle("hidden");
+  const open = !block.classList.contains("hidden");
+
+  if (button) {
+    button.classList.toggle("malayalam-btn--open", open);
+    button.title = open
+      ? "Hide Malayalam editor"
+      : button.classList.contains("malayalam-btn--active")
+        ? "Edit Malayalam assistance"
+        : "Add Malayalam assistance";
+  }
+}
+
+async function saveMalayalamAssistance(questionId, payload) {
+  await invokeEdgeFunction("update-question-assistance-malayalam", {
+    questionId,
+    malayalam: payload,
+  });
 }
 
 function setRadioGroup(name, value) {
@@ -727,6 +872,9 @@ const caBadge = caEvent
       </div>
     `).join("");
 
+    const mlQuestion = questionWithAssistance(q);
+    const hasMl = hasMalayalamAssistance(mlQuestion);
+
     return `
       <div class="question-card">
 
@@ -752,6 +900,11 @@ const caBadge = caEvent
 
   <!-- RIGHT -->
   <div class="question-actions">
+    <button
+      class="icon-btn malayalam-btn${hasMl ? " malayalam-btn--active" : ""}"
+      data-id="${q.id}"
+      title="${hasMl ? "Edit Malayalam assistance" : "Add Malayalam assistance"}"
+    >ML</button>
     <button class="icon-btn edit-btn" data-id="${q.id}">✏️</button>
     <button class="icon-btn delete-btn" data-id="${q.id}">🗑</button>
   </div>
@@ -767,6 +920,8 @@ const caBadge = caEvent
 <div class="topic-tags mt-10">
   ${topicsHTML}
 </div>
+
+${renderMalayalamInlineBlock(q.id, mlQuestion)}
 
 ${q.explanation ? `
   <div class="explanation-toggle clickable" data-id="${q.id}">
@@ -1476,6 +1631,26 @@ if (saveExp) {
   return;
 }
 
+// SAVE MALAYALAM
+const saveMl = e.target.closest(".save-malayalam");
+if (saveMl) {
+  const id = saveMl.dataset.id;
+  const payload = readMalayalamFromCard(id);
+  const question = { assistance: { malayalam: payload } };
+  const normalized = malayalamAssistanceToMetadataPayload(question);
+
+  try {
+    await saveMalayalamAssistance(id, normalized);
+  } catch (error) {
+    showQbStatus(formatDbError(error), true);
+    return;
+  }
+
+  showQbStatus(normalized ? "Malayalam assistance saved" : "Malayalam assistance cleared");
+  await fetchQuestions();
+  return;
+}
+
   // 🔥 DELETE
   if (e.target.classList.contains("delete-btn")) {
     deleteQuestion(e.target.dataset.id);
@@ -1485,6 +1660,12 @@ if (saveExp) {
   // 🔥 EDIT
   if (e.target.classList.contains("edit-btn")) {
     handleEdit(e.target.dataset.id);
+    return;
+  }
+
+  const mlBtn = e.target.closest(".malayalam-btn");
+  if (mlBtn) {
+    toggleMalayalamBlock(mlBtn.dataset.id, mlBtn);
     return;
   }
 

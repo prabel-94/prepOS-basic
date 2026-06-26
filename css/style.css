@@ -617,6 +617,64 @@ QUESTION CARD (BUILDER)
   background:#e5e7eb;
 }
 
+.malayalam-btn{
+  font-size:12px;
+  font-weight:700;
+  letter-spacing:0.02em;
+  min-width:32px;
+}
+
+.malayalam-btn--active{
+  background:#dbeafe;
+  color:#1d4ed8;
+}
+
+.malayalam-btn--active:hover{
+  background:#bfdbfe;
+}
+
+.malayalam-btn--open{
+  background:#1d4ed8;
+  color:#fff;
+}
+
+.malayalam-btn--open:hover{
+  background:#1e40af;
+}
+
+.malayalam-block{
+  margin-top:10px;
+  padding:12px;
+  border-left:3px solid #1d4ed8;
+  background:#f0f9ff;
+  border-radius:6px;
+}
+
+.malayalam-field-label{
+  display:block;
+  margin-top:10px;
+  font-size:13px;
+  font-weight:600;
+}
+
+.malayalam-options-label{
+  margin-top:12px;
+  font-size:13px;
+  font-weight:600;
+}
+
+.malayalam-block .ml-question-input,
+.malayalam-block .ml-explanation-input{
+  width:100%;
+  margin-top:6px;
+  resize:vertical;
+}
+
+.malayalam-block .ml-option-input{
+  width:100%;
+  margin-top:6px;
+}
+
 /* STATUS */
 
 .status{
