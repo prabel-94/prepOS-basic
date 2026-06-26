@@ -304,6 +304,9 @@
         <button id="editLearnerNameBtn" type="button" class="primary-btn">
           Edit Name
         </button>
+        <button id="deleteLearnerBtn" type="button" class="danger-btn">
+          Delete Learner
+        </button>
         <button id="closeLearnerDetailModal" type="button" class="secondary-btn">
           Close
         </button>
@@ -315,6 +318,45 @@
         <button id="cancelLearnerNameBtn" type="button" class="secondary-btn">
           Cancel
         </button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div id="learnerDeleteModal" class="prepos-modal hidden">
+  <div class="prepos-modal-backdrop"></div>
+  <div class="prepos-modal-content">
+
+    <div class="prepos-modal-header">
+      <div class="h2">Delete Learner</div>
+    </div>
+
+    <div id="learnerDeleteBody" class="prepos-modal-body">
+      Loading impact summary...
+    </div>
+
+    <div class="prepos-modal-footer">
+      <div class="flex gap-10 w-full" style="flex-direction: column; align-items: stretch;">
+        <label class="student-management-label" for="learnerDeleteConfirmInput">
+          Type <strong id="learnerDeleteConfirmHint">DELETE</strong> or the learner's display name to confirm
+        </label>
+        <input
+          id="learnerDeleteConfirmInput"
+          type="text"
+          class="w-full"
+          autocomplete="off"
+          placeholder="DELETE"
+        >
+        <div id="learnerDeleteStatus" class="text-muted"></div>
+        <div class="flex gap-10">
+          <button id="confirmDeleteLearnerBtn" type="button" class="danger-btn">
+            Permanently Delete
+          </button>
+          <button id="cancelDeleteLearnerBtn" type="button" class="secondary-btn">
+            Cancel
+          </button>
+        </div>
       </div>
     </div>
 

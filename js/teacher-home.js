@@ -140,6 +140,15 @@ async function initTeacherHome() {
   await loadRecentExams();
   await loadRecentDraft();
   await mountLinkedLearnerUI();
+
+  window.addEventListener("prepos:learner-deleted", (event) => {
+    if (event.detail?.isLinkedLearner) {
+      mountLinkedLearnerUI().catch((error) => {
+        console.error("[Teacher Home] linked learner refresh failed", error);
+      });
+    }
+  });
+
   await ensureStudentManagementReady(initStudentManagement);
   await loadTopicNotesSection(document.getElementById("teacherTopicNotes"), {
     role: "teacher",
