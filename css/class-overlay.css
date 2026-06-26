@@ -47,6 +47,39 @@
   display: none;
 }
 
+.prepos-class-overlay-toolbar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.prepos-class-overlay-toolbar-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.prepos-class-overlay-close {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #64748b;
+  font-size: 1.35rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.prepos-class-overlay-close:hover {
+  background: #f1f5f9;
+  color: #1e293b;
+}
+
 .prepos-class-overlay-toolbar-row {
   display: flex;
   flex-wrap: wrap;

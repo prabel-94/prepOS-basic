@@ -75,6 +75,12 @@ export function bootClassOverlay(runtime) {
   });
 
   const toolbar = createClassOverlayToolbar(controller, {
+    onClose: () => {
+      toolbar.element.classList.add("prepos-class-overlay-toolbar--hidden");
+    },
+    onDrawingStateChange: () => {
+      updatePointerPolicy(canvas, controller);
+    },
     onClearPage: () => {
       controller.clearFade();
       controller.clearSticky();
@@ -92,10 +98,11 @@ export function bootClassOverlay(runtime) {
       controller.clearSticky();
       endSession();
       controller.reloadSticky();
-      controller.setOverlayActive(true);
+      controller.setOverlayActive(false);
       controller.setOverlayVisible(true);
       toolbar.syncToggleLabels();
       toolbar.updateStatus();
+      updatePointerPolicy(canvas, controller);
     },
   });
 
@@ -146,9 +153,10 @@ export function bootClassOverlay(runtime) {
 
   controller.setInkMode("fade");
   controller.setTool("pen");
-  controller.setOverlayActive(true);
+  controller.setOverlayActive(false);
   controller.setOverlayVisible(true);
   updatePointerPolicy(canvas, controller);
+  toolbar.syncToggleLabels();
   toolbar.updateStatus();
 
   teardown = () => {

@@ -105,7 +105,7 @@ export function createClassOverlayCanvas({ canvas, pageKey, isDrawingAllowed }) 
   let color = "#e11d48";
   let fadeTtlMs = DEFAULT_FADE_TTL_MS;
   let fadeWindowMs = DEFAULT_FADE_WINDOW_MS;
-  let overlayActive = true;
+  let overlayActive = false;
   let overlayVisible = true;
   let animationFrame = 0;
   let saveTimer = 0;
@@ -136,7 +136,7 @@ export function createClassOverlayCanvas({ canvas, pageKey, isDrawingAllowed }) 
     saveStickyStrokes(pageKey, stickyStrokes);
   }
 
-  function redraw(now = performance.now()) {
+  function redraw(now = Date.now()) {
     if (!ctx) {
       return;
     }
@@ -166,8 +166,8 @@ export function createClassOverlayCanvas({ canvas, pageKey, isDrawingAllowed }) 
     }
   }
 
-  function tick(now) {
-    redraw(now);
+  function tick() {
+    redraw(Date.now());
     animationFrame = window.requestAnimationFrame(tick);
   }
 
@@ -194,13 +194,23 @@ export function createClassOverlayCanvas({ canvas, pageKey, isDrawingAllowed }) 
     );
   }
 
+  function syncPointerEvents() {
+    canvas.style.pointerEvents =
+      overlayActive && overlayVisible ? "auto" : "none";
+  }
+
   function commitStroke(stroke) {
     if (!stroke?.points?.length) {
       return;
     }
 
     if (stroke.layer === "fade") {
-      fadeStrokes.push(stroke);
+      fadeStrokes.push({
+        ...stroke,
+        createdAt: Date.now(),
+        ttlMs: fadeTtlMs,
+        fadeWindowMs,
+      });
       if (fadeStrokes.length > MAX_FADE_STROKES) {
         fadeStrokes = fadeStrokes.slice(-MAX_FADE_STROKES);
       }
@@ -300,9 +310,13 @@ export function createClassOverlayCanvas({ canvas, pageKey, isDrawingAllowed }) 
       return;
     }
 
+    if (!canDraw() && !canErase()) {
+      return;
+    }
+
     canvas.setPointerCapture(event.pointerId);
     startStroke(event.clientX, event.clientY);
-    redraw();
+    redraw(Date.now());
     event.preventDefault();
   }
 
@@ -344,6 +358,7 @@ export function createClassOverlayCanvas({ canvas, pageKey, isDrawingAllowed }) 
   canvas.addEventListener("pointercancel", onPointerCancel);
 
   window.addEventListener("resize", resize);
+  syncPointerEvents();
   animationFrame = window.requestAnimationFrame(tick);
   resize();
 
@@ -374,7 +389,11 @@ export function createClassOverlayCanvas({ canvas, pageKey, isDrawingAllowed }) 
 
     setOverlayActive(active) {
       overlayActive = active;
+      if (!active) {
+        activeStroke = null;
+      }
       canvas.classList.toggle("prepos-class-overlay-canvas--inactive", !active);
+      syncPointerEvents();
     },
 
     isOverlayActive() {
@@ -384,7 +403,7 @@ export function createClassOverlayCanvas({ canvas, pageKey, isDrawingAllowed }) 
     setOverlayVisible(visible) {
       overlayVisible = visible;
       canvas.classList.toggle("prepos-class-overlay-canvas--hidden", !visible);
-      canvas.style.pointerEvents = visible && overlayActive ? "auto" : "none";
+      syncPointerEvents();
     },
 
     isOverlayVisible() {

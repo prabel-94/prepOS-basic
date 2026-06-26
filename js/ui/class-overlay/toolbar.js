@@ -17,6 +17,8 @@ const FADE_TTL_OPTIONS = Object.freeze([
  * @param {(detail: object) => void} [actions.onClearPage]
  * @param {() => void} [actions.onClearAll]
  * @param {() => void} [actions.onEndSession]
+ * @param {() => void} [actions.onClose]
+ * @param {() => void} [actions.onDrawingStateChange]
  */
 export function createClassOverlayToolbar(controller, actions = {}) {
   const root = document.createElement("div");
@@ -25,8 +27,18 @@ export function createClassOverlayToolbar(controller, actions = {}) {
   root.setAttribute("aria-label", "Class markup tools");
 
   root.innerHTML = `
+    <div class="prepos-class-overlay-toolbar-header">
+      <span class="prepos-class-overlay-toolbar-title">Class markup</span>
+      <button
+        type="button"
+        class="prepos-class-overlay-close"
+        data-toolbar-close
+        aria-label="Close toolbar"
+        title="Close"
+      >×</button>
+    </div>
     <div class="prepos-class-overlay-toolbar-row prepos-class-overlay-status" data-overlay-status>
-      Class markup
+      Drawing off · Fade ink
     </div>
     <div class="prepos-class-overlay-toolbar-row">
       <button type="button" class="prepos-class-overlay-btn is-active" data-ink-mode="fade" title="Fading ink (default)">
@@ -60,7 +72,7 @@ export function createClassOverlayToolbar(controller, actions = {}) {
     </div>
     <div class="prepos-class-overlay-toolbar-row">
       <button type="button" class="prepos-class-overlay-btn" data-overlay-toggle title="Toggle drawing (Ctrl+Shift+D)">
-        Drawing on
+        Drawing off
       </button>
       <button type="button" class="prepos-class-overlay-btn" data-overlay-visibility title="Show/hide ink layer">
         Hide ink
@@ -99,6 +111,11 @@ export function createClassOverlayToolbar(controller, actions = {}) {
   }
 
   root.addEventListener("click", (event) => {
+    if (event.target.closest("[data-toolbar-close]")) {
+      actions.onClose?.();
+      return;
+    }
+
     const inkBtn = event.target.closest("[data-ink-mode]");
     if (inkBtn) {
       const mode = inkBtn.dataset.inkMode;
@@ -127,6 +144,7 @@ export function createClassOverlayToolbar(controller, actions = {}) {
       controller.setOverlayActive(!controller.isOverlayActive());
       syncToggleLabels();
       updateStatus();
+      actions.onDrawingStateChange?.();
       return;
     }
 
@@ -134,6 +152,7 @@ export function createClassOverlayToolbar(controller, actions = {}) {
       controller.setOverlayVisible(!controller.isOverlayVisible());
       syncToggleLabels();
       updateStatus();
+      actions.onDrawingStateChange?.();
       return;
     }
 
