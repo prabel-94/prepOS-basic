@@ -64,6 +64,17 @@ export async function bootPage(options = {}) {
     mountAppNav(navOptions);
   }
 
+  if (runtime && (options.classOverlay !== false)) {
+    const role = runtime.role;
+    if (role === "teacher" || role === "admin") {
+      import("../ui/class-overlay/boot.js")
+        .then(({ bootClassOverlay }) => bootClassOverlay(runtime))
+        .catch((err) => {
+          console.warn("[Class overlay] Boot failed:", err);
+        });
+    }
+  }
+
   return runtime;
 }
 

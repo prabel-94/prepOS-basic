@@ -1,0 +1,429 @@
+/**
+ * Class overlay canvas — fade (ephemeral) + sticky ink layers.
+ */
+
+import { loadStickyStrokes, saveStickyStrokes } from "./persistence.js";
+
+export const MAX_FADE_STROKES = 200;
+export const DEFAULT_FADE_TTL_MS = 5000;
+export const DEFAULT_FADE_WINDOW_MS = 1500;
+
+const PEN_WIDTH = 0.0035;
+const HIGHLIGHTER_WIDTH = 0.014;
+const ERASER_WIDTH = 0.018;
+
+function createStrokeId() {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+
+  return `stroke-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function clonePoints(points) {
+  return points.map(([x, y]) => [x, y]);
+}
+
+/**
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {object} stroke
+ * @param {number} width
+ * @param {number} height
+ * @param {number} [opacity=1]
+ */
+function drawStroke(ctx, stroke, width, height, opacity = 1) {
+  const points = stroke.points;
+  if (!points?.length) {
+    return;
+  }
+
+  const lineWidth = stroke.width * Math.min(width, height);
+  const isHighlighter = stroke.tool === "highlighter";
+
+  ctx.save();
+  ctx.globalAlpha = opacity * (isHighlighter ? 0.38 : 0.95);
+  ctx.strokeStyle = stroke.color;
+  ctx.lineWidth = lineWidth;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+
+  if (isHighlighter) {
+    ctx.globalCompositeOperation = "multiply";
+  }
+
+  ctx.beginPath();
+  const [x0, y0] = points[0];
+  ctx.moveTo(x0 * width, y0 * height);
+
+  for (let i = 1; i < points.length; i += 1) {
+    const [x, y] = points[i];
+    ctx.lineTo(x * width, y * height);
+  }
+
+  ctx.stroke();
+  ctx.restore();
+}
+
+function strokeBounds(stroke) {
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+
+  for (const [x, y] of stroke.points ?? []) {
+    minX = Math.min(minX, x);
+    minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x);
+    maxY = Math.max(maxY, y);
+  }
+
+  return { minX, minY, maxX, maxY };
+}
+
+function boundsIntersect(a, b, padding = 0) {
+  return !(
+    a.maxX + padding < b.minX - padding ||
+    a.minX - padding > b.maxX + padding ||
+    a.maxY + padding < b.minY - padding ||
+    a.minY - padding > b.maxY + padding
+  );
+}
+
+/**
+ * @param {object} options
+ * @param {HTMLCanvasElement} options.canvas
+ * @param {string} options.pageKey
+ * @param {() => boolean} [options.isDrawingAllowed]
+ */
+export function createClassOverlayCanvas({ canvas, pageKey, isDrawingAllowed }) {
+  const ctx = canvas.getContext("2d");
+  let fadeStrokes = [];
+  let stickyStrokes = loadStickyStrokes(pageKey);
+  let activeStroke = null;
+  let inkMode = "fade";
+  let tool = "pen";
+  let color = "#e11d48";
+  let fadeTtlMs = DEFAULT_FADE_TTL_MS;
+  let fadeWindowMs = DEFAULT_FADE_WINDOW_MS;
+  let overlayActive = true;
+  let overlayVisible = true;
+  let animationFrame = 0;
+  let saveTimer = 0;
+  let width = 0;
+  let height = 0;
+
+  function resize() {
+    const dpr = window.devicePixelRatio || 1;
+    width = window.innerWidth;
+    height = window.innerHeight;
+    canvas.width = Math.floor(width * dpr);
+    canvas.height = Math.floor(height * dpr);
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    redraw();
+  }
+
+  function persistStickySoon() {
+    window.clearTimeout(saveTimer);
+    saveTimer = window.setTimeout(() => {
+      saveStickyStrokes(pageKey, stickyStrokes);
+    }, 120);
+  }
+
+  function persistStickyNow() {
+    window.clearTimeout(saveTimer);
+    saveStickyStrokes(pageKey, stickyStrokes);
+  }
+
+  function redraw(now = performance.now()) {
+    if (!ctx) {
+      return;
+    }
+
+    ctx.clearRect(0, 0, width, height);
+
+    for (const stroke of stickyStrokes) {
+      drawStroke(ctx, stroke, width, height, 1);
+    }
+
+    fadeStrokes = fadeStrokes.filter((stroke) => now - stroke.createdAt < stroke.ttlMs);
+
+    for (const stroke of fadeStrokes) {
+      const age = now - stroke.createdAt;
+      const remaining = stroke.ttlMs - age;
+      let opacity = 1;
+
+      if (remaining <= stroke.fadeWindowMs) {
+        opacity = Math.max(0, remaining / stroke.fadeWindowMs);
+      }
+
+      drawStroke(ctx, stroke, width, height, opacity);
+    }
+
+    if (activeStroke) {
+      drawStroke(ctx, activeStroke, width, height, inkMode === "fade" ? 0.9 : 1);
+    }
+  }
+
+  function tick(now) {
+    redraw(now);
+    animationFrame = window.requestAnimationFrame(tick);
+  }
+
+  function normalizePoint(clientX, clientY) {
+    return [clientX / width, clientY / height];
+  }
+
+  function canDraw() {
+    return (
+      overlayActive &&
+      overlayVisible &&
+      tool !== "eraser" &&
+      (typeof isDrawingAllowed !== "function" || isDrawingAllowed())
+    );
+  }
+
+  function canErase() {
+    return (
+      overlayActive &&
+      overlayVisible &&
+      tool === "eraser" &&
+      inkMode === "sticky" &&
+      (typeof isDrawingAllowed !== "function" || isDrawingAllowed())
+    );
+  }
+
+  function commitStroke(stroke) {
+    if (!stroke?.points?.length) {
+      return;
+    }
+
+    if (stroke.layer === "fade") {
+      fadeStrokes.push(stroke);
+      if (fadeStrokes.length > MAX_FADE_STROKES) {
+        fadeStrokes = fadeStrokes.slice(-MAX_FADE_STROKES);
+      }
+      return;
+    }
+
+    stickyStrokes.push(stroke);
+    persistStickySoon();
+  }
+
+  function eraseAt(point) {
+    const radius = ERASER_WIDTH;
+    const hitBox = {
+      minX: point[0] - radius,
+      minY: point[1] - radius,
+      maxX: point[0] + radius,
+      maxY: point[1] + radius,
+    };
+
+    const before = stickyStrokes.length;
+    stickyStrokes = stickyStrokes.filter((stroke) => {
+      const bounds = strokeBounds(stroke);
+      return !boundsIntersect(bounds, hitBox, ERASER_WIDTH * 0.5);
+    });
+
+    if (stickyStrokes.length !== before) {
+      persistStickySoon();
+    }
+  }
+
+  function startStroke(clientX, clientY) {
+    if (canErase()) {
+      eraseAt(normalizePoint(clientX, clientY));
+      activeStroke = {
+        id: createStrokeId(),
+        tool: "eraser",
+        layer: "sticky",
+        points: [normalizePoint(clientX, clientY)],
+        createdAt: Date.now(),
+      };
+      return;
+    }
+
+    if (!canDraw()) {
+      return;
+    }
+
+    const isHighlighter = tool === "highlighter";
+    activeStroke = {
+      id: createStrokeId(),
+      tool: isHighlighter ? "highlighter" : "pen",
+      color,
+      width: isHighlighter ? HIGHLIGHTER_WIDTH : PEN_WIDTH,
+      points: [normalizePoint(clientX, clientY)],
+      layer: inkMode,
+      createdAt: Date.now(),
+      ttlMs: fadeTtlMs,
+      fadeWindowMs,
+    };
+  }
+
+  function extendStroke(clientX, clientY) {
+    if (!activeStroke) {
+      return;
+    }
+
+    const point = normalizePoint(clientX, clientY);
+
+    if (activeStroke.tool === "eraser") {
+      eraseAt(point);
+      activeStroke.points.push(point);
+      return;
+    }
+
+    activeStroke.points.push(point);
+  }
+
+  function endStroke() {
+    if (!activeStroke) {
+      return;
+    }
+
+    if (activeStroke.tool !== "eraser") {
+      commitStroke(activeStroke);
+    }
+
+    activeStroke = null;
+    redraw();
+  }
+
+  function onPointerDown(event) {
+    if (!overlayActive || !overlayVisible) {
+      return;
+    }
+
+    if (event.button !== 0) {
+      return;
+    }
+
+    canvas.setPointerCapture(event.pointerId);
+    startStroke(event.clientX, event.clientY);
+    redraw();
+    event.preventDefault();
+  }
+
+  function onPointerMove(event) {
+    if (!activeStroke) {
+      return;
+    }
+
+    extendStroke(event.clientX, event.clientY);
+    redraw();
+    event.preventDefault();
+  }
+
+  function onPointerUp(event) {
+    if (!activeStroke) {
+      return;
+    }
+
+    if (canvas.hasPointerCapture(event.pointerId)) {
+      canvas.releasePointerCapture(event.pointerId);
+    }
+
+    endStroke();
+    event.preventDefault();
+  }
+
+  function onPointerCancel(event) {
+    if (canvas.hasPointerCapture(event.pointerId)) {
+      canvas.releasePointerCapture(event.pointerId);
+    }
+
+    activeStroke = null;
+    redraw();
+  }
+
+  canvas.addEventListener("pointerdown", onPointerDown);
+  canvas.addEventListener("pointermove", onPointerMove);
+  canvas.addEventListener("pointerup", onPointerUp);
+  canvas.addEventListener("pointercancel", onPointerCancel);
+
+  window.addEventListener("resize", resize);
+  animationFrame = window.requestAnimationFrame(tick);
+  resize();
+
+  return {
+    setInkMode(mode) {
+      inkMode = mode === "sticky" ? "sticky" : "fade";
+    },
+
+    getInkMode() {
+      return inkMode;
+    },
+
+    setTool(nextTool) {
+      tool = nextTool;
+    },
+
+    getTool() {
+      return tool;
+    },
+
+    setColor(nextColor) {
+      color = nextColor;
+    },
+
+    setFadeTtl(ms) {
+      fadeTtlMs = ms;
+    },
+
+    setOverlayActive(active) {
+      overlayActive = active;
+      canvas.classList.toggle("prepos-class-overlay-canvas--inactive", !active);
+    },
+
+    isOverlayActive() {
+      return overlayActive;
+    },
+
+    setOverlayVisible(visible) {
+      overlayVisible = visible;
+      canvas.classList.toggle("prepos-class-overlay-canvas--hidden", !visible);
+      canvas.style.pointerEvents = visible && overlayActive ? "auto" : "none";
+    },
+
+    isOverlayVisible() {
+      return overlayVisible;
+    },
+
+    clearFade() {
+      fadeStrokes = [];
+      redraw();
+    },
+
+    clearSticky() {
+      stickyStrokes = [];
+      persistStickyNow();
+      redraw();
+    },
+
+    reloadSticky() {
+      stickyStrokes = loadStickyStrokes(pageKey);
+      redraw();
+    },
+
+    getStickyCount() {
+      return stickyStrokes.length;
+    },
+
+    flush() {
+      persistStickyNow();
+    },
+
+    destroy() {
+      window.cancelAnimationFrame(animationFrame);
+      window.clearTimeout(saveTimer);
+      window.removeEventListener("resize", resize);
+      canvas.removeEventListener("pointerdown", onPointerDown);
+      canvas.removeEventListener("pointermove", onPointerMove);
+      canvas.removeEventListener("pointerup", onPointerUp);
+      canvas.removeEventListener("pointercancel", onPointerCancel);
+      persistStickyNow();
+    },
+  };
+}
