@@ -170,6 +170,13 @@ export function createClassOverlayToolbar(controller, actions = {}) {
   }
 
   root.addEventListener("click", (event) => {
+    const longPressBtn = event.target.closest("[data-entity-long-press]");
+    if (longPressBtn?.dataset.suppressClick === "1") {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+
     if (event.target.closest("[data-toolbar-close]")) {
       scaleControls.closePopover();
       actions.onClose?.();

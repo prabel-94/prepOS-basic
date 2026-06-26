@@ -37,7 +37,8 @@ export function mountToolbarScaleControls({ toolbarRoot, getActiveState, onPrefs
   let longPressStartX = 0;
   let longPressStartY = 0;
   let longPressMoved = false;
-  let longPressTarget = null;
+  let longPressAnchor = null;
+  let longPressOpened = false;
 
   function notifyChange() {
     syncAllControls();
@@ -133,11 +134,16 @@ export function mountToolbarScaleControls({ toolbarRoot, getActiveState, onPrefs
     popover.style.top = `${Math.max(4, top)}px`;
   }
 
-  function clearLongPress() {
+  function clearLongPressTimer() {
     window.clearTimeout(longPressTimer);
     longPressTimer = 0;
-    longPressTarget = null;
+  }
+
+  function resetLongPressTracking() {
+    clearLongPressTimer();
+    longPressAnchor = null;
     longPressMoved = false;
+    longPressOpened = false;
   }
 
   function attachLongPress(anchor, entity) {
@@ -146,17 +152,26 @@ export function mountToolbarScaleControls({ toolbarRoot, getActiveState, onPrefs
         return;
       }
 
+      clearLongPressTimer();
       longPressMoved = false;
+      longPressOpened = false;
       longPressStartX = event.clientX;
       longPressStartY = event.clientY;
-      longPressTarget = anchor;
-      clearLongPress();
+      longPressAnchor = anchor;
+
+      try {
+        anchor.setPointerCapture(event.pointerId);
+      } catch {
+        /* ignore */
+      }
 
       longPressTimer = window.setTimeout(() => {
-        if (longPressMoved || longPressTarget !== anchor) {
+        if (longPressMoved || longPressAnchor !== anchor) {
           return;
         }
 
+        longPressOpened = true;
+        anchor.dataset.suppressClick = "1";
         openPopover(anchor, entity);
       }, LONG_PRESS_MS);
     });
@@ -170,13 +185,30 @@ export function mountToolbarScaleControls({ toolbarRoot, getActiveState, onPrefs
       const dy = event.clientY - longPressStartY;
       if (Math.hypot(dx, dy) > MOVE_THRESHOLD_PX) {
         longPressMoved = true;
-        clearLongPress();
+        clearLongPressTimer();
       }
     });
 
-    anchor.addEventListener("pointerup", clearLongPress);
-    anchor.addEventListener("pointercancel", clearLongPress);
-    anchor.addEventListener("pointerleave", clearLongPress);
+    function endLongPress(event) {
+      clearLongPressTimer();
+
+      if (anchor.hasPointerCapture?.(event.pointerId)) {
+        anchor.releasePointerCapture(event.pointerId);
+      }
+
+      if (longPressOpened) {
+        window.setTimeout(() => {
+          delete anchor.dataset.suppressClick;
+        }, 0);
+      }
+
+      longPressAnchor = null;
+      longPressMoved = false;
+      longPressOpened = false;
+    }
+
+    anchor.addEventListener("pointerup", endLongPress);
+    anchor.addEventListener("pointercancel", endLongPress);
   }
 
   globalInput?.addEventListener("input", (event) => {
@@ -205,21 +237,25 @@ export function mountToolbarScaleControls({ toolbarRoot, getActiveState, onPrefs
     closePopover();
   });
 
-  document.addEventListener("pointerdown", (event) => {
-    if (!activeEntity || popover?.classList.contains("prepos-class-overlay-entity-popover--hidden")) {
-      return;
-    }
+  document.addEventListener(
+    "pointerdown",
+    (event) => {
+      if (!activeEntity || popover?.classList.contains("prepos-class-overlay-entity-popover--hidden")) {
+        return;
+      }
 
-    if (popover.contains(event.target)) {
-      return;
-    }
+      if (popover.contains(event.target)) {
+        return;
+      }
 
-    if (event.target.closest("[data-entity-long-press]")) {
-      return;
-    }
+      if (event.target.closest("[data-entity-long-press]")) {
+        return;
+      }
 
-    closePopover();
-  });
+      closePopover();
+    },
+    true
+  );
 
   toolbarRoot.querySelectorAll("[data-entity-long-press]").forEach((anchor) => {
     attachLongPress(anchor, anchor.dataset.entityLongPress);
