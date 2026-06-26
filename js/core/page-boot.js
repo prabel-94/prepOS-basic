@@ -49,6 +49,7 @@ export async function bootPage(options = {}) {
     roles,
     role: options.role ?? null,
     analytics: options.analytics === true,
+    allowLinkedStudentMode: options.allowLinkedStudentMode === true,
   });
 
   if (!runtime) {

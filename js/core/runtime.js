@@ -5,11 +5,17 @@
 
 import { getClient } from "./get-client.js";
 import {
+  TEACHER_ROLES,
   fetchUserRole,
   redirectToLogin,
   redirectToUnauthorized,
-  roleAllowed,
+  roleAllowedWithLinkedStudent,
 } from "./access.js";
+import {
+  fetchTeacherLearnerContext,
+  isLinkedStudentMode,
+  resolveActingStudentId,
+} from "./learner-context.js";
 
 let runtimePromise = null;
 let listenersRegistered = false;
@@ -24,6 +30,22 @@ function normalizeRoles(options = {}) {
   }
 
   return null;
+}
+
+function resolveAppMode(role, learnerContext) {
+  if (isLinkedStudentMode({ role, learnerContext })) {
+    return "student";
+  }
+
+  if (role === "student") {
+    return "student";
+  }
+
+  if (TEACHER_ROLES.includes(role)) {
+    return "teacher";
+  }
+
+  return role ?? null;
 }
 
 async function executeBoot(options = {}) {
@@ -48,6 +70,7 @@ async function executeBoot(options = {}) {
   }
 
   let userRole = null;
+  let learnerContext = null;
 
   if (user) {
     userRole = await fetchUserRole(sb, user.id);
@@ -55,6 +78,10 @@ async function executeBoot(options = {}) {
     if (!userRole && options.requireAuth) {
       redirectToLogin();
       return null;
+    }
+
+    if (userRole && TEACHER_ROLES.includes(userRole)) {
+      learnerContext = await fetchTeacherLearnerContext(sb);
     }
   }
 
@@ -64,10 +91,18 @@ async function executeBoot(options = {}) {
       return null;
     }
 
-    if (!roleAllowed(userRole, requiredRoles)) {
+    const allowed = roleAllowedWithLinkedStudent({
+      role: userRole,
+      allowedRoles: requiredRoles,
+      allowLinkedStudentMode: options.allowLinkedStudentMode === true,
+      learnerContext,
+    });
+
+    if (!allowed) {
       console.warn("[PrepOS Runtime] Access denied.", {
         required: requiredRoles,
         actual: userRole,
+        linkedStudentMode: learnerContext?.studentModeActive,
       });
       redirectToUnauthorized();
       return null;
@@ -84,21 +119,37 @@ async function executeBoot(options = {}) {
     listenersRegistered = true;
   }
 
-  window.__PREPOS_RUNTIME__ = {
+  const runtimeState = {
     hydrated: true,
     bootedAt,
     session,
     user,
     role: userRole,
+    authUserId: user?.id ?? null,
+    learnerContext,
+    hasLinkedLearner: Boolean(learnerContext?.hasLink),
+    appMode: resolveAppMode(userRole, learnerContext),
+    effectiveStudentId: resolveActingStudentId({
+      user,
+      role: userRole,
+      learnerContext,
+    }),
     analyticsEnabled,
     listenersRegistered,
   };
+
+  window.__PREPOS_RUNTIME__ = runtimeState;
 
   return {
     sb,
     session,
     user,
     role: userRole,
+    authUserId: runtimeState.authUserId,
+    learnerContext,
+    hasLinkedLearner: runtimeState.hasLinkedLearner,
+    appMode: runtimeState.appMode,
+    effectiveStudentId: runtimeState.effectiveStudentId,
     analyticsEnabled,
   };
 }

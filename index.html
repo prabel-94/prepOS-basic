@@ -33,18 +33,30 @@
 
 <div class="card mt-20">
 
-  <div class="h2">Student Mode</div>
+  <div class="h2">Preview Student Experience</div>
 
   <div class="section-sub mt-5">
-    Switch to student dashboard and practice as a learner.
+    See how students view your published exams and notes. Preview only — nothing is saved.
   </div>
 
   <button
-    onclick="goToStudent()"
+    onclick="goToStudentPreview()"
     class="primary-btn w-full mt-20"
   >
-    🎓 Go to Student Dashboard
+    👁️ Open Student Preview
   </button>
+
+</div>
+
+<div class="card mt-20 hidden" id="linkedLearnerSection">
+
+  <div class="h2" id="linkedLearnerTitle">My Learning Account</div>
+
+  <div id="linkedLearnerBody" class="mt-5"></div>
+
+  <div id="linkedLearnerActions" class="mt-20"></div>
+
+  <div id="linkedLearnerStatus" class="mt-10 text-muted"></div>
 
 </div>
 

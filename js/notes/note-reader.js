@@ -8,6 +8,10 @@ import { mountAppNav } from "../ui/app-nav.js";
 import { TEACHER_ROLES } from "../core/access.js";
 import { resolveAppPath } from "../core/access.js";
 import {
+  isStudentPreviewQuery,
+} from "../core/student-preview.js";
+import { isLinkedStudentMode } from "../core/learner-context.js";
+import {
   fetchPublishedVariantForTopic,
   fetchTopicById,
   fetchVariantById,
@@ -49,6 +53,18 @@ function getQueryParam(key) {
 
 function isDraftModeRequested() {
   return getQueryParam("mode") === "draft";
+}
+
+function isTeacherStudentPreview(runtime) {
+  if (isLinkedStudentMode(runtime)) {
+    return true;
+  }
+
+  return (
+    isStudentPreviewQuery() &&
+    runtime?.role &&
+    TEACHER_ROLES.includes(runtime.role)
+  );
 }
 
 function canTeacherPreviewArchive(runtime, variant) {
@@ -103,6 +119,22 @@ function canUseDraftWorkspace(runtime, variant) {
 }
 
 function resolveReaderNav(runtime) {
+  if (isLinkedStudentMode(runtime)) {
+    return {
+      title: "Topic Note",
+      preset: "studentHome",
+      back: "student-dashboard.html",
+    };
+  }
+
+  if (isTeacherStudentPreview(runtime) && isStudentPreviewQuery()) {
+    return {
+      title: "Topic Note (preview)",
+      preset: "studentHome",
+      back: "teacher-student-preview.html",
+    };
+  }
+
   if (runtime?.role === "student") {
     return {
       title: "Topic Note",
@@ -148,7 +180,16 @@ function logRevisionParityPublished(variantId, representations = {}) {
   });
 }
 
-function renderLanguageTabs(container, variants, activeVariantId, isTeacher) {
+function renderStudentPreviewBanner() {
+  return `
+    <div class="student-preview-banner student-preview-banner--inline mt-10" role="status">
+      <span class="student-preview-banner-title">Student preview</span>
+      <span class="student-preview-banner-text">Published read-only view — anchors open the student cognition inspector.</span>
+    </div>
+  `;
+}
+
+function renderLanguageTabs(container, variants, activeVariantId, isTeacher, studentPreview = false) {
   if (!container || variants.length < 2) {
     container.innerHTML = "";
     container.classList.add("hidden");
@@ -164,9 +205,13 @@ function renderLanguageTabs(container, variants, activeVariantId, isTeacher) {
       const active = v.id === activeVariantId ? " active" : "";
       const statusMark =
         v.status === "published" ? "" : v.status === "draft" ? " ○" : "";
-      const href = resolveAppPath(
-        `note.html?variant=${encodeURIComponent(v.id)}${v.status === "draft" && isTeacher ? "&mode=draft" : ""}`
-      );
+      const href = studentPreview
+        ? resolveAppPath(
+            `note.html?variant=${encodeURIComponent(v.id)}&preview=student`
+          )
+        : resolveAppPath(
+            `note.html?variant=${encodeURIComponent(v.id)}${v.status === "draft" && isTeacher ? "&mode=draft" : ""}`
+          );
       return `<a class="language-tab${active}" href="${escapeHTML(href)}">${escapeHTML(label)}${statusMark}</a>`;
     })
     .join("");
@@ -203,6 +248,7 @@ async function bootPublishedReader({
   statusEl,
   isTeacher,
   isStudent,
+  studentPreview = false,
   archivePreview = false,
   publishedVariantId = null,
 }) {
@@ -221,7 +267,8 @@ async function bootPublishedReader({
     languageTabsEl,
     variants,
     activeVariantId,
-    isTeacher
+    isTeacher,
+    studentPreview
   );
 
   const subtitle = archivePreview
@@ -236,6 +283,7 @@ async function bootPublishedReader({
     <h2>${escapeHTML(topicName)}</h2>
     <div class="exam-subtitle">${escapeHTML(variant.title)}</div>
     <div class="canonical-meta">${escapeHTML(subtitle)}</div>
+    ${studentPreview ? renderStudentPreviewBanner() : ""}
     ${archiveBanner}
   `;
 
@@ -387,10 +435,16 @@ async function bootPublishedReader({
 }
 
 async function resolveVariantContext({ variantId, topicId, lang, runtime }) {
+  const studentPreview = isTeacherStudentPreview(runtime);
+
   if (variantId) {
     const variant = await fetchVariantById(variantId);
     if (!variant) {
       return null;
+    }
+
+    if (studentPreview && variant.status !== "published") {
+      return { error: "draft_unavailable" };
     }
 
     if (variant.status === "archived") {
@@ -415,7 +469,7 @@ async function resolveVariantContext({ variantId, topicId, lang, runtime }) {
       };
     }
 
-    if (variant.status === "draft" && runtime?.role === "student") {
+    if (variant.status === "draft" && (runtime?.role === "student" || studentPreview)) {
       return { error: "draft_unavailable" };
     }
 
@@ -438,7 +492,7 @@ async function resolveVariantContext({ variantId, topicId, lang, runtime }) {
       includeArchived: false,
     });
     const visibleVariants =
-      runtime?.role === "student"
+      runtime?.role === "student" || studentPreview
         ? variants.filter((v) => v.status === "published")
         : variants;
 
@@ -532,18 +586,25 @@ export async function bootNoteReader() {
       return null;
     }
 
+    const studentPreview = isTeacherStudentPreview(runtime);
+    const isStudent =
+      runtime.role === "student" || studentPreview;
+    const isTeacher =
+      TEACHER_ROLES.includes(runtime.role) && !studentPreview;
+
     const useDraft =
+      !studentPreview &&
       canUseDraftWorkspace(runtime, bundle.variant) &&
       (isDraftModeRequested() || bundle.variant.status === "draft");
 
     if (useDraft) {
-      const isTeacher = TEACHER_ROLES.includes(runtime.role);
+      const isTeacherDraft = TEACHER_ROLES.includes(runtime.role);
       if (languageTabsEl && (ctx.variants?.length ?? 0) > 1) {
         renderLanguageTabs(
           languageTabsEl,
           ctx.variants,
           ctx.variant.id,
-          isTeacher
+          isTeacherDraft
         );
       } else if (languageTabsEl) {
         languageTabsEl.classList.add("hidden");
@@ -576,8 +637,9 @@ export async function bootNoteReader() {
       toolbarEl,
       sourcePanelEl,
       statusEl,
-      isTeacher: TEACHER_ROLES.includes(runtime.role),
-      isStudent: runtime.role === "student",
+      isTeacher,
+      isStudent,
+      studentPreview,
       archivePreview: Boolean(ctx.archivePreview),
       publishedVariantId: ctx.publishedVariantId ?? null,
     });

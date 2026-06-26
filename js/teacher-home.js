@@ -1,5 +1,6 @@
 import { bootPage } from "./core/page-boot.js";
 import { resolveAppPath } from "./core/access.js";
+import { teacherStudentPreviewHubPath } from "./core/student-preview.js";
 import { getClient } from "./core/get-client.js";
 import { loadTopicNotesSection } from "./notes/note-home.js";
 import { initStudentManagement } from "./teacher/student-management.js";
@@ -8,9 +9,10 @@ import {
   ensureStudentManagementReady,
   initStudentManagementSecretToggle,
 } from "./teacher/student-management-visibility.js";
+import { mountLinkedLearnerUI } from "./teacher/linked-learner-ui.js";
 
-function goToStudent() {
-  location.href = resolveAppPath("student-dashboard.html");
+function goToStudentPreview() {
+  location.href = teacherStudentPreviewHubPath();
 }
 
 function goToCreatorMode() {
@@ -137,6 +139,7 @@ async function initTeacherHome() {
 
   await loadRecentExams();
   await loadRecentDraft();
+  await mountLinkedLearnerUI();
   await ensureStudentManagementReady(initStudentManagement);
   await loadTopicNotesSection(document.getElementById("teacherTopicNotes"), {
     role: "teacher",
@@ -144,7 +147,7 @@ async function initTeacherHome() {
   upgradeLegacyOnclickNav(document);
 }
 
-window.goToStudent = goToStudent;
+window.goToStudentPreview = goToStudentPreview;
 window.goToCreatorMode = goToCreatorMode;
 window.openExam = openExam;
 window.viewResults = viewResults;

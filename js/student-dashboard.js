@@ -103,6 +103,7 @@ function renderIntelligenceErrorStates() {
 async function initStudent() {
   const runtime = await bootPage({
     roles: ["student", "admin"],
+    allowLinkedStudentMode: true,
     nav: {
       variant: "home",
       showHome: false,
@@ -112,6 +113,14 @@ async function initStudent() {
   });
 
   if (!runtime) return;
+
+  const { mountStudentModeNav } = await import("./teacher/linked-learner-ui.js");
+  await mountStudentModeNav(runtime);
+
+  const dashboardTitle = document.querySelector(".prepos-app-nav-title");
+  if (runtime.learnerContext?.studentModeActive && dashboardTitle) {
+    dashboardTitle.textContent = "My Learning";
+  }
 
   const topicNotesEl = document.getElementById("studentTopicNotes");
 

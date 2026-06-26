@@ -1,6 +1,10 @@
 import { runGenerator } from "./generator-core.js";
 import { getClient } from "./core/get-client.js";
 import { bootPage } from "./core/page-boot.js";
+import {
+  resolveActingStudentId,
+  isLinkedStudentMode,
+} from "./core/learner-context.js";
 import { normalizeTopicKey } from "./student/student-intelligence.js";
 import { submitPracticeBankSession } from "./analytics/analytics-submission.js";
 import { loadTopicQuestionProgress, loadQuestionKnowledgeContext } from "./practice/topic-progress-service.js";
@@ -154,6 +158,7 @@ async function applyPracticeTopicFromUrl() {
 async function init() {
   const runtime = await bootPage({
     roles: ["teacher", "admin", "student"],
+    allowLinkedStudentMode: true,
     nav: {
       title: "Practice",
       subtitle: "Generator and question bank modes",
@@ -168,6 +173,11 @@ async function init() {
 
   const { data } = await sb.auth.getUser();
   window.currentUser = data?.user || null;
+  window.actingStudentId = resolveActingStudentId(runtime);
+
+  const { mountStudentModeNav } = await import("./teacher/linked-learner-ui.js");
+  await mountStudentModeNav(runtime);
+
   await loadBankTopics();
   initPracticeAssistanceToggle();
   await applyPracticeTopicFromUrl();
@@ -686,17 +696,35 @@ function rebuildKnowledgeContextQuestionStates(questionIds = []) {
   });
 }
 
+function getPracticeStudentId() {
+  return (
+    window.actingStudentId ??
+    resolveActingStudentId(practiceRuntime) ??
+    window.currentUser?.id ??
+    null
+  );
+}
+
+function canPersistPracticeStats() {
+  if (practiceRuntime?.role === "student") {
+    return Boolean(getPracticeStudentId());
+  }
+
+  return isLinkedStudentMode(practiceRuntime);
+}
+
 async function updateBankQuestionStat(questionId, isCorrect) {
-  if (
-    practiceRuntime?.role !== "student" ||
-    !window.currentUser?.id ||
-    !questionId
-  ) {
+  if (!canPersistPracticeStats()) {
+    return;
+  }
+
+  const userId = getPracticeStudentId();
+  if (!userId || !questionId) {
     return;
   }
 
   const row = await upsertBankQuestionStat({
-    userId: window.currentUser.id,
+    userId,
     questionId,
     isCorrect,
   });
@@ -713,7 +741,7 @@ async function updateBankQuestionStat(questionId, isCorrect) {
 }
 
 async function ensureBankKnowledgeContext(questionIds = []) {
-  const userId = window.currentUser?.id;
+  const userId = getPracticeStudentId();
   const topicId = bankTopicSelect.value || null;
 
   if (!userId || !questionIds.length) {
@@ -793,7 +821,7 @@ async function refreshTopicProgressPanel() {
     return;
   }
 
-  const userId = window.currentUser?.id;
+  const userId = getPracticeStudentId();
   const topicId = bankTopicSelect.value;
   const topicName = getSelectedBankTopicLabel();
 
@@ -1697,9 +1725,12 @@ async function finishSession(message = "Session finished. Start again for a new 
   if (
     state.mode === "bank" &&
     state.sessionAnswers.length > 0 &&
-    practiceRuntime?.role === "student" &&
-    window.currentUser?.id
+    canPersistPracticeStats()
   ) {
+    const practiceStudentId = getPracticeStudentId();
+    if (!practiceStudentId) {
+      statusMessage = message;
+    } else {
     const elapsed = state.sessionStartedAt
       ? Math.floor((Date.now() - state.sessionStartedAt) / 1000)
       : 0;
@@ -1710,6 +1741,7 @@ async function finishSession(message = "Session finished. Start again for a new 
       ) || null;
 
     try {
+      const profileName = practiceRuntime?.learnerContext?.displayName;
       await submitPracticeBankSession({
         answers: state.sessionAnswers,
         score: state.correctCount,
@@ -1717,10 +1749,11 @@ async function finishSession(message = "Session finished. Start again for a new 
         timeTaken: elapsed,
         topicId: bankTopicSelect.value || null,
         topicName: topicLabel,
-        studentId: window.currentUser.id,
+        studentId: practiceStudentId,
         studentName:
-          window.currentUser.user_metadata?.full_name ??
-          window.currentUser.user_metadata?.name ??
+          profileName ??
+          window.currentUser?.user_metadata?.full_name ??
+          window.currentUser?.user_metadata?.name ??
           "",
       });
       statusMessage = `${message} Your learning profile was updated.`;
@@ -1728,6 +1761,7 @@ async function finishSession(message = "Session finished. Start again for a new 
       console.warn("[PrepOS Practice] Knowledge analytics submission failed:", error);
       statusMessage =
         "Session complete. Your answers were not saved to your learning profile.";
+    }
     }
   }
 

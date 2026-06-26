@@ -152,6 +152,8 @@ Move to Phase 1 when the verification checklist above is complete.
 
 ## Phase 1 — Free teacher preview pack (Weeks 2–3)
 
+**Status:** Implemented (2026-06-26)
+
 **Objective:** Normal teachers can see how students experience **their own** content. No linked accounts, no billing, no RLS delegation.
 
 ### 1.1 Fix broken “Student Mode” entry point
@@ -223,6 +225,8 @@ Teachers have honest preview. Founder still uses Phase 0 student account for rea
 ---
 
 ## Phase 2 — Linked student MVP (Weeks 4–6)
+
+**Status:** Implemented (2026-06-26) — requires migration + `provision-linked-learner` edge deploy
 
 **Objective:** Premium core — one teacher login + shadow `student` user. **Dogfood on your own teacher account first.**
 

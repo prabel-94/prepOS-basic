@@ -4,6 +4,7 @@
 
 import { getClient } from "../core/get-client.js";
 import { resolveAppPath } from "../core/access.js";
+import { buildNoteStudentPreviewHref } from "../core/student-preview.js";
 import { getLanguageLabel, normalizeLanguage } from "./note-variants.js";
 import { saveNoteVariant } from "./note-storage.js";
 
@@ -64,6 +65,10 @@ export async function fetchNotesForHome(role, limit = 30) {
     query = query.eq("status", "published");
   }
 
+  if (role === "preview-student") {
+    query = query.eq("status", "published");
+  }
+
   const { data, error } = await query;
 
   if (error) {
@@ -96,6 +101,17 @@ function groupByCanonicalNote(rows = []) {
 }
 
 function resolveVariantHref(variant, role) {
+  if (role === "preview-student") {
+    const topicId = variant.notes?.topic_id;
+    const lang = normalizeLanguage(variant.language);
+
+    if (topicId) {
+      return buildNoteStudentPreviewHref({ topicId, lang });
+    }
+
+    return buildNoteStudentPreviewHref({ variantId: variant.id });
+  }
+
   if (role === "teacher" || role === "admin") {
     if (variant.status === "draft") {
       return resolveAppPath(
@@ -218,7 +234,7 @@ export function renderTopicNotesList(container, grouped = [], role = "student") 
 
   if (!grouped.length) {
     const hint =
-      role === "student"
+      role === "student" || role === "preview-student"
         ? "No published topic notes yet."
         : "No canonical notes yet. Import from Question Bank → Import canonical note.";
 
@@ -234,7 +250,7 @@ export function renderTopicNotesList(container, grouped = [], role = "student") 
           const href = resolveVariantHref(v, role);
           const lang = getLanguageLabel(v.language);
           const status =
-            role === "student"
+            role === "student" || role === "preview-student"
               ? ""
               : ` <span class="topic-note-status topic-note-status--${escapeHTML(v.status)}">${escapeHTML(v.status)}</span>`;
           const updated = formatUpdatedAt(v.updated_at);
@@ -256,7 +272,13 @@ export function renderTopicNotesList(container, grouped = [], role = "student") 
                 <div class="topic-note-meta text-muted">${escapeHTML(v.title)}${updated ? ` · ${escapeHTML(updated)}` : ""}</div>
               </div>
               <div class="topic-note-row-actions flex gap-10">
-                <a class="secondary-btn" href="${escapeHTML(href)}">${role === "student" ? "Read" : v.status === "draft" ? "Refine" : "Read"}</a>
+                <a class="secondary-btn" href="${escapeHTML(href)}">${
+                  role === "student" || role === "preview-student"
+                    ? "Read"
+                    : v.status === "draft"
+                      ? "Refine"
+                      : "Read"
+                }</a>
                 ${
                   isStaff && v.status === "published"
                     ? `<button

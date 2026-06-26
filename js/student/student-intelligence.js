@@ -5,6 +5,8 @@
  */
 
 import { getClient } from "../core/get-client.js";
+import { getRuntimeState } from "../core/runtime.js";
+import { resolveActingStudentId } from "../core/learner-context.js";
 import {
   enrichAssignedExam,
   enrichAssignedExamsWithAttemptStatus,
@@ -37,6 +39,17 @@ export function normalizeTopicKey(topic) {
 }
 
 export { normalizeTopicKey as normalizedTopicKey };
+
+async function resolveStudentUserId(sb) {
+  const runtime = getRuntimeState();
+  const fromRuntime = resolveActingStudentId(runtime);
+  if (fromRuntime) {
+    return fromRuntime;
+  }
+
+  const { data: userData } = await sb.auth.getUser();
+  return userData?.user?.id ?? null;
+}
 
 export function hydrateKnowledgeAnalytics(examIds = []) {
   const hydrated = [];
@@ -489,16 +502,15 @@ function resolveEmptyReason({ canonicalAttempts = [], topicMastery = [], confide
 
 export async function loadStudentExamDashboardData() {
   const sb = await getClient();
-  const { data: userData } = await sb.auth.getUser();
-  const user = userData?.user;
+  const studentId = await resolveStudentUserId(sb);
 
-  if (!user) {
+  if (!studentId) {
     throw new Error("User not authenticated");
   }
 
   const [exams, attemptRows] = await Promise.all([
-    fetchStudentExamAssignments(sb, user.id),
-    fetchCanonicalAttempts(sb, user.id),
+    fetchStudentExamAssignments(sb, studentId),
+    fetchCanonicalAttempts(sb, studentId),
   ]);
 
   return {
@@ -510,16 +522,15 @@ export async function loadStudentExamDashboardData() {
 
 export async function loadStudentIntelligence({ attemptRows: prefetchedAttemptRows } = {}) {
   const sb = await getClient();
-  const { data: userData } = await sb.auth.getUser();
-  const user = userData?.user;
+  const studentId = await resolveStudentUserId(sb);
 
-  if (!user) {
+  if (!studentId) {
     throw new Error("User not authenticated");
   }
 
   const [attemptRows, practiceRows] = await Promise.all([
-    prefetchedAttemptRows ?? fetchCanonicalAttempts(sb, user.id),
-    fetchPracticeAttempts(sb, user.id),
+    prefetchedAttemptRows ?? fetchCanonicalAttempts(sb, studentId),
+    fetchPracticeAttempts(sb, studentId),
   ]);
 
   const canonicalAttempts = toAttemptRecords(attemptRows);
@@ -546,7 +557,7 @@ export async function loadStudentIntelligence({ attemptRows: prefetchedAttemptRo
   });
 
   return {
-    userId: user.id,
+    userId: studentId,
     canonicalAttempts,
     practiceAttempts,
     knowledgeAttempts,

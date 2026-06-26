@@ -2787,7 +2787,7 @@ async function publishDraft() {
       linkBox.innerHTML = `
         <b>Exam Published</b><br>
         <a href="exam.html?id=${examId}&amp;mode=inspect" target="_blank">
-          Inspect Exam
+          Preview as student
         </a>
         ·
         <a href="exam.html?id=${examId}" target="_blank">

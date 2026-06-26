@@ -161,6 +161,51 @@ LAYOUT
   display:none;
 }
 
+.student-preview-banner{
+  padding:14px 16px;
+  border-radius:10px;
+  background:#fefce8;
+  border:1px solid #fde047;
+  color:#713f12;
+}
+
+.student-preview-banner--inline{
+  padding:10px 12px;
+  font-size:0.9rem;
+}
+
+.student-preview-banner-title{
+  font-weight:700;
+  display:block;
+}
+
+.student-preview-banner-text{
+  margin:0;
+  line-height:1.45;
+}
+
+.student-preview-card--muted{
+  opacity:0.92;
+}
+
+.student-intel-stat--mock .student-intel-stat-value{
+  color:var(--muted);
+}
+
+.student-preview-mock-panel{
+  padding:4px 0;
+}
+
+.practice-note {
+  margin: 0;
+}
+
+.inline-link-btn {
+  display: inline-block;
+  margin-top: 8px;
+  text-decoration: none;
+}
+
 .exam-subtitle{
   font-size:13px;
   color:var(--muted);

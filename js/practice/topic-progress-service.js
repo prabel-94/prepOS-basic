@@ -2,7 +2,8 @@
  * Load topic question bank progress for practice UI.
  */
 
-import { getClient } from "../core/get-client.js";
+import { resolveActingStudentId } from "../core/learner-context.js";
+import { getRuntimeState } from "../core/runtime.js";
 import { buildTopicQuestionProgress, buildQuestionStateById } from "../analytics/topic-question-progress.js";
 import {
   buildAttemptRecord,
