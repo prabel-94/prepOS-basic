@@ -130,16 +130,152 @@
   bottom: 16px;
   z-index: 2600;
   pointer-events: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  max-width: min(320px, calc(100vw - 32px));
-  padding: 12px;
+  max-width: min(360px, calc(100vw - 32px));
+  padding: 0;
   border-radius: 12px;
   border: 1px solid #e2e8f0;
   background: rgba(255, 255, 255, 0.96);
   box-shadow: 0 12px 32px rgba(15, 23, 42, 0.18);
   backdrop-filter: blur(8px);
+  overflow: visible;
+}
+
+.prepos-class-overlay-toolbar-shell {
+  display: flex;
+  align-items: stretch;
+  position: relative;
+}
+
+.prepos-class-overlay-toolbar-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+}
+
+.prepos-class-overlay-global-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 44px;
+  padding: 12px 8px;
+  border-left: 1px solid #e2e8f0;
+  background: #f8fafc;
+  border-radius: 0 12px 12px 0;
+}
+
+.prepos-class-overlay-global-rail-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #64748b;
+}
+
+.prepos-class-overlay-global-slider-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 88px;
+  width: 100%;
+}
+
+.prepos-class-overlay-global-slider {
+  width: 88px;
+  height: 28px;
+  transform: rotate(-90deg);
+  accent-color: #1e293b;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.prepos-class-overlay-global-rail-value {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #1e293b;
+  text-align: center;
+}
+
+.prepos-class-overlay-scale-preview {
+  display: block;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+}
+
+.prepos-class-overlay-entity-popover {
+  position: absolute;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 52px;
+  padding: 8px 6px;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.2);
+}
+
+.prepos-class-overlay-entity-popover--hidden {
+  display: none;
+}
+
+.prepos-class-overlay-entity-popover-title {
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: #475569;
+  text-align: center;
+  line-height: 1.2;
+  max-width: 48px;
+}
+
+.prepos-class-overlay-entity-slider-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 72px;
+  width: 100%;
+}
+
+.prepos-class-overlay-entity-slider {
+  width: 72px;
+  height: 24px;
+  transform: rotate(-90deg);
+  accent-color: #7c3aed;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.prepos-class-overlay-entity-popover-value {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.prepos-class-overlay-popover-done {
+  border: none;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 0.62rem;
+  font-weight: 700;
+  padding: 4px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.prepos-class-overlay-popover-done:hover {
+  background: #e2e8f0;
+  color: #1e293b;
+}
+
+.prepos-class-overlay-btn[data-entity-long-press] {
+  touch-action: manipulation;
 }
 
 .prepos-class-overlay-toolbar--hidden {
@@ -283,7 +419,7 @@
 
 .prepos-class-overlay-root:has(.prepos-class-overlay-toolbar:not(.prepos-class-overlay-toolbar--hidden))
   .prepos-class-overlay-dock {
-  bottom: calc(16px + 248px);
+  bottom: calc(16px + 320px);
 }
 
 @media (max-width: 640px) {
@@ -301,6 +437,6 @@
 
   .prepos-class-overlay-root:has(.prepos-class-overlay-toolbar:not(.prepos-class-overlay-toolbar--hidden))
     .prepos-class-overlay-dock {
-    bottom: calc(8px + 248px);
+    bottom: calc(8px + 320px);
   }
 }

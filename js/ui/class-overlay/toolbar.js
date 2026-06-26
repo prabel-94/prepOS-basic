@@ -4,6 +4,11 @@
 
 import { listStickyPageKeys } from "./session.js";
 import { DEFAULT_FADE_TTL_MS } from "./canvas.js";
+import {
+  mountToolbarScaleControls,
+  renderEntityScalePopover,
+  renderGlobalScaleRail,
+} from "./scale-controls.js";
 
 const FADE_TTL_OPTIONS = Object.freeze([
   { ms: 3000, label: "3s" },
@@ -27,71 +32,117 @@ export function createClassOverlayToolbar(controller, actions = {}) {
   root.setAttribute("aria-label", "Class markup tools");
 
   root.innerHTML = `
-    <div class="prepos-class-overlay-toolbar-header">
-      <span class="prepos-class-overlay-toolbar-title">Class markup</span>
-      <button
-        type="button"
-        class="prepos-class-overlay-close"
-        data-toolbar-close
-        aria-label="Close toolbar"
-        title="Close"
-      >×</button>
+    <div class="prepos-class-overlay-toolbar-shell" data-toolbar-shell>
+      <div class="prepos-class-overlay-toolbar-main">
+        <div class="prepos-class-overlay-toolbar-header">
+          <span class="prepos-class-overlay-toolbar-title">Class markup</span>
+          <button
+            type="button"
+            class="prepos-class-overlay-close"
+            data-toolbar-close
+            aria-label="Close toolbar"
+            title="Close"
+          >×</button>
+        </div>
+        <div class="prepos-class-overlay-toolbar-row prepos-class-overlay-status" data-overlay-status>
+          Drawing off · Fade ink
+        </div>
+        <div class="prepos-class-overlay-toolbar-row">
+          <button
+            type="button"
+            class="prepos-class-overlay-btn is-active"
+            data-ink-mode="fade"
+            data-entity-long-press="fadeInk"
+            title="Fade ink (long-press for width)"
+          >Fade</button>
+          <button
+            type="button"
+            class="prepos-class-overlay-btn"
+            data-ink-mode="sticky"
+            data-entity-long-press="stickyInk"
+            title="Sticky ink (long-press for width)"
+          >Sticky</button>
+        </div>
+        <div class="prepos-class-overlay-toolbar-row">
+          <button
+            type="button"
+            class="prepos-class-overlay-btn is-active"
+            data-tool="pen"
+            data-entity-long-press="pen"
+            title="Pen (long-press for size)"
+          >Pen</button>
+          <button
+            type="button"
+            class="prepos-class-overlay-btn"
+            data-tool="highlighter"
+            data-entity-long-press="highlighter"
+            title="Highlighter (long-press for size)"
+          >Hi</button>
+          <button
+            type="button"
+            class="prepos-class-overlay-btn"
+            data-tool="eraser"
+            data-entity-long-press="eraser"
+            title="Eraser (long-press for size)"
+          >Eraser</button>
+        </div>
+        <div class="prepos-class-overlay-toolbar-row">
+          <button type="button" class="prepos-class-overlay-swatch is-active" data-color="#e11d48" title="Red" style="--swatch:#e11d48"></button>
+          <button type="button" class="prepos-class-overlay-swatch" data-color="#facc15" title="Yellow" style="--swatch:#facc15"></button>
+          <button type="button" class="prepos-class-overlay-swatch" data-color="#ffffff" title="White" style="--swatch:#ffffff"></button>
+          <button type="button" class="prepos-class-overlay-swatch" data-color="#1e293b" title="Dark" style="--swatch:#1e293b"></button>
+        </div>
+        <div class="prepos-class-overlay-toolbar-row">
+          <label class="prepos-class-overlay-ttl-label">
+            Fade
+            <select class="prepos-class-overlay-ttl" data-fade-ttl aria-label="Fade duration">
+              ${FADE_TTL_OPTIONS.map(
+                (opt) =>
+                  `<option value="${opt.ms}"${opt.ms === DEFAULT_FADE_TTL_MS ? " selected" : ""}>${opt.label}</option>`
+              ).join("")}
+            </select>
+          </label>
+        </div>
+        <div class="prepos-class-overlay-toolbar-row">
+          <button type="button" class="prepos-class-overlay-btn" data-overlay-toggle title="Toggle drawing (Ctrl+Shift+D)">
+            Drawing off
+          </button>
+          <button type="button" class="prepos-class-overlay-btn" data-overlay-visibility title="Show/hide ink layer">
+            Hide ink
+          </button>
+        </div>
+        <div class="prepos-class-overlay-toolbar-row">
+          <button type="button" class="prepos-class-overlay-btn" data-clear-page>Clear page</button>
+          <button type="button" class="prepos-class-overlay-btn" data-clear-all>Clear all</button>
+          <button type="button" class="prepos-class-overlay-btn" data-end-session>End session</button>
+          <button type="button" class="prepos-class-overlay-btn" data-reset-scales title="Reset all size sliders to 1.0×">
+            Reset sizes
+          </button>
+        </div>
+        <p class="prepos-class-overlay-hint text-muted">
+          Tap ✎ to draw. Long-press ✎ for this panel.
+          <strong>All</strong> slider scales everything; long-press Pen, Hi, Eraser, Fade, or Sticky for individual size.
+        </p>
+      </div>
+      ${renderGlobalScaleRail()}
+      ${renderEntityScalePopover()}
     </div>
-    <div class="prepos-class-overlay-toolbar-row prepos-class-overlay-status" data-overlay-status>
-      Drawing off · Fade ink
-    </div>
-    <div class="prepos-class-overlay-toolbar-row">
-      <button type="button" class="prepos-class-overlay-btn is-active" data-ink-mode="fade" title="Fading ink (default)">
-        Fade
-      </button>
-      <button type="button" class="prepos-class-overlay-btn" data-ink-mode="sticky" title="Sticky ink (persists until cleared)">
-        Sticky
-      </button>
-    </div>
-    <div class="prepos-class-overlay-toolbar-row">
-      <button type="button" class="prepos-class-overlay-btn is-active" data-tool="pen" title="Pen">Pen</button>
-      <button type="button" class="prepos-class-overlay-btn" data-tool="highlighter" title="Highlighter">Hi</button>
-      <button type="button" class="prepos-class-overlay-btn" data-tool="eraser" title="Eraser (sticky only)">Eraser</button>
-    </div>
-    <div class="prepos-class-overlay-toolbar-row">
-      <button type="button" class="prepos-class-overlay-swatch is-active" data-color="#e11d48" title="Red" style="--swatch:#e11d48"></button>
-      <button type="button" class="prepos-class-overlay-swatch" data-color="#facc15" title="Yellow" style="--swatch:#facc15"></button>
-      <button type="button" class="prepos-class-overlay-swatch" data-color="#ffffff" title="White" style="--swatch:#ffffff"></button>
-      <button type="button" class="prepos-class-overlay-swatch" data-color="#1e293b" title="Dark" style="--swatch:#1e293b"></button>
-    </div>
-    <div class="prepos-class-overlay-toolbar-row">
-      <label class="prepos-class-overlay-ttl-label">
-        Fade
-        <select class="prepos-class-overlay-ttl" data-fade-ttl aria-label="Fade duration">
-          ${FADE_TTL_OPTIONS.map(
-            (opt) =>
-              `<option value="${opt.ms}"${opt.ms === DEFAULT_FADE_TTL_MS ? " selected" : ""}>${opt.label}</option>`
-          ).join("")}
-        </select>
-      </label>
-    </div>
-    <div class="prepos-class-overlay-toolbar-row">
-      <button type="button" class="prepos-class-overlay-btn" data-overlay-toggle title="Toggle drawing (Ctrl+Shift+D)">
-        Drawing off
-      </button>
-      <button type="button" class="prepos-class-overlay-btn" data-overlay-visibility title="Show/hide ink layer">
-        Hide ink
-      </button>
-    </div>
-    <div class="prepos-class-overlay-toolbar-row">
-      <button type="button" class="prepos-class-overlay-btn" data-clear-page>Clear page</button>
-      <button type="button" class="prepos-class-overlay-btn" data-clear-all>Clear all</button>
-      <button type="button" class="prepos-class-overlay-btn" data-end-session>End session</button>
-    </div>
-    <p class="prepos-class-overlay-hint text-muted">
-      Tap ✎ to draw. Long-press ✎ for colors, fade time, and session controls.
-      <strong>Fade</strong> = dashed (disappears). <strong>Sticky</strong> = solid (kept).
-    </p>
   `;
 
   const statusEl = root.querySelector("[data-overlay-status]");
   const toggleBtn = root.querySelector("[data-overlay-toggle]");
   const visibilityBtn = root.querySelector("[data-overlay-visibility]");
+
+  const scaleControls = mountToolbarScaleControls({
+    toolbarRoot: root,
+    getActiveState: () => ({
+      tool: controller.getTool(),
+      inkMode: controller.getInkMode(),
+    }),
+    onPrefsChange: () => {
+      scaleControls.updatePreview();
+    },
+  });
 
   function setActiveButton(selector, activeValue, attr) {
     root.querySelectorAll(selector).forEach((btn) => {
@@ -113,8 +164,14 @@ export function createClassOverlayToolbar(controller, actions = {}) {
     visibilityBtn.textContent = controller.isOverlayVisible() ? "Hide ink" : "Show ink";
   }
 
+  function syncScaleUi() {
+    scaleControls.sync();
+    scaleControls.updatePreview();
+  }
+
   root.addEventListener("click", (event) => {
     if (event.target.closest("[data-toolbar-close]")) {
+      scaleControls.closePopover();
       actions.onClose?.();
       return;
     }
@@ -129,6 +186,7 @@ export function createClassOverlayToolbar(controller, actions = {}) {
       setActiveButton("[data-ink-mode]", mode, "data-ink-mode");
       setActiveButton("[data-tool]", controller.getTool(), "data-tool");
       updateStatus();
+      syncScaleUi();
       actions.onDrawingStateChange?.();
       return;
     }
@@ -142,6 +200,7 @@ export function createClassOverlayToolbar(controller, actions = {}) {
       }
       controller.setTool(nextTool);
       setActiveButton("[data-tool]", nextTool, "data-tool");
+      syncScaleUi();
       actions.onDrawingStateChange?.();
       return;
     }
@@ -196,6 +255,7 @@ export function createClassOverlayToolbar(controller, actions = {}) {
   setActiveButton("[data-ink-mode]", controller.getInkMode(), "data-ink-mode");
   setActiveButton("[data-tool]", controller.getTool(), "data-tool");
   updateStatus();
+  syncScaleUi();
 
   return {
     element: root,
@@ -203,10 +263,13 @@ export function createClassOverlayToolbar(controller, actions = {}) {
     syncToggleLabels,
     syncInkMode() {
       setActiveButton("[data-ink-mode]", controller.getInkMode(), "data-ink-mode");
+      syncScaleUi();
     },
     syncTool() {
       setActiveButton("[data-tool]", controller.getTool(), "data-tool");
+      syncScaleUi();
     },
+    syncScales: syncScaleUi,
     collapse() {
       root.classList.toggle("prepos-class-overlay-toolbar--collapsed");
     },

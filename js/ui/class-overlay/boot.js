@@ -108,6 +108,7 @@ export function bootClassOverlay(runtime) {
     toolbar.syncToggleLabels();
     toolbar.syncInkMode();
     toolbar.syncTool();
+    toolbar.syncScales();
     toolbar.updateStatus();
     dock.sync();
     updatePointerPolicy(canvas, controller);
@@ -124,6 +125,7 @@ export function bootClassOverlay(runtime) {
     onInkOrToolChange: () => {
       toolbar.syncInkMode();
       toolbar.syncTool();
+      toolbar.syncScales();
       toolbar.updateStatus();
       dock.sync();
       updatePointerPolicy(canvas, controller);

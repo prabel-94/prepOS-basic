@@ -3,6 +3,7 @@
  */
 
 import { loadStickyStrokes, saveStickyStrokes } from "./persistence.js";
+import { computeEraserRadiusPx, computeStrokeWidth } from "./prefs.js";
 
 export const MAX_FADE_STROKES = 200;
 export const DEFAULT_FADE_TTL_MS = 5000;
@@ -53,8 +54,7 @@ function drawStroke(ctx, stroke, scrollX, scrollY, options = {}) {
   const isFade = layer === "fade";
   const isHighlighter = stroke.tool === "highlighter";
   const minDim = Math.min(window.innerWidth, window.innerHeight);
-  const widthScale = isFade ? 0.82 : 1.12;
-  const lineWidth = stroke.width * minDim * widthScale;
+  const lineWidth = stroke.width * minDim;
 
   ctx.save();
   ctx.lineCap = "round";
@@ -116,7 +116,12 @@ function strokeBounds(stroke) {
 }
 
 function eraserRadiusPx() {
-  return ERASER_WIDTH * Math.min(window.innerWidth, window.innerHeight);
+  return computeEraserRadiusPx();
+}
+
+function widthForInk(layer, isHighlighter) {
+  const tool = isHighlighter ? "highlighter" : "pen";
+  return computeStrokeWidth(tool, layer === "sticky" ? "sticky" : "fade");
 }
 
 function boundsIntersect(a, b, padding = 0) {
@@ -337,7 +342,7 @@ export function createClassOverlayCanvas({ canvas, pageKey, isDrawingAllowed }) 
       id: createStrokeId(),
       tool: isHighlighter ? "highlighter" : "pen",
       color,
-      width: isHighlighter ? HIGHLIGHTER_WIDTH : PEN_WIDTH,
+      width: widthForInk(inkMode, isHighlighter),
       points: [normalizePoint(clientX, clientY)],
       layer: inkMode,
       createdAt: Date.now(),
