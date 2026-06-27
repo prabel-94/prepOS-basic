@@ -476,6 +476,10 @@ export function createClassOverlayCanvas({ canvas, pageKey, isDrawingAllowed }) 
       color = nextColor;
     },
 
+    getColor() {
+      return color;
+    },
+
     setFadeTtl(ms) {
       fadeTtlMs = ms;
     },

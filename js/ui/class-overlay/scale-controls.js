@@ -79,13 +79,23 @@ export function mountToolbarScaleControls({ toolbarRoot, getActiveState, onPrefs
     ctx.clearRect(0, 0, size, size);
     ctx.beginPath();
     ctx.arc(size / 2, size / 2, radius, 0, Math.PI * 2);
-    ctx.fillStyle =
-      previewTool === "eraser"
-        ? "rgba(180, 83, 9, 0.35)"
-        : inkMode === "fade"
-          ? "rgba(124, 58, 237, 0.65)"
-          : "rgba(15, 118, 110, 0.9)";
+
+    const strokeColor = getActiveState().color ?? "#e11d48";
+
+    if (previewTool === "eraser") {
+      ctx.fillStyle = "rgba(180, 83, 9, 0.35)";
+    } else if (previewTool === "highlighter") {
+      ctx.globalAlpha = 0.55;
+      ctx.fillStyle = strokeColor;
+    } else if (inkMode === "fade") {
+      ctx.globalAlpha = 0.55;
+      ctx.fillStyle = strokeColor;
+    } else {
+      ctx.fillStyle = strokeColor;
+    }
+
     ctx.fill();
+    ctx.globalAlpha = 1;
     ctx.strokeStyle = "#1e293b";
     ctx.lineWidth = 1;
     ctx.stroke();

@@ -5,6 +5,11 @@
 import { listStickyPageKeys } from "./session.js";
 import { DEFAULT_FADE_TTL_MS } from "./canvas.js";
 import {
+  isPresetColor,
+  loadMarkupPrefs,
+} from "./prefs.js";
+import { applyMarkupColor, normalizeHexColor } from "./color-ui.js";
+import {
   mountToolbarScaleControls,
   renderEntityScalePopover,
   renderGlobalScaleRail,
@@ -24,6 +29,7 @@ const FADE_TTL_OPTIONS = Object.freeze([
  * @param {() => void} [actions.onEndSession]
  * @param {() => void} [actions.onClose]
  * @param {() => void} [actions.onDrawingStateChange]
+ * @param {() => void} [actions.onColorChange]
  */
 export function createClassOverlayToolbar(controller, actions = {}) {
   const root = document.createElement("div");
@@ -86,12 +92,30 @@ export function createClassOverlayToolbar(controller, actions = {}) {
             title="Eraser (long-press for size)"
           >Eraser</button>
         </div>
-        <div class="prepos-class-overlay-toolbar-row">
+        <div class="prepos-class-overlay-toolbar-row prepos-class-overlay-colors">
           <button type="button" class="prepos-class-overlay-swatch is-active" data-color="#e11d48" title="Red" style="--swatch:#e11d48"></button>
           <button type="button" class="prepos-class-overlay-swatch" data-color="#facc15" title="Yellow" style="--swatch:#facc15"></button>
           <button type="button" class="prepos-class-overlay-swatch" data-color="#ffffff" title="White" style="--swatch:#ffffff"></button>
           <button type="button" class="prepos-class-overlay-swatch" data-color="#1e293b" title="Dark" style="--swatch:#1e293b"></button>
+          <button
+            type="button"
+            class="prepos-class-overlay-swatch prepos-class-overlay-swatch--custom"
+            data-color="custom"
+            title="Custom color"
+            style="--swatch:#e11d48"
+          ><span class="prepos-class-overlay-swatch-custom-icon" aria-hidden="true">◐</span></button>
+          <input
+            type="color"
+            class="prepos-class-overlay-color-input"
+            data-color-picker
+            value="#e11d48"
+            tabindex="-1"
+            aria-label="Choose custom color"
+          />
         </div>
+        <p class="prepos-class-overlay-color-hint prepos-class-overlay-color-hint--hidden text-muted" data-color-hint>
+          Bright colors work best for highlighter.
+        </p>
         <div class="prepos-class-overlay-toolbar-row">
           <label class="prepos-class-overlay-ttl-label">
             Fade
@@ -121,7 +145,7 @@ export function createClassOverlayToolbar(controller, actions = {}) {
         </div>
         <p class="prepos-class-overlay-hint text-muted">
           Tap ✎ to draw. Long-press ✎ for this panel.
-          <strong>All</strong> slider scales everything; long-press Pen, Hi, Eraser, Fade, or Sticky for individual size.
+          Tap <strong>◐</strong> for a custom color (saved for quick access). Long-press tools for individual size.
         </p>
       </div>
       ${renderGlobalScaleRail()}
@@ -132,12 +156,54 @@ export function createClassOverlayToolbar(controller, actions = {}) {
   const statusEl = root.querySelector("[data-overlay-status]");
   const toggleBtn = root.querySelector("[data-overlay-toggle]");
   const visibilityBtn = root.querySelector("[data-overlay-visibility]");
+  const colorPicker = root.querySelector("[data-color-picker]");
+  const customSwatch = root.querySelector('[data-color="custom"]');
+  const colorHint = root.querySelector("[data-color-hint]");
+
+  function applyColor(nextColor) {
+    applyMarkupColor(controller, nextColor);
+    syncColorControls();
+    syncScaleUi();
+    actions.onColorChange?.();
+  }
+
+  function syncColorControls() {
+    const prefs = loadMarkupPrefs();
+    const active = prefs.activeColor;
+    const presetActive = isPresetColor(active);
+
+    controller.setColor(active);
+
+    root.querySelectorAll("[data-color]").forEach((btn) => {
+      if (btn.dataset.color === "custom") {
+        const customDisplay = presetActive ? prefs.lastCustomColor : active;
+        btn.style.setProperty("--swatch", customDisplay);
+        btn.classList.toggle("is-active", !presetActive);
+        return;
+      }
+
+      btn.classList.toggle(
+        "is-active",
+        btn.dataset.color.toLowerCase() === active.toLowerCase()
+      );
+    });
+
+    if (colorPicker) {
+      colorPicker.value = presetActive ? prefs.lastCustomColor : active;
+    }
+
+    colorHint?.classList.toggle(
+      "prepos-class-overlay-color-hint--hidden",
+      controller.getTool() !== "highlighter"
+    );
+  }
 
   const scaleControls = mountToolbarScaleControls({
     toolbarRoot: root,
     getActiveState: () => ({
       tool: controller.getTool(),
       inkMode: controller.getInkMode(),
+      color: controller.getColor(),
     }),
     onPrefsChange: () => {
       scaleControls.updatePreview();
@@ -167,6 +233,7 @@ export function createClassOverlayToolbar(controller, actions = {}) {
   function syncScaleUi() {
     scaleControls.sync();
     scaleControls.updatePreview();
+    syncColorControls();
   }
 
   root.addEventListener("click", (event) => {
@@ -214,8 +281,12 @@ export function createClassOverlayToolbar(controller, actions = {}) {
 
     const swatch = event.target.closest("[data-color]");
     if (swatch) {
-      controller.setColor(swatch.dataset.color);
-      setActiveButton("[data-color]", swatch.dataset.color, "data-color");
+      if (swatch.dataset.color === "custom") {
+        colorPicker?.click();
+        return;
+      }
+
+      applyColor(swatch.dataset.color);
       return;
     }
 
@@ -258,6 +329,10 @@ export function createClassOverlayToolbar(controller, actions = {}) {
     controller.setFadeTtl(Number(event.target.value) || DEFAULT_FADE_TTL_MS);
   });
 
+  colorPicker?.addEventListener("input", (event) => {
+    applyColor(event.target.value);
+  });
+
   syncToggleLabels();
   setActiveButton("[data-ink-mode]", controller.getInkMode(), "data-ink-mode");
   setActiveButton("[data-tool]", controller.getTool(), "data-tool");
@@ -277,13 +352,16 @@ export function createClassOverlayToolbar(controller, actions = {}) {
       syncScaleUi();
     },
     syncScales: syncScaleUi,
+    syncColors: syncColorControls,
     collapse() {
       root.classList.toggle("prepos-class-overlay-toolbar--collapsed");
     },
   };
 }
 
-const LONG_PRESS_MS = 480;
+import { mountQuickColorLongPress } from "./color-ui.js";
+
+const FAB_LONG_PRESS_MS = 480;
 
 /**
  * Bottom dock: quick controls (when drawing) + FAB draw toggle. Long-press FAB opens toolbar.
@@ -293,11 +371,19 @@ const LONG_PRESS_MS = 480;
  * @param {() => void} actions.onDrawingToggle
  * @param {() => void} actions.onOpenToolbar
  * @param {() => void} actions.onInkOrToolChange
+ * @param {() => void} [actions.onColorChange]
  */
 export function createClassOverlayDock(controller, actions = {}) {
   const dock = document.createElement("div");
   dock.className = "prepos-class-overlay-dock";
   dock.setAttribute("aria-label", "Class markup controls");
+
+  const colorPopover = document.createElement("div");
+  colorPopover.className =
+    "prepos-class-overlay-quick-color-popover prepos-class-overlay-quick-color-popover--hidden";
+  colorPopover.setAttribute("role", "menu");
+  colorPopover.setAttribute("aria-label", "Quick color picker");
+  colorPopover.setAttribute("aria-hidden", "true");
 
   const quick = document.createElement("div");
   quick.className = "prepos-class-overlay-quick prepos-class-overlay-quick--hidden";
@@ -309,14 +395,32 @@ export function createClassOverlayDock(controller, actions = {}) {
         type="button"
         class="prepos-class-overlay-quick-btn is-active"
         data-quick-ink="fade"
-        title="Fade ink (disappears)"
+        data-quick-color-long-press
+        title="Fade ink (long-press for color)"
       >Fade</button>
       <button
         type="button"
         class="prepos-class-overlay-quick-btn"
         data-quick-ink="sticky"
-        title="Sticky ink (keeps until cleared)"
+        data-quick-color-long-press
+        title="Sticky ink (long-press for color)"
       >Sticky</button>
+    </div>
+    <div class="prepos-class-overlay-quick-row" role="group" aria-label="Drawing tool">
+      <button
+        type="button"
+        class="prepos-class-overlay-quick-btn is-active"
+        data-quick-tool="pen"
+        data-quick-color-long-press
+        title="Pen (long-press for color)"
+      >Pen</button>
+      <button
+        type="button"
+        class="prepos-class-overlay-quick-btn prepos-class-overlay-quick-btn--hi"
+        data-quick-tool="highlighter"
+        data-quick-color-long-press
+        title="Highlighter (long-press for color)"
+      >Hi</button>
     </div>
     <button
       type="button"
@@ -335,7 +439,17 @@ export function createClassOverlayDock(controller, actions = {}) {
   fab.textContent = "✎";
 
   dock.appendChild(quick);
+  dock.appendChild(colorPopover);
   dock.appendChild(fab);
+
+  const quickColorPicker = mountQuickColorLongPress({
+    dockRoot: dock,
+    popover: colorPopover,
+    controller,
+    onColorChange: () => {
+      actions.onColorChange?.();
+    },
+  });
 
   let longPressTimer = 0;
   let longPressFired = false;
@@ -358,14 +472,19 @@ export function createClassOverlayDock(controller, actions = {}) {
       ? "Stop drawing (long-press for settings)"
       : "Start drawing (long-press for settings)";
 
-    dock.classList.toggle("prepos-class-overlay-dock--fade-ink", drawing && inkMode === "fade");
-    dock.classList.toggle("prepos-class-overlay-dock--sticky-ink", drawing && inkMode === "sticky");
+    dock.classList.toggle("prepos-class-overlay-dock--fade-ink", drawing && inkMode === "fade" && tool !== "eraser" && tool !== "highlighter");
+    dock.classList.toggle("prepos-class-overlay-dock--sticky-ink", drawing && inkMode === "sticky" && tool !== "eraser" && tool !== "highlighter");
     dock.classList.toggle(
       "prepos-class-overlay-dock--eraser",
       drawing && tool === "eraser"
     );
+    dock.classList.toggle(
+      "prepos-class-overlay-dock--highlighter",
+      drawing && tool === "highlighter"
+    );
 
     setQuickActive("[data-quick-ink]", inkMode, "data-quick-ink");
+    setQuickActive("[data-quick-tool]", tool, "data-tool");
     quick.querySelector("[data-quick-eraser]")?.classList.toggle(
       "is-active",
       tool === "eraser"
@@ -387,7 +506,7 @@ export function createClassOverlayDock(controller, actions = {}) {
     longPressTimer = window.setTimeout(() => {
       longPressFired = true;
       actions.onOpenToolbar?.();
-    }, LONG_PRESS_MS);
+    }, FAB_LONG_PRESS_MS);
   });
 
   fab.addEventListener("pointerup", (event) => {
@@ -411,6 +530,13 @@ export function createClassOverlayDock(controller, actions = {}) {
   });
 
   quick.addEventListener("click", (event) => {
+    const longPressBtn = event.target.closest("[data-quick-color-long-press]");
+    if (longPressBtn?.dataset.suppressClick === "1") {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+
     const inkBtn = event.target.closest("[data-quick-ink]");
     if (inkBtn) {
       const mode = inkBtn.dataset.quickInk;
@@ -428,6 +554,14 @@ export function createClassOverlayDock(controller, actions = {}) {
       controller.setTool("eraser");
       actions.onInkOrToolChange?.();
       sync();
+      return;
+    }
+
+    const toolBtn = event.target.closest("[data-quick-tool]");
+    if (toolBtn) {
+      controller.setTool(toolBtn.dataset.quickTool);
+      actions.onInkOrToolChange?.();
+      sync();
     }
   });
 
@@ -438,6 +572,8 @@ export function createClassOverlayDock(controller, actions = {}) {
     fab,
     quick,
     sync,
+    refreshQuickColors: () => quickColorPicker.refresh(),
+    closeQuickColorPopover: () => quickColorPicker.closePopover(),
   };
 }
 

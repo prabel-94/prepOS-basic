@@ -15,6 +15,7 @@ import {
   createClassOverlayToolbar,
   createClassOverlayDock,
 } from "./toolbar.js";
+import { getActiveColor } from "./prefs.js";
 
 let booted = false;
 let teardown = null;
@@ -74,12 +75,18 @@ export function bootClassOverlay(runtime) {
     isDrawingAllowed: () => !isModalOpen(),
   });
 
+  /** @type {ReturnType<typeof createClassOverlayDock> | null} */
+  let dock = null;
+
   const toolbar = createClassOverlayToolbar(controller, {
     onClose: () => {
       toolbar.element.classList.add("prepos-class-overlay-toolbar--hidden");
     },
     onDrawingStateChange: () => {
       syncOverlayUi();
+    },
+    onColorChange: () => {
+      dock?.refreshQuickColors();
     },
     onClearPage: () => {
       controller.clearFade();
@@ -114,7 +121,7 @@ export function bootClassOverlay(runtime) {
     updatePointerPolicy(canvas, controller);
   }
 
-  const dock = createClassOverlayDock(controller, {
+  dock = createClassOverlayDock(controller, {
     onDrawingToggle: () => {
       controller.setOverlayActive(!controller.isOverlayActive());
       syncOverlayUi();
@@ -129,6 +136,10 @@ export function bootClassOverlay(runtime) {
       toolbar.updateStatus();
       dock.sync();
       updatePointerPolicy(canvas, controller);
+    },
+    onColorChange: () => {
+      toolbar.syncColors();
+      toolbar.syncScales();
     },
   });
 
@@ -172,6 +183,7 @@ export function bootClassOverlay(runtime) {
 
   controller.setInkMode("fade");
   controller.setTool("pen");
+  controller.setColor(getActiveColor());
   controller.setOverlayActive(false);
   controller.setOverlayVisible(true);
   syncOverlayUi();

@@ -21,6 +21,15 @@ const MAX_PEN_PX = 24;
 const MAX_HIGHLIGHTER_PX = 48;
 const MAX_ERASER_PX = 56;
 
+const DEFAULT_ACTIVE_COLOR = "#e11d48";
+
+export const PRESET_COLORS = Object.freeze([
+  "#e11d48",
+  "#facc15",
+  "#ffffff",
+  "#1e293b",
+]);
+
 const DEFAULT_PREFS = Object.freeze({
   globalScale: 1,
   penScale: 1,
@@ -28,6 +37,8 @@ const DEFAULT_PREFS = Object.freeze({
   eraserScale: 1,
   fadeInkScale: 1,
   stickyInkScale: 1,
+  activeColor: DEFAULT_ACTIVE_COLOR,
+  lastCustomColor: DEFAULT_ACTIVE_COLOR,
 });
 
 /** @type {typeof DEFAULT_PREFS | null} */
@@ -40,6 +51,46 @@ function clampScale(value) {
   }
 
   return Math.min(SCALE_MAX, Math.max(SCALE_MIN, Math.round(n * 10) / 10));
+}
+
+/**
+ * @param {string} value
+ */
+export function normalizeHexColor(value) {
+  if (typeof value !== "string") {
+    return DEFAULT_ACTIVE_COLOR;
+  }
+
+  let hex = value.trim().toLowerCase();
+  if (!hex.startsWith("#")) {
+    hex = `#${hex}`;
+  }
+
+  if (/^#[0-9a-f]{3}$/.test(hex)) {
+    hex = `#${hex[1]}${hex[1]}${hex[2]}${hex[2]}${hex[3]}${hex[3]}`;
+  }
+
+  if (!/^#[0-9a-f]{6}$/.test(hex)) {
+    return DEFAULT_ACTIVE_COLOR;
+  }
+
+  return hex;
+}
+
+export function isPresetColor(color) {
+  return PRESET_COLORS.includes(normalizeHexColor(color));
+}
+
+function normalizeColorFields(parsed = {}) {
+  const activeColor = normalizeHexColor(parsed.activeColor ?? DEFAULT_ACTIVE_COLOR);
+  const lastCustomColor = normalizeHexColor(
+    parsed.lastCustomColor ?? activeColor
+  );
+
+  return {
+    activeColor,
+    lastCustomColor: isPresetColor(lastCustomColor) ? activeColor : lastCustomColor,
+  };
 }
 
 function readLegacyPrefs() {
@@ -82,6 +133,7 @@ export function loadMarkupPrefs() {
       stickyInkScale: clampScale(
         parsed?.stickyInkScale ?? legacy?.stickyInkScale ?? DEFAULT_PREFS.stickyInkScale
       ),
+      ...normalizeColorFields(parsed ?? {}),
     };
   } catch {
     cached = { ...DEFAULT_PREFS };
@@ -95,9 +147,20 @@ export function saveMarkupPrefs(partial = {}) {
   const next = { ...current };
 
   for (const key of Object.keys(DEFAULT_PREFS)) {
-    if (partial[key] !== undefined) {
-      next[key] = clampScale(partial[key]);
+    if (partial[key] === undefined) {
+      continue;
     }
+
+    if (key === "activeColor" || key === "lastCustomColor") {
+      next[key] = normalizeHexColor(partial[key]);
+      continue;
+    }
+
+    next[key] = clampScale(partial[key]);
+  }
+
+  if (partial.activeColor !== undefined && !isPresetColor(partial.activeColor)) {
+    next.lastCustomColor = next.activeColor;
   }
 
   cached = next;
@@ -112,14 +175,26 @@ export function saveMarkupPrefs(partial = {}) {
 }
 
 export function resetMarkupScales() {
-  cached = null;
-  try {
-    localStorage.removeItem(PREFS_KEY);
-  } catch {
-    /* ignore */
-  }
+  const current = loadMarkupPrefs();
 
-  return saveMarkupPrefs({ ...DEFAULT_PREFS });
+  return saveMarkupPrefs({
+    globalScale: 1,
+    penScale: 1,
+    highlighterScale: 1,
+    eraserScale: 1,
+    fadeInkScale: 1,
+    stickyInkScale: 1,
+    activeColor: current.activeColor,
+    lastCustomColor: current.lastCustomColor,
+  });
+}
+
+export function getActiveColor() {
+  return loadMarkupPrefs().activeColor;
+}
+
+export function setActiveColor(color) {
+  return saveMarkupPrefs({ activeColor: color });
 }
 
 /**
