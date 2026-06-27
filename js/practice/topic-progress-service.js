@@ -2,7 +2,6 @@
  * Load topic question bank progress for practice UI.
  */
 
-import { getClient } from "../core/get-client.js";
 import { resolveActingStudentId } from "../core/learner-context.js";
 import { getRuntimeState } from "../core/runtime.js";
 import { buildTopicQuestionProgress, buildQuestionStateById } from "../analytics/topic-question-progress.js";
@@ -12,6 +11,10 @@ import {
   fetchQuestionCatalogByIds,
 } from "../analytics/analytics-submission.js";
 import { fetchUserQuestionStats } from "../practice/question-stats.js";
+
+async function resolveSupabaseClient(client) {
+  return client ?? (await import("../core/get-client.js")).getClient();
+}
 
 async function fetchTopicQuestionIds(sb, topicId) {
   const { data, error } = await sb
@@ -140,7 +143,7 @@ export async function loadTopicQuestionProgress({
     return null;
   }
 
-  const sb = client ?? (await getClient());
+  const sb = await resolveSupabaseClient(client);
   const questionIds = await fetchTopicQuestionIds(sb, topicId);
 
   if (!questionIds.length) {
@@ -187,7 +190,7 @@ export async function loadQuestionKnowledgeContext({
     };
   }
 
-  const sb = client ?? (await getClient());
+  const sb = await resolveSupabaseClient(client);
   const uniqueIds = [...new Set(questionIds.filter(Boolean))];
   const {
     knowledgeAttempts,

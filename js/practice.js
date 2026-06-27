@@ -786,12 +786,15 @@ async function ensureBankKnowledgeContext(questionIds = []) {
     return;
   }
 
+  const sb = await getClient();
+
   if (topicId) {
     const topicName = getSelectedBankTopicLabel();
     const progress = await loadTopicQuestionProgress({
       topicId,
       topicName,
       userId,
+      sb,
     });
     syncKnowledgeContextFromProgress(progress);
     return;
@@ -802,6 +805,7 @@ async function ensureBankKnowledgeContext(questionIds = []) {
     ...(await loadQuestionKnowledgeContext({
       userId,
       questionIds,
+      sb,
     })),
   };
 }
@@ -859,10 +863,12 @@ async function refreshTopicProgressPanel() {
   renderTopicProgressLoading(topicProgressPanel, topicName);
 
   try {
+    const sb = await getClient();
     const progress = await loadTopicQuestionProgress({
       topicId,
       topicName,
       userId,
+      sb,
     });
 
     if (requestId !== topicProgressRequestId) {
