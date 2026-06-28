@@ -8,7 +8,7 @@ import { normalizeLanguage } from "../notes/note-variants.js";
 import { attachSemanticCandidates } from "./anchor-candidates.js";
 import { lookupSemanticEntry } from "./anchor-renderer.js";
 import { normalizeAnchorName } from "./anchor-normalization.js";
-import { resolveAnchorCandidates } from "./anchor-resolver.js";
+import { resolveAnchorCandidates, resolveNoteAnchorLinkState } from "./anchor-resolver.js";
 import {
   buildSemanticStateSummary,
   resolveSemanticVisualState,
@@ -58,16 +58,24 @@ export function mergeCandidatesWithGovernedLinks(
     }
 
     const anchor = link.anchors ?? {};
-
-    return {
+    const mergedCandidate = {
       ...candidate,
       anchor_id: link.anchor_id ?? candidate.anchor_id,
-      note_anchor_link_id: link.id,
-      note_anchor_state: link.state,
-      link_state: link.state,
       anchor_type: anchor.anchor_type ?? candidate.anchor_type,
       canonical_topic_id:
         anchor.canonical_topic_id ?? candidate.canonical_topic_id,
+    };
+    const effectiveState = resolveNoteAnchorLinkState({
+      candidate: mergedCandidate,
+      preservedState: link.state,
+      anchorPreexisted: Boolean(mergedCandidate.anchor_id),
+    });
+
+    return {
+      ...mergedCandidate,
+      note_anchor_link_id: link.id,
+      note_anchor_state: effectiveState,
+      link_state: effectiveState,
     };
   });
 }

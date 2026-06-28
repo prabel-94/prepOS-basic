@@ -156,6 +156,26 @@ export async function fetchTopicsByNormalizedNames(sb, normalizedNames = []) {
   return data ?? [];
 }
 
+export async function fetchAnchorsByCanonicalTopicIds(sb, topicIds = []) {
+  const ids = [...new Set(topicIds.filter(Boolean))];
+  if (!ids.length) {
+    return [];
+  }
+
+  const { data, error } = await sb
+    .from("anchors")
+    .select(
+      "id, normalized_name, anchor_type, canonical_topic_id, created_by, created_at, updated_at"
+    )
+    .in("canonical_topic_id", ids);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data ?? [];
+}
+
 export async function fetchNoteAnchorLinksForVariant(sb, variantId) {
   if (!variantId) {
     return [];

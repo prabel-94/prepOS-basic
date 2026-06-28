@@ -12,10 +12,18 @@ import {
 } from "./anchor-types.js";
 import {
   fetchAnchorAliasesByNormalizedNames,
+  fetchAnchorsByCanonicalTopicIds,
   fetchAnchorsByNormalizedNames,
   fetchAnchorVariantsByNormalizedNames,
   fetchTopicsByNormalizedNames,
 } from "./anchor-selectors.js";
+
+const GLOBALLY_RECOGNIZED_RESOLUTIONS = new Set([
+  ANCHOR_RESOLUTION_KINDS.EXISTING,
+  ANCHOR_RESOLUTION_KINDS.ALIAS,
+  ANCHOR_RESOLUTION_KINDS.VARIANT,
+  ANCHOR_RESOLUTION_KINDS.CANONICAL,
+]);
 
 function mapResolutionToState(resolutionKind, anchorType) {
   if (resolutionKind === ANCHOR_RESOLUTION_KINDS.CANDIDATE) {
@@ -43,6 +51,78 @@ function indexByNormalized(rows = [], key) {
   return map;
 }
 
+function indexAnchorsByTopicId(rows = []) {
+  const map = new Map();
+
+  for (const row of rows) {
+    const topicId = row.canonical_topic_id;
+    if (!topicId) {
+      continue;
+    }
+
+    const existing = map.get(topicId);
+    if (!existing || row.anchor_type === ANCHOR_TYPES.CANONICAL) {
+      map.set(topicId, row);
+    }
+  }
+
+  return map;
+}
+
+/**
+ * Decide note_anchor_links.state from global resolution and prior editorial state.
+ */
+export function resolveNoteAnchorLinkState({
+  candidate = {},
+  preservedState = null,
+  anchorPreexisted = false,
+} = {}) {
+  if (preservedState === NOTE_ANCHOR_STATES.DORMANT) {
+    return NOTE_ANCHOR_STATES.DORMANT;
+  }
+
+  if (isGloballyRecognizedAnchor(candidate, anchorPreexisted)) {
+    return NOTE_ANCHOR_STATES.ACTIVE;
+  }
+
+  if (preservedState) {
+    return preservedState;
+  }
+
+  if (candidate.state === NOTE_ANCHOR_STATES.CANDIDATE) {
+    return NOTE_ANCHOR_STATES.CANDIDATE;
+  }
+
+  if (candidate.state === NOTE_ANCHOR_STATES.DORMANT) {
+    return NOTE_ANCHOR_STATES.DORMANT;
+  }
+
+  return NOTE_ANCHOR_STATES.ACTIVE;
+}
+
+export function isGloballyRecognizedAnchor(candidate = {}, anchorPreexisted = false) {
+  if (anchorPreexisted) {
+    return true;
+  }
+
+  if (!candidate.anchor_id) {
+    return false;
+  }
+
+  if (!GLOBALLY_RECOGNIZED_RESOLUTIONS.has(candidate.resolution)) {
+    return false;
+  }
+
+  if (
+    candidate.resolution === ANCHOR_RESOLUTION_KINDS.CANONICAL &&
+    candidate.state === NOTE_ANCHOR_STATES.CANDIDATE
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
 /**
  * Build lookup indexes for batch resolution.
  */
@@ -52,19 +132,27 @@ export async function buildAnchorResolutionIndexes(sb, declarations = [], langua
     normalizeAnchorName(d.name ?? d.source_text ?? "")
   );
 
-  const [anchors, variants, aliases, topics] = await Promise.all([
+  const [anchors, variants, variantsAnyLanguage, aliases, topics] = await Promise.all([
     fetchAnchorsByNormalizedNames(sb, normalizedNames),
     fetchAnchorVariantsByNormalizedNames(sb, normalizedNames, lang),
+    fetchAnchorVariantsByNormalizedNames(sb, normalizedNames),
     fetchAnchorAliasesByNormalizedNames(sb, normalizedNames, lang),
     fetchTopicsByNormalizedNames(sb, normalizedNames),
   ]);
+
+  const topicIds = (topics ?? []).map((topic) => topic.id).filter(Boolean);
+  const canonicalAnchors = topicIds.length
+    ? await fetchAnchorsByCanonicalTopicIds(sb, topicIds)
+    : [];
 
   return {
     language: lang,
     anchorsByName: indexByNormalized(anchors, "normalized_name"),
     variantsByName: indexByNormalized(variants, "normalized_name"),
+    variantsAnyLanguageByName: indexByNormalized(variantsAnyLanguage, "normalized_name"),
     aliasesByName: indexByNormalized(aliases, "normalized_alias"),
     topicsByName: indexByNormalized(topics, "normalized_name"),
+    anchorsByTopicId: indexAnchorsByTopicId(canonicalAnchors),
   };
 }
 
@@ -123,7 +211,9 @@ export function resolveDeclarationAgainstIndexes(declaration, indexes) {
     };
   }
 
-  const variantRow = indexes.variantsByName.get(normalized_name);
+  const variantRow =
+    indexes.variantsByName.get(normalized_name) ??
+    indexes.variantsAnyLanguageByName?.get(normalized_name);
   if (variantRow?.anchor_id) {
     const anchor = variantRow.anchors ?? {};
     return {
@@ -140,9 +230,7 @@ export function resolveDeclarationAgainstIndexes(declaration, indexes) {
 
   const topicRow = indexes.topicsByName.get(normalized_name);
   if (topicRow?.id) {
-    const linkedAnchor = [...indexes.anchorsByName.values()].find(
-      (a) => a.canonical_topic_id === topicRow.id
-    );
+    const linkedAnchor = indexes.anchorsByTopicId?.get(topicRow.id);
 
     if (linkedAnchor?.id) {
       return {

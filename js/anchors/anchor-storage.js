@@ -11,7 +11,7 @@ import {
   ANCHOR_NOTE_STATUSES,
   NOTE_ANCHOR_STATES,
 } from "./anchor-types.js";
-import { resolveAnchorCandidates } from "./anchor-resolver.js";
+import { resolveAnchorCandidates, resolveNoteAnchorLinkState } from "./anchor-resolver.js";
 
 export async function createAnchor(
   sb,
@@ -303,14 +303,16 @@ export async function ensureAnchorForCandidate(sb, { displayName, createdBy = nu
     .maybeSingle();
 
   if (existing?.id) {
-    return existing;
+    return { ...existing, wasCreated: false };
   }
 
-  return createAnchor(sb, {
+  const created = await createAnchor(sb, {
     displayName,
     anchorType: ANCHOR_TYPES.MICRO,
     createdBy,
   });
+
+  return { ...created, wasCreated: true };
 }
 
 /**
@@ -358,6 +360,7 @@ export async function syncVariantAnchorLinks(
 
   for (const candidate of candidates) {
     let anchorId = candidate.anchor_id;
+    let anchorPreexisted = Boolean(candidate.anchor_id);
 
     if (!anchorId) {
       const anchor = await ensureAnchorForCandidate(sb, {
@@ -365,16 +368,15 @@ export async function syncVariantAnchorLinks(
         createdBy: userId,
       });
       anchorId = anchor.id;
+      anchorPreexisted = anchorPreexisted || anchor.wasCreated === false;
     }
 
     const preserved = existingByAnchor.get(anchorId);
-    const state =
-      preserved?.state ??
-      (candidate.state === NOTE_ANCHOR_STATES.CANDIDATE
-        ? NOTE_ANCHOR_STATES.CANDIDATE
-        : candidate.state === NOTE_ANCHOR_STATES.DORMANT
-          ? NOTE_ANCHOR_STATES.DORMANT
-          : NOTE_ANCHOR_STATES.ACTIVE);
+    const state = resolveNoteAnchorLinkState({
+      candidate,
+      preservedState: preserved?.state ?? null,
+      anchorPreexisted,
+    });
 
     rows.push({
       variant_id: variantId,
