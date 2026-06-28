@@ -2,7 +2,11 @@
  * Draft knowledge workspace — production preview editing + source fallback.
  */
 
-import { regenerateVariantFromMarkdown, normalizeSectionExtensions } from "./note-storage.js";
+import {
+  fetchPublishedVariantByLanguage,
+  regenerateVariantFromMarkdown,
+  normalizeSectionExtensions,
+} from "./note-storage.js";
 import {
   beginSemanticPublishReview,
   publishCanonicalVariant,
@@ -678,6 +682,27 @@ export function initDraftWorkspace({
     }
   }
 
+  async function reconcileSectionExtensionsFromPublished() {
+    if (sectionExtensions.length || !variant?.note_id) {
+      return false;
+    }
+
+    const published = await fetchPublishedVariantByLanguage(
+      variant.note_id,
+      variant.language
+    );
+    const publishedExtensions = normalizeSectionExtensions(
+      published?.section_extensions
+    );
+
+    if (!publishedExtensions.length) {
+      return false;
+    }
+
+    sectionExtensions = publishedExtensions;
+    return true;
+  }
+
   async function loadSource() {
     const source = await fetchNoteSource(variant.id);
 
@@ -697,7 +722,21 @@ export function initDraftWorkspace({
     backlinksEl.innerHTML = "";
   }
 
-  return loadSource().then(() => {
+  return loadSource().then(async () => {
+    const reconciled = await reconcileSectionExtensionsFromPublished();
+
+    if (reconciled) {
+      await regenerateVariantFromMarkdown({
+        variantId: variant.id,
+        rawMarkdown: sourceEditorEl?.value ?? "",
+        title: variant.title,
+        language: variant.language,
+        status: "draft",
+        sectionExtensions,
+      });
+      variant.section_extensions = sectionExtensions;
+    }
+
     showEditPreviewMode();
   });
 }

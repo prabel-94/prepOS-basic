@@ -6,7 +6,7 @@ import { getClient } from "../core/get-client.js";
 import { resolveAppPath } from "../core/access.js";
 import { buildNoteStudentPreviewHref } from "../core/student-preview.js";
 import { getLanguageLabel, normalizeLanguage } from "./note-variants.js";
-import { saveNoteVariant } from "./note-storage.js";
+import { createDraftRevisionFromVariant } from "./note-storage.js";
 
 function escapeHTML(value = "") {
   return String(value ?? "")
@@ -132,42 +132,28 @@ function resolveVariantHref(variant, role) {
   return resolveAppPath(`note.html?variant=${encodeURIComponent(variant.id)}`);
 }
 
-async function openDraftWorkspaceFromPublished({ topicId, language, title, publishedVariantId }) {
-  const sb = await getClient();
-  const normalizedLanguage = normalizeLanguage(language);
+async function openDraftWorkspaceFromPublished({ title, publishedVariantId }) {
+  try {
+    const result = await createDraftRevisionFromVariant(publishedVariantId, { title });
+    const variantId = result?.variant?.id;
 
-  const { data: source, error } = await sb
-    .from("note_sources")
-    .select("raw_markdown")
-    .eq("variant_id", publishedVariantId)
-    .maybeSingle();
+    if (!variantId) {
+      throw new Error("Unable to create draft: draft variant id missing.");
+    }
 
-  if (error) {
-    throw new Error(error.message);
+    window.location.href = resolveAppPath(
+      `note.html?variant=${encodeURIComponent(variantId)}&mode=draft`
+    );
+  } catch (err) {
+    if (err?.code === "DRAFT_EXISTS" && err.existingDraftId) {
+      window.location.href = resolveAppPath(
+        `note.html?variant=${encodeURIComponent(err.existingDraftId)}&mode=draft`
+      );
+      return;
+    }
+
+    throw err;
   }
-
-  const rawMarkdown = source?.raw_markdown ?? "";
-  if (!rawMarkdown.trim()) {
-    throw new Error("Unable to create draft: published source markdown not found.");
-  }
-
-  const result = await saveNoteVariant({
-    topicId,
-    title,
-    language: normalizedLanguage,
-    status: "draft",
-    rawMarkdown,
-    parsed: null,
-  });
-
-  const variantId = result?.variant?.id;
-  if (!variantId) {
-    throw new Error("Unable to create draft: draft variant id missing.");
-  }
-
-  window.location.href = resolveAppPath(
-    `note.html?variant=${encodeURIComponent(variantId)}&mode=draft`
-  );
 }
 
 function bindDraftButtons(container) {
@@ -210,8 +196,6 @@ function bindDraftButtons(container) {
 
     try {
       await openDraftWorkspaceFromPublished({
-        topicId,
-        language,
         title,
         publishedVariantId,
       });
