@@ -3,7 +3,7 @@
 **Last updated:** 2026-06-28  
 **Branch:** `Question-Bank`  
 **Remote:** `https://github.com/prabel-94/prepOS-basic.git`  
-**Last pushed commit:** `4479adf` — *overlay drawing tools*
+**Last pushed commit:** `d87681f` — *Add session handoff doc for cross-machine development*
 
 Use this doc when opening the project on another machine. Paste into a new Cursor chat:
 
@@ -28,22 +28,14 @@ git pull origin Question-Bank
 
 ---
 
-## ⚠️ Uncommitted work (must push before switching machines)
-
-These files were modified locally **after** the last push and are **not on GitHub yet**:
+## Recently landed note draft fixes (commit `e2f046a`)
 
 | File | What changed |
 |------|----------------|
 | `js/notes/note-home.js` | "Create draft from published" now uses `createDraftRevisionFromVariant()` instead of manually copying markdown via `saveNoteVariant()`. Handles `DRAFT_EXISTS` by redirecting to the existing draft. |
 | `js/notes/note-draft-editor.js` | On load, if draft has empty `section_extensions`, reconciles from the published variant for the same language, then regenerates the draft from source markdown so custom section definitions carry over. |
 
-**Before leaving this machine:**
-
-```powershell
-git add docs/SESSION_HANDOFF.md js/notes/note-draft-editor.js js/notes/note-home.js
-git commit -m "Fix draft revision from published and section_extensions reconciliation"
-git push origin Question-Bank
-```
+**Verify at home:** open a published note → create draft → confirm custom section definitions appear in the draft editor.
 
 ---
 
@@ -127,18 +119,17 @@ Phase 0 (founder unblock) in the roadmap is still mostly unchecked — see that 
 
 ## Likely next steps
 
-1. **Commit and push** the uncommitted note draft fixes (see above).
-2. **Verify draft-from-published flow** — open a published note on note home, click create draft, confirm `section_extensions` appear in the draft editor.
-3. **Class overlay polish** — test fade vs sticky, eraser, color persistence, and behavior when modals are open (`isModalOpen()` disables drawing).
-4. **Teacher/student dual identity Phase 0** — follow checklist in `docs/Teacher_Student_Dual_Identity_Roadmap.md` (create prep student account, assign exams).
-5. **Apply pending migrations** on Supabase if not already applied (Jun 26–28 migrations listed above).
-6. **Question Bank branch** — continue QB manager / question assistance work as needed (`qb-manager.html`, `js/core/question-assistance.js`).
+1. **Verify draft-from-published flow** — open a published note on note home, click create draft, confirm `section_extensions` appear in the draft editor.
+2. **Class overlay polish** — test fade vs sticky, eraser, color persistence, and behavior when modals are open (`isModalOpen()` disables drawing).
+3. **Teacher/student dual identity Phase 0** — follow checklist in `docs/Teacher_Student_Dual_Identity_Roadmap.md` (create prep student account, assign exams).
+4. **Apply pending migrations** on Supabase if not already applied (Jun 26–28 migrations listed above).
+5. **Question Bank branch** — continue QB manager / question assistance work as needed (`qb-manager.html`, `js/core/question-assistance.js`).
 
 ---
 
 ## Known issues / watch-outs
 
-- Draft creation from published previously **dropped `section_extensions`** — local fix addresses this but is not pushed yet.
+- Draft creation from published previously **dropped `section_extensions`** — fixed in `e2f046a`; verify end-to-end at home.
 - `createDraftRevisionFromVariant` throws `DRAFT_EXISTS` if a draft already exists for that language; `note-home.js` now redirects to it instead of failing.
 - `node_modules/` is gitignored; only needed if using Supabase CLI locally.
 - Beta tester credentials are in `README.md` (consider moving to a private doc later).
