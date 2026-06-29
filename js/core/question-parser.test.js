@@ -11,10 +11,8 @@ import {
   splitBilingualPaste,
   normalizeSingleQuestionPaste,
   serializeQuestionToQcp,
-  serializeQuestionsToQcp,
-  normalizeQuestionForQcpExport,
+  normalizeQuestionForQcp,
 } from "./question-parser.js";
-import { buildMalayalamTranslationClipboard } from "./question-qcp-clipboard.js";
 
 const ENGLISH_BLOCK = `Q1. Which planet is known as the Red Planet?
 A) Venus
@@ -126,5 +124,41 @@ D) Delta
     const normalized = normalizeSingleQuestionPaste(`${ENGLISH_BLOCK}\n\nQ2. Second question?\nA) One\nB) Two\nC) Three\nD) Four\nAnswer: A`);
     assert.match(normalized, /^Q1\./);
     assert.doesNotMatch(normalized, /Q2\./);
+  });
+
+  it("serializes draft questions to QCP", () => {
+    const qcp = serializeQuestionToQcp({
+      text: "Which planet is known as the Red Planet?",
+      options: [
+        { id: "A", text: "Venus" },
+        { id: "B", text: "Mars" },
+        { id: "C", text: "Jupiter" },
+        { id: "D", text: "Saturn" },
+      ],
+      correct: "B",
+      explanation: "Mars appears red due to iron oxide.",
+    });
+
+    assert.match(qcp, /^Q1\. Which planet/);
+    assert.match(qcp, /Answer: B/);
+    assert.match(qcp, /Explanation: Mars appears red/);
+    const roundTrip = parseSingleQuestion(qcp);
+    assert.equal(roundTrip.correct, "B");
+    assert.equal(roundTrip.options[1].text, "Mars");
+  });
+
+  it("serializes bank rows to QCP", () => {
+    const normalized = normalizeQuestionForQcp({
+      question_text: "Capital of Kerala?",
+      option_a: "Kochi",
+      option_b: "Thiruvananthapuram",
+      option_c: "Kozhikode",
+      option_d: "Kannur",
+      correct_option: "B",
+      explanation: "Administrative capital.",
+    });
+
+    assert.equal(normalized.options[1].text, "Thiruvananthapuram");
+    assert.match(serializeQuestionToQcp(normalized, { index: 3 }), /^Q3\. Capital of Kerala/);
   });
 });

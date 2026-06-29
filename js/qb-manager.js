@@ -16,6 +16,8 @@ import {
   computeMalayalamAssistanceHash,
   getMlVariantVerificationRecord,
 } from "./core/question-assistance.js";
+import { parseQuestionPaste } from "./core/question-parser.js";
+import { copyMalayalamTranslationRequest } from "./core/malayalam-copy.js";
 import { openModal, closeModal } from "./ui/modal-system.js";
 
 const SIDE_PANEL_OPTIONS = {
@@ -77,6 +79,116 @@ function questionWithAssistance(question = {}) {
   return { ...question, ...patch };
 }
 
+function bankQuestionForCopy(question = {}) {
+  return {
+    question_text: question.question_text,
+    option_a: question.option_a,
+    option_b: question.option_b,
+    option_c: question.option_c,
+    option_d: question.option_d,
+    correct_option: question.correct_option,
+    explanation: question.explanation,
+  };
+}
+
+function applyParsedMalayalamToQbCard(questionId, parsed) {
+  const block = document.getElementById(`ml-${questionId}`);
+  if (!block || !parsed) {
+    return false;
+  }
+
+  const questionInput = block.querySelector(".ml-question-input");
+  const explanationInput = block.querySelector(".ml-explanation-input");
+
+  if (questionInput) {
+    questionInput.value = parsed.text || "";
+  }
+
+  if (explanationInput) {
+    explanationInput.value = parsed.explanation || "";
+  }
+
+  for (const letter of ["A", "B", "C", "D"]) {
+    const input = block.querySelector(`.ml-option-input[data-letter="${letter}"]`);
+    const option = parsed.options?.find((entry) => entry.id === letter);
+    if (input) {
+      input.value = option?.text || "";
+    }
+  }
+
+  return true;
+}
+
+function applyMalayalamQcpPasteToCard(questionId) {
+  const block = document.getElementById(`ml-${questionId}`);
+  if (!block) {
+    showQbStatus("Malayalam editor not open.", true);
+    return;
+  }
+
+  const rawText = block.querySelector(".ml-qcp-paste-input")?.value || "";
+  const clean = Boolean(block.querySelector(".ml-qcp-paste-clean")?.checked);
+  const result = parseQuestionPaste(rawText, { target: "malayalam", clean });
+
+  if (!result.ok) {
+    showQbStatus(result.error, true);
+    return;
+  }
+
+  applyParsedMalayalamToQbCard(questionId, result.malayalam);
+  showQbStatus("Malayalam fields filled from paste — review and Save Malayalam");
+}
+
+async function reportQbCopyResult(result) {
+  if (!result.count) {
+    showQbStatus("Nothing to copy.", true);
+    return;
+  }
+
+  if (result.ok) {
+    const label = result.count === 1 ? "1 question" : `${result.count} questions`;
+    showQbStatus(`Copied prompt + ${label} for translation 📋`);
+    return;
+  }
+
+  showQbStatus("Copy failed — select all text in the dialog and copy manually.", true);
+  window.prompt("Copy this text:", result.text);
+}
+
+async function copyBankQuestionForTranslation(question) {
+  await reportQbCopyResult(
+    await copyMalayalamTranslationRequest(bankQuestionForCopy(question), {
+      startIndex: 1,
+    })
+  );
+}
+
+async function copySelectedQuestionsForTranslation() {
+  const ordered = state.questions.filter((question) =>
+    state.selectedQuestionIds.has(question.id)
+  );
+
+  await reportQbCopyResult(
+    await copyMalayalamTranslationRequest(
+      ordered.map((question) => bankQuestionForCopy(question)),
+      { startIndex: 1 }
+    )
+  );
+}
+
+function updateQbSelectionToolbar() {
+  const copyBtn = document.getElementById("qb-copy-selected-ml");
+  const count = state.selectedQuestionIds.size;
+
+  if (copyBtn) {
+    copyBtn.disabled = count === 0;
+    copyBtn.textContent =
+      count > 0
+        ? `Copy selected (${count}) for translation`
+        : "Copy selected for translation";
+  }
+}
+
 function renderMalayalamInlineBlock(questionId, mlQuestion, mlVerified = false) {
   const mask = ensureMalayalamAssistance({ ...mlQuestion });
   const options = mask.options || {};
@@ -87,6 +199,33 @@ function renderMalayalamInlineBlock(questionId, mlQuestion, mlVerified = false) 
   <p class="text-muted question-assistance-help">
     English stays canonical for scoring. Students can toggle Malayalam help during exams and practice.
   </p>
+
+  <details class="ml-qcp-paste-panel">
+    <summary class="ml-qcp-paste-summary">Paste Malayalam (QCP)</summary>
+    <p class="text-muted ml-qcp-paste-help">
+      Paste ChatGPT output here after using <strong>Copy for ML</strong>. Use
+      <code>ഉത്തരം:</code> / <code>വിശദീകരണം:</code> labels when possible.
+    </p>
+    <textarea
+      class="ml-qcp-paste-input"
+      data-id="${questionId}"
+      rows="6"
+      placeholder="1. ചോദ്യം മലയാളത്തിൽ&#10;A) …&#10;B) …&#10;C) …&#10;D) …&#10;ഉത്തരം: B&#10;വിശദീകരണം: …"
+    ></textarea>
+    <div class="flex gap-10 mt-10 ml-qcp-paste-actions">
+      <label class="ml-qcp-paste-clean-label">
+        <input type="checkbox" class="ml-qcp-paste-clean" data-id="${questionId}">
+        Clean first (QCP)
+      </label>
+      <button
+        type="button"
+        class="secondary-btn apply-ml-qcp-paste"
+        data-id="${questionId}"
+      >
+        Apply paste
+      </button>
+    </div>
+  </details>
 
   <label class="malayalam-field-label">Question (Malayalam)</label>
   <textarea
@@ -313,6 +452,8 @@ const state = {
   topicSearch: "",
   caFilter: "all",
   mlFilter: "all",
+  selectedQuestionIds: new Set(),
+  lastVisibleQuestionIds: [],
 };
 
 // --------------------------------
@@ -903,6 +1044,10 @@ function renderQuestions() {
   });
 }
 
+  if (state.mlFilter === "ml-missing") {
+    list = list.filter((q) => !q._mlHasContent);
+  }
+
   if (state.mlFilter === "ml-unverified") {
     list = list.filter((q) => q._mlNeedsReview);
   }
@@ -926,8 +1071,14 @@ function renderQuestions() {
   }
 
   if (!list.length) {
+    state.lastVisibleQuestionIds = [];
+    updateQbSelectionToolbar();
     const emptyMessage =
-      state.mlFilter === "ml-unverified" && state.topicFilter
+      state.mlFilter === "ml-missing" && state.topicFilter
+        ? "No missing-Malayalam questions in this topic"
+        : state.mlFilter === "ml-missing"
+          ? "No missing-Malayalam questions found"
+          : state.mlFilter === "ml-unverified" && state.topicFilter
         ? "No unverified Malayalam questions in this topic"
         : state.mlFilter === "ml-unverified"
           ? "No unverified Malayalam questions found"
@@ -940,6 +1091,8 @@ function renderQuestions() {
     return;
   }
 
+
+  state.lastVisibleQuestionIds = list.map((question) => question.id);
 
   el.questionsView.innerHTML = list.map(q => {
    // 🔥 EXTRACT METADATA
@@ -984,12 +1137,21 @@ const caBadge = caEvent
       : "";
 
     return `
-      <div class="question-card">
+      <div class="question-card question-card--copy-footer" data-question-id="${q.id}">
 
         <div class="q-header">
 
   <!-- LEFT -->
   <div class="flex gap-10">
+
+  <label class="qb-select-label" title="Select for bulk copy">
+    <input
+      type="checkbox"
+      class="qb-select-question"
+      data-id="${q.id}"
+      ${state.selectedQuestionIds.has(q.id) ? "checked" : ""}
+    />
+  </label>
 
   <div 
     class="difficulty-badge clickable ${difficulty}" 
@@ -1055,9 +1217,22 @@ ${q.explanation ? `
   </button>
 </div>
 
+<div class="question-card-footer">
+  <button
+    type="button"
+    class="secondary-btn copy-ml-translation-btn"
+    data-id="${q.id}"
+    title="Copy English QCP and translation prompt for ChatGPT"
+  >
+    📋 Copy for ML
+  </button>
+</div>
+
       </div>
     `;
   }).join("");
+
+  updateQbSelectionToolbar();
 }
 
 // --------------------------------
@@ -1811,6 +1986,21 @@ if (revokeMl) {
     return;
   }
 
+  const copyMlBtn = e.target.closest(".copy-ml-translation-btn");
+  if (copyMlBtn) {
+    const question = state.questions.find((entry) => entry.id === copyMlBtn.dataset.id);
+    if (question) {
+      copyBankQuestionForTranslation(question);
+    }
+    return;
+  }
+
+  const applyMlPaste = e.target.closest(".apply-ml-qcp-paste");
+  if (applyMlPaste) {
+    applyMalayalamQcpPasteToCard(applyMlPaste.dataset.id);
+    return;
+  }
+
 });
 
   el.searchInput.addEventListener("input", e => {
@@ -1836,6 +2026,44 @@ if (revokeMl) {
       state.mlFilter = e.target.value || "all";
       renderQuestions();
     });
+
+  document.getElementById("qb-copy-selected-ml")
+    ?.addEventListener("click", () => {
+      copySelectedQuestionsForTranslation();
+    });
+
+  document.getElementById("qb-select-visible")
+    ?.addEventListener("click", () => {
+      state.lastVisibleQuestionIds.forEach((id) => {
+        state.selectedQuestionIds.add(id);
+      });
+      renderQuestions();
+    });
+
+  document.getElementById("qb-clear-selection")
+    ?.addEventListener("click", () => {
+      state.selectedQuestionIds.clear();
+      renderQuestions();
+    });
+
+  el.questionsView?.addEventListener("change", (e) => {
+    if (!e.target.classList.contains("qb-select-question")) {
+      return;
+    }
+
+    const id = e.target.dataset.id;
+    if (!id) {
+      return;
+    }
+
+    if (e.target.checked) {
+      state.selectedQuestionIds.add(id);
+    } else {
+      state.selectedQuestionIds.delete(id);
+    }
+
+    updateQbSelectionToolbar();
+  });
 
   document.getElementById("view-questions")
     .addEventListener("click", () => {

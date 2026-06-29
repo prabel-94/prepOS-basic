@@ -464,6 +464,64 @@ QUESTION CARD (BUILDER)
   overflow-wrap:break-word;    /* 🔥 ADD */
 }
 
+.question-card--copy-footer{
+  position:relative;
+  padding-bottom:56px;
+}
+
+.question-card-footer{
+  display:flex;
+  justify-content:flex-end;
+  align-items:center;
+  gap:10px;
+  margin-top:12px;
+}
+
+.question-card--copy-footer .question-card-footer{
+  position:absolute;
+  right:16px;
+  bottom:12px;
+  margin-top:0;
+}
+
+.qb-select-label{
+  display:inline-flex;
+  align-items:center;
+  margin:0;
+  cursor:pointer;
+}
+
+.qb-select-label input{
+  width:16px;
+  height:16px;
+  cursor:pointer;
+}
+
+.ml-qcp-paste-panel{
+  margin:12px 0;
+  padding:12px;
+  border:1px dashed var(--border);
+  border-radius:8px;
+  background:rgba(0,0,0,0.02);
+}
+
+.ml-qcp-paste-summary{
+  cursor:pointer;
+  font-weight:600;
+}
+
+.ml-qcp-paste-help{
+  margin:8px 0;
+  font-size:13px;
+}
+
+.ml-qcp-paste-input{
+  width:100%;
+  min-height:120px;
+  font-family:var(--mono, monospace);
+  font-size:13px;
+}
+
 .question-card:hover{
   box-shadow:0 4px 12px rgba(0,0,0,0.08);
   transform: translateY(-2px);

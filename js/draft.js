@@ -19,6 +19,7 @@ import {
   pruneMalayalamAssistance,
 } from "./core/question-assistance.js";
 import { cleanQcpText, parseQuestionPaste, parseBulkQuestionPaste } from "./core/question-parser.js";
+import { copyMalayalamTranslationRequest } from "./core/malayalam-copy.js";
 import {
   DEFAULT_SECONDS_PER_QUESTION,
   normalizeSecondsPerQuestion,
@@ -1470,6 +1471,52 @@ function applyBulkMalayalamPaste() {
   setBulkMalayalamPasteStatus(message, false);
 }
 
+async function reportCopyResult(result, { emptyMessage, successLabel = "question" } = {}) {
+  if (!result.count) {
+    setStatus(emptyMessage || "Nothing to copy.", true);
+    return;
+  }
+
+  if (result.ok) {
+    const label = result.count === 1 ? successLabel : `${result.count} ${successLabel}s`;
+    setStatus(`Copied prompt + ${label} for translation 📋`);
+    return;
+  }
+
+  setStatus("Copy failed — select all text in the dialog and copy manually.", true);
+  window.prompt("Copy this text:", result.text);
+}
+
+async function copyQuestionForMalayalamTranslation(index) {
+  const question = currentDraft?.schema_json?.sections?.[0]?.questions?.[index];
+  if (!question) {
+    setStatus("Question not found.", true);
+    return;
+  }
+
+  await reportCopyResult(
+    await copyMalayalamTranslationRequest(question, { startIndex: index + 1 }),
+    { successLabel: `Q${index + 1}` }
+  );
+}
+
+async function copyBulkForMalayalamTranslation({ missingOnly = false } = {}) {
+  const questions = currentDraft?.schema_json?.sections?.[0]?.questions || [];
+  const targets = missingOnly
+    ? questions.filter((question) => !hasMalayalamAssistance(question))
+    : questions;
+
+  await reportCopyResult(
+    await copyMalayalamTranslationRequest(targets, { startIndex: 1 }),
+    {
+      emptyMessage: missingOnly
+        ? "Every question already has a Malayalam mask."
+        : "Add question cards first.",
+      successLabel: "question",
+    }
+  );
+}
+
 function syncAssistanceFromDomForQuestion(index) {
   const card = document.getElementById("questions")?.children[index];
   const question = currentDraft?.schema_json?.sections?.[0]?.questions?.[index];
@@ -1738,7 +1785,7 @@ function renderDraft(draft) {
     // CARD
     // --------------------------
     const div = document.createElement("div");
-    div.className = "question-card";
+    div.className = "question-card question-card--copy-footer";
 
     div.innerHTML = `
       
@@ -1878,6 +1925,17 @@ ${q.generator?.enabled ? `
 
 <div class="topic-tags">
   ${topicsHTML}
+</div>
+
+<div class="question-card-footer">
+  <button
+    type="button"
+    class="secondary-btn copy-ml-translation-btn"
+    data-i="${i}"
+    title="Copy English QCP and translation prompt for ChatGPT"
+  >
+    📋 Copy for ML
+  </button>
 </div>
 
 </div>
@@ -2148,6 +2206,15 @@ if (e.target.classList.contains("question-paste-apply")) {
   const index = Number(e.target.dataset.i);
   if (!Number.isNaN(index)) {
     applyQuestionPasteAtIndex(index);
+  }
+  return;
+}
+
+const copyMlBtn = e.target.closest(".copy-ml-translation-btn");
+if (copyMlBtn) {
+  const index = Number(copyMlBtn.dataset.i);
+  if (!Number.isNaN(index)) {
+    copyQuestionForMalayalamTranslation(index);
   }
   return;
 }
@@ -3694,6 +3761,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
   document.getElementById("bulkMalayalamUpdateBank")
     ?.addEventListener("click", updateAllLinkedBankMalayalam);
+
+  document.getElementById("bulkCopyMalayalamSource")
+    ?.addEventListener("click", () => copyBulkForMalayalamTranslation());
+
+  document.getElementById("bulkCopyMissingMalayalamSource")
+    ?.addEventListener("click", () =>
+      copyBulkForMalayalamTranslation({ missingOnly: true })
+    );
 
   initAssignExamModal();
 
