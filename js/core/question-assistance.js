@@ -7,6 +7,9 @@ export const ASSISTANCE_LANG_MALAYALAM = "malayalam";
 
 const OPTION_LETTERS = ["A", "B", "C", "D"];
 
+/** Bank metadata key for manual Malayalam variant verification (staff-only). */
+export const ML_VARIANT_VERIFICATION_KEY = "ml_variant_verification";
+
 export function assistanceSessionKey(examId) {
   return `prepos-assistance-mask-${examId}`;
 }
@@ -171,5 +174,49 @@ export function malayalamAssistanceToMetadataPayload(question) {
       D: String(mask.options?.D ?? ""),
     },
     explanation: String(mask.explanation ?? ""),
+  };
+}
+
+export function normalizeMalayalamAssistanceForHash(payload) {
+  if (!payload || typeof payload !== "object") {
+    return "";
+  }
+
+  const options = payload.options || {};
+
+  return (
+    String(payload.text ?? "").trim() +
+    String(options.A ?? "").trim() +
+    String(options.B ?? "").trim() +
+    String(options.C ?? "").trim() +
+    String(options.D ?? "").trim() +
+    String(payload.explanation ?? "").trim()
+  ).toLowerCase();
+}
+
+export async function computeMalayalamAssistanceHash(payload) {
+  const normalized = normalizeMalayalamAssistanceForHash(payload);
+  const data = new TextEncoder().encode(normalized);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+
+  return Array.from(new Uint8Array(hashBuffer))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+export function getMlVariantVerificationRecord(question) {
+  const row = (question?.question_metadata || []).find(
+    (entry) => entry.key === ML_VARIANT_VERIFICATION_KEY
+  );
+  const value = row?.value;
+
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  return {
+    content_hash: String(value.content_hash ?? ""),
+    verified_at: value.verified_at ?? null,
+    verified_by: value.verified_by ?? null,
   };
 }

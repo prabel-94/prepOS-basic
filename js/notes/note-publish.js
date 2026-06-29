@@ -3,7 +3,8 @@
  */
 
 import { getClient } from "../core/get-client.js";
-import { regenerateVariantFromMarkdown } from "./note-storage.js";
+import { regenerateVariantFromMarkdown, normalizeSectionExtensions } from "./note-storage.js";
+import { fetchNoteSource } from "./note-selectors.js";
 import { ARCHIVE_RETENTION_DAYS } from "./note-variants.js";
 import {
   buildSemanticPublishReview,
@@ -51,18 +52,38 @@ export async function publishCanonicalVariant(variantId, options = {}) {
     throw new Error("variantId is required");
   }
 
-  if (options.rawMarkdown?.trim()) {
-    await regenerateVariantFromMarkdown({
-      variantId,
-      rawMarkdown: options.rawMarkdown,
-      title: options.title,
-      language: options.language,
-      status: "draft",
-      sectionExtensions: options.sectionExtensions,
-    });
+  const sb = await getClient();
+
+  const { data: variantMeta, error: metaError } = await sb
+    .from("note_variants")
+    .select("id, status, language, note_id, title, section_extensions")
+    .eq("id", variantId)
+    .single();
+
+  if (metaError) {
+    throw new Error(metaError.message);
   }
 
-  const sb = await getClient();
+  let rawMarkdown = String(options.rawMarkdown ?? "").trim();
+
+  if (!rawMarkdown) {
+    const source = await fetchNoteSource(variantId);
+    rawMarkdown = String(source?.raw_markdown ?? "").trim();
+  }
+
+  if (rawMarkdown) {
+    await regenerateVariantFromMarkdown({
+      variantId,
+      rawMarkdown,
+      title: options.title ?? variantMeta.title,
+      language: options.language ?? variantMeta.language,
+      status: "draft",
+      sectionExtensions:
+        options.sectionExtensions !== undefined
+          ? options.sectionExtensions
+          : normalizeSectionExtensions(variantMeta.section_extensions),
+    });
+  }
 
   const { data: variant, error: fetchError } = await sb
     .from("note_variants")

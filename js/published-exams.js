@@ -6,6 +6,7 @@ import { bootPage } from "./core/page-boot.js";
 import { getClient } from "./core/get-client.js";
 import { invokeEdgeFunction } from "./core/edge-invoke.js";
 import { resolveAppPath } from "./core/access.js";
+import { buildExamStudentPreviewHref } from "./core/student-preview.js";
 import {
   openAssignExamModal,
   initAssignExamModal,
@@ -264,8 +265,7 @@ function renderExamActions(exam) {
   return `
     <div class="flex gap-10" style="flex-wrap:wrap;">
       <button class="primary-btn" data-action="assign" data-exam-id="${escapeHTML(exam.id)}" data-exam-title="${escapeHTML(examTitle)}">Assign</button>
-      <button type="button" class="secondary-btn" data-prepos-href="exam.html?id=${escapeHTML(exam.id)}&amp;mode=inspect">Inspect</button>
-      <button type="button" class="secondary-btn" data-action="student-preview" data-exam-id="${escapeHTML(exam.id)}" data-exam-title="${escapeHTML(examTitle)}">Student preview</button>
+      <button type="button" class="secondary-btn" data-action="student-preview" data-exam-id="${escapeHTML(exam.id)}" data-exam-title="${escapeHTML(examTitle)}">Preview as student</button>
       <button class="secondary-btn" onclick="viewResults('${escapeHTML(exam.id)}')">Results</button>
       <button class="danger-btn" onclick="deletePublishedExam('${escapeHTML(exam.id)}')">Delete</button>
     </div>
@@ -273,16 +273,8 @@ function renderExamActions(exam) {
   `;
 }
 
-function openStudentPreview(examId, examTitle) {
-  const confirmed = confirm(
-    `Student preview: "${examTitle}"\n\nThis simulates the real exam experience:\n• The timer will start and count down\n• Answers may be saved in this browser\n• Submitting records an attempt\n\nContinue?`
-  );
-
-  if (!confirmed) return;
-
-  window.location.href = resolveAppPath(
-    `exam.html?id=${encodeURIComponent(examId)}`
-  );
+function openStudentPreview(examId) {
+  window.location.href = buildExamStudentPreviewHref(examId);
 }
 
 function renderStandaloneExam(exam) {
@@ -526,10 +518,7 @@ async function initPublishedExams() {
 
       const previewButton = event.target.closest("[data-action='student-preview']");
       if (previewButton) {
-        openStudentPreview(
-          previewButton.dataset.examId,
-          previewButton.dataset.examTitle || "Untitled Exam"
-        );
+        openStudentPreview(previewButton.dataset.examId);
         return;
       }
 

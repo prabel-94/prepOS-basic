@@ -4,12 +4,15 @@
 
 import { getClient } from "../core/get-client.js";
 import { updateLearnerDisplayName } from "../core/learner-profile.js";
+import { invokeEdgeFunction } from "../core/edge-invoke.js";
 import { openModal, closeModal } from "../ui/modal-system.js";
 
 const MODAL_ID = "learnerDetailModal";
+const DELETE_MODAL_ID = "learnerDeleteModal";
 
 let currentUserId = null;
 let currentDetails = null;
+let currentDeleteImpact = null;
 let isEditingName = false;
 
 function escapeHTML(value = "") {
@@ -151,6 +154,223 @@ function setEditStatus(message, { isError = false } = {}) {
   el.classList.toggle("student-management-status--error", isError);
   el.classList.toggle("student-management-status--success", Boolean(message) && !isError);
   el.classList.toggle("text-muted", !message);
+}
+
+function setDeleteStatus(message, { isError = false } = {}) {
+  const el = document.getElementById("learnerDeleteStatus");
+  if (!el) {
+    return;
+  }
+
+  el.textContent = message;
+  el.classList.toggle("student-management-status--error", isError);
+  el.classList.toggle("student-management-status--success", Boolean(message) && !isError);
+  el.classList.toggle("text-muted", !message);
+}
+
+function normalizeDeletionImpact(raw) {
+  if (!raw || typeof raw !== "object") {
+    return null;
+  }
+
+  const batchMemberships = Array.isArray(raw.batchMemberships)
+    ? raw.batchMemberships
+    : Array.isArray(raw.batch_memberships)
+      ? raw.batch_memberships
+      : [];
+
+  const warnings = Array.isArray(raw.warnings) ? raw.warnings : [];
+
+  return {
+    userId: raw.userId ?? raw.user_id ?? null,
+    displayName: raw.displayName ?? raw.display_name ?? "",
+    email: raw.email ?? null,
+    isLinkedLearner: Boolean(raw.isLinkedLearner ?? raw.is_linked_learner),
+    examAssignments: Number(raw.examAssignments ?? raw.exam_assignments ?? 0),
+    examAttempts: Number(raw.examAttempts ?? raw.exam_attempts ?? 0),
+    practiceAttempts: Number(raw.practiceAttempts ?? raw.practice_attempts ?? 0),
+    practiceSessions: Number(
+      raw.practiceSessions ?? raw.practice_sessions ?? raw.practiceAttempts ?? 0
+    ),
+    practiceQuestionsInSessions: Number(
+      raw.practiceQuestionsInSessions ?? raw.practice_questions_in_sessions ?? 0
+    ),
+    bankQuestionsTracked: Number(
+      raw.bankQuestionsTracked ?? raw.bank_questions_tracked ?? raw.questionStats ?? 0
+    ),
+    bankQuestionAnswers: Number(
+      raw.bankQuestionAnswers ?? raw.bank_question_answers ?? 0
+    ),
+    lexiconWordsTracked: Number(
+      raw.lexiconWordsTracked ?? raw.lexicon_words_tracked ?? 0
+    ),
+    questionStats: Number(raw.questionStats ?? raw.question_stats ?? 0),
+    batchMemberships,
+    warnings,
+  };
+}
+
+function renderDeletionImpact(impact) {
+  const batchNames = impact.batchMemberships
+    .map((batch) => escapeHTML(batch.name || "Batch"))
+    .join(", ");
+
+  const warningItems = impact.warnings
+    .map((warning) => `<li>${escapeHTML(warning)}</li>`)
+    .join("");
+
+  return `
+    <p>
+      You are about to permanently delete
+      <strong>${escapeHTML(impact.displayName || "this learner")}</strong>
+      ${impact.email ? `(${escapeHTML(impact.email)})` : ""}.
+    </p>
+    <ul class="learner-delete-impact-list mt-10">
+      <li>${impact.examAssignments} assigned exam(s)</li>
+      <li>${impact.examAttempts} exam attempt(s)</li>
+      <li>${impact.practiceSessions} completed bank practice session(s)</li>
+      <li>${impact.practiceQuestionsInSessions} question(s) in those sessions</li>
+      <li>${impact.bankQuestionsTracked} bank question(s) with saved progress</li>
+      <li>${impact.bankQuestionAnswers} total bank answer(s) recorded</li>
+      <li>${impact.lexiconWordsTracked} generator lexicon word(s) tracked</li>
+      <li>${impact.batchMemberships.length} batch membership(s)${
+        batchNames ? `: ${batchNames}` : ""
+      }</li>
+    </ul>
+    <p class="text-muted mt-10">
+      Bank practice saves per-question progress; completed sessions are stored separately.
+      Generator mode only saves Malayalam lexicon stats, not bank sessions.
+    </p>
+    ${
+      warningItems
+        ? `<ul class="learner-delete-warning-list mt-10">${warningItems}</ul>`
+        : ""
+    }
+  `;
+}
+
+async function openDeleteLearnerModal() {
+  if (!currentUserId) {
+    return;
+  }
+
+  currentDeleteImpact = null;
+  setDeleteStatus("");
+
+  const confirmInput = document.getElementById("learnerDeleteConfirmInput");
+  if (confirmInput) {
+    confirmInput.value = "";
+  }
+
+  const body = document.getElementById("learnerDeleteBody");
+  if (body) {
+    body.innerHTML = `<div class="text-muted">Loading impact summary...</div>`;
+  }
+
+  openModal(DELETE_MODAL_ID, {
+    overlayType: "modal",
+    onClose: () => {
+      currentDeleteImpact = null;
+      setDeleteStatus("");
+    },
+  });
+
+  try {
+    const sb = await getClient();
+    const { data: raw, error } = await sb.rpc("get_learner_deletion_impact", {
+      target_user_id: currentUserId,
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    const impact = normalizeDeletionImpact(raw);
+
+    if (!impact) {
+      throw new Error("Unable to load deletion impact");
+    }
+
+    currentDeleteImpact = impact;
+
+    const hint = document.getElementById("learnerDeleteConfirmHint");
+    if (hint) {
+      hint.textContent = impact.displayName?.trim()
+        ? impact.displayName.trim()
+        : "DELETE";
+    }
+
+    if (body) {
+      body.innerHTML = renderDeletionImpact(impact);
+    }
+  } catch (error) {
+    console.error("[Learner Details] delete impact failed", error);
+    if (body) {
+      body.innerHTML = `<div class="empty-state">${escapeHTML(
+        error.message || "Unable to load deletion impact."
+      )}</div>`;
+    }
+    setDeleteStatus(error.message || "Unable to load deletion impact.", {
+      isError: true,
+    });
+  }
+}
+
+function closeDeleteLearnerModal() {
+  closeModal(DELETE_MODAL_ID);
+  currentDeleteImpact = null;
+  setDeleteStatus("");
+}
+
+async function confirmDeleteLearner() {
+  if (!currentUserId || !currentDeleteImpact) {
+    return;
+  }
+
+  const confirmInput = document.getElementById("learnerDeleteConfirmInput");
+  const confirmation = confirmInput?.value?.trim() ?? "";
+
+  if (!confirmation) {
+    setDeleteStatus("Type the display name or DELETE to confirm.", {
+      isError: true,
+    });
+    return;
+  }
+
+  const deleteBtn = document.getElementById("confirmDeleteLearnerBtn");
+  if (deleteBtn) {
+    deleteBtn.disabled = true;
+  }
+
+  setDeleteStatus("Deleting learner...");
+
+  try {
+    await invokeEdgeFunction("delete-learner", {
+      userId: currentUserId,
+      confirmation,
+    });
+
+    const deletedUserId = currentUserId;
+    const isLinkedLearner = currentDeleteImpact.isLinkedLearner;
+
+    closeDeleteLearnerModal();
+    closeLearnerModal();
+
+    window.dispatchEvent(
+      new CustomEvent("prepos:learner-deleted", {
+        detail: { deletedUserId, isLinkedLearner },
+      })
+    );
+  } catch (error) {
+    console.error("[Learner Details] delete failed", error);
+    setDeleteStatus(error.message || "Unable to delete learner.", {
+      isError: true,
+    });
+  } finally {
+    if (deleteBtn) {
+      deleteBtn.disabled = false;
+    }
+  }
 }
 
 /**
@@ -387,4 +607,16 @@ export function initLearnerDetailsModal() {
   document
     .getElementById("saveLearnerNameBtn")
     ?.addEventListener("click", saveDisplayName);
+
+  document
+    .getElementById("deleteLearnerBtn")
+    ?.addEventListener("click", openDeleteLearnerModal);
+
+  document
+    .getElementById("cancelDeleteLearnerBtn")
+    ?.addEventListener("click", closeDeleteLearnerModal);
+
+  document
+    .getElementById("confirmDeleteLearnerBtn")
+    ?.addEventListener("click", confirmDeleteLearner);
 }

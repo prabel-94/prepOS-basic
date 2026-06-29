@@ -67,6 +67,36 @@ export async function createLearner({ email, password, displayName }) {
 }
 
 /**
+ * Preview what will be removed when deleting a learner.
+ * @param {string} userId
+ */
+export async function getLearnerDeletionImpact(userId) {
+  const { getClient } = await import("../core/get-client.js");
+  const sb = await getClient();
+  const { data, error } = await sb.rpc("get_learner_deletion_impact", {
+    target_user_id: userId,
+  });
+
+  if (error) {
+    console.error("[Student Management] deletion impact failed", error);
+    throw error;
+  }
+
+  return data;
+}
+
+/**
+ * Permanently delete a teacher-managed learner.
+ * @param {{ userId: string, confirmation: string }} params
+ */
+export async function deleteLearner({ userId, confirmation }) {
+  return invokeEdgeFunction("delete-learner", {
+    userId,
+    confirmation,
+  });
+}
+
+/**
  * Load learners managed by the current teacher.
  * @returns {Promise<Array<{ id: string, email: string|null, name: string|null }>>}
  */
@@ -238,6 +268,15 @@ export async function initStudentManagement() {
   initStudentManagementTabs();
 
   window.addEventListener("prepos:learner-profile-updated", () => {
+    refreshLearners().catch((error) => {
+      console.error("[Student Management] list refresh failed", error);
+    });
+    loadBatchesIfActive().catch((error) => {
+      console.error("[Student Management] batch refresh failed", error);
+    });
+  });
+
+  window.addEventListener("prepos:learner-deleted", () => {
     refreshLearners().catch((error) => {
       console.error("[Student Management] list refresh failed", error);
     });

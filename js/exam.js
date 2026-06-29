@@ -15,6 +15,8 @@ import {
   collectTopicsFromRawQuestions,
 } from "./student/student-exam-meta.js";
 import { getLearnerProfile } from "./core/learner-profile.js";
+import { resolveActingStudentIdAsync, isActingAsLinkedStudent, resolveActingStudentId } from "./core/learner-context.js";
+import { getRuntimeState } from "./core/runtime.js";
 import { assertExamSeriesUnlocked } from "./core/exam-series.js";
 import {
   assistanceSessionKey,
@@ -480,8 +482,11 @@ async function resolveStudentName(){
     const user = data?.user;
 
     if (user) {
+      const actingStudentId =
+        (await resolveActingStudentIdAsync(sb)) ?? user.id;
+
       try {
-        const profile = await getLearnerProfile(user.id);
+        const profile = await getLearnerProfile(actingStudentId);
         if (profile?.displayName) {
           localStorage.setItem("studentName", profile.displayName);
           return profile.displayName;
@@ -785,7 +790,12 @@ async function restoreCompletedExamState(){
       return false;
     }
 
-    const attempt = await fetchLatestCanonicalAttempt(sb, user.id);
+    const actingStudentId =
+      resolveActingStudentId(getRuntimeState()) ??
+      (await resolveActingStudentIdAsync(sb)) ??
+      user.id;
+
+    const attempt = await fetchLatestCanonicalAttempt(sb, actingStudentId);
 
     if (!attempt) {
       return false;
@@ -1159,8 +1169,16 @@ async function setupExamHomeLink() {
     const role = await fetchUserRole(sb, user.id);
     if (!role) return;
 
-    btn.href = resolveAppPath(getHomePathForRole(role));
-    btn.textContent = role === "student" ? "← Dashboard" : "← Home";
+    if (inspectModeRequested && TEACHER_ROLES.includes(role)) {
+      btn.href = resolveAppPath("teacher-student-preview.html");
+      btn.textContent = "← Student preview";
+    } else if (isActingAsLinkedStudent()) {
+      btn.href = resolveAppPath("student-dashboard.html");
+      btn.textContent = "← My learning";
+    } else {
+      btn.href = resolveAppPath(getHomePathForRole(role));
+      btn.textContent = role === "student" ? "← Dashboard" : "← Home";
+    }
     btn.classList.remove("hidden");
   } catch (error) {
     console.warn("[Exam] Home link not available", error);
@@ -1195,7 +1213,8 @@ async function loadExam(){
 
       isInspectSession = true;
     } else if (userId) {
-      await assertExamSeriesUnlocked(sb, exam, userId);
+      const actingStudentId = (await resolveActingStudentIdAsync(sb)) ?? userId;
+      await assertExamSeriesUnlocked(sb, exam, actingStudentId);
     }
 
     console.log("Exam fetch result:", exam);
@@ -1274,7 +1293,7 @@ async function loadExam(){
 
     const startBtn = document.getElementById("startExamBtn");
     if (isInspectSession && startBtn) {
-      startBtn.textContent = "Inspect Exam";
+      startBtn.textContent = "Start preview";
       document.getElementById("overviewNameRow")?.classList.add("hidden");
     }
 
@@ -1496,10 +1515,12 @@ try{
   const sb = await getClient();
   const { data: userData } = await sb.auth.getUser()
   const user = userData?.user
+  const actingStudentId = user ? await resolveActingStudentIdAsync(sb) : null;
+  const canonicalStudentId = actingStudentId ?? user?.id ?? null;
 
   const useCanonical =
-    user &&
-    await canSubmitCanonicalAttempt(sb, examId, user.id);
+    canonicalStudentId &&
+    await canSubmitCanonicalAttempt(sb, examId, canonicalStudentId);
 
   let attemptError = null;
 
@@ -1517,7 +1538,7 @@ try{
           device_id: getDeviceId(),
           attempt_id: attemptId,
           student_name: studentName,
-          student_id: user.id,
+          student_id: canonicalStudentId,
           answers,
           score,
           question_count: answers.length,
@@ -1579,7 +1600,7 @@ try{
         examId,
         attemptId,
         studentName,
-        studentId: useCanonical ? user.id : null,
+        studentId: useCanonical ? canonicalStudentId : null,
         answers,
         score,
         timeTaken: time_taken,

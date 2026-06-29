@@ -112,6 +112,25 @@ export function roleAllowed(role, allowedRoles = []) {
   return allowedRoles.includes(role);
 }
 
+export function roleAllowedWithLinkedStudent({
+  role,
+  allowedRoles = [],
+  allowLinkedStudentMode = false,
+  learnerContext = null,
+}) {
+  if (roleAllowed(role, allowedRoles)) {
+    return true;
+  }
+
+  if (!allowLinkedStudentMode || !role || !TEACHER_ROLES.includes(role)) {
+    return false;
+  }
+
+  return Boolean(
+    learnerContext?.hasLink && learnerContext?.studentModeActive
+  );
+}
+
 export async function fetchUserRole(sb, userId) {
   const { data, error } = await sb
     .from("users")

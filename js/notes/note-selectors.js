@@ -4,6 +4,7 @@
 
 import { getClient } from "../core/get-client.js";
 import { buildTopicMap } from "./note-topic-links.js";
+import { parseMapMarkdown } from "./map-parser.js";
 import {
   createRepresentationBuckets,
 } from "./note-section-catalog.js";
@@ -61,6 +62,7 @@ export async function fetchVariantById(variantId) {
       status,
       created_at,
       updated_at,
+      scheduled_delete_at,
       section_extensions,
       notes (
         id,
@@ -101,6 +103,27 @@ export async function fetchVariantsForNote(noteId, { includeArchived = false } =
   }
 
   return data ?? [];
+}
+
+/**
+ * Archived variants for a canonical note, optionally filtered by language.
+ * @param {string} noteId
+ * @param {string} [language]
+ */
+export async function fetchArchivedVariantsForNote(noteId, language) {
+  const variants = await fetchVariantsForNote(noteId, { includeArchived: true });
+  const normalized = language ? normalizeLanguage(language) : null;
+
+  return variants
+    .filter((variant) => variant.status === "archived")
+    .filter((variant) =>
+      normalized ? normalizeLanguage(variant.language) === normalized : true
+    )
+    .sort(
+      (a, b) =>
+        new Date(b.updated_at ?? 0).getTime() -
+        new Date(a.updated_at ?? 0).getTime()
+    );
 }
 
 export async function fetchNoteSource(variantId) {
@@ -277,6 +300,78 @@ export function buildTraversalTopicMap(topicLinks = []) {
   return map;
 }
 
+function countBlocksPerRepresentation(representations = {}) {
+  const counts = {};
+
+  for (const [key, blocks] of Object.entries(representations)) {
+    counts[key] = blocks?.length ?? 0;
+  }
+
+  return counts;
+}
+
+function representationsFromParsed(parsed, context = {}) {
+  const grouped = createRepresentationBuckets(context);
+
+  for (const [key, blocks] of Object.entries(parsed?.representations ?? {})) {
+    grouped[key] = (blocks ?? []).map((block, index) => ({
+      representation_type: key,
+      block_type: block.block_type,
+      heading: block.heading ?? null,
+      content: block.content ?? null,
+      hierarchy_level: block.hierarchy_level ?? null,
+      sequence_order: index,
+      metadata_json: block.metadata_json ?? {},
+    }));
+  }
+
+  return grouped;
+}
+
+function representationsMismatch(stored = {}, parsed = {}) {
+  const keys = new Set([...Object.keys(stored), ...Object.keys(parsed)]);
+
+  for (const key of keys) {
+    if ((stored[key]?.length ?? 0) !== (parsed[key]?.length ?? 0)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Prefer parsed source when stored blocks are out of sync (draft preview vs DB drift).
+ */
+export function resolveRepresentationsFromSource({
+  blocks = [],
+  rawMarkdown,
+  catalogContext = {},
+}) {
+  const stored = groupBlocksByRepresentation(blocks, catalogContext);
+  const markdown = String(rawMarkdown ?? "").trim();
+
+  if (!markdown) {
+    return stored;
+  }
+
+  const parsed = parseMapMarkdown(markdown, {
+    sectionExtensions: catalogContext.customDefinitions ?? [],
+  });
+  const fromSource = representationsFromParsed(parsed, catalogContext);
+
+  if (!representationsMismatch(stored, fromSource)) {
+    return stored;
+  }
+
+  console.warn("[loadVariantBundle] Stored blocks differ from semantic source; using parsed source.", {
+    stored: countBlocksPerRepresentation(stored),
+    parsed: countBlocksPerRepresentation(fromSource),
+  });
+
+  return fromSource;
+}
+
 export async function loadVariantBundle(variantId) {
   const variant = await fetchVariantById(variantId);
 
@@ -284,9 +379,10 @@ export async function loadVariantBundle(variantId) {
     return null;
   }
 
-  const [blocks, topicLinks] = await Promise.all([
+  const [blocks, topicLinks, source] = await Promise.all([
     fetchNoteBlocks(variantId),
     fetchNoteTopicLinks(variantId),
+    fetchNoteSource(variantId),
   ]);
 
   const topicMap = buildTraversalTopicMap(topicLinks);
@@ -297,14 +393,21 @@ export async function loadVariantBundle(variantId) {
       : [],
   };
 
+  const representations = resolveRepresentationsFromSource({
+    blocks,
+    rawMarkdown: source?.raw_markdown,
+    catalogContext,
+  });
+
   return {
     note: variant.notes,
     variant,
     blocks,
-    representations: groupBlocksByRepresentation(blocks, catalogContext),
+    representations,
     topicLinks,
     topicMap,
     sectionExtensions: catalogContext.customDefinitions,
+    sourceMarkdown: source?.raw_markdown ?? null,
   };
 }
 

@@ -5,6 +5,8 @@
  */
 
 import { getClient } from "../core/get-client.js";
+import { getRuntimeState } from "../core/runtime.js";
+import { resolveActingStudentId } from "../core/learner-context.js";
 import {
   enrichAssignedExam,
   enrichAssignedExamsWithAttemptStatus,
@@ -19,6 +21,8 @@ import {
 import {
   buildAttemptRecord,
   readCachedKnowledgeAnalytics,
+  buildPracticeAttemptRecord,
+  PRACTICE_PORTFOLIO_KEY,
 } from "../analytics/analytics-submission.js";
 import { deriveMasteryConfidence } from "../analytics/mastery-inspector.js";
 import { isKnowledgeEligible } from "../analytics/analytics-scope.js";
@@ -35,6 +39,17 @@ export function normalizeTopicKey(topic) {
 }
 
 export { normalizeTopicKey as normalizedTopicKey };
+
+async function resolveStudentUserId(sb) {
+  const runtime = getRuntimeState();
+  const fromRuntime = resolveActingStudentId(runtime);
+  if (fromRuntime) {
+    return fromRuntime;
+  }
+
+  const { data: userData } = await sb.auth.getUser();
+  return userData?.user?.id ?? null;
+}
 
 export function hydrateKnowledgeAnalytics(examIds = []) {
   const hydrated = [];
@@ -154,6 +169,7 @@ async function fetchCanonicalAttempts(sb, userId) {
       answers,
       submitted_at,
       student_name,
+      student_id,
       time_taken,
       question_count,
       exam_sessions ( title )
@@ -163,6 +179,32 @@ async function fetchCanonicalAttempts(sb, userId) {
 
   if (error) {
     throw error;
+  }
+
+  return data || [];
+}
+
+async function fetchPracticeAttempts(sb, userId) {
+  const { data, error } = await sb
+    .from("practice_attempts")
+    .select(`
+      id,
+      student_id,
+      topic_id,
+      topic_name,
+      score,
+      answers,
+      submitted_at,
+      time_taken,
+      question_count,
+      attempt_id
+    `)
+    .eq("student_id", userId)
+    .order("submitted_at", { ascending: false });
+
+  if (error) {
+    console.warn("[Student Intelligence] practice attempts fetch failed", error);
+    return [];
   }
 
   return data || [];
@@ -182,6 +224,19 @@ function toAttemptRecords(rows = []) {
       submissionMode: "canonical",
     })
   );
+}
+
+function toPracticeAttemptRecords(rows = []) {
+  return rows.map(row => buildPracticeAttemptRecord(row));
+}
+
+function mergeKnowledgeAttemptRows(examRows = [], practiceRows = []) {
+  return [...examRows, ...practiceRows];
+}
+
+async function fetchQuestionsForKnowledgeAttempts(sb, examRows = [], practiceRows = []) {
+  const combined = mergeKnowledgeAttemptRows(examRows, practiceRows);
+  return fetchQuestionsForAttempts(sb, combined);
 }
 
 function mergeCachedTopicMastery(liveMastery = [], cacheEntries = []) {
@@ -272,20 +327,34 @@ export function buildLearningSnapshot({
 export function buildStudentLearningState(intelligence = {}) {
   const {
     canonicalAttempts = [],
+    practiceAttempts = [],
+    knowledgeAttempts = [],
     questions = [],
     cacheEntries = [],
     recentAttempts = [],
+    practiceAttemptCount = 0,
   } = intelligence;
 
-  const examIds = [...new Set(canonicalAttempts.map(a => a.exam_id ?? a.examId).filter(Boolean))];
+  const attemptsForKnowledge =
+    knowledgeAttempts.length > 0
+      ? knowledgeAttempts
+      : [...canonicalAttempts, ...practiceAttempts];
+
+  const examIds = [
+    ...new Set(
+      canonicalAttempts.map(a => a.exam_id ?? a.examId).filter(Boolean)
+    ),
+    PRACTICE_PORTFOLIO_KEY,
+  ];
+
   const topicMastery = aggregateTopicMastery({
-    attempts: canonicalAttempts,
+    attempts: attemptsForKnowledge,
     questions,
     cacheEntries,
   });
 
   const weakTopics = aggregateWeakTopics({
-    attempts: canonicalAttempts,
+    attempts: attemptsForKnowledge,
     questions,
     limit: 5,
   });
@@ -295,12 +364,12 @@ export function buildStudentLearningState(intelligence = {}) {
     .slice(0, 5);
 
   const adaptiveSignals = aggregateAdaptiveSignals({
-    attempts: canonicalAttempts,
+    attempts: attemptsForKnowledge,
     questions,
   });
 
   const confidence = deriveOverallConfidence({
-    canonicalAttempts,
+    canonicalAttempts: attemptsForKnowledge,
     topicMastery,
     questions,
   });
@@ -309,7 +378,8 @@ export function buildStudentLearningState(intelligence = {}) {
     topicMastery,
     weakTopics,
     adaptiveSignals,
-    canonicalAttemptCount: canonicalAttempts.length,
+    canonicalAttemptCount:
+      canonicalAttempts.length + practiceAttemptCount,
     confidence,
   });
 
@@ -329,13 +399,16 @@ export function buildStudentLearningState(intelligence = {}) {
     confidence,
     metadata: {
       canonicalAttemptCount: canonicalAttempts.length,
-      examCount: examIds.length,
+      practiceAttemptCount,
+      knowledgeAttemptCount: attemptsForKnowledge.length,
+      examCount: examIds.filter(id => id !== PRACTICE_PORTFOLIO_KEY).length,
       questionCount: questions.filter(q => isKnowledgeEligible(q)).length,
       hasKnowledgeData: topicMastery.length > 0,
       hasCanonicalAttempts: canonicalAttempts.length > 0,
+      hasPracticeAttempts: practiceAttemptCount > 0,
       recentAttempts,
       emptyReason: resolveEmptyReason({
-        canonicalAttempts,
+        canonicalAttempts: attemptsForKnowledge,
         topicMastery,
         confidence,
       }),
@@ -429,16 +502,15 @@ function resolveEmptyReason({ canonicalAttempts = [], topicMastery = [], confide
 
 export async function loadStudentExamDashboardData() {
   const sb = await getClient();
-  const { data: userData } = await sb.auth.getUser();
-  const user = userData?.user;
+  const studentId = await resolveStudentUserId(sb);
 
-  if (!user) {
+  if (!studentId) {
     throw new Error("User not authenticated");
   }
 
   const [exams, attemptRows] = await Promise.all([
-    fetchStudentExamAssignments(sb, user.id),
-    fetchCanonicalAttempts(sb, user.id),
+    fetchStudentExamAssignments(sb, studentId),
+    fetchCanonicalAttempts(sb, studentId),
   ]);
 
   return {
@@ -450,34 +522,49 @@ export async function loadStudentExamDashboardData() {
 
 export async function loadStudentIntelligence({ attemptRows: prefetchedAttemptRows } = {}) {
   const sb = await getClient();
-  const { data: userData } = await sb.auth.getUser();
-  const user = userData?.user;
+  const studentId = await resolveStudentUserId(sb);
 
-  if (!user) {
+  if (!studentId) {
     throw new Error("User not authenticated");
   }
 
-  const attemptRows =
-    prefetchedAttemptRows ?? (await fetchCanonicalAttempts(sb, user.id));
+  const [attemptRows, practiceRows] = await Promise.all([
+    prefetchedAttemptRows ?? fetchCanonicalAttempts(sb, studentId),
+    fetchPracticeAttempts(sb, studentId),
+  ]);
 
   const canonicalAttempts = toAttemptRecords(attemptRows);
-  const examIds = [...new Set(canonicalAttempts.map(a => a.exam_id ?? a.examId).filter(Boolean))];
+  const practiceAttempts = toPracticeAttemptRecords(practiceRows);
+  const knowledgeAttempts = [...canonicalAttempts, ...practiceAttempts];
+  const examIds = [
+    ...new Set(
+      canonicalAttempts.map(a => a.exam_id ?? a.examId).filter(Boolean)
+    ),
+    PRACTICE_PORTFOLIO_KEY,
+  ];
   const cacheEntries = hydrateKnowledgeAnalytics(examIds);
-  const questions = await fetchQuestionsForAttempts(sb, attemptRows);
+  const questions = await fetchQuestionsForKnowledgeAttempts(
+    sb,
+    attemptRows,
+    practiceRows
+  );
 
   const knowledge = buildKnowledgeAnalytics({
-    exam: { id: null, title: "Student Portfolio" },
-    attempt: canonicalAttempts[0] ?? {},
-    allAttempts: canonicalAttempts,
+    exam: { id: PRACTICE_PORTFOLIO_KEY, title: "Student Portfolio" },
+    attempt: knowledgeAttempts[0] ?? {},
+    allAttempts: knowledgeAttempts,
     questions,
   });
 
   return {
-    userId: user.id,
+    userId: studentId,
     canonicalAttempts,
+    practiceAttempts,
+    knowledgeAttempts,
     questions,
     cacheEntries,
     knowledge,
+    practiceAttemptCount: practiceRows.length,
     recentAttempts: mapRecentAttemptRows(attemptRows),
   };
 }

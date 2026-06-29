@@ -8,12 +8,18 @@ import { mountAppNav } from "../ui/app-nav.js";
 import { TEACHER_ROLES } from "../core/access.js";
 import { resolveAppPath } from "../core/access.js";
 import {
+  isStudentPreviewQuery,
+} from "../core/student-preview.js";
+import { isLinkedStudentMode } from "../core/learner-context.js";
+import {
   fetchPublishedVariantForTopic,
   fetchTopicById,
   fetchVariantById,
   fetchVariantsForNote,
+  fetchArchivedVariantsForNote,
   loadVariantBundle,
 } from "./note-selectors.js";
+import { fetchPublishedVariantByLanguage } from "./note-storage.js";
 import {
   bindStructuralCollapse,
   getAvailableTabs,
@@ -34,6 +40,12 @@ import {
   preparePublishedStudentSemanticMap,
 } from "../anchors/anchor-student-reader.js";
 import { enrichSemanticMapWithAnchorNotePresence } from "../anchors/anchor-selectors.js";
+import {
+  bindRestoreButtons,
+  bindVersionHistoryPanel,
+  renderArchivePreviewBanner,
+  renderVersionHistoryPanel,
+} from "./note-variant-history.js";
 
 function getQueryParam(key) {
   return new URLSearchParams(window.location.search).get(key);
@@ -41,6 +53,61 @@ function getQueryParam(key) {
 
 function isDraftModeRequested() {
   return getQueryParam("mode") === "draft";
+}
+
+function isTeacherStudentPreview(runtime) {
+  if (isLinkedStudentMode(runtime)) {
+    return true;
+  }
+
+  return (
+    isStudentPreviewQuery() &&
+    runtime?.role &&
+    TEACHER_ROLES.includes(runtime.role)
+  );
+}
+
+function canTeacherPreviewArchive(runtime, variant) {
+  return (
+    variant?.status === "archived" &&
+    runtime?.role &&
+    TEACHER_ROLES.includes(runtime.role)
+  );
+}
+
+async function mountVersionHistory({
+  versionHistoryEl,
+  noteId,
+  language,
+  activeVariantId,
+  statusEl,
+}) {
+  if (!versionHistoryEl || !noteId) {
+    return () => {};
+  }
+
+  const archived = await fetchArchivedVariantsForNote(noteId, language);
+
+  if (!archived.length) {
+    versionHistoryEl.innerHTML = "";
+    versionHistoryEl.classList.add("hidden");
+    return () => {};
+  }
+
+  versionHistoryEl.classList.remove("hidden");
+  versionHistoryEl.innerHTML = renderVersionHistoryPanel(archived, {
+    activeVariantId,
+  });
+
+  return bindVersionHistoryPanel(versionHistoryEl, {
+    onStatus: (message, isError = false) => {
+      if (!statusEl) {
+        return;
+      }
+      statusEl.textContent = message;
+      statusEl.classList.toggle("error", isError);
+    },
+  });
 }
 
 function canUseDraftWorkspace(runtime, variant) {
@@ -52,6 +119,22 @@ function canUseDraftWorkspace(runtime, variant) {
 }
 
 function resolveReaderNav(runtime) {
+  if (isLinkedStudentMode(runtime)) {
+    return {
+      title: "Topic Note",
+      preset: "studentHome",
+      back: "student-dashboard.html",
+    };
+  }
+
+  if (isTeacherStudentPreview(runtime) && isStudentPreviewQuery()) {
+    return {
+      title: "Topic Note (preview)",
+      preset: "studentHome",
+      back: "teacher-student-preview.html",
+    };
+  }
+
   if (runtime?.role === "student") {
     return {
       title: "Topic Note",
@@ -97,7 +180,16 @@ function logRevisionParityPublished(variantId, representations = {}) {
   });
 }
 
-function renderLanguageTabs(container, variants, activeVariantId, isTeacher) {
+function renderStudentPreviewBanner() {
+  return `
+    <div class="student-preview-banner student-preview-banner--inline mt-10" role="status">
+      <span class="student-preview-banner-title">Student preview</span>
+      <span class="student-preview-banner-text">Published read-only view — anchors open the student cognition inspector.</span>
+    </div>
+  `;
+}
+
+function renderLanguageTabs(container, variants, activeVariantId, isTeacher, studentPreview = false) {
   if (!container || variants.length < 2) {
     container.innerHTML = "";
     container.classList.add("hidden");
@@ -113,9 +205,13 @@ function renderLanguageTabs(container, variants, activeVariantId, isTeacher) {
       const active = v.id === activeVariantId ? " active" : "";
       const statusMark =
         v.status === "published" ? "" : v.status === "draft" ? " ○" : "";
-      const href = resolveAppPath(
-        `note.html?variant=${encodeURIComponent(v.id)}${v.status === "draft" && isTeacher ? "&mode=draft" : ""}`
-      );
+      const href = studentPreview
+        ? resolveAppPath(
+            `note.html?variant=${encodeURIComponent(v.id)}&preview=student`
+          )
+        : resolveAppPath(
+            `note.html?variant=${encodeURIComponent(v.id)}${v.status === "draft" && isTeacher ? "&mode=draft" : ""}`
+          );
       return `<a class="language-tab${active}" href="${escapeHTML(href)}">${escapeHTML(label)}${statusMark}</a>`;
     })
     .join("");
@@ -146,11 +242,15 @@ async function bootPublishedReader({
   tabsEl,
   contentEl,
   backlinksEl,
+  versionHistoryEl,
   toolbarEl,
   sourcePanelEl,
   statusEl,
   isTeacher,
   isStudent,
+  studentPreview = false,
+  archivePreview = false,
+  publishedVariantId = null,
 }) {
   if (toolbarEl) {
     toolbarEl.classList.add("hidden");
@@ -167,16 +267,40 @@ async function bootPublishedReader({
     languageTabsEl,
     variants,
     activeVariantId,
-    isTeacher
+    isTeacher,
+    studentPreview
   );
 
-  const subtitle = `${getLanguageLabel(variant.language)} · ${variant.status}`;
+  const subtitle = archivePreview
+    ? `${getLanguageLabel(variant.language)} · archived snapshot`
+    : `${getLanguageLabel(variant.language)} · ${variant.status}`;
+
+  const archiveBanner = archivePreview
+    ? renderArchivePreviewBanner(variant, { publishedVariantId })
+    : "";
 
   headerEl.innerHTML = `
     <h2>${escapeHTML(topicName)}</h2>
     <div class="exam-subtitle">${escapeHTML(variant.title)}</div>
     <div class="canonical-meta">${escapeHTML(subtitle)}</div>
+    ${studentPreview ? renderStudentPreviewBanner() : ""}
+    ${archiveBanner}
   `;
+
+  const restoreStatusHandler = (message, isError = false) => {
+    if (!statusEl) {
+      return;
+    }
+    statusEl.textContent = message;
+    statusEl.classList.toggle("error", isError);
+  };
+
+  let unbindRestore = () => {};
+  if (archivePreview && isTeacher) {
+    unbindRestore = bindRestoreButtons(headerEl, {
+      onStatus: restoreStatusHandler,
+    });
+  }
 
   const tabs = getAvailableTabs(bundle.representations, {
     customDefinitions: bundle.sectionExtensions ?? [],
@@ -289,22 +413,63 @@ async function bootPublishedReader({
   }
 
   renderRepTabs();
+
+  let unbindHistory = () => {};
+  if (isTeacher && versionHistoryEl) {
+    unbindHistory = await mountVersionHistory({
+      versionHistoryEl,
+      noteId: variant.note_id,
+      language: preferLanguage,
+      activeVariantId: archivePreview ? variant.id : null,
+      statusEl,
+    });
+  }
+
   await renderBacklinksForTopic(note?.topic_id, backlinksEl, preferLanguage);
   statusEl.textContent = "";
+
+  return () => {
+    unbindRestore();
+    unbindHistory();
+  };
 }
 
 async function resolveVariantContext({ variantId, topicId, lang, runtime }) {
+  const studentPreview = isTeacherStudentPreview(runtime);
+
   if (variantId) {
     const variant = await fetchVariantById(variantId);
     if (!variant) {
       return null;
     }
 
-    if (variant.status === "archived") {
-      return { error: "archived_unavailable" };
+    if (studentPreview && variant.status !== "published") {
+      return { error: "draft_unavailable" };
     }
 
-    if (variant.status === "draft" && runtime?.role === "student") {
+    if (variant.status === "archived") {
+      if (!canTeacherPreviewArchive(runtime, variant)) {
+        return { error: "archived_unavailable" };
+      }
+
+      const variants = await fetchVariantsForNote(variant.note_id, {
+        includeArchived: false,
+      });
+      const published = await fetchPublishedVariantByLanguage(
+        variant.note_id,
+        variant.language
+      );
+
+      return {
+        variant,
+        variants,
+        note: variant.notes,
+        archivePreview: true,
+        publishedVariantId: published?.id ?? null,
+      };
+    }
+
+    if (variant.status === "draft" && (runtime?.role === "student" || studentPreview)) {
       return { error: "draft_unavailable" };
     }
 
@@ -327,7 +492,7 @@ async function resolveVariantContext({ variantId, topicId, lang, runtime }) {
       includeArchived: false,
     });
     const visibleVariants =
-      runtime?.role === "student"
+      runtime?.role === "student" || studentPreview
         ? variants.filter((v) => v.status === "published")
         : variants;
 
@@ -367,6 +532,7 @@ export async function bootNoteReader() {
   const sourcePanelEl = document.getElementById("noteSourcePanel");
   const sourceEditorEl = document.getElementById("semanticSourceEditor");
   const backlinksEl = document.getElementById("noteBacklinks");
+  const versionHistoryEl = document.getElementById("noteVersionHistory");
   const sectionInventoryEl = document.getElementById("noteSectionInventory");
   const statusEl = document.getElementById("readerStatus");
 
@@ -420,18 +586,25 @@ export async function bootNoteReader() {
       return null;
     }
 
+    const studentPreview = isTeacherStudentPreview(runtime);
+    const isStudent =
+      runtime.role === "student" || studentPreview;
+    const isTeacher =
+      TEACHER_ROLES.includes(runtime.role) && !studentPreview;
+
     const useDraft =
+      !studentPreview &&
       canUseDraftWorkspace(runtime, bundle.variant) &&
       (isDraftModeRequested() || bundle.variant.status === "draft");
 
     if (useDraft) {
-      const isTeacher = TEACHER_ROLES.includes(runtime.role);
+      const isTeacherDraft = TEACHER_ROLES.includes(runtime.role);
       if (languageTabsEl && (ctx.variants?.length ?? 0) > 1) {
         renderLanguageTabs(
           languageTabsEl,
           ctx.variants,
           ctx.variant.id,
-          isTeacher
+          isTeacherDraft
         );
       } else if (languageTabsEl) {
         languageTabsEl.classList.add("hidden");
@@ -460,11 +633,15 @@ export async function bootNoteReader() {
       tabsEl,
       contentEl,
       backlinksEl,
+      versionHistoryEl,
       toolbarEl,
       sourcePanelEl,
       statusEl,
-      isTeacher: TEACHER_ROLES.includes(runtime.role),
-      isStudent: runtime.role === "student",
+      isTeacher,
+      isStudent,
+      studentPreview,
+      archivePreview: Boolean(ctx.archivePreview),
+      publishedVariantId: ctx.publishedVariantId ?? null,
     });
   } catch (err) {
     statusEl.textContent = err.message || "Failed to load note.";

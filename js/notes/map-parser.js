@@ -22,6 +22,7 @@ import {
   mapDefinitionToRepresentationBucket,
   resolveSectionCatalog,
 } from "./note-section-catalog.js";
+import { normalizeAnchorName } from "../anchors/anchor-normalization.js";
 
 export { CANONICAL_BOUNDARY_TAGS };
 
@@ -299,8 +300,8 @@ function extractTopicLinks(markdown, sectionKey = null, blockIndex = null) {
       continue;
     }
 
-    const key = name.toLowerCase();
-    if (seen.has(key)) {
+    const key = normalizeAnchorName(name);
+    if (!key || seen.has(key)) {
       continue;
     }
 
@@ -511,8 +512,8 @@ export function parseMapMarkdown(rawMarkdown, options = {}) {
       );
 
       for (const link of blockLinks) {
-        const dedupeKey = link.name.toLowerCase();
-        if (globalTopicSeen.has(dedupeKey)) {
+        const dedupeKey = normalizeAnchorName(link.name);
+        if (!dedupeKey || globalTopicSeen.has(dedupeKey)) {
           continue;
         }
         globalTopicSeen.add(dedupeKey);

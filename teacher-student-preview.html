@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="icon" type="image/png" href="assets/prepos-icon.png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Experience Preview — PrepOS</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <div id="app-nav-root"></div>
+
+  <div class="container">
+
+    <div class="student-preview-banner mt-30" role="status">
+      <div class="student-preview-banner-title">Preview only</div>
+      <p class="student-preview-banner-text mt-5">
+        This simulates layouts students see. Nothing is saved — no assignments, attempts, or practice stats.
+      </p>
+      <div id="previewLinkedLearnerCta" class="hidden"></div>
+    </div>
+
+    <p class="dashboard-section-label mt-30">Primary Actions (sample)</p>
+
+    <div class="student-primary-actions mt-10">
+
+      <div class="card student-action-card student-preview-card--muted">
+        <div class="h2">Practice</div>
+        <div class="section-sub mt-5">
+          Students build skills with generators and question bank practice.
+        </div>
+      </div>
+
+      <div class="card student-action-card">
+        <div class="h2">Read Notes</div>
+        <div class="section-sub mt-5">
+          Published topic notes — narrative, structural, and revision views.
+        </div>
+        <button
+          type="button"
+          id="previewBrowseNotesBtn"
+          class="primary-btn w-full mt-20"
+        >
+          Browse Notes
+        </button>
+      </div>
+
+    </div>
+
+    <div class="card mt-20">
+      <div class="h2">Available Exams</div>
+      <div class="section-sub mt-5">
+        Sample cards for exams you published. Open preview to walk through questions without submitting.
+      </div>
+      <div id="previewAvailableExams" class="mt-10">
+        Loading exams…
+      </div>
+    </div>
+
+    <div class="card mt-20" id="previewTopicNotesSection">
+      <div class="h2">Topic Notes</div>
+      <div class="section-sub mt-5">
+        Open a note as students read it (published variants only).
+      </div>
+      <div id="previewTopicNotes" class="mt-10">
+        Loading topic notes…
+      </div>
+    </div>
+
+    <div class="card mt-20">
+      <div class="h2">Learning Intelligence</div>
+      <div class="section-sub mt-5">
+        Placeholder for mastery and revision guidance — populated from real student practice.
+      </div>
+      <div id="previewIntelligenceMock" class="mt-20">
+        Loading…
+      </div>
+    </div>
+
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/config.js?v=20260520"></script>
+  <script type="module" src="js/teacher/student-preview-hub.js"></script>
+
+</body>
+</html>

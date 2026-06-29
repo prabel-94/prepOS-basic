@@ -1,7 +1,27 @@
 import { runGenerator } from "./generator-core.js";
 import { getClient } from "./core/get-client.js";
 import { bootPage } from "./core/page-boot.js";
+import {
+  resolveActingStudentId,
+  isLinkedStudentMode,
+} from "./core/learner-context.js";
 import { normalizeTopicKey } from "./student/student-intelligence.js";
+import { submitPracticeBankSession } from "./analytics/analytics-submission.js";
+import { loadTopicQuestionProgress, loadQuestionKnowledgeContext } from "./practice/topic-progress-service.js";
+import {
+  sortQuestionsByFocusGaps,
+  countNewlyMasteredQuestions,
+  buildQuestionStateById,
+} from "./analytics/topic-question-progress.js";
+import {
+  upsertBankQuestionStat,
+  applyPersistedStatLocally,
+} from "./practice/question-stats.js";
+import {
+  hideTopicProgressPanel,
+  renderTopicProgressLoading,
+  renderTopicProgressPanel,
+} from "./practice/topic-progress-ui.js";
 import { DEFAULT_LEXICON_TOPIC } from "./generators/shared/lexicon-engine.js";
 import {
   examHasMalayalamAssistance,
@@ -37,6 +57,7 @@ const practiceProgressBar = document.getElementById("practiceProgressBar");
 const practiceProgressFill = document.getElementById("practiceProgressFill");
 const sessionSummary = document.getElementById("sessionSummary");
 const practiceAssistanceToggle = document.getElementById("practiceAssistanceToggle");
+const topicProgressPanel = document.getElementById("topicProgressPanel");
 
 const LEXICON_EXPLANATION_LABELS = {
   why: "എന്തുകൊണ്ട്",
@@ -50,6 +71,9 @@ const PATTERN_LABELS = {
 };
 
 startBtn.disabled = true;
+
+let practiceRuntime = null;
+let topicProgressRequestId = 0;
 
 const state = {
   currentQuestion: null,
@@ -66,6 +90,10 @@ const state = {
   currentAnswer: null,
   optionGateId: 0,
   optionGateOpen: false,
+  sessionAnswers: [],
+  sessionStartedAt: null,
+  knowledgeContext: null,
+  questionStateAtSessionStart: null,
 };
 
 const OPTION_GATE_MIN_MS = 320;
@@ -121,6 +149,7 @@ async function applyPracticeTopicFromUrl() {
 
   setPracticeMode("bank");
   bankTopicSelect.value = match.value;
+  bankOrderSelect.value = "focus_gaps";
   setStatus(
     `Practice focus: ${match.text.replace(/\s+\(\d+\)$/, "")}`
   );
@@ -129,6 +158,7 @@ async function applyPracticeTopicFromUrl() {
 async function init() {
   const runtime = await bootPage({
     roles: ["teacher", "admin", "student"],
+    allowLinkedStudentMode: true,
     nav: {
       title: "Practice",
       subtitle: "Generator and question bank modes",
@@ -137,15 +167,24 @@ async function init() {
 
   if (!runtime) return;
 
+  practiceRuntime = runtime;
+
   const sb = await getClient();
 
   const { data } = await sb.auth.getUser();
   window.currentUser = data?.user || null;
+  window.actingStudentId = resolveActingStudentId(runtime);
+
+  const { mountStudentModeNav } = await import("./teacher/linked-learner-ui.js");
+  await mountStudentModeNav(runtime);
+
   await loadBankTopics();
   initPracticeAssistanceToggle();
   await applyPracticeTopicFromUrl();
+  await refreshTopicProgressPanel();
   bindOptionSelection();
   trackPracticePointerState();
+  renderPracticePersistenceNotice();
   startBtn.disabled = false;
 }
 
@@ -597,6 +636,11 @@ function resetSession() {
   state.correctCount = 0;
   state.sessionLimit = getSessionLimit();
   state.started = true;
+  state.sessionAnswers = [];
+  state.sessionStartedAt = Date.now();
+  state.questionStateAtSessionStart = state.knowledgeContext?.questionStateById
+    ? new Map(state.knowledgeContext.questionStateById)
+    : new Map();
 
   clearPracticeFeedback();
   closeOptionGate();
@@ -611,6 +655,244 @@ function resetSession() {
   state.currentAnswer = null;
 
   updateProgress();
+}
+
+function syncKnowledgeContextFromProgress(progress = null) {
+  if (!progress?.questionStateById) {
+    return;
+  }
+
+  state.knowledgeContext = {
+    knowledgeAttempts: progress.knowledgeAttempts ?? [],
+    examAttempts: progress.examAttempts ?? [],
+    questions: progress.questions ?? [],
+    questionStateById: progress.questionStateById,
+    persistedStatsById: progress.persistedStatsById ?? new Map(),
+    topicId: progress.topicId ?? null,
+  };
+}
+
+function rebuildKnowledgeContextQuestionStates(questionIds = []) {
+  const context = state.knowledgeContext;
+
+  if (!context) {
+    return;
+  }
+
+  const ids =
+    questionIds.length > 0
+      ? questionIds
+      : state.bankQuestions.map(question => question.id).filter(Boolean);
+
+  if (!ids.length) {
+    return;
+  }
+
+  context.questionStateById = buildQuestionStateById({
+    questionIds: ids,
+    knowledgeAttempts: context.knowledgeAttempts ?? [],
+    examAttempts: context.examAttempts ?? [],
+    questions: context.questions ?? [],
+    persistedStatsById: context.persistedStatsById ?? new Map(),
+  });
+}
+
+function getPracticeStudentId() {
+  return (
+    window.actingStudentId ??
+    resolveActingStudentId(practiceRuntime) ??
+    window.currentUser?.id ??
+    null
+  );
+}
+
+function canPersistPracticeStats() {
+  if (practiceRuntime?.role === "student") {
+    return Boolean(getPracticeStudentId());
+  }
+
+  return isLinkedStudentMode(practiceRuntime);
+}
+
+function renderPracticePersistenceNotice() {
+  if (!practiceRuntime) {
+    return;
+  }
+
+  if (!canPersistPracticeStats()) {
+    setStatus(
+      "Practice is not saving to a student profile. Log in as a student, or switch to My Learning mode on Teacher Home.",
+      true
+    );
+    return;
+  }
+
+  if (state.mode === "generator") {
+    setStatus(
+      "Generator mode saves Malayalam word stats only. Use Question Bank mode for dashboard learning analytics.",
+      false
+    );
+    return;
+  }
+
+  setStatus("");
+}
+
+async function updateBankQuestionStat(questionId, isCorrect) {
+  if (!canPersistPracticeStats()) {
+    return;
+  }
+
+  const userId = getPracticeStudentId();
+  if (!userId || !questionId) {
+    return;
+  }
+
+  const row = await upsertBankQuestionStat({
+    userId,
+    questionId,
+    isCorrect,
+  });
+
+  if (!row || !state.knowledgeContext) {
+    return;
+  }
+
+  state.knowledgeContext.persistedStatsById = applyPersistedStatLocally(
+    state.knowledgeContext.persistedStatsById ?? new Map(),
+    row
+  );
+  rebuildKnowledgeContextQuestionStates([questionId]);
+}
+
+async function ensureBankKnowledgeContext(questionIds = []) {
+  const userId = getPracticeStudentId();
+  const topicId = bankTopicSelect.value || null;
+
+  if (!userId || !questionIds.length) {
+    state.knowledgeContext = {
+      knowledgeAttempts: [],
+      questions: [],
+      questionStateById: new Map(),
+      topicId,
+    };
+    return;
+  }
+
+  if (
+    topicId &&
+    state.knowledgeContext?.topicId === topicId
+  ) {
+    return;
+  }
+
+  const sb = await getClient();
+
+  if (topicId) {
+    const topicName = getSelectedBankTopicLabel();
+    const progress = await loadTopicQuestionProgress({
+      topicId,
+      topicName,
+      userId,
+      sb,
+    });
+    syncKnowledgeContextFromProgress(progress);
+    return;
+  }
+
+  state.knowledgeContext = {
+    topicId: null,
+    ...(await loadQuestionKnowledgeContext({
+      userId,
+      questionIds,
+      sb,
+    })),
+  };
+}
+
+function getEffectiveQuestionStates() {
+  return new Map(state.knowledgeContext?.questionStateById ?? []);
+}
+
+function orderBankQuestions(questions = []) {
+  const order = bankOrderSelect.value;
+
+  if (order === "latest") {
+    return questions;
+  }
+
+  if (order === "focus_gaps") {
+    return sortQuestionsByFocusGaps(
+      questions,
+      state.knowledgeContext?.questionStateById ?? new Map()
+    );
+  }
+
+  return shuffleQuestions(questions);
+}
+
+function getSelectedBankTopicLabel() {
+  return (
+    bankTopicSelect.options[bankTopicSelect.selectedIndex]?.text?.replace(
+      /\s+\(\d+\)$/,
+      ""
+    ) || ""
+  );
+}
+
+async function refreshTopicProgressPanel() {
+  if (!topicProgressPanel) {
+    return;
+  }
+
+  if (state.mode !== "bank" || !bankTopicSelect.value) {
+    hideTopicProgressPanel(topicProgressPanel);
+    return;
+  }
+
+  const userId = getPracticeStudentId();
+  const topicId = bankTopicSelect.value;
+  const topicName = getSelectedBankTopicLabel();
+
+  if (!userId) {
+    hideTopicProgressPanel(topicProgressPanel);
+    return;
+  }
+
+  const requestId = ++topicProgressRequestId;
+  renderTopicProgressLoading(topicProgressPanel, topicName);
+
+  try {
+    const sb = await getClient();
+    const progress = await loadTopicQuestionProgress({
+      topicId,
+      topicName,
+      userId,
+      sb,
+    });
+
+    if (requestId !== topicProgressRequestId) {
+      return;
+    }
+
+    renderTopicProgressPanel(topicProgressPanel, progress);
+    syncKnowledgeContextFromProgress(progress);
+  } catch (error) {
+    console.warn("[PrepOS Practice] Topic progress load failed:", error);
+
+    if (requestId !== topicProgressRequestId) {
+      return;
+    }
+
+    topicProgressPanel.classList.remove("hidden");
+    topicProgressPanel.innerHTML = `
+      <div class="practice-topic-progress-card practice-topic-progress-card--empty">
+        <div class="practice-topic-progress-kicker">Question bank progress</div>
+        <div class="practice-topic-progress-title">${escapeHTML(topicName)}</div>
+        <div class="text-muted mt-10">Could not load your topic progress right now.</div>
+      </div>
+    `;
+  }
 }
 
 function setPracticeMode(mode) {
@@ -634,9 +916,10 @@ function setPracticeMode(mode) {
   optionsContainer.innerHTML = "";
   nextBtn.classList.add("hidden");
   sessionSummary.classList.add("hidden");
-  setStatus("");
   updateProgress();
   syncPracticeAssistanceToggleVisibility();
+  refreshTopicProgressPanel();
+  renderPracticePersistenceNotice();
 }
 
 function shuffleQuestions(questions) {
@@ -921,9 +1204,13 @@ async function loadBankQuestions() {
     .map((row) => normalizeBankQuestion(row, assistanceMap.get(row.id)))
     .filter((question) => question.text && question.options.length >= 2);
 
-  if (bankOrderSelect.value === "random") {
-    state.bankQuestions = shuffleQuestions(state.bankQuestions);
+  const questionIds = state.bankQuestions.map((question) => question.id).filter(Boolean);
+
+  if (bankOrderSelect.value === "focus_gaps") {
+    await ensureBankKnowledgeContext(questionIds);
   }
+
+  state.bankQuestions = orderBankQuestions(state.bankQuestions);
 
   state.bankCursor = 0;
   syncPracticeAssistanceToggleVisibility();
@@ -949,7 +1236,17 @@ function getNextBankQuestion() {
 
   if (state.bankCursor >= state.bankQuestions.length) {
     if (state.sessionLimit === Infinity) {
-      state.bankQuestions = shuffleQuestions(state.bankQuestions);
+      const order = bankOrderSelect.value;
+
+      if (order === "focus_gaps") {
+        state.bankQuestions = sortQuestionsByFocusGaps(
+          state.bankQuestions,
+          getEffectiveQuestionStates()
+        );
+      } else {
+        state.bankQuestions = shuffleQuestions(state.bankQuestions);
+      }
+
       state.bankCursor = 0;
     } else {
       return null;
@@ -986,6 +1283,7 @@ modeButtons.forEach(button => {
   select.addEventListener("change", () => {
     state.bankQuestions = [];
     state.bankCursor = 0;
+    refreshTopicProgressPanel();
   });
 });
 
@@ -997,7 +1295,7 @@ async function loadQuestion() {
   if (state.loading) return;
 
   if (state.answeredCount >= state.sessionLimit) {
-    finishSession();
+    await finishSession();
     return;
   }
 
@@ -1025,7 +1323,7 @@ async function loadQuestion() {
 
       if (!bankQuestion) {
         if (state.answeredCount > 0) {
-          finishSession(
+          await finishSession(
             bankTopicSelect.value
               ? "No more questions are available for this topic."
               : "No more bank questions are available in this session."
@@ -1348,6 +1646,25 @@ async function handleAnswer(selected) {
     state.correctCount += 1;
   }
 
+  if (state.mode === "bank" && question.id) {
+    state.sessionAnswers.push({
+      question_id: question.id,
+      chosen: selectedId,
+      correct,
+      is_correct: selectedId === correct,
+    });
+
+    try {
+      await updateBankQuestionStat(question.id, selectedId === correct);
+    } catch (error) {
+      console.warn("[PrepOS Practice] Question stat update failed:", error);
+      setStatus(
+        "Answer recorded locally, but your question progress could not be saved.",
+        true
+      );
+    }
+  }
+
   nextBtn.classList.remove("hidden");
   updateProgress();
 
@@ -1367,7 +1684,7 @@ async function handleAnswer(selected) {
   }
 }
 
-function finishSession(message = "Session finished. Start again for a new set.") {
+async function finishSession(message = "Session finished. Start again for a new set.") {
   state.currentQuestion = null;
   if (questionPrompt) {
     questionPrompt.innerHTML = `<div class="qtext">Session complete</div>`;
@@ -1380,6 +1697,18 @@ function finishSession(message = "Session finished. Start again for a new set.")
     state.answeredCount === 0
       ? 0
       : Math.round((state.correctCount / state.answeredCount) * 100);
+
+  const newlyMastered =
+    state.mode === "bank" &&
+    state.sessionAnswers.length > 0 &&
+    state.knowledgeContext
+      ? countNewlyMasteredQuestions({
+          questionStateByIdBefore:
+            state.questionStateAtSessionStart ?? new Map(),
+          questionStateByIdAfter:
+            state.knowledgeContext.questionStateById ?? new Map(),
+        })
+      : 0;
 
   sessionSummary.innerHTML = `
     <div class="exam-results-card">
@@ -1397,13 +1726,82 @@ function finishSession(message = "Session finished. Start again for a new set.")
           <div class="exam-results-stat-label">Accuracy</div>
           <div class="exam-results-stat-value">${accuracy}%</div>
         </div>
+        ${
+          newlyMastered > 0
+            ? `
+        <div class="exam-results-stat">
+          <div class="exam-results-stat-label">Newly Mastered</div>
+          <div class="exam-results-stat-value">${newlyMastered}</div>
+        </div>
+        `
+            : ""
+        }
       </div>
+      ${
+        state.mode === "bank" && bankOrderSelect.value === "focus_gaps"
+          ? `<div class="text-muted mt-10">Focus Gaps mode prioritized new and weak questions in this session.</div>`
+          : ""
+      }
+      ${
+        newlyMastered > 0
+          ? `<div class="mt-10"><strong>+${newlyMastered}</strong> question${newlyMastered === 1 ? "" : "s"} newly mastered this session.</div>`
+          : ""
+      }
     </div>
   `;
   sessionSummary.classList.remove("hidden");
 
-  setStatus(message);
+  let statusMessage = message;
+
+  if (
+    state.mode === "bank" &&
+    state.sessionAnswers.length > 0 &&
+    canPersistPracticeStats()
+  ) {
+    const practiceStudentId = getPracticeStudentId();
+    if (!practiceStudentId) {
+      statusMessage = message;
+    } else {
+    const elapsed = state.sessionStartedAt
+      ? Math.floor((Date.now() - state.sessionStartedAt) / 1000)
+      : 0;
+    const topicLabel =
+      bankTopicSelect.options[bankTopicSelect.selectedIndex]?.text?.replace(
+        /\s+\(\d+\)$/,
+        ""
+      ) || null;
+
+    try {
+      const profileName = practiceRuntime?.learnerContext?.displayName;
+      await submitPracticeBankSession({
+        answers: state.sessionAnswers,
+        score: state.correctCount,
+        questionCount: state.sessionAnswers.length,
+        timeTaken: elapsed,
+        topicId: bankTopicSelect.value || null,
+        topicName: topicLabel,
+        studentId: practiceStudentId,
+        studentName:
+          profileName ??
+          window.currentUser?.user_metadata?.full_name ??
+          window.currentUser?.user_metadata?.name ??
+          "",
+      });
+      statusMessage = `${message} Your learning profile was updated.`;
+    } catch (error) {
+      console.warn("[PrepOS Practice] Knowledge analytics submission failed:", error);
+      statusMessage =
+        "Session complete. Your answers were not saved to your learning profile.";
+    }
+    }
+  }
+
+  state.sessionAnswers = [];
+  state.sessionStartedAt = null;
+
+  setStatus(statusMessage);
   updateProgress();
+  await refreshTopicProgressPanel();
 }
 
 /* =========================================
@@ -1411,7 +1809,7 @@ Adaptive Stats
 ========================================= */
 
 async function updateStats(isCorrect) {
-  const userId = window.currentUser?.id;
+  const userId = getPracticeStudentId();
   const entryIds = [...new Set(state.currentQuestion?.tracking?.promptEntryIds || [])];
 
   if (!userId || !entryIds.length) {

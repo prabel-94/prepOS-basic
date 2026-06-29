@@ -6,6 +6,16 @@ import { getClient } from "./core/get-client.js";
 import { bootPage } from "./core/page-boot.js";
 import { resolveAppPath } from "./core/access.js";
 import { computeQuestionHash } from "./core/question-hash.js";
+import { invokeEdgeFunction } from "./core/edge-invoke.js";
+import {
+  ensureMalayalamAssistance,
+  hasMalayalamAssistance,
+  malayalamAssistanceFromMetadata,
+  malayalamAssistanceToMetadataPayload,
+  ML_VARIANT_VERIFICATION_KEY,
+  computeMalayalamAssistanceHash,
+  getMlVariantVerificationRecord,
+} from "./core/question-assistance.js";
 import { openModal, closeModal } from "./ui/modal-system.js";
 
 const SIDE_PANEL_OPTIONS = {
@@ -55,6 +65,223 @@ function extractQuestionMeta(question = {}) {
   return meta;
 }
 
+function questionWithAssistance(question = {}) {
+  const row = (question.question_metadata || []).find(
+    entry => entry.key === "assistance_malayalam"
+  );
+  const patch = malayalamAssistanceFromMetadata(row?.value);
+  if (!patch) {
+    return question;
+  }
+
+  return { ...question, ...patch };
+}
+
+function renderMalayalamInlineBlock(questionId, mlQuestion, mlVerified = false) {
+  const mask = ensureMalayalamAssistance({ ...mlQuestion });
+  const options = mask.options || {};
+  const hasMl = hasMalayalamAssistance(mlQuestion);
+
+  return `
+<div class="malayalam-block hidden" id="ml-${questionId}">
+  <p class="text-muted question-assistance-help">
+    English stays canonical for scoring. Students can toggle Malayalam help during exams and practice.
+  </p>
+
+  <label class="malayalam-field-label">Question (Malayalam)</label>
+  <textarea
+    class="ml-question-input"
+    data-id="${questionId}"
+    rows="3"
+    placeholder="Malayalam question stem (optional)"
+  >${mask.text || ""}</textarea>
+
+  <div class="malayalam-options-label">Options (Malayalam)</div>
+
+  <label class="malayalam-field-label">A</label>
+  <input
+    class="ml-option-input"
+    data-id="${questionId}"
+    data-letter="A"
+    type="text"
+    value="${options.A || ""}"
+    placeholder="Malayalam text for option A"
+  />
+
+  <label class="malayalam-field-label">B</label>
+  <input
+    class="ml-option-input"
+    data-id="${questionId}"
+    data-letter="B"
+    type="text"
+    value="${options.B || ""}"
+    placeholder="Malayalam text for option B"
+  />
+
+  <label class="malayalam-field-label">C</label>
+  <input
+    class="ml-option-input"
+    data-id="${questionId}"
+    data-letter="C"
+    type="text"
+    value="${options.C || ""}"
+    placeholder="Malayalam text for option C"
+  />
+
+  <label class="malayalam-field-label">D</label>
+  <input
+    class="ml-option-input"
+    data-id="${questionId}"
+    data-letter="D"
+    type="text"
+    value="${options.D || ""}"
+    placeholder="Malayalam text for option D"
+  />
+
+  <label class="malayalam-field-label">Explanation (Malayalam, optional)</label>
+  <textarea
+    class="ml-explanation-input"
+    data-id="${questionId}"
+    rows="3"
+    placeholder="Malayalam explanation for review (optional)"
+  >${mask.explanation || ""}</textarea>
+
+  <div class="flex gap-10 mt-10 malayalam-block-actions">
+    <button
+      class="primary-btn save-malayalam"
+      data-id="${questionId}"
+      type="button"
+    >
+      Save Malayalam
+    </button>
+    <button
+      class="secondary-btn certify-malayalam${hasMl ? "" : " hidden"}"
+      data-id="${questionId}"
+      type="button"
+    >
+      Mark verified
+    </button>
+    <button
+      class="secondary-btn revoke-malayalam-cert${mlVerified ? "" : " hidden"}"
+      data-id="${questionId}"
+      type="button"
+    >
+      Remove verification
+    </button>
+  </div>
+</div>
+  `.trim();
+}
+
+function readMalayalamFromCard(questionId) {
+  const block = document.getElementById(`ml-${questionId}`);
+  if (!block) {
+    return null;
+  }
+
+  const readOption = letter =>
+    block.querySelector(`.ml-option-input[data-letter="${letter}"]`)?.value ?? "";
+
+  return {
+    text: block.querySelector(".ml-question-input")?.value ?? "",
+    options: {
+      A: readOption("A"),
+      B: readOption("B"),
+      C: readOption("C"),
+      D: readOption("D"),
+    },
+    explanation: block.querySelector(".ml-explanation-input")?.value ?? "",
+  };
+}
+
+function toggleMalayalamBlock(questionId, button = null) {
+  const block = document.getElementById(`ml-${questionId}`);
+  if (!block) {
+    return;
+  }
+
+  block.classList.toggle("hidden");
+  const open = !block.classList.contains("hidden");
+
+  if (button) {
+    button.classList.toggle("malayalam-btn--open", open);
+    button.title = open
+      ? "Hide Malayalam editor"
+      : button.classList.contains("malayalam-btn--active")
+        ? "Edit Malayalam assistance"
+        : "Add Malayalam assistance";
+  }
+}
+
+async function saveMalayalamAssistance(questionId, payload) {
+  await invokeEdgeFunction("update-question-assistance-malayalam", {
+    questionId,
+    malayalam: payload,
+  });
+}
+
+async function clearMlVariantVerification(questionId) {
+  const sb = await getClient();
+  await sb
+    .from("question_metadata")
+    .delete()
+    .eq("question_id", questionId)
+    .eq("key", ML_VARIANT_VERIFICATION_KEY);
+}
+
+async function certifyMlVariant(questionId) {
+  const payload = readMalayalamFromCard(questionId);
+  const question = { assistance: { malayalam: payload } };
+  const normalized = malayalamAssistanceToMetadataPayload(question);
+
+  if (!normalized || !hasMalayalamAssistance(question)) {
+    throw new Error("Add Malayalam content before marking as verified");
+  }
+
+  const contentHash = await computeMalayalamAssistanceHash(normalized);
+  const sb = await getClient();
+  const { data: userData } = await sb.auth.getUser();
+
+  const { error } = await sb
+    .from("question_metadata")
+    .upsert(
+      {
+        question_id: questionId,
+        key: ML_VARIANT_VERIFICATION_KEY,
+        value: {
+          content_hash: contentHash,
+          verified_at: new Date().toISOString(),
+          verified_by: userData?.user?.id ?? null,
+        },
+      },
+      { onConflict: "question_id,key" }
+    );
+
+  if (error) {
+    throw error;
+  }
+}
+
+async function enrichQuestionMlStatus(question) {
+  const mlQuestion = questionWithAssistance(question);
+  const hasMl = hasMalayalamAssistance(mlQuestion);
+  let verified = false;
+
+  if (hasMl) {
+    const record = getMlVariantVerificationRecord(question);
+    const payload = malayalamAssistanceToMetadataPayload(mlQuestion);
+
+    if (record?.content_hash && payload) {
+      const currentHash = await computeMalayalamAssistanceHash(payload);
+      verified = currentHash === record.content_hash;
+    }
+  }
+
+  question._mlHasContent = hasMl;
+  question._mlVerified = verified;
+  question._mlNeedsReview = hasMl && !verified;
+}
+
 function setRadioGroup(name, value) {
   if (!value) return;
 
@@ -84,7 +311,8 @@ const state = {
   search: "",
   topicFilter: null,
   topicSearch: "",
-  caFilter: "all"
+  caFilter: "all",
+  mlFilter: "all",
 };
 
 // --------------------------------
@@ -567,6 +795,7 @@ async function fetchQuestions() {
   }
 
   state.questions = data || [];
+  await Promise.all(state.questions.map((question) => enrichQuestionMlStatus(question)));
   render();
 }
 
@@ -641,12 +870,15 @@ function renderOverview() {
 // QUESTIONS VIEW
 // --------------------------------
 function renderQuestions() {
+  const hasListTrigger =
+    state.search ||
+    state.topicFilter ||
+    state.mlFilter !== "all";
 
-  // 🔥 BLOCK rendering unless filter/search applied
-  if (!state.search && !state.topicFilter) {
+  if (!hasListTrigger) {
     el.questionsView.innerHTML = `
       <div class="empty-state">
-        Search or select a topic to view questions
+        Search, select a topic, or choose a Malayalam filter to view questions
       </div>
     `;
     return;
@@ -671,6 +903,14 @@ function renderQuestions() {
   });
 }
 
+  if (state.mlFilter === "ml-unverified") {
+    list = list.filter((q) => q._mlNeedsReview);
+  }
+
+  if (state.mlFilter === "ml-verified") {
+    list = list.filter((q) => q._mlVerified);
+  }
+
   if (state.search) {
     list = list.filter(q =>
       q.question_text.toLowerCase().includes(state.search.toLowerCase())
@@ -686,8 +926,17 @@ function renderQuestions() {
   }
 
   if (!list.length) {
+    const emptyMessage =
+      state.mlFilter === "ml-unverified" && state.topicFilter
+        ? "No unverified Malayalam questions in this topic"
+        : state.mlFilter === "ml-unverified"
+          ? "No unverified Malayalam questions found"
+          : state.mlFilter === "ml-verified"
+            ? "No verified Malayalam questions found"
+            : "No questions found";
+
     el.questionsView.innerHTML =
-      `<div class="empty-state">No questions found</div>`;
+      `<div class="empty-state">${emptyMessage}</div>`;
     return;
   }
 
@@ -727,6 +976,13 @@ const caBadge = caEvent
       </div>
     `).join("");
 
+    const mlQuestion = questionWithAssistance(q);
+    const hasMl = q._mlHasContent ?? hasMalayalamAssistance(mlQuestion);
+    const mlVerified = Boolean(q._mlVerified);
+    const mlVerifiedBadge = mlVerified
+      ? `<div class="ml-verified-badge" title="Malayalam verified">ML ✓</div>`
+      : "";
+
     return `
       <div class="question-card">
 
@@ -747,11 +1003,17 @@ const caBadge = caEvent
     ${pattern || "PATTERN"}
   </div>
   ${caBadge}
+  ${mlVerifiedBadge}
 
 </div>
 
   <!-- RIGHT -->
   <div class="question-actions">
+    <button
+      class="icon-btn malayalam-btn${hasMl ? " malayalam-btn--active" : ""}"
+      data-id="${q.id}"
+      title="${hasMl ? "Edit Malayalam assistance" : "Add Malayalam assistance"}"
+    >ML</button>
     <button class="icon-btn edit-btn" data-id="${q.id}">✏️</button>
     <button class="icon-btn delete-btn" data-id="${q.id}">🗑</button>
   </div>
@@ -767,6 +1029,8 @@ const caBadge = caEvent
 <div class="topic-tags mt-10">
   ${topicsHTML}
 </div>
+
+${renderMalayalamInlineBlock(q.id, mlQuestion, mlVerified)}
 
 ${q.explanation ? `
   <div class="explanation-toggle clickable" data-id="${q.id}">
@@ -1476,6 +1740,59 @@ if (saveExp) {
   return;
 }
 
+// SAVE MALAYALAM
+const saveMl = e.target.closest(".save-malayalam");
+if (saveMl) {
+  const id = saveMl.dataset.id;
+  const payload = readMalayalamFromCard(id);
+  const question = { assistance: { malayalam: payload } };
+  const normalized = malayalamAssistanceToMetadataPayload(question);
+
+  try {
+    await saveMalayalamAssistance(id, normalized);
+    await clearMlVariantVerification(id);
+  } catch (error) {
+    showQbStatus(formatDbError(error), true);
+    return;
+  }
+
+  showQbStatus(normalized ? "Malayalam assistance saved" : "Malayalam assistance cleared");
+  await fetchQuestions();
+  return;
+}
+
+const certifyMl = e.target.closest(".certify-malayalam");
+if (certifyMl) {
+  const id = certifyMl.dataset.id;
+
+  try {
+    await certifyMlVariant(id);
+  } catch (error) {
+    showQbStatus(formatDbError(error), true);
+    return;
+  }
+
+  showQbStatus("Malayalam marked as verified");
+  await fetchQuestions();
+  return;
+}
+
+const revokeMl = e.target.closest(".revoke-malayalam-cert");
+if (revokeMl) {
+  const id = revokeMl.dataset.id;
+
+  try {
+    await clearMlVariantVerification(id);
+  } catch (error) {
+    showQbStatus(formatDbError(error), true);
+    return;
+  }
+
+  showQbStatus("Malayalam verification removed");
+  await fetchQuestions();
+  return;
+}
+
   // 🔥 DELETE
   if (e.target.classList.contains("delete-btn")) {
     deleteQuestion(e.target.dataset.id);
@@ -1485,6 +1802,12 @@ if (saveExp) {
   // 🔥 EDIT
   if (e.target.classList.contains("edit-btn")) {
     handleEdit(e.target.dataset.id);
+    return;
+  }
+
+  const mlBtn = e.target.closest(".malayalam-btn");
+  if (mlBtn) {
+    toggleMalayalamBlock(mlBtn.dataset.id, mlBtn);
     return;
   }
 
@@ -1507,6 +1830,12 @@ if (saveExp) {
   renderQuestions();
 
 });
+
+  document.getElementById("ml-filter")
+    ?.addEventListener("change", (e) => {
+      state.mlFilter = e.target.value || "all";
+      renderQuestions();
+    });
 
   document.getElementById("view-questions")
     .addEventListener("click", () => {

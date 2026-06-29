@@ -207,33 +207,41 @@ export async function fetchVariantByLanguage(noteId, language) {
   return fetchPublishedVariantByLanguage(noteId, language);
 }
 
+const RESTORABLE_SOURCE_STATUSES = new Set(["published", "archived"]);
+
 /**
- * Clone latest published variant source into a new draft revision (same language stream).
+ * Clone a published or archived variant into a draft revision (same language stream).
+ * @param {string} sourceVariantId
+ * @param {{ title?: string, replaceDraftId?: string }} [options]
  */
-export async function createDraftRevisionFromPublished({
-  noteId,
-  language,
-  title,
-} = {}) {
-  if (!noteId) {
-    throw new Error("noteId is required");
-  }
-
-  const normalized = normalizeLanguage(language);
-  const published = await fetchPublishedVariantByLanguage(noteId, normalized);
-
-  if (!published?.id) {
-    throw new Error(
-      `No published ${normalized} variant to revise. Import or publish a variant first.`
-    );
+export async function createDraftRevisionFromVariant(
+  sourceVariantId,
+  { title, replaceDraftId } = {}
+) {
+  if (!sourceVariantId) {
+    throw new Error("sourceVariantId is required");
   }
 
   const sb = await getClient();
 
+  const { data: sourceVariant, error: variantError } = await sb
+    .from("note_variants")
+    .select("id, note_id, language, title, status, section_extensions")
+    .eq("id", sourceVariantId)
+    .single();
+
+  if (variantError) {
+    throw new Error(variantError.message);
+  }
+
+  if (!RESTORABLE_SOURCE_STATUSES.has(sourceVariant.status)) {
+    throw new Error("Only published or archived variants can be restored as a draft.");
+  }
+
   const { data: source, error: sourceError } = await sb
     .from("note_sources")
     .select("raw_markdown, source_type")
-    .eq("variant_id", published.id)
+    .eq("variant_id", sourceVariantId)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -243,26 +251,59 @@ export async function createDraftRevisionFromPublished({
   }
 
   if (!source?.raw_markdown?.trim()) {
-    throw new Error("Published variant has no semantic markdown source.");
+    throw new Error("This variant has no semantic markdown source.");
   }
 
-  const revisionTitle =
-    title?.trim() || published.title || "Untitled Note";
+  const noteId = sourceVariant.note_id;
+  const normalized = normalizeLanguage(sourceVariant.language);
+  const revisionTitle = title?.trim() || sourceVariant.title || "Untitled Note";
+  const sectionExtensions = normalizeSectionExtensions(
+    sourceVariant.section_extensions
+  );
 
-  const { data: variant, error: variantError } = await sb
+  if (replaceDraftId) {
+    const result = await regenerateVariantFromMarkdown({
+      variantId: replaceDraftId,
+      rawMarkdown: source.raw_markdown,
+      title: revisionTitle,
+      language: normalized,
+      status: "draft",
+      sectionExtensions,
+    });
+
+    return {
+      variant: result.variant,
+      noteId,
+      clonedFromVariantId: sourceVariantId,
+      replacedExistingDraft: true,
+    };
+  }
+
+  const existingDraft = await fetchActiveDraftVariantByLanguage(noteId, normalized);
+
+  if (existingDraft?.id) {
+    const conflict = new Error(
+      "A draft already exists for this language. Replace it or open the current draft."
+    );
+    conflict.code = "DRAFT_EXISTS";
+    conflict.existingDraftId = existingDraft.id;
+    throw conflict;
+  }
+
+  const { data: variant, error: insertVariantError } = await sb
     .from("note_variants")
     .insert({
       note_id: noteId,
       language: normalized,
       title: revisionTitle,
       status: "draft",
-      section_extensions: published.section_extensions ?? [],
+      section_extensions: sectionExtensions,
     })
     .select("id, note_id, language, title, status, created_at")
     .single();
 
-  if (variantError) {
-    throw new Error(variantError.message);
+  if (insertVariantError) {
+    throw new Error(insertVariantError.message);
   }
 
   const { error: insertSourceError } = await sb.from("note_sources").insert({
@@ -284,14 +325,39 @@ export async function createDraftRevisionFromPublished({
     title: revisionTitle,
     language: normalized,
     status: "draft",
-    sectionExtensions: published.section_extensions ?? [],
+    sectionExtensions,
   });
 
   return {
     variant: result.variant,
     noteId,
-    clonedFromVariantId: published.id,
+    clonedFromVariantId: sourceVariantId,
+    replacedExistingDraft: false,
   };
+}
+
+/**
+ * Clone latest published variant source into a new draft revision (same language stream).
+ */
+export async function createDraftRevisionFromPublished({
+  noteId,
+  language,
+  title,
+} = {}) {
+  if (!noteId) {
+    throw new Error("noteId is required");
+  }
+
+  const normalized = normalizeLanguage(language);
+  const published = await fetchPublishedVariantByLanguage(noteId, normalized);
+
+  if (!published?.id) {
+    throw new Error(
+      `No published ${normalized} variant to revise. Import or publish a variant first.`
+    );
+  }
+
+  return createDraftRevisionFromVariant(published.id, { title });
 }
 
 async function insertBlocksAndLinks(sb, variantId, parsed, context = {}) {

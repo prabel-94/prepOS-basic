@@ -49,6 +49,7 @@ export async function bootPage(options = {}) {
     roles,
     role: options.role ?? null,
     analytics: options.analytics === true,
+    allowLinkedStudentMode: options.allowLinkedStudentMode === true,
   });
 
   if (!runtime) {
@@ -61,6 +62,17 @@ export async function bootPage(options = {}) {
   const navOptions = resolveNavOptions(options.nav, runtime);
   if (navOptions) {
     mountAppNav(navOptions);
+  }
+
+  if (runtime && (options.classOverlay !== false)) {
+    const role = runtime.role;
+    if (role === "teacher" || role === "admin") {
+      import("../ui/class-overlay/boot.js")
+        .then(({ bootClassOverlay }) => bootClassOverlay(runtime))
+        .catch((err) => {
+          console.warn("[Class overlay] Boot failed:", err);
+        });
+    }
   }
 
   return runtime;
