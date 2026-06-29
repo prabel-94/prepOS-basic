@@ -239,7 +239,7 @@ async function canSubmitCanonicalAttempt(sb, examId, userId) {
 
 ## 9. Comparison to Prior Audit (May 2026)
 
-Reference: `docs/PrepOS_Student_Experience_Audit_Report.md`, `docs/Phase1_Student_UI_Upgrade_Report.md`.
+Reference: `docs/student-experience/PrepOS_Student_Experience_Audit_Report.md`, `docs/student-experience/Phase1_Student_UI_Upgrade_Report.md`.
 
 ### Addressed by Phase 1
 

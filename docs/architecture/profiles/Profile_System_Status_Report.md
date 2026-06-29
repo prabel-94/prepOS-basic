@@ -367,7 +367,7 @@ Student Management section (`#studentManagementSection`) is **`hidden` by defaul
 
 ## Current state
 
-**No batch tables or batch-related code exist** in migrations or application code (only forward-looking mentions in `docs/Student_Profile_Layer_Audit.md`).
+**No batch tables or batch-related code exist** in migrations or application code (only forward-looking mentions in `docs/architecture/profiles/Student_Profile_Layer_Audit.md`).
 
 ## Recommended relationship
 

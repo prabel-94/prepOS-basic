@@ -287,7 +287,7 @@ Scripts used: `tmp-timeline-parse.mjs`, `tmp-timeline-render.mjs` (local, not co
 | E | Minimal architecture evolution proposal | Section E |
 | F | Parser vs renderer recommendation | Section F |
 | G | Future representation-aware rendering notes | Section G |
-| H | This document | `docs/Timeline_Representation_Semantic_Rendering_Audit.md` |
+| H | This document | `docs/rendering/Timeline_Representation_Semantic_Rendering_Audit.md` |
 
 ---
 

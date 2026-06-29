@@ -5,9 +5,9 @@
 **Remote:** `https://github.com/prabel-94/prepOS-basic.git`  
 **Last pushed commit:** `d87681f` — *Add session handoff doc for cross-machine development*
 
-Use this doc when opening the project on another machine. Paste into a new Cursor chat:
+Use this doc when opening the project on another machine. See also [CONTRIBUTING.md](../../CONTRIBUTING.md) for the full two-machine workflow. Paste into a new Cursor chat:
 
-> Read `docs/SESSION_HANDOFF.md` and continue from where we left off.
+> Read `docs/development/SESSION_HANDOFF.md` and continue from where we left off.
 
 ---
 
@@ -84,7 +84,7 @@ Foundation for linked learner accounts and learner deletion:
   - `20260628100000_learner_deletion_impact_practice_metrics.sql`
 - Edge functions: `supabase/functions/delete-learner/`, `provision-linked-learner/`
 - UI: `js/teacher/student-management.js`, `linked-learner-ui.js`, `learner-details.js`
-- Roadmap: `docs/Teacher_Student_Dual_Identity_Roadmap.md`
+- Roadmap: `docs/architecture/teacher/Teacher_Student_Dual_Identity_Roadmap.md`
 
 Phase 0 (founder unblock) in the roadmap is still mostly unchecked — see that doc for the step-by-step runbook.
 
@@ -93,7 +93,7 @@ Phase 0 (founder unblock) in the roadmap is still mostly unchecked — see that 
 - Variant lifecycle: draft / published / archived per language
 - `section_extensions` column — custom section definitions per variant (`20260624000000_note_variants_section_extensions.sql`)
 - `createDraftRevisionFromVariant()` in `js/notes/note-storage.js` — canonical way to fork a published note into a draft
-- Docs: `docs/Note_Editor_Usage_Guide.md`, `docs/Overlay_Lifecycle_Orchestration.md`
+- Docs: `docs/notes/Note_Editor_Usage_Guide.md`, `docs/ui/Overlay_Lifecycle_Orchestration.md`
 
 ---
 
@@ -121,7 +121,7 @@ Phase 0 (founder unblock) in the roadmap is still mostly unchecked — see that 
 
 1. **Verify draft-from-published flow** — open a published note on note home, click create draft, confirm `section_extensions` appear in the draft editor.
 2. **Class overlay polish** — test fade vs sticky, eraser, color persistence, and behavior when modals are open (`isModalOpen()` disables drawing).
-3. **Teacher/student dual identity Phase 0** — follow checklist in `docs/Teacher_Student_Dual_Identity_Roadmap.md` (create prep student account, assign exams).
+3. **Teacher/student dual identity Phase 0** — follow checklist in `docs/architecture/teacher/Teacher_Student_Dual_Identity_Roadmap.md` (create prep student account, assign exams).
 4. **Apply pending migrations** on Supabase if not already applied (Jun 26–28 migrations listed above).
 5. **Question Bank branch** — continue QB manager / question assistance work as needed (`qb-manager.html`, `js/core/question-assistance.js`).
 

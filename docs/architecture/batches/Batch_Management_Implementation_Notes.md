@@ -90,7 +90,7 @@ All RPCs are `SECURITY DEFINER` with `search_path = public`, matching `learner_p
 | `supabase/migrations/20260617000000_student_batches_foundation.sql` | Schema, RLS, RPCs |
 | `js/core/batch-management.js` | Client RPC wrappers |
 | `js/teacher/batch-management.js` | Batch UI (list, modals, membership) |
-| `Batch_Management_Implementation_Notes.md` | This document |
+| `docs/architecture/batches/Batch_Management_Implementation_Notes.md` | This document |
 
 ---
 
@@ -158,7 +158,7 @@ No additional schema changes required.
 
 Static UI previews (refined hierarchy) are in:
 
-- `docs/batch-ui-preview.html` — open via local server to capture live screenshots
+- `docs/previews/batch-ui-preview.html` — open via local server to capture live screenshots
 - Apply migration `20260617000001_batch_details_creator_display.sql` for Created By resolution in production
 
 ### Refined layout reference

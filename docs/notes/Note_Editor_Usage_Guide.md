@@ -335,9 +335,9 @@ Section tags must be on their own line (optional single `#` prefix allowed: `# [
 
 ## Related docs
 
-- `docs/Note_Editor_Capabilities_Audit.md` — full capability matrix
-- `docs/Note_System_Complete_Audit.md` — system architecture
-- `docs/Note_Section_Definition_Phase2_Design.md` — custom sections design
+- `Note_Editor_Capabilities_Audit.md` — full capability matrix
+- `Note_System_Complete_Audit.md` — system architecture
+- `Note_Section_Definition_Phase2_Design.md` — custom sections design
 
 ---
 

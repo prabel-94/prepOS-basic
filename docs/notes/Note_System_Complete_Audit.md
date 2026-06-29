@@ -590,9 +590,9 @@ No centralized store. Patterns:
 - `js/anchors/*` — semantic anchor subsystem (15 files)
 
 ### Related documentation
-- `protocols/PrepOS_Anchor_System_Guide.md` — anchor architecture
-- `docs/PrepOS_Student_Experience_Audit_Report.md` — student notes UX context
-- Various renderer/stabilization audits in `docs/` (representation rendering, semantic click authority)
+- `docs/protocols/PrepOS_Anchor_System_Guide.md` — anchor architecture
+- `docs/student-experience/PrepOS_Student_Experience_Audit_Report.md` — student notes UX context
+- Various renderer/stabilization audits in `docs/rendering/` (representation rendering, semantic click authority)
 
 ### Styles
 - `css/style.css` — `.note-editor`, `.canonical-*`, `.semantic-*`, `.topic-note-row`

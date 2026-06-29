@@ -451,6 +451,6 @@ Linked student works end-to-end for founder. Ready to gate behind premium.
 
 ## Related docs
 
-- `docs/Student_Profile_Layer_Audit.md` — identity and role model
-- `Profile_System_Status_Report.md` — `learner_profiles` layer
-- `Batch_System_Architecture_Proposal.md` — roster / batch semantics
+- `docs/architecture/profiles/Student_Profile_Layer_Audit.md` — identity and role model
+- `docs/architecture/profiles/Profile_System_Status_Report.md` — `learner_profiles` layer
+- `docs/architecture/batches/Batch_System_Architecture_Proposal.md` — roster / batch semantics

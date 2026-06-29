@@ -659,4 +659,4 @@ Do **not** block batch CRUD on exam integration — teachers get organizational 
 
 ---
 
-*Proposal based on existing PrepOS profile architecture (`Profile_System_Status_Report.md`), `learner_profiles` migrations, Student Management modules, and `assign-exam` edge function. No implementation performed.*
+*Proposal based on existing PrepOS profile architecture (`docs/architecture/profiles/Profile_System_Status_Report.md`), `learner_profiles` migrations, Student Management modules, and `assign-exam` edge function. No implementation performed.*

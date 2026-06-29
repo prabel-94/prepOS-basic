@@ -1,9 +1,8 @@
 # prepOS-basic
-Prototype version
 
-Purpose = schema + QCP validation
+Prototype version — schema + QCP validation. Not final architecture.
 
-Not final architecture
+**Docs:** [docs/README.md](docs/README.md) · **Contributing (two-machine workflow):** [CONTRIBUTING.md](CONTRIBUTING.md)
 
 
 beta testers list and passwords
