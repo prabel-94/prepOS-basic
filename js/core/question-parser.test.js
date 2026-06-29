@@ -10,7 +10,11 @@ import {
   parseBulkQuestionPaste,
   splitBilingualPaste,
   normalizeSingleQuestionPaste,
+  serializeQuestionToQcp,
+  serializeQuestionsToQcp,
+  normalizeQuestionForQcpExport,
 } from "./question-parser.js";
+import { buildMalayalamTranslationClipboard } from "./question-qcp-clipboard.js";
 
 const ENGLISH_BLOCK = `Q1. Which planet is known as the Red Planet?
 A) Venus

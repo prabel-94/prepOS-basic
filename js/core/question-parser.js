@@ -430,3 +430,94 @@ export function parseBulkQuestionPaste(rawText, { clean = false } = {}) {
 
   return { ok: true, questions };
 }
+
+const QCP_EXPORT_OPTION_LETTERS = ["A", "B", "C", "D"];
+
+/**
+ * Normalize draft or bank row shape for QCP export.
+ */
+export function normalizeQuestionForQcpExport(question = {}) {
+  if (question.question_text != null || question.option_a != null) {
+    return {
+      text: String(question.question_text ?? ""),
+      options: QCP_EXPORT_OPTION_LETTERS.map((letter) => ({
+        id: letter,
+        text: String(question[`option_${letter.toLowerCase()}`] ?? ""),
+      })),
+      correct: String(question.correct_option ?? "A").toUpperCase(),
+      explanation: String(question.explanation ?? ""),
+    };
+  }
+
+  const rawOptions = Array.isArray(question.options) ? question.options : [];
+  const options = QCP_EXPORT_OPTION_LETTERS.map((letter, index) => {
+    const option = rawOptions[index];
+    if (typeof option === "string") {
+      return { id: letter, text: option };
+    }
+
+    return {
+      id: String(option?.id ?? letter).toUpperCase(),
+      text: String(option?.text ?? ""),
+    };
+  });
+
+  return {
+    text: String(question.text ?? question.question ?? ""),
+    options,
+    correct: String(question.correct ?? "A").toUpperCase(),
+    explanation: String(question.explanation ?? question.explanation_text ?? ""),
+  };
+}
+
+function stripHtmlForQcpExport(value) {
+  return String(value ?? "")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>\s*<p>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .trim();
+}
+
+/**
+ * Serialize one question to PrepOS QCP text (English canonical fields).
+ */
+export function serializeQuestionToQcp(
+  question,
+  { index = 1, includeExplanation = true } = {}
+) {
+  const normalized = normalizeQuestionForQcpExport(question);
+  const questionNumber = Math.max(1, Number(index) || 1);
+  const stem = stripHtmlForQcpExport(normalized.text);
+  const lines = [`Q${questionNumber}. ${stem}`];
+
+  for (const option of normalized.options) {
+    lines.push(`${option.id}) ${stripHtmlForQcpExport(option.text)}`);
+  }
+
+  const correct = QCP_EXPORT_OPTION_LETTERS.includes(normalized.correct)
+    ? normalized.correct
+    : "A";
+  lines.push(`Answer: ${correct}`);
+
+  const explanation = stripHtmlForQcpExport(normalized.explanation);
+  if (includeExplanation && explanation) {
+    lines.push(`Explanation: ${explanation}`);
+  }
+
+  return lines.join("\n");
+}
+
+/**
+ * Serialize multiple questions as Q1., Q2., … blocks separated by blank lines.
+ */
+export function serializeQuestionsToQcp(questions = [], { startIndex = 1 } = {}) {
+  return questions
+    .map((question, offset) =>
+      serializeQuestionToQcp(question, { index: startIndex + offset })
+    )
+    .join("\n\n");
+}
