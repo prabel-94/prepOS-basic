@@ -1,5 +1,5 @@
 /**
- * MSMDF v1.2 → Canonical Object
+ * MSMDF → Canonical Object
  * Parser responsibilities: canonical section boundaries, block extraction, topic links.
  * Never rewrites source prose. Semantic resolution remains downstream.
  */
@@ -27,7 +27,7 @@ import { normalizeAnchorName } from "../anchors/anchor-normalization.js";
 export { CANONICAL_BOUNDARY_TAGS };
 
 /**
- * MSMDF v1.2 section line: optional leading #, bracket tag, whitespace tolerant.
+ * MSMDF section line: optional leading #, bracket tag, whitespace tolerant.
  * Does NOT treat ## [TAG] as a section boundary (single optional # only).
  */
 const SECTION_LINE_PATTERN = new RegExp(
@@ -39,12 +39,13 @@ const EXTENSION_SECTION_LINE_PATTERN = /^\s*#?\s*\[(EXT:[A-Z][A-Z0-9_]+)\]\s*$/i
 
 export const MSMDF_SECTION_SYNTAX_EXAMPLES = Object.freeze([
   "[NARRATIVE]",
+  "[EXPANSION]",
   "# [NARRATIVE]",
   "#[NARRATIVE]",
 ]);
 
 export const MSMDF_SECTION_SYNTAX_HELP =
-  "Expected canonical section forms include [NARRATIVE] or # [NARRATIVE] (see MSMDF v1.2).";
+  "Expected section boundaries include [NARRATIVE], [EXPANSION], or # [NARRATIVE] (MSMDF v3.0).";
 
 const TOPIC_LINK_PATTERN = /\[\[([^\]]+)\]\]/g;
 
@@ -152,16 +153,74 @@ function isListLine(line) {
   return /^\s*([-*•]|\d+[\.)])\s+/.test(line);
 }
 
-/** Opening fence: ```text (language tag only; content becomes a retrieval anchor payload). */
-const FENCED_TEXT_OPEN_PATTERN = /^```\s*text\s*$/i;
+/** Opening fence: ```text or ```ra (MSMDF v3 semantic coding). */
+const FENCED_SEMANTIC_OPEN_PATTERN = /^```\s*(text|ra)\s*$/i;
 const FENCED_CODE_CLOSE_PATTERN = /^```\s*$/;
 
-function isFencedTextOpen(line) {
-  return FENCED_TEXT_OPEN_PATTERN.test(String(line ?? "").trim());
+/**
+ * @param {string} line
+ * @returns {"text"|"ra"|null}
+ */
+function matchFencedSemanticOpen(line) {
+  const match = String(line ?? "").trim().match(FENCED_SEMANTIC_OPEN_PATTERN);
+  return match ? match[1].toLowerCase() : null;
 }
 
 function isFencedCodeClose(line) {
   return FENCED_CODE_CLOSE_PATTERN.test(String(line ?? "").trim());
+}
+
+/**
+ * Resolve MSMDF protocol / grammar versions from metadata (v1.2–v3.0 field aliases).
+ * @param {Record<string, string>} metadata
+ */
+export function resolveMsmdfVersions(metadata = {}) {
+  const protocol =
+    metadata.protocol ||
+    metadata.msmdf ||
+    metadata.msmdf_version ||
+    metadata.msmdf_state ||
+    null;
+
+  const version =
+    metadata.version ||
+    metadata.map_version ||
+    metadata.canonical_version ||
+    null;
+
+  const grammarVersion =
+    metadata.grammar_version ||
+    metadata.grammar ||
+    metadata.grammar_version_number ||
+    null;
+
+  const versionStr = String(version ?? "").trim();
+  const protocolText = String(protocol ?? "").trim();
+  const grammarStr = String(grammarVersion ?? "").trim();
+
+  const isV3 =
+    /^3(\.|$)/.test(versionStr) ||
+    /3\.0/i.test(protocolText) ||
+    grammarStr.startsWith("3");
+
+  const isExplicitLegacy =
+    /v?1\.2/i.test(String(metadata.msmdf_version ?? "")) ||
+    /^2\./i.test(versionStr) ||
+    /v?2\./i.test(String(metadata.msmdf_version ?? ""));
+
+  let msmdf_generation = "unspecified";
+  if (isV3) {
+    msmdf_generation = "3.x";
+  } else if (isExplicitLegacy) {
+    msmdf_generation = "legacy";
+  }
+
+  return {
+    protocol: protocol ?? (isV3 ? "MSMDF" : null),
+    version: version ?? (isV3 ? "3.0.0" : null),
+    grammar_version: grammarVersion ?? (isV3 ? "3.0.0" : null),
+    msmdf_generation,
+  };
 }
 
 function extractBlocks(sectionKey, body, extraMetadata = {}) {
@@ -194,7 +253,7 @@ function extractBlocks(sectionKey, body, extraMetadata = {}) {
     current = null;
   }
 
-  function pushRetrievalAnchorBlock(content) {
+  function pushRetrievalAnchorBlock(content, fenceLang = "text") {
     const trimmed = String(content ?? "").trim();
     if (!trimmed) {
       return;
@@ -209,7 +268,7 @@ function extractBlocks(sectionKey, body, extraMetadata = {}) {
       sequence_order: sequence++,
       metadata_json: {
         ...extraMetadata,
-        fence_lang: "text",
+        fence_lang: fenceLang,
       },
     });
   }
@@ -219,7 +278,8 @@ function extractBlocks(sectionKey, body, extraMetadata = {}) {
     const line = rawLine.replace(/\s+$/, "");
     const trimmed = line.trim();
 
-    if (isFencedTextOpen(trimmed)) {
+    const fenceLang = matchFencedSemanticOpen(trimmed);
+    if (fenceLang) {
       flush();
       const fenceLines = [];
 
@@ -231,7 +291,7 @@ function extractBlocks(sectionKey, body, extraMetadata = {}) {
         fenceLines.push(fenceLine);
       }
 
-      pushRetrievalAnchorBlock(fenceLines.join("\n"));
+      pushRetrievalAnchorBlock(fenceLines.join("\n"), fenceLang);
       continue;
     }
 
@@ -421,7 +481,9 @@ export function parseMapMarkdown(rawMarkdown, options = {}) {
   const representations = createRepresentationBuckets(catalogContext);
   const entityIndexBlocks = [];
   const parserDiagnostics = {
-    msmdf_version: "1.2",
+    msmdf_version: null,
+    grammar_version: null,
+    msmdf_generation: "unspecified",
     prelude: null,
     boundaries: [],
     warnings: [],
@@ -553,14 +615,31 @@ export function parseMapMarkdown(rawMarkdown, options = {}) {
   }
 
   const language = options.language || metadata.language || "english";
-  const title = options.title || metadata.title || null;
+  const title = options.title || metadata.title || metadata.topic || null;
+  const versions = resolveMsmdfVersions(metadata);
+
+  parserDiagnostics.msmdf_version = versions.version;
+  parserDiagnostics.grammar_version = versions.grammar_version;
+  parserDiagnostics.msmdf_generation = versions.msmdf_generation;
+
+  if (versions.msmdf_generation === "legacy") {
+    parserDiagnostics.warnings.push(
+      "Document metadata does not declare MSMDF v3.0; parsed with backward-compatible rules."
+    );
+  }
 
   return {
-    metadata,
+    metadata: {
+      ...metadata,
+      protocol: metadata.protocol ?? versions.protocol,
+      version: metadata.version ?? versions.version,
+      grammar_version: metadata.grammar_version ?? versions.grammar_version,
+    },
     canonical_note: {
       title,
-      map_version: metadata.map_version || metadata.version || null,
-      canonical_version: metadata.canonical_version || metadata.canonical_version || "1.2",
+      map_version: metadata.map_version || metadata.version || versions.version,
+      canonical_version:
+        metadata.canonical_version || metadata.protocol || versions.version,
     },
     variant: {
       language,
@@ -569,8 +648,9 @@ export function parseMapMarkdown(rawMarkdown, options = {}) {
     source: {
       raw_markdown: markdown,
       source_type: metadata.source_type || "map",
-      map_version: metadata.map_version || metadata.version || null,
-      canonical_version: metadata.canonical_version || metadata.canonical_version || "1.2",
+      map_version: metadata.map_version || metadata.version || versions.version,
+      canonical_version:
+        metadata.canonical_version || metadata.protocol || versions.version,
     },
     representations,
     entity_index: entityIndexBlocks,

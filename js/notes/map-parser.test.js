@@ -1,5 +1,5 @@
 /**
- * MSMDF v1.2 parser compliance regression tests.
+ * MSMDF parser compliance regression tests.
  * Run: node --test js/notes/map-parser.test.js
  */
 
@@ -11,6 +11,7 @@ import {
   matchCanonicalSectionLine,
   summarizeDetectedSections,
   formatDetectedSectionTags,
+  resolveMsmdfVersions,
   MSMDF_SECTION_SYNTAX_EXAMPLES,
 } from "./map-parser.js";
 import { attachSemanticCandidates } from "../anchors/anchor-candidates.js";
@@ -22,9 +23,10 @@ function blockHeadings(parsed) {
     .map((b) => ({ heading: b.heading, level: b.hierarchy_level }));
 }
 
-describe("MSMDF v1.2 section line detection", () => {
+describe("MSMDF section line detection", () => {
   it("accepts canonical bracket-only sections", () => {
     assert.equal(matchCanonicalSectionLine("[NARRATIVE]"), "NARRATIVE");
+    assert.equal(matchCanonicalSectionLine("[EXPANSION]"), "EXPANSION");
     assert.equal(matchCanonicalSectionLine("  [STRUCTURAL]  "), "STRUCTURAL");
     assert.equal(matchCanonicalSectionLine("# [NARRATIVE]"), "NARRATIVE");
     assert.equal(matchCanonicalSectionLine("#[NARRATIVE]"), "NARRATIVE");
@@ -218,6 +220,83 @@ Following paragraph.`
     assert.ok(
       parsed.topic_links.some((link) => link.name === "Seven Years' War")
     );
+  });
+
+  it("[EXPANSION] section maps to representations.expansion", () => {
+    const parsed = parseMapMarkdown(
+      `[METADATA]
+Protocol: MSMDF
+Version: 3.0.0
+Grammar Version: 3.0.0
+
+[NARRATIVE]
+
+The [[English Revolution]] began with constitutional conflict.
+
+[EXPANSION]
+
+## [[Oliver Cromwell]]
+Military leader who became Lord Protector after the execution of Charles I.
+
+## [[Bill of Rights]]
+1689 settlement limiting royal power.`
+    );
+
+    const summary = summarizeDetectedSections(parsed);
+    assert.ok(summary.expansion);
+    assert.ok(parsed.representations.expansion.length >= 2);
+    assert.equal(parsed.parser_diagnostics.msmdf_version, "3.0.0");
+    assert.equal(parsed.parser_diagnostics.grammar_version, "3.0.0");
+    assert.equal(parsed.parser_diagnostics.msmdf_generation, "3.x");
+  });
+
+  it("parses ```ra fences as MSMDF v3 retrieval anchors", () => {
+    const parsed = parseMapMarkdown(
+      `[NARRATIVE]
+
+\`\`\`ra
+[[Oliver Cromwell]]
+↓
+Lord Protector
+\`\`\`
+
+Following paragraph.`
+    );
+
+    const anchor = parsed.representations.narrative.find(
+      (block) => block.block_type === "retrieval_anchor"
+    );
+
+    assert.ok(anchor);
+    assert.match(anchor.content, /\[\[Oliver Cromwell\]\]/);
+    assert.equal(anchor.metadata_json?.fence_lang, "ra");
+  });
+});
+
+describe("resolveMsmdfVersions", () => {
+  it("detects v3 metadata fields", () => {
+    const versions = resolveMsmdfVersions({
+      protocol: "MSMDF",
+      version: "3.0.0",
+      grammar_version: "3.0.0",
+    });
+    assert.equal(versions.msmdf_generation, "3.x");
+    assert.equal(versions.version, "3.0.0");
+  });
+
+  it("falls back to legacy when v3 metadata is absent", () => {
+    const versions = resolveMsmdfVersions({
+      map_version: "Narrative Continuity Edition",
+      msmdf_version: "v1.2",
+    });
+    assert.equal(versions.msmdf_generation, "legacy");
+    assert.equal(versions.version, "Narrative Continuity Edition");
+  });
+
+  it("leaves generation unspecified when no version metadata is present", () => {
+    const versions = resolveMsmdfVersions({});
+    assert.equal(versions.msmdf_generation, "unspecified");
+    assert.equal(versions.version, null);
   });
 });
 

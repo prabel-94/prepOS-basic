@@ -6,11 +6,14 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
   CANONICAL_BOUNDARY_TAGS,
+  MSMDF_V3_CANONICAL_LAYER_TAGS,
   REPRESENTATION_REGISTRY,
   createEmptyRepresentations,
   getImportSectionLabels,
   getPersistedRepresentationIds,
+  getPrepOSExtensionEntries,
   getTabEligibleRepresentations,
+  isPrepOSExtensionSection,
   mapSectionToRepresentation,
   summarizeDetectedSectionsFromRegistry,
 } from "./note-representations.js";
@@ -21,6 +24,13 @@ describe("note-representations registry", () => {
     assert.ok(CANONICAL_BOUNDARY_TAGS.includes("QUOTES"));
   });
 
+  it("treats QUOTES as a PrepOS extension outside MSMDF v3 canonical layers", () => {
+    assert.ok(isPrepOSExtensionSection("quotes"));
+    assert.equal(getPrepOSExtensionEntries().length, 1);
+    assert.equal(getPrepOSExtensionEntries()[0].id, "quotes");
+    assert.ok(!MSMDF_V3_CANONICAL_LAYER_TAGS.includes("QUOTES"));
+  });
+
   it("assigns unique ids and msmdf tags", () => {
     const ids = REPRESENTATION_REGISTRY.map((entry) => entry.id);
     const tags = REPRESENTATION_REGISTRY.map((entry) => entry.msmdfTag);
@@ -28,8 +38,9 @@ describe("note-representations registry", () => {
     assert.equal(new Set(tags).size, tags.length);
   });
 
-  it("createEmptyRepresentations includes quotes bucket", () => {
+  it("createEmptyRepresentations includes expansion and quotes buckets", () => {
     const reps = createEmptyRepresentations();
+    assert.ok(Array.isArray(reps.expansion));
     assert.ok(Array.isArray(reps.quotes));
     assert.ok(Array.isArray(reps.narrative));
     assert.equal(reps.quotes.length, 0);
@@ -50,11 +61,18 @@ describe("note-representations registry", () => {
     assert.equal(mapSectionToRepresentation("entity_index"), null);
   });
 
-  it("tab-eligible representations include Quotes in order", () => {
+  it("tab-eligible representations follow MSMDF v3 tab order", () => {
     const tabs = getTabEligibleRepresentations();
-    const labels = tabs.map((entry) => entry.tabLabel);
-    assert.ok(labels.includes("Quotes"));
-    assert.ok(labels.indexOf("Interpretations") < labels.indexOf("Quotes"));
+    const ids = tabs.map((entry) => entry.id);
+    assert.deepEqual(ids, [
+      "narrative",
+      "expansion",
+      "structural",
+      "timeline",
+      "interpretations",
+      "revision",
+      "quotes",
+    ]);
   });
 
   it("import labels include quotes", () => {

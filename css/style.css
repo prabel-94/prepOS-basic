@@ -3347,6 +3347,27 @@ PREPOS SIDE PANEL OVERLAYS
 
 .semantic-revision-compact .semantic-collapsible,
 .semantic-interpretations-compact .semantic-collapsible,
+/* MSMDF v3 Expansion layer — modular unit cards */
+.semantic-expansion-cards .semantic-collapsible {
+  margin-bottom: 0.85rem;
+}
+
+.semantic-expansion-cards .semantic-block--expansion {
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.75rem;
+  background: #f8fafc;
+}
+
+.semantic-expansion-cards .semantic-block--expansion:last-child {
+  margin-bottom: 0;
+}
+
+.semantic-expansion-cards .semantic-heading {
+  font-size: 1.05rem;
+}
+
 .semantic-quotes-gallery .semantic-collapsible {
   margin-top: var(--semantic-l4-space-before);
 }

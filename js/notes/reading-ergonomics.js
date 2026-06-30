@@ -100,7 +100,7 @@ export function defaultCollapsibleOpen(representationKey, semanticLevel, block =
     return true;
   }
 
-  if (representationKey === "revision" || representationKey === "interpretations" || representationKey === "quotes") {
+  if (representationKey === "revision" || representationKey === "interpretations" || representationKey === "quotes" || representationKey === "expansion") {
     return semanticLevel <= 2;
   }
 

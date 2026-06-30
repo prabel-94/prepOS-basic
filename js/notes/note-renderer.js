@@ -740,6 +740,16 @@ export function renderNarrative(blocks, topicMap, renderOptions) {
   );
 }
 
+export function renderExpansion(blocks, topicMap, renderOptions) {
+  return renderRepresentation(
+    blocks,
+    topicMap,
+    "representation-expansion",
+    renderOptions,
+    "expansion"
+  );
+}
+
 export function renderGeneric(blocks, topicMap, renderOptions, representationKey = "generic") {
   const definition = getDefinitionByRepresentationBucket(representationKey, {
     customDefinitions: renderOptions.sectionExtensions ?? [],
@@ -1029,6 +1039,7 @@ export function renderQuotes(blocks, topicMap, renderOptions) {
 
 const RENDERER_FUNCTIONS = Object.freeze({
   narrative: renderNarrative,
+  expansion: renderExpansion,
   structural: renderStructural,
   revision: renderRevision,
   timeline: renderTimeline,
@@ -1040,6 +1051,7 @@ const RENDERER_FUNCTIONS = Object.freeze({
 const PROFILE_RENDERERS = Object.freeze({
   generic: renderGeneric,
   narrative: renderNarrative,
+  expansion: renderExpansion,
   structural: renderStructural,
   timeline: renderTimeline,
   quotes: renderQuotes,

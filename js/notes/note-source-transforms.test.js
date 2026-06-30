@@ -49,9 +49,9 @@ describe("note-source-transforms", () => {
 
   it("formats retrieval anchor block", () => {
     const block = formatRetrievalAnchorBlock(["[[Cause]]", "[[Effect]]"]);
-    assert.match(block, /Retrieval anchor:/);
-    assert.match(block, /```text/);
+    assert.match(block, /```ra/);
     assert.match(block, /↓/);
+    assert.doesNotMatch(block, /Retrieval anchor:/);
   });
 
   it("inserts a block at caret", () => {

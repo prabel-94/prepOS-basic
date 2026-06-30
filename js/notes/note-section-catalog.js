@@ -16,6 +16,7 @@ import {
  * @typedef {
  *   | "generic"
  *   | "narrative"
+ *   | "expansion"
  *   | "structural"
  *   | "timeline"
  *   | "quotes"
@@ -49,6 +50,7 @@ import {
 
 const BUILTIN_RENDERER_PROFILES = Object.freeze({
   narrative: "narrative",
+  expansion: "expansion",
   structural: "structural",
   revision: "revision",
   timeline: "timeline",
@@ -221,6 +223,7 @@ export const MAX_CUSTOM_SECTIONS = 10;
 export const CUSTOM_RENDERER_PROFILES = Object.freeze([
   { id: "generic", label: "Generic prose" },
   { id: "narrative", label: "Narrative" },
+  { id: "expansion", label: "Expansion" },
   { id: "structural", label: "Structural" },
   { id: "timeline", label: "Timeline" },
   { id: "quotes", label: "Quotes" },

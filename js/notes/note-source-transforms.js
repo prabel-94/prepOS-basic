@@ -124,7 +124,7 @@ export function formatRetrievalAnchorBlock(steps = []) {
   }
 
   const body = lines.join("\n↓\n");
-  return `Retrieval anchor:\n\n\`\`\`text\n${body}\n\`\`\``;
+  return `\`\`\`ra\n${body}\n\`\`\``;
 }
 
 /**

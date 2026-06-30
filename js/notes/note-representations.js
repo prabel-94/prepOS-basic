@@ -19,7 +19,19 @@
  * @property {string} [mapsTo] — merge into another representation bucket (e.g. recall → revision)
  * @property {string} [storageField] — separate parsed field (e.g. entity_index)
  * @property {boolean} [recallTransform] — apply recall block_type metadata
+ * @property {boolean} [prepOSExtension] — PrepOS-only section; not an MSMDF v3 cognitive layer
  */
+
+/** MSMDF v3.0 canonical cognitive layers (generation + CLIP). Excludes PrepOS extensions. */
+export const MSMDF_V3_CANONICAL_LAYER_TAGS = Object.freeze([
+  "NARRATIVE",
+  "EXPANSION",
+  "STRUCTURAL",
+  "TIMELINE",
+  "INTERPRETATIONS",
+  "RECALL",
+  "REVISION",
+]);
 
 /** @type {ReadonlyArray<RepresentationEntry>} */
 export const REPRESENTATION_REGISTRY = Object.freeze([
@@ -41,6 +53,17 @@ export const REPRESENTATION_REGISTRY = Object.freeze([
     importLabel: "Narrative",
   },
   {
+    id: "expansion",
+    msmdfTag: "EXPANSION",
+    role: "cognition",
+    tabLabel: "Expansion",
+    tabOrder: 15,
+    persist: true,
+    tabPolicy: "blocks",
+    readingClass: "semantic-expansion-cards",
+    importLabel: "Expansion",
+  },
+  {
     id: "structural",
     msmdfTag: "STRUCTURAL",
     role: "cognition",
@@ -52,22 +75,11 @@ export const REPRESENTATION_REGISTRY = Object.freeze([
     importLabel: "Structural",
   },
   {
-    id: "revision",
-    msmdfTag: "REVISION",
-    role: "cognition",
-    tabLabel: "Revision",
-    tabOrder: 30,
-    persist: true,
-    tabPolicy: "blocks",
-    readingClass: "semantic-revision-compact",
-    importLabel: "Revision",
-  },
-  {
     id: "timeline",
     msmdfTag: "TIMELINE",
     role: "cognition",
     tabLabel: "Timeline",
-    tabOrder: 40,
+    tabOrder: 30,
     persist: true,
     tabPolicy: "blocks",
     readingClass: "semantic-timeline-linear",
@@ -78,11 +90,22 @@ export const REPRESENTATION_REGISTRY = Object.freeze([
     msmdfTag: "INTERPRETATIONS",
     role: "cognition",
     tabLabel: "Interpretations",
-    tabOrder: 50,
+    tabOrder: 40,
     persist: true,
     tabPolicy: "blocks",
     readingClass: "semantic-interpretations-compact",
     importLabel: "Interpretations",
+  },
+  {
+    id: "revision",
+    msmdfTag: "REVISION",
+    role: "cognition",
+    tabLabel: "Revision",
+    tabOrder: 50,
+    persist: true,
+    tabPolicy: "blocks",
+    readingClass: "semantic-revision-compact",
+    importLabel: "Revision",
   },
   {
     id: "quotes",
@@ -94,6 +117,7 @@ export const REPRESENTATION_REGISTRY = Object.freeze([
     tabPolicy: "blocks",
     readingClass: "semantic-quotes-gallery",
     importLabel: "Quotes",
+    prepOSExtension: true,
   },
   {
     id: "recall",
@@ -205,6 +229,22 @@ export function mapSectionToRepresentation(sectionKey) {
   }
 
   return entry.mapsTo ?? entry.id;
+}
+
+/**
+ * @param {string} sectionKey
+ * @returns {boolean}
+ */
+export function isPrepOSExtensionSection(sectionKey) {
+  return Boolean(getRegistryEntryById(sectionKey)?.prepOSExtension);
+}
+
+/**
+ * Cognition entries that are PrepOS extensions, not MSMDF v3 canonical layers.
+ * @returns {readonly RepresentationEntry[]}
+ */
+export function getPrepOSExtensionEntries() {
+  return REPRESENTATION_REGISTRY.filter((entry) => entry.prepOSExtension);
 }
 
 /**
