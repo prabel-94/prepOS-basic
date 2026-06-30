@@ -28,4 +28,14 @@ describe("note-chronology", () => {
   it("rejects invalid format requests", () => {
     assert.throws(() => formatChronologyParagraph({ date: "", label: "X" }), /required/);
   });
+
+  it("parses bold-wrapped MSMDF v3 milestone event lines", () => {
+    const paragraph = `━━━━━━━━━━
+**1649 — [[Execution of Charles I]]**
+━━━━━━━━━━`;
+
+    const parsed = parseChronologyParagraph(paragraph);
+    assert.equal(parsed?.date, "1649");
+    assert.ok(parsed?.label.includes("Execution of Charles I"));
+  });
 });

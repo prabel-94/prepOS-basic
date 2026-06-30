@@ -625,7 +625,9 @@ function renderBlock(block, topicMap, renderOptions, representationKey = "narrat
     : "";
 
   if (!shouldCollapseBlock(block, representationKey)) {
-    return `<article class="${blockClass}${sectionEntryClass}" data-semantic-level="${semanticLevel}">${heading}<div class="semantic-body">${body}</div></article>`;
+    const bodyHtml = body ? `<div class="semantic-body">${body}</div>` : "";
+
+    return `<article class="${blockClass}${sectionEntryClass}" data-semantic-level="${semanticLevel}">${heading}${bodyHtml}</article>`;
   }
 
   const open = defaultCollapsibleOpen(representationKey, semanticLevel, block);
@@ -646,6 +648,79 @@ function renderBlock(block, topicMap, renderOptions, representationKey = "narrat
       <div class="canonical-block-body semantic-body">${body}</div>
     </details>
   `;
+}
+
+function isFluidParagraphBlock(block) {
+  return block?.block_type === "paragraph" && !block.heading;
+}
+
+/**
+ * Render consecutive paragraph blocks as one reading flow (narrative / expansion).
+ * @returns {{ html: string, nextIndex: number }}
+ */
+function renderFluidParagraphRun(
+  blocks,
+  startIndex,
+  topicMap,
+  renderOptions,
+  representationKey
+) {
+  const run = [];
+  let nextIndex = startIndex;
+
+  while (nextIndex < blocks.length && isFluidParagraphBlock(blocks[nextIndex])) {
+    run.push(blocks[nextIndex]);
+    nextIndex += 1;
+  }
+
+  if (!run.length) {
+    return { html: "", nextIndex: startIndex };
+  }
+
+  const parts = [];
+
+  for (let runIndex = 0; runIndex < run.length; ) {
+    if (runIndex + 2 < run.length) {
+      const combined = run
+        .slice(runIndex, runIndex + 3)
+        .map((block) => String(block.content ?? "").trim())
+        .join("\n");
+      const node = parseDividerWrappedChronologyNode(combined);
+
+      if (node) {
+        parts.push(
+          renderChronologyNode(node, topicMap, renderOptions, representationKey, {
+            block: run[runIndex + 1],
+            paraIndex: 0,
+          })
+        );
+        runIndex += 3;
+        continue;
+      }
+    }
+
+    const body = renderBlockBody(
+      run[runIndex],
+      topicMap,
+      renderOptions,
+      representationKey
+    );
+
+    if (body) {
+      parts.push(body);
+    }
+
+    runIndex += 1;
+  }
+
+  if (!parts.length) {
+    return { html: "", nextIndex };
+  }
+
+  return {
+    html: `<div class="semantic-paragraph-run">${parts.join("")}</div>`,
+    nextIndex,
+  };
 }
 
 function renderRepresentation(
@@ -717,6 +792,29 @@ function renderRepresentation(
 
     if (escalationHtml) {
       parts.push(escalationHtml);
+      continue;
+    }
+
+    if (
+      (representationKey === "narrative" || representationKey === "expansion") &&
+      isFluidParagraphBlock(block)
+    ) {
+      const { html, nextIndex } = renderFluidParagraphRun(
+        blocks,
+        i,
+        topicMap,
+        readingOpts,
+        representationKey
+      );
+
+      if (html) {
+        parts.push(html);
+      }
+
+      for (let skipIndex = i + 1; skipIndex < nextIndex; skipIndex += 1) {
+        skip.add(skipIndex);
+      }
+
       continue;
     }
 

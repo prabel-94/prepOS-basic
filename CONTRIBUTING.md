@@ -77,6 +77,7 @@ Node built-in tests (no `package.json`):
 
 ```powershell
 node --test js/core/question-parser.test.js
+node --test js/notes/msmdf-v3-sample-exports.test.js
 ```
 
-Run individual `*.test.js` files as needed; each file header documents the command.
+Run individual `*.test.js` files as needed; each file header documents the command. The MSMDF v3 sample export test reads the four fixtures in `docs/notes/Sample v3 Exports/` and should be run after parser or registry changes.

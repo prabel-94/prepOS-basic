@@ -20,7 +20,9 @@ export function isSemanticDividerLine(line) {
 }
 
 export function parseChronologyEventLine(line) {
-  const trimmed = String(line ?? "").trim();
+  let trimmed = String(line ?? "").trim();
+  trimmed = trimmed.replace(/^\*\*(.+)\*\*$/, "$1").trim();
+
   const match = trimmed.match(/^(\d{3,4}(?:\s*[–-]\s*\d{3,4})?)\s*[—–-]\s*(.+)$/);
   if (!match) {
     return null;

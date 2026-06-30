@@ -2963,6 +2963,24 @@ PREPOS SIDE PANEL OVERLAYS
   margin-bottom: 0;
 }
 
+.semantic-reading-flow .semantic-paragraph-run,
+.semantic-expansion-cards .semantic-paragraph-run {
+  max-width: 68ch;
+  margin: 0 0 var(--semantic-paragraph-gap);
+}
+
+.semantic-reading-flow .semantic-paragraph-run .semantic-paragraph,
+.semantic-expansion-cards .semantic-paragraph-run .semantic-paragraph {
+  margin-bottom: var(--semantic-paragraph-gap);
+}
+
+.semantic-reading-flow .semantic-paragraph-run .semantic-paragraph:last-child,
+.semantic-expansion-cards .semantic-paragraph-run .semantic-paragraph:last-child,
+.semantic-reading-flow .semantic-paragraph-run .semantic-chronology-node:last-child,
+.semantic-expansion-cards .semantic-paragraph-run .semantic-chronology-node:last-child {
+  margin-bottom: 0;
+}
+
 .semantic-divider {
   height: 0;
   border: 0;
