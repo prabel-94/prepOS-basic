@@ -165,6 +165,57 @@ export async function fetchNoteBlocks(variantId) {
   return data ?? [];
 }
 
+/**
+ * Load one MSMDF representation layer for a variant (bilingual section flip).
+ *
+ * @param {string} variantId
+ * @param {string} representationType
+ */
+export async function fetchRepresentationLayer(variantId, representationType) {
+  if (!variantId || !representationType) {
+    return null;
+  }
+
+  const sb = await getClient();
+
+  const [variant, blocksResult, topicLinks] = await Promise.all([
+    fetchVariantById(variantId),
+    sb
+      .from("note_blocks")
+      .select("*")
+      .eq("variant_id", variantId)
+      .eq("representation_type", representationType)
+      .order("sequence_order"),
+    fetchNoteTopicLinks(variantId),
+  ]);
+
+  if (!variant) {
+    return null;
+  }
+
+  if (blocksResult.error) {
+    throw new Error(blocksResult.error.message);
+  }
+
+  const blocks = blocksResult.data ?? [];
+  const topicMap = buildTraversalTopicMap(topicLinks);
+  const catalogContext = {
+    customDefinitions: Array.isArray(variant.section_extensions)
+      ? variant.section_extensions
+      : [],
+  };
+  const representations = createRepresentationBuckets(catalogContext);
+  representations[representationType] = blocks;
+
+  return {
+    variant,
+    blocks,
+    representations,
+    topicMap,
+    sectionExtensions: catalogContext.customDefinitions,
+  };
+}
+
 export async function fetchNoteTopicLinks(variantId) {
   const sb = await getClient();
 

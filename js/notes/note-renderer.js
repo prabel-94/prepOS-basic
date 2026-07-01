@@ -253,7 +253,7 @@ function renderChronologyNode(
   return `
     <div class="semantic-chronology-node chronology-group note-preview-chronology${edit.className}" data-representation="${escapeHTML(
       representationKey
-    )}"${edit.attrs} role="${edit.attrs ? "button" : "group"}" tabindex="${edit.attrs ? "0" : "-1"}" title="${edit.attrs ? "Click to edit chronology event" : ""}">
+    )}"${block ? blockAlignmentAttrs(block, representationKey) : ""}${edit.attrs} role="${edit.attrs ? "button" : "group"}" tabindex="${edit.attrs ? "0" : "-1"}" title="${edit.attrs ? "Click to edit chronology event" : ""}">
       ${leadingDivider}
       <div class="semantic-chronology-row chronology-row">
         <span class="semantic-chronology-date">${escapeHTML(node.event.date)}</span>
@@ -391,6 +391,15 @@ function draftEditSurface(renderOptions, representationKey, block, paraKey) {
     className: " note-preview-editable",
     attrs: ` data-editable-id="${escapeHTML(unitId)}" tabindex="0"`,
   };
+}
+
+function blockAlignmentAttrs(block, representationKey) {
+  if (!block) {
+    return "";
+  }
+
+  const seq = block.sequence_order ?? 0;
+  return ` data-msmdf-layer="${escapeHTML(representationKey)}" data-block-seq="${seq}" data-block-type="${escapeHTML(block.block_type ?? "block")}"`;
 }
 
 function resolveInlineSemantics(text, topicMap, renderOptions = {}) {
@@ -639,7 +648,7 @@ function renderSemanticParagraph(
   const denseClass = isDenseParagraph(anchorCount) ? " semantic-paragraph--dense" : "";
   const edit = draftEditSurface(renderOptions, representationKey, block, paraIndex);
 
-  return `<p class="canonical-paragraph semantic-paragraph${denseClass}${edit.className}"${edit.attrs}>${resolveInlineSemantics(
+  return `<p class="canonical-paragraph semantic-paragraph${denseClass}${edit.className}"${blockAlignmentAttrs(block, representationKey)}${edit.attrs}>${resolveInlineSemantics(
     trimmed,
     topicMap,
     renderOptions
@@ -708,7 +717,7 @@ function renderBlock(block, topicMap, renderOptions, representationKey = "narrat
   if (!shouldCollapseBlock(block, representationKey)) {
     const bodyHtml = body ? `<div class="semantic-body">${body}</div>` : "";
 
-    return `<article class="${blockClass}${sectionEntryClass}" data-semantic-level="${semanticLevel}">${heading}${bodyHtml}</article>`;
+    return `<article class="${blockClass}${sectionEntryClass}" data-semantic-level="${semanticLevel}"${blockAlignmentAttrs(block, representationKey)}>${heading}${bodyHtml}</article>`;
   }
 
   const open = defaultCollapsibleOpen(representationKey, semanticLevel, block);
@@ -724,7 +733,7 @@ function renderBlock(block, topicMap, renderOptions, representationKey = "narrat
         : escapeHTML(block.block_type);
 
   return `
-    <details class="${blockClass}${sectionEntryClass} collapsible semantic-collapsible semantic-collapsible--${representationKey}" data-semantic-level="${semanticLevel}" ${open ? "open" : ""}>
+    <details class="${blockClass}${sectionEntryClass} collapsible semantic-collapsible semantic-collapsible--${representationKey}" data-semantic-level="${semanticLevel}"${blockAlignmentAttrs(block, representationKey)} ${open ? "open" : ""}>
       <summary class="semantic-collapsible-summary semantic-heading--l${semanticLevel}">${summaryLabel}</summary>
       <div class="canonical-block-body semantic-body">${body}</div>
     </details>
@@ -810,7 +819,7 @@ function renderFluidParagraphRun(
   }
 
   return {
-    html: `<div class="semantic-paragraph-run">${parts.join("")}</div>`,
+    html: `<div class="semantic-paragraph-run"${blockAlignmentAttrs(run[0], representationKey)}>${parts.join("")}</div>`,
     nextIndex,
   };
 }
@@ -1151,7 +1160,7 @@ function renderStructuralSectionNode(node, topicMap, depth, renderOptions) {
   const indent = Math.min(depth, 4);
 
   return `
-    <div class="structural-group ${levelClass}" data-semantic-level="${semanticLevel}" data-depth="${indent}" style="--structural-depth: ${indent}">
+    <div class="structural-group ${levelClass}" data-semantic-level="${semanticLevel}" data-depth="${indent}"${blockAlignmentAttrs(headingBlock, "structural")} style="--structural-depth: ${indent}">
       <div class="structural-heading-row">
         <button
           type="button"

@@ -3,7 +3,6 @@
  */
 
 import { bootPage } from "../core/page-boot.js";
-import { getClient } from "../core/get-client.js";
 import { mountAppNav } from "../ui/app-nav.js";
 import { TEACHER_ROLES } from "../core/access.js";
 import { resolveAppPath } from "../core/access.js";
@@ -21,11 +20,8 @@ import {
 } from "./note-selectors.js";
 import { fetchPublishedVariantByLanguage } from "./note-storage.js";
 import {
-  bindStructuralCollapse,
   getAvailableTabs,
-  renderRepresentationTab,
 } from "./note-renderer.js";
-import { withReadingErgonomics } from "./reading-ergonomics.js";
 import {
   getReferencedInTopics,
   renderReferencedInPanel,
@@ -36,16 +32,12 @@ import {
   normalizeLanguage,
 } from "./note-variants.js";
 import {
-  bindPublishedSemanticReading,
-  preparePublishedStudentSemanticMap,
-} from "../anchors/anchor-student-reader.js";
-import { enrichSemanticMapWithAnchorNotePresence } from "../anchors/anchor-selectors.js";
-import {
   bindRestoreButtons,
   bindVersionHistoryPanel,
   renderArchivePreviewBanner,
   renderVersionHistoryPanel,
 } from "./note-variant-history.js";
+import { createLayerFlipReading } from "./layer-flip-reading.js";
 
 function getQueryParam(key) {
   return new URLSearchParams(window.location.search).get(key);
@@ -241,6 +233,8 @@ async function bootPublishedReader({
   languageTabsEl,
   tabsEl,
   contentEl,
+  contentWrapEl,
+  flipBarEl,
   backlinksEl,
   versionHistoryEl,
   toolbarEl,
@@ -307,85 +301,31 @@ async function bootPublishedReader({
   });
   let activeTab = tabs[0]?.key ?? "narrative";
 
-  let renderOptions = withReadingErgonomics({ preferLanguage });
-  let publishedSemanticMap = null;
-
-  try {
-    publishedSemanticMap = await preparePublishedStudentSemanticMap(
-      bundle.variant.id,
-      preferLanguage
-    );
-  } catch (err) {
-    console.warn("[Published semantic map]", err);
-    publishedSemanticMap = null;
-  }
-
-  if (
-    isTeacher &&
-    publishedSemanticMap &&
-    Object.keys(publishedSemanticMap).length
-  ) {
-    try {
-      const sb = await getClient();
-      publishedSemanticMap = await enrichSemanticMapWithAnchorNotePresence(
-        sb,
-        publishedSemanticMap,
-        preferLanguage
-      );
-    } catch (err) {
-      console.warn("[Published semantic map anchor notes]", err);
-    }
-  }
-
-  if (publishedSemanticMap && Object.keys(publishedSemanticMap).length) {
-    renderOptions = withReadingErgonomics({
-      preferLanguage,
-      semanticMap: publishedSemanticMap,
-      semanticPreview: true,
-      semanticInteractive: true,
-      studentMode: Boolean(isStudent),
-      highlightEmptyAnchorNotes: Boolean(isTeacher),
-    });
-  }
-
   logRevisionParityPublished(bundle.variant.id, bundle.representations);
 
-  function renderActiveTab() {
-    contentEl.classList.remove("hidden");
-    contentEl.classList.add("semantic-reading-surface");
-    contentEl.innerHTML = renderRepresentationTab(
-      activeTab,
-      bundle.representations,
-      bundle.topicMap,
-      renderOptions,
-      { customDefinitions: bundle.sectionExtensions ?? [] }
-    );
+  const layerFlip = createLayerFlipReading({
+    contentEl,
+    contentWrapEl,
+    flipBarEl,
+    primaryBundle: bundle,
+    variants,
+    isStudent,
+    isTeacher,
+    getActiveTab: () => activeTab,
+    getTabs: () => tabs,
+  });
 
-    if (activeTab === "structural") {
-      bindStructuralCollapse(contentEl);
-    }
+  let unbindFlip = layerFlip.bindFlipControl();
 
-    if (publishedSemanticMap && Object.keys(publishedSemanticMap).length) {
-      bindPublishedSemanticReading(contentEl, {
-        semanticMap: publishedSemanticMap,
-        preferLanguage,
-        role: isStudent ? "student" : isTeacher ? "teacher" : "admin",
-        governanceContext:
-          isStudent
-            ? null
-            : {
-                noteId: bundle.variant.note_id,
-                variantId: bundle.variant.id,
-                language: preferLanguage,
-              },
-      });
-    }
+  async function renderActiveTab() {
+    await layerFlip.renderActiveTab();
   }
 
   function renderRepTabs() {
     if (!tabs.length) {
       tabsEl.innerHTML = "";
       tabsEl.classList.remove("hidden");
+      flipBarEl?.classList.add("hidden");
       contentEl.innerHTML =
         '<p class="canonical-empty">No representation blocks yet.</p>';
       return;
@@ -401,15 +341,21 @@ async function bootPublishedReader({
 
     tabsEl.querySelectorAll(".canonical-tab").forEach((btn) => {
       btn.addEventListener("click", () => {
+        layerFlip.captureBeforeLeave(activeTab);
         activeTab = btn.dataset.tab;
         tabsEl
           .querySelectorAll(".canonical-tab")
           .forEach((b) => b.classList.toggle("active", b === btn));
-        renderActiveTab();
+        layerFlip.resetContentLanguage();
+        renderActiveTab().catch((err) => {
+          console.error("[Note reader tab]", err);
+        });
       });
     });
 
-    renderActiveTab();
+    renderActiveTab().catch((err) => {
+      console.error("[Note reader]", err);
+    });
   }
 
   renderRepTabs();
@@ -431,6 +377,7 @@ async function bootPublishedReader({
   return () => {
     unbindRestore();
     unbindHistory();
+    unbindFlip();
   };
 }
 
@@ -528,6 +475,8 @@ export async function bootNoteReader() {
   const languageTabsEl = document.getElementById("languageTabs");
   const toolbarEl = document.getElementById("noteDraftToolbar");
   const tabsEl = document.getElementById("representationTabs");
+  const contentWrapEl = document.getElementById("noteContentWrap");
+  const flipBarEl = document.getElementById("noteLayerFlip");
   const contentEl = document.getElementById("noteContent");
   const sourcePanelEl = document.getElementById("noteSourcePanel");
   const sourceEditorEl = document.getElementById("semanticSourceEditor");
@@ -632,6 +581,8 @@ export async function bootNoteReader() {
       languageTabsEl,
       tabsEl,
       contentEl,
+      contentWrapEl,
+      flipBarEl,
       backlinksEl,
       versionHistoryEl,
       toolbarEl,
