@@ -129,6 +129,7 @@ function scrollMemoryKey(language, tab) {
  * @param {HTMLElement|null} [options.flipBarEl]
  * @param {object} options.primaryBundle
  * @param {Array} options.variants
+ * @param {boolean} [options.enabled]
  * @param {boolean} [options.isStudent]
  * @param {boolean} [options.isTeacher]
  * @param {() => string} options.getActiveTab
@@ -140,11 +141,13 @@ export function createLayerFlipReading({
   flipBarEl,
   primaryBundle,
   variants,
+  enabled = true,
   isStudent = false,
   isTeacher = false,
   getActiveTab,
   getTabs,
 }) {
+  const flipEnabled = Boolean(enabled);
   const primaryLanguage = normalizeLanguage(primaryBundle.variant.language);
   const siblingVariant = resolveSiblingVariant(variants, primaryLanguage);
   const siblingLanguageCode = siblingVariant
@@ -164,7 +167,7 @@ export function createLayerFlipReading({
   }
 
   function updateFlipBar(tab) {
-    if (!flipBarEl || !siblingVariant) {
+    if (!flipEnabled || !flipBarEl || !siblingVariant) {
       flipBarEl?.classList.add("hidden");
       return;
     }
@@ -390,7 +393,7 @@ export function createLayerFlipReading({
   }
 
   function bindFlipControl() {
-    if (!flipBarEl || !siblingVariant) {
+    if (!flipEnabled || !flipBarEl || !siblingVariant) {
       flipBarEl?.classList.add("hidden");
       return () => {};
     }
@@ -413,7 +416,7 @@ export function createLayerFlipReading({
   }
 
   function isEnabled() {
-    return Boolean(siblingVariant);
+    return flipEnabled && Boolean(siblingVariant);
   }
 
   function resetContentLanguage() {

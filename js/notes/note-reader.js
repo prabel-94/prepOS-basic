@@ -243,6 +243,7 @@ async function bootPublishedReader({
   isTeacher,
   isStudent,
   studentPreview = false,
+  enableLayerFlip = false,
   archivePreview = false,
   publishedVariantId = null,
 }) {
@@ -309,6 +310,7 @@ async function bootPublishedReader({
     flipBarEl,
     primaryBundle: bundle,
     variants,
+    enabled: enableLayerFlip,
     isStudent,
     isTeacher,
     getActiveTab: () => activeTab,
@@ -591,6 +593,7 @@ export async function bootNoteReader() {
       isTeacher,
       isStudent,
       studentPreview,
+      enableLayerFlip: true,
       archivePreview: Boolean(ctx.archivePreview),
       publishedVariantId: ctx.publishedVariantId ?? null,
     });
