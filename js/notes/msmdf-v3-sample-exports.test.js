@@ -1,5 +1,5 @@
 /**
- * Regression: MSMDF v3 Sample Exports (docs/notes/Sample v3 Exports).
+ * Regression: MSMDF v3.1 Sample Exports (docs/notes/Sample v3 Exports).
  * Run: node --test js/notes/msmdf-v3-sample-exports.test.js
  */
 
@@ -29,6 +29,10 @@ const SAMPLE_FILES = Object.freeze({
   timelineMl: "English Revolution Timeline note (mal).md",
   interpretationsEn: "English Revolution interpretation english.md",
   interpretationsMl: "English Revolution interpretation malayalam.md",
+  recallEn: "English Revolution recall note (eng).md",
+  recallMl: "English Revolution recall note (mal).md",
+  revisionEn: "English Revolution Revision English.md",
+  revisionMl: "English Revolution revision malayalam.md",
   narrativeMl: "Narrative English Revolution Malayalam.md",
   expansionMl: "Expansion English Revolution note malayalam.md",
 });
@@ -62,7 +66,7 @@ function assertRenders(representationKey, representations) {
   return html;
 }
 
-describe("MSMDF v3 Sample Exports — English Revolution", () => {
+describe("MSMDF v3.1 Sample Exports — English Revolution", () => {
   it("parses English Narrative export", () => {
     const parsed = parseSample(readSample(SAMPLE_FILES.narrativeEn), {
       language: "english",
@@ -131,6 +135,41 @@ describe("MSMDF v3 Sample Exports — English Revolution", () => {
     assertRenders("interpretations", parsed.representations);
   });
 
+  it("parses English Recall export into revision bucket", () => {
+    const parsed = parseSample(readSample(SAMPLE_FILES.recallEn), {
+      language: "english",
+    });
+    const summary = summarizeDetectedSections(parsed);
+    const tags = formatDetectedSectionTags(parsed);
+
+    assert.ok(summary.recall);
+    assert.ok(summary.revision);
+    assert.ok(tags.includes("[RECALL]"));
+    assert.ok(tags.includes("[REVISION]"));
+    assert.equal(parsed.representations.revision.length, 144);
+    assert.ok(
+      parsed.representations.revision.every(
+        (block) => block.metadata_json?.source_section === "recall"
+      )
+    );
+    assert.ok(parsed.topic_links.length >= 30);
+    assertRenders("revision", parsed.representations);
+  });
+
+  it("parses English Revision export", () => {
+    const parsed = parseSample(readSample(SAMPLE_FILES.revisionEn), {
+      language: "english",
+    });
+    const summary = summarizeDetectedSections(parsed);
+
+    assert.ok(summary.revision);
+    assert.equal(summary.recall, false);
+    assert.deepEqual(formatDetectedSectionTags(parsed), ["[REVISION]"]);
+    assert.ok(parsed.representations.revision.length >= 90);
+    assert.ok(parsed.topic_links.length >= 40);
+    assertRenders("revision", parsed.representations);
+  });
+
   it("parses merged English Narrative + Expansion", () => {
     const merged = [
       readSample(SAMPLE_FILES.narrativeEn).trim(),
@@ -149,7 +188,7 @@ describe("MSMDF v3 Sample Exports — English Revolution", () => {
   });
 });
 
-describe("MSMDF v3 Sample Exports — Malayalam English Revolution", () => {
+describe("MSMDF v3.1 Sample Exports — Malayalam English Revolution", () => {
   it("parses Malayalam Narrative export", () => {
     const parsed = parseSample(readSample(SAMPLE_FILES.narrativeMl), {
       language: "malayalam",
@@ -205,6 +244,32 @@ describe("MSMDF v3 Sample Exports — Malayalam English Revolution", () => {
     assert.deepEqual(formatDetectedSectionTags(parsed), ["[INTERPRETATIONS]"]);
     assert.ok(parsed.representations.interpretations.length >= 180);
     assertRenders("interpretations", parsed.representations);
+  });
+
+  it("parses Malayalam Recall export into revision bucket", () => {
+    const parsed = parseSample(readSample(SAMPLE_FILES.recallMl), {
+      language: "malayalam",
+    });
+    const summary = summarizeDetectedSections(parsed);
+    const tags = formatDetectedSectionTags(parsed);
+
+    assert.ok(summary.recall);
+    assert.ok(summary.revision);
+    assert.ok(tags.includes("[RECALL]"));
+    assert.ok(tags.includes("[REVISION]"));
+    assert.equal(parsed.representations.revision.length, 144);
+    assertRenders("revision", parsed.representations);
+  });
+
+  it("parses Malayalam Revision export", () => {
+    const parsed = parseSample(readSample(SAMPLE_FILES.revisionMl), {
+      language: "malayalam",
+    });
+
+    assert.ok(summarizeDetectedSections(parsed).revision);
+    assert.deepEqual(formatDetectedSectionTags(parsed), ["[REVISION]"]);
+    assert.ok(parsed.representations.revision.length >= 90);
+    assertRenders("revision", parsed.representations);
   });
 
   it("parses merged Malayalam Narrative + Expansion", () => {

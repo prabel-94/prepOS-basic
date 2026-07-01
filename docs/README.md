@@ -80,7 +80,7 @@ Markdown in this repo is grouped by topic. Root-level files: [README.md](../READ
 | [MSMDF_LX_v1_1_FULL_PROTOCOL.md](protocols/MSMDF_LX_v1_1_FULL_PROTOCOL.md) | MSMDF LX v1.1 full protocol |
 | [MSMDF_LX_v1_Malayalam_English_Revolution.md](protocols/MSMDF_LX_v1_Malayalam_English_Revolution.md) | MSMDF LX v1 Malayalam/English |
 | [MSMDF_LX_v1_FULL_Malayalam_English_Revolution.md](protocols/MSMDF_LX_v1_FULL_Malayalam_English_Revolution.md) | MSMDF LX v1 full Malayalam/English |
-| [MSMDF_v2_1_Patched_Canonical_Export.md](protocols/MSMDF_v2_1_Patched_Canonical_Export.md) | MSMDF v2.1 canonical export |
+| [MSMDF v3.1 – Cognitive Reconstruction Edition.md](protocols/MSMDF%20v3.1%20%E2%80%93%20Cognitive%20Reconstruction%20Edition.md) | MSMDF v3.1 core specification |
 | [MSMDF_Stage8_Canonical_Freeze_Export.md](protocols/MSMDF_Stage8_Canonical_Freeze_Export.md) | MSMDF Stage 8 freeze export |
 
 ## Previews & assets

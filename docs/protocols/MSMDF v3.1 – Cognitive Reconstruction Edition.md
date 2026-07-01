@@ -1,4 +1,4 @@
-# MSMDF v3.0 – Cognitive Reconstruction Edition
+# MSMDF v3.1 – Cognitive Reconstruction Edition
 
 ## Multi-Stage Multi-Dimensional Framework (MSMDF)
 
@@ -12,9 +12,9 @@
 
 **Edition:** Cognitive Reconstruction Edition
 
-**Protocol Version:** 3.0.0
+**Protocol Version:** 3.1.0
 
-**Document Version:** 3.0.0
+**Document Version:** 3.1.0
 
 **Status:** CANONICAL
 
@@ -37,6 +37,108 @@
 - PANP v3.x
 - PrepOS Parser v3.x
 - PrepOS Renderer v3.x
+- MSMDF-LX v1.x (structural isomorphism per §17.1)
+
+---
+
+# Table of Contents
+
+## Front Matter
+
+- Copyright
+- Preface
+- Normative Status
+- Scope
+- Version History
+
+## PART I — Foundations
+
+- Chapter 1 — Introduction
+- Chapter 2 — Core Design Principles
+  - 2.6 Progressive Cognitive Construction Principle (Canonical Representation Order)
+- Chapter 3 — Canonical Representation Principle
+  - 3.6 Representation Transformation
+  - 3.11 Representation Purpose Policy
+- Chapter 4 — Cognitive Architecture
+
+## PART II — Understanding Layer
+
+- Chapter 5 — Narrative Layer
+- Chapter 6 — Expansion Layer
+- Chapter 7 — Retrieval Anchors
+
+## PART III — Organization Layer
+
+- Chapter 8 — Structural Layer
+- Chapter 9 — Timeline Layer
+- Chapter 10 — Interpretation Layer
+
+## PART IV — Memory Layer
+
+- Chapter 11 — Recall Layer
+  - 11.6 Structured Progressive Recall Model
+  - 11.13 Direct Recall Format
+  - 11.14 Completion Recall Placeholder
+- Chapter 12 — Revision Layer
+  - 12.6 Canonical Revision Order
+
+## PART V — Governance, Integrity & Publication
+
+- Chapter 13 — Cross-Layer Integrity Protocol (CLIP)
+  - 13.12 Structural Integrity Validation
+  - 13.13 CLIP Milestones
+- Chapter 14 — Quality Assurance Framework
+- Chapter 15 — Compliance Levels
+- Chapter 16 — Canonical Publication Standard
+  - 16.7 Representation Completion Matrix
+- Chapter 17 — Cross-Language & Visual Standards
+  - 17.1 Cross-Language Structural Isomorphism
+  - 17.2 Canonical Visual Consistency
+
+## PART VI — Normative Appendices
+
+- Appendix A — Canonical Grammar Specification
+  - A.25 Recall Grammar
+  - A.26 Revision Grammar
+- Appendix B — Generation Specification
+- Appendix C — Metadata Specification
+- Appendix D — Terminology
+- Appendix E — Versioning & Compatibility Policy
+
+---
+
+# Version History
+
+| Version | Date | Nature |
+|---------|------|--------|
+| 3.0.0 | — | Initial Cognitive Reconstruction Edition |
+| 3.1.0 | — | Specification update: purpose policy, recall redesign, revision standard, CLIP structural integrity, cross-language isomorphism, visual consistency, completion matrix, CLIP milestones |
+
+## Changelog — Version 3.1.0
+
+The following doctrines and rules were added or revised in MSMDF v3.1.0. Existing numbering, terminology, and protocol philosophy were preserved wherever possible.
+
+1. **Representation Purpose Policy** (§3.11) — Purpose blocks required for knowledge representations (Narrative, Expansion, Structural, Timeline, Interpretation); prohibited for practice representations (Recall, Revision).
+
+2. **Canonical Representation Order** (§2.6, §3.6) — Explicit generation sequence and derivation rule preserving semantic integrity across successive representations.
+
+3. **Structured Progressive Recall Model** (§11.6) — Eight mandatory recall sections replacing the prior recall diversity catalogue.
+
+4. **Direct Recall Format** (§11.13, A.25) — Standardized numbered question → answer formatting without inter-item separators.
+
+5. **Completion Recall Placeholder** (§11.14, A.25) — Digital-first `( ? )` retrieval node replacing worksheet-style blanks.
+
+6. **Canonical Revision Order** (§12.6, A.26) — Twelve-section revision standard with fixed section order.
+
+7. **Cross-Language Structural Isomorphism** (§17.1) — Mandatory structural parity doctrine for MSMDF-LX translations.
+
+8. **CLIP Structural Integrity** (§13.12) — CLIP now validates semantic integrity and structural integrity.
+
+9. **Canonical Visual Consistency** (§17.2) — Visual formatting rules applying to every representation.
+
+10. **Representation Completion Matrix** (§16.7) — Mandatory per-topic completion checklist across all seven representations.
+
+11. **CLIP Milestones** (§13.13) — Recommended intermediate CLIP validation after each representation layer.
 
 ---
 
@@ -46,7 +148,7 @@
 
 This specification defines the canonical representation standard for MSMDF documents.
 
-The cognitive architecture, semantic grammar, parser contracts, renderer contracts, and canonical representations described herein constitute the official specification of MSMDF Version 3.0.
+The cognitive architecture, semantic grammar, parser contracts, renderer contracts, and canonical representations described herein constitute the official specification of MSMDF Version 3.1.
 
 ---
 
@@ -77,7 +179,7 @@ This specification defines the normative requirements governing the construction
 
 # Normative Status
 
-This document is the normative specification for MSMDF Version 3.0.
+This document is the normative specification for MSMDF Version 3.1.
 
 The use of normative terminology follows the conventions below.
 
@@ -507,6 +609,12 @@ Recall
 Revision
 ```
 
+This sequence constitutes the **canonical generation order**.
+
+Every subsequent representation shall be derived from the preceding knowledge representations while preserving semantic integrity.
+
+Derivation transforms cognitive form; it shall not alter, contradict, or introduce historical knowledge absent from earlier layers unless explicitly permitted by this specification.
+
 No layer shall introduce knowledge absent from earlier layers unless explicitly permitted by future protocol revisions.
 
 ---
@@ -709,6 +817,8 @@ Revision
 
 Every representation shall be constructed from previously established knowledge.
 
+Every subsequent representation shall be derived from the preceding knowledge representations while preserving semantic integrity.
+
 Later representations shall not contradict earlier representations.
 
 ---
@@ -794,6 +904,59 @@ All subsequent representations are derived from the Narrative.
 Where interpretative ambiguity exists,
 
 the Narrative shall remain the authoritative representation of historical events.
+
+---
+
+## 3.11 Representation Purpose Policy
+
+MSMDF distinguishes **knowledge representations** from **practice representations**.
+
+Knowledge representations develop understanding, organization, and interpretation.
+
+Practice representations develop retrieval and rapid revision.
+
+Accordingly, MSMDF adopts the following purpose-block policy.
+
+### Required Purpose Blocks
+
+A **Purpose block** shall appear at the beginning of every knowledge representation.
+
+Purpose blocks are **required** for:
+
+- Narrative
+- Expansion
+- Structural
+- Timeline
+- Interpretation
+
+The Purpose block shall state the educational objective of that representation in concise prose.
+
+Canonical Purpose blocks use blockquote form, for example:
+
+```text
+> **Narrative Purpose**
+> **Expansion Purpose**
+> **Structural Purpose**
+> **Timeline Purpose**
+> **Interpretation Purpose**
+```
+
+### Prohibited Purpose Blocks
+
+Purpose blocks are **not permitted** for:
+
+- Recall
+- Revision
+
+### Rationale
+
+Recall and Revision are practice representations.
+
+Learners should begin active retrieval or rapid revision immediately without introductory explanatory text.
+
+Purpose prose belongs to knowledge representations.
+
+Practice representations shall begin directly with retrieval or revision content.
 
 ---
 
@@ -2527,31 +2690,63 @@ The Recall Layer shall introduce no new historical knowledge.
 
 ---
 
-## 11.6 Recall Diversity Principle
+## 11.6 Structured Progressive Recall Model
 
-A high-quality Recall Layer shall contain multiple complementary forms of retrieval.
+The Recall Layer shall follow a structured progressive recall model.
 
-These include:
+All eight sections below are **mandatory**.
 
-- Direct Recall
-- Completion Recall
-- Chain Recall
-- List Recall
-- Concept Recall
-- Relationship Recall
-- Timeline Recall
-- Interpretation Recall
+They shall appear in the following fixed order:
 
-Different forms strengthen different retrieval pathways.
+```text
+1. Direct Recall
+
+↓
+
+2. Completion Recall
+
+↓
+
+3. Relationship Recall
+
+↓
+
+4. Timeline Recall
+
+↓
+
+5. Concept Recall
+
+↓
+
+6. Interpretation Recall
+
+↓
+
+7. Integrated Reconstruction
+
+↓
+
+8. Master Recall Formula
+```
+
+This order constitutes the canonical Recall architecture.
+
+No section may be omitted.
+
+No section may be reordered unless explicitly permitted by a future protocol revision.
+
+Each section strengthens a distinct retrieval pathway while building upon preceding sections.
 
 ---
 
 ## 11.7 Progressive Recall Principle
 
-Recall Items should progress from lower cognitive demand to higher cognitive demand.
+Recall Items should progress from lower cognitive demand to higher cognitive demand within and across the mandatory sections.
 
-Recommended progression:
+Recommended cognitive progression:
 
+```text
 Simple Fact
 
 ↓
@@ -2560,7 +2755,11 @@ Relationship
 
 ↓
 
-Chain Completion
+Completion
+
+↓
+
+Chronological Reconstruction
 
 ↓
 
@@ -2569,6 +2768,7 @@ Conceptual Explanation
 ↓
 
 Integrated Reconstruction
+```
 
 This progression mirrors increasing historical mastery.
 
@@ -2666,6 +2866,51 @@ A high-quality Recall Layer shall satisfy the following.
 
 ---
 
+## 11.13 Direct Recall Format
+
+Direct Recall shall follow a standardized formatting convention.
+
+Required format:
+
+```text
+1. Question
+   → Answer
+
+2. Question
+   → Answer
+```
+
+Rules:
+
+- Every recall item shall be numbered.
+- Numbering shall restart inside each major recall subsection.
+- Horizontal separators shall **not** appear between individual questions.
+- Separators shall be used **only** between major recall sections.
+
+The arrow (`→`) introduces the expected retrieval answer.
+
+Answers should remain concise and examination-oriented.
+
+---
+
+## 11.14 Completion Recall Placeholder
+
+Completion Recall shall use the digital-first placeholder:
+
+```text
+( ? )
+```
+
+MSMDF is digital-first.
+
+The placeholder represents a **retrieval node** rather than a writing space.
+
+Worksheet-style blanks such as underscore lines shall **not** be used in canonical MSMDF documents.
+
+The learner mentally supplies the missing node during active retrieval.
+
+---
+
 ## Chapter Summary
 
 The Recall Layer transforms organized historical knowledge into retrievable long-term memory.
@@ -2747,23 +2992,69 @@ It reorganizes existing knowledge for rapid review.
 
 ---
 
-## 12.6 Revision Components
+## 12.6 Canonical Revision Order
 
-MSMDF recognizes several canonical revision artefacts.
+The Revision Layer shall follow the canonical revision order below.
 
-These include:
+This order should normally remain unchanged.
 
-- Five-Minute Revision Sheet
-- Master Chronology
-- Key Acts
-- Key Organizations
-- Key Thinkers
-- Key Battles
-- Constitutional Development
-- Constitutional Principles
-- One-Page Master Chain
+```text
+One-Line Revision
 
-Additional artefacts may be defined by future protocol revisions.
+↓
+
+Revision Flow
+
+↓
+
+High-Yield Documents
+
+↓
+
+High-Yield Monarchs / Personalities
+
+↓
+
+High-Yield Events
+
+↓
+
+Political Groups
+
+↓
+
+Institutions
+
+↓
+
+Constitutional Principles
+
+↓
+
+Frequently Tested Themes
+
+↓
+
+One-Word Memory Anchors
+
+↓
+
+Ultimate Revision Formula
+
+↓
+
+Final Revision Sentence
+```
+
+Each section constitutes one standardized revision artefact.
+
+Sections shall appear in the order specified above.
+
+Reordering is discouraged unless a future protocol revision explicitly permits deviation.
+
+Earlier revision artefact names (for example, Five-Minute Revision Sheet or Master Chronology) may map to these canonical sections but shall not replace the canonical order defined herein.
+
+Additional artefacts may be defined by future protocol revisions only when they do not conflict with this order.
 
 ---
 
@@ -2907,7 +3198,7 @@ Instead, it governs the relationships between existing representations.
 
 ## 13.1 Purpose
 
-The Cross-Layer Integrity Protocol (CLIP) establishes the rules that preserve semantic consistency across every canonical MSMDF representation.
+The Cross-Layer Integrity Protocol (CLIP) establishes the rules that preserve semantic consistency and structural consistency across every canonical MSMDF representation.
 
 Each layer presents the same knowledge through a different cognitive representation.
 
@@ -3071,6 +3362,11 @@ Before publication,
 
 every MSMDF document should undergo integrity validation.
 
+CLIP shall validate **both**:
+
+- **Semantic Integrity**
+- **Structural Integrity**
+
 Validation should verify:
 
 ✓ Entity consistency
@@ -3086,6 +3382,116 @@ Validation should verify:
 ✓ Revision derivation
 
 ✓ Cross-layer semantic agreement
+
+✓ Numbering consistency
+
+✓ Separator consistency
+
+✓ Hierarchy consistency
+
+✓ Indentation consistency
+
+✓ Table consistency
+
+✓ Section ordering
+
+✓ Cross-language structural parity (where MSMDF-LX translations exist)
+
+---
+
+## 13.12 Structural Integrity Validation
+
+CLIP shall validate structural integrity in addition to semantic integrity.
+
+Structural integrity ensures that the visual and organizational form of each representation remains canonical, predictable, and interoperable across authors, parsers, renderers, and languages.
+
+Structural validation shall include:
+
+✓ Numbering consistency within and across sections
+
+✓ Separator consistency (major-section separators only where required)
+
+✓ Hierarchy consistency (headings, subsections, semantic blocks)
+
+✓ Indentation consistency
+
+✓ Table consistency
+
+✓ Section ordering compliance (canonical representation order, recall section order, revision section order)
+
+✓ Cross-language structural parity for MSMDF-LX translations
+
+Structural violations shall be treated with the same normative seriousness as semantic contradictions.
+
+Compression and translation shall not alter canonical structure.
+
+---
+
+## 13.13 CLIP Milestones
+
+CLIP validation should occur at intermediate milestones during document construction rather than only at final publication.
+
+Recommended workflow:
+
+```text
+Narrative
+
+↓
+
+CLIP
+
+↓
+
+Expansion
+
+↓
+
+CLIP
+
+↓
+
+Structural
+
+↓
+
+CLIP
+
+↓
+
+Timeline
+
+↓
+
+CLIP
+
+↓
+
+Interpretation
+
+↓
+
+CLIP
+
+↓
+
+Recall
+
+↓
+
+CLIP
+
+↓
+
+Revision
+
+↓
+
+FINAL CLIP
+```
+
+Intermediate CLIP checks should verify both semantic integrity and structural integrity for all completed representations.
+
+The final CLIP pass shall validate the complete document before Canonical publication.
 
 ---
 
@@ -3255,6 +3661,8 @@ the following should be verified.
 ✓ Renderer compatibility
 
 ✓ Cross-layer integrity
+
+✓ Structural integrity
 
 ✓ Educational completeness
 
@@ -3494,6 +3902,102 @@ Publication signifies that the document satisfies:
 
 ---
 
+## 16.7 Representation Completion Matrix
+
+Every MSMDF topic shall maintain a mandatory completion status across all canonical representations.
+
+The Representation Completion Matrix is a normative checklist.
+
+| Representation | Completion Required |
+|----------------|---------------------|
+| Narrative | ✓ |
+| Expansion | ✓ |
+| Structural | ✓ |
+| Timeline | ✓ |
+| Interpretation | ✓ |
+| Recall | ✓ |
+| Revision | ✓ |
+
+Each topic should maintain explicit completion status for every row.
+
+A topic shall not be classified as Canonical until every representation in the matrix is complete, validated, and publication-ready.
+
+Partial completion may be tracked through Compliance Levels (Chapter 15),
+
+but Canonical publication requires full matrix completion.
+
+---
+
+# Chapter 17
+
+# Cross-Language & Visual Standards
+
+## 17.1 Cross-Language Structural Isomorphism
+
+MSMDF-LX translations shall preserve structural isomorphism with the source representation.
+
+**Cross-Language Structural Isomorphism** is a mandatory doctrine.
+
+### Definition
+
+The translated representation shall preserve:
+
+- representation order
+- section order
+- subsection order
+- numbering
+- indentation
+- spacing
+- separator placement
+- arrows
+- tables
+- hierarchy
+- retrieval flow
+
+**Only language changes.**
+
+The visual and structural experience shall remain identical.
+
+### Scope
+
+This rule applies to all MSMDF-LX translations.
+
+Translators, generators, validators, and renderers shall treat structural deviation as a compliance failure unless explicitly permitted by a future protocol revision.
+
+Semantic translation shall not justify structural rearrangement.
+
+---
+
+## 17.2 Canonical Visual Consistency
+
+MSMDF adopts a **Canonical Visual Consistency** standard.
+
+This standard applies to every representation.
+
+### Rules
+
+Canonical documents shall maintain:
+
+- identical heading hierarchy
+- identical separator usage
+- identical numbering style
+- identical answer formatting
+- identical arrow style
+- identical table formatting
+- consistent spacing
+
+Visual consistency supports parser determinism, renderer predictability, cross-language parity, and examination-oriented scanning.
+
+Structural integrity validation (§13.12) shall enforce these rules wherever machine validation is available.
+
+---
+
+## Chapter Summary
+
+Cross-Language Structural Isomorphism and Canonical Visual Consistency ensure that MSMDF knowledge remains structurally predictable across languages, authors, and rendering environments while preserving the protocol's multi-representational cognitive architecture.
+
+---
+
 ## Final Principle
 
 MSMDF is a canonical cognitive reconstruction standard.
@@ -3538,9 +4042,11 @@ MSMDF now defines:
 
 • how knowledge is transformed,
 
-• how knowledge is validated,
+• how knowledge is validated (semantic and structural integrity),
 
 • how knowledge is published,
+
+• how knowledge remains structurally consistent across languages,
 
 forming a complete end-to-end standard for examination-oriented cognitive knowledge representation.
 
@@ -4099,7 +4605,7 @@ Example
 ```text
 Core Specification
 
-3.0.0
+3.1.0
 
 Grammar Specification
 
@@ -4130,7 +4636,7 @@ Deprecated features shall:
 
 # Final Declaration
 
-The Multi-Stage Multi-Dimensional Framework (MSMDF) Version 3.0 — Cognitive Reconstruction Edition establishes the canonical standard for representing examination-oriented knowledge within the PrepOS ecosystem.
+The Multi-Stage Multi-Dimensional Framework (MSMDF) Version 3.1 — Cognitive Reconstruction Edition establishes the canonical standard for representing examination-oriented knowledge within the PrepOS ecosystem.
 
 Together with:
 
@@ -4737,6 +5243,22 @@ Revision
 
 Supporting systems such as Retrieval Anchors operate alongside these representations but are not independent cognitive layers.
 
+### Representation Purpose Blocks
+
+Knowledge representations shall begin with a Purpose block as defined in §3.11.
+
+Required for: Narrative, Expansion, Structural, Timeline, Interpretation.
+
+Prohibited for: Recall, Revision.
+
+Canonical form:
+
+```text
+> **{Representation} Purpose**
+
+{Concise educational objective}
+```
+
 ---
 
 ## A.15 Block Grammar
@@ -5130,7 +5652,7 @@ Transformation
 ➡️
 ```
 
-These operators constitute the canonical operator set for MSMDF Version 3.0.
+These operators constitute the canonical operator set for MSMDF Version 3.1.
 
 ---
 
@@ -6207,19 +6729,72 @@ Direct Recall
 
 Completion Recall
 
-Chain Recall
-
 Relationship Recall
 
-Classification Recall
+Timeline Recall
 
-Chronology Recall
+Concept Recall
 
 Interpretation Recall
 
-List Recall
+Integrated Reconstruction
+
+Master Recall Formula
+
+These eight sections are mandatory and shall appear in the canonical order defined in §11.6.
 
 Each Recall Item shall possess one clearly identifiable retrieval objective.
+
+---
+
+### Mandatory Recall Sections
+
+Recall Grammar shall implement the structured progressive recall model.
+
+All eight sections are mandatory:
+
+```text
+1. Direct Recall
+2. Completion Recall
+3. Relationship Recall
+4. Timeline Recall
+5. Concept Recall
+6. Interpretation Recall
+7. Integrated Reconstruction
+8. Master Recall Formula
+```
+
+---
+
+### Direct Recall Format
+
+Direct Recall items shall use numbered questions with arrow answers:
+
+```text
+1. Question
+   → Answer
+
+2. Question
+   → Answer
+```
+
+Numbering shall restart within each major subsection.
+
+Separators shall not appear between individual questions.
+
+---
+
+### Completion Recall Placeholder
+
+Completion Recall shall use the canonical placeholder:
+
+```text
+( ? )
+```
+
+The placeholder denotes a retrieval node.
+
+Worksheet-style underscore blanks shall not be used.
 
 ---
 
@@ -6317,29 +6892,27 @@ Explanation belongs to the Narrative and Expansion.
 
 ### Recall Categories
 
-MSMDF recognizes multiple Recall categories.
+MSMDF recognizes the following mandatory Recall sections as canonical categories:
 
-These include:
+Direct Recall
 
-Direct Question
+Completion Recall
 
-Completion Question
+Relationship Recall
 
-Flow Completion
+Timeline Recall
 
-Multiple Response
+Concept Recall
 
-Relationship Question
-
-Concept Question
-
-Timeline Question
-
-Interpretation Question
+Interpretation Recall
 
 Integrated Reconstruction
 
-Future protocol versions may define additional Recall categories.
+Master Recall Formula
+
+Legacy category names (for example, Chain Recall or List Recall) shall map to these canonical sections but shall not replace the mandatory order defined in §11.6.
+
+Future protocol versions may define additional Recall categories only when they do not conflict with the mandatory eight-section model.
 
 ---
 
@@ -6468,6 +7041,14 @@ Recall Grammar is valid when it satisfies:
 
 ✓ No introduction of new knowledge.
 
+✓ Mandatory eight-section recall order.
+
+✓ Direct Recall formatting compliance.
+
+✓ Completion placeholder `( ? )` usage.
+
+✓ Structural integrity (numbering, separators, hierarchy).
+
 ---
 
 ## Chapter Summary
@@ -6514,25 +7095,35 @@ Each Revision Artefact represents one independently usable review representation
 
 Examples include:
 
-Five-Minute Revision Sheet
+One-Line Revision
 
-Master Chronology
+Revision Flow
 
-Master Chain
+High-Yield Documents
 
-Key Acts
+High-Yield Monarchs / Personalities
 
-Key Organizations
+High-Yield Events
 
-Key Thinkers
+Political Groups
 
-Key Battles
-
-Constitutional Development
+Institutions
 
 Constitutional Principles
 
-Additional Revision Artefacts may be introduced through future protocol revisions.
+Frequently Tested Themes
+
+One-Word Memory Anchors
+
+Ultimate Revision Formula
+
+Final Revision Sentence
+
+These sections constitute the canonical revision order defined in §12.6.
+
+This order should normally remain unchanged.
+
+Additional Revision Artefacts may be introduced through future protocol revisions only when they do not conflict with this order.
 
 ---
 
@@ -6689,7 +7280,7 @@ Presentation may vary while preserving semantic structure.
 
 Revision Grammar is valid when it satisfies:
 
-✓ One organizing principle.
+✓ Canonical revision section order.
 
 ✓ Maximum conceptual compression.
 
@@ -6702,6 +7293,8 @@ Revision Grammar is valid when it satisfies:
 ✓ Semantic consistency.
 
 ✓ Independent usability.
+
+✓ Structural integrity (numbering, separators, hierarchy, arrows).
 
 ---
 
@@ -6773,7 +7366,7 @@ The enclosed content defines the semantic representation.
 
 ### Canonical Semantic Types
 
-MSMDF Version 3.0 recognizes the following semantic block types.
+MSMDF Version 3.1 recognizes the following semantic block types.
 
 #### Plain Text
 

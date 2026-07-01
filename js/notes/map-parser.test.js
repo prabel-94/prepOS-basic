@@ -13,6 +13,7 @@ import {
   formatDetectedSectionTags,
   resolveMsmdfVersions,
   MSMDF_SECTION_SYNTAX_EXAMPLES,
+  MSMDF_SECTION_SYNTAX_HELP,
 } from "./map-parser.js";
 import { attachSemanticCandidates } from "../anchors/anchor-candidates.js";
 
@@ -24,6 +25,10 @@ function blockHeadings(parsed) {
 }
 
 describe("MSMDF section line detection", () => {
+  it("documents v3.1 section syntax in help text", () => {
+    assert.match(MSMDF_SECTION_SYNTAX_HELP, /MSMDF v3\.1/);
+  });
+
   it("accepts canonical bracket-only sections", () => {
     assert.equal(matchCanonicalSectionLine("[NARRATIVE]"), "NARRATIVE");
     assert.equal(matchCanonicalSectionLine("[EXPANSION]"), "EXPANSION");
@@ -251,7 +256,7 @@ Military leader who became Lord Protector after the execution of Charles I.
     assert.equal(parsed.parser_diagnostics.msmdf_generation, "3.x");
   });
 
-  it("parses ```ra fences as MSMDF v3 retrieval anchors", () => {
+  it("parses ```ra fences as MSMDF v3.1 retrieval anchors", () => {
     const parsed = parseMapMarkdown(
       `[NARRATIVE]
 
@@ -275,7 +280,7 @@ Following paragraph.`
 });
 
 describe("resolveMsmdfVersions", () => {
-  it("detects v3 metadata fields", () => {
+  it("detects v3.0 metadata fields (backward compatible)", () => {
     const versions = resolveMsmdfVersions({
       protocol: "MSMDF",
       version: "3.0.0",
@@ -283,6 +288,27 @@ describe("resolveMsmdfVersions", () => {
     });
     assert.equal(versions.msmdf_generation, "3.x");
     assert.equal(versions.version, "3.0.0");
+    assert.equal(versions.grammar_version, "3.0.0");
+  });
+
+  it("detects v3.1 metadata fields", () => {
+    const versions = resolveMsmdfVersions({
+      protocol: "MSMDF",
+      version: "3.1.0",
+      grammar_version: "3.1.0",
+    });
+    assert.equal(versions.msmdf_generation, "3.x");
+    assert.equal(versions.version, "3.1.0");
+    assert.equal(versions.grammar_version, "3.1.0");
+  });
+
+  it("defaults implicit v3 protocol metadata to 3.1.0", () => {
+    const versions = resolveMsmdfVersions({
+      protocol: "MSMDF 3.1",
+    });
+    assert.equal(versions.msmdf_generation, "3.x");
+    assert.equal(versions.version, "3.1.0");
+    assert.equal(versions.grammar_version, "3.1.0");
   });
 
   it("falls back to legacy when v3 metadata is absent", () => {

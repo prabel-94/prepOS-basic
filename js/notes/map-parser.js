@@ -12,6 +12,8 @@ import {
   isEntityIndexSection,
   isMetadataSection,
   mapSectionToRepresentation,
+  MSMDF_PROTOCOL_LABEL,
+  MSMDF_PROTOCOL_VERSION,
   shouldApplyRecallTransform,
   summarizeDetectedSectionsFromRegistry,
 } from "./note-representations.js";
@@ -64,7 +66,7 @@ export const MSMDF_SECTION_SYNTAX_EXAMPLES = Object.freeze([
 ]);
 
 export const MSMDF_SECTION_SYNTAX_HELP =
-  "Expected section boundaries include [NARRATIVE], [EXPANSION], or # [NARRATIVE] (MSMDF v3.0).";
+  `Expected section boundaries include [NARRATIVE], [EXPANSION], or # [NARRATIVE] (${MSMDF_PROTOCOL_LABEL}).`;
 
 const TOPIC_LINK_PATTERN = /\[\[([^\]]+)\]\]/g;
 
@@ -177,7 +179,7 @@ function isListLine(line) {
   return /^\s*([-*•]|\d+[\.)])\s+/.test(line);
 }
 
-/** Opening fence: ```text or ```ra (MSMDF v3 semantic coding). */
+/** Opening fence: ```text or ```ra (MSMDF v3.1 semantic coding). */
 const FENCED_SEMANTIC_OPEN_PATTERN = /^```\s*(text|ra)\s*$/i;
 const FENCED_CODE_CLOSE_PATTERN = /^```\s*$/;
 
@@ -195,7 +197,7 @@ function isFencedCodeClose(line) {
 }
 
 /**
- * Resolve MSMDF protocol / grammar versions from metadata (v1.2–v3.0 field aliases).
+ * Resolve MSMDF protocol / grammar versions from metadata (v1.2–v3.1 field aliases).
  * @param {Record<string, string>} metadata
  */
 export function resolveMsmdfVersions(metadata = {}) {
@@ -224,7 +226,7 @@ export function resolveMsmdfVersions(metadata = {}) {
 
   const isV3 =
     /^3(\.|$)/.test(versionStr) ||
-    /3\.0/i.test(protocolText) ||
+    /3\.\d/i.test(protocolText) ||
     grammarStr.startsWith("3");
 
   const isExplicitLegacy =
@@ -241,8 +243,8 @@ export function resolveMsmdfVersions(metadata = {}) {
 
   return {
     protocol: protocol ?? (isV3 ? "MSMDF" : null),
-    version: version ?? (isV3 ? "3.0.0" : null),
-    grammar_version: grammarVersion ?? (isV3 ? "3.0.0" : null),
+    version: version ?? (isV3 ? MSMDF_PROTOCOL_VERSION : null),
+    grammar_version: grammarVersion ?? (isV3 ? MSMDF_PROTOCOL_VERSION : null),
     msmdf_generation,
   };
 }
@@ -648,7 +650,7 @@ export function parseMapMarkdown(rawMarkdown, options = {}) {
 
   if (versions.msmdf_generation === "legacy") {
     parserDiagnostics.warnings.push(
-      "Document metadata does not declare MSMDF v3.0; parsed with backward-compatible rules."
+      `Document metadata does not declare ${MSMDF_PROTOCOL_LABEL}; parsed with backward-compatible rules.`
     );
   }
 

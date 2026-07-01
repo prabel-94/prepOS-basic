@@ -4,6 +4,7 @@
  */
 
 import { resolveAppPath } from "../core/access.js";
+import { renderMarkdownEmphasis } from "../anchors/inline-emphasis.js";
 
 export function normalizeTopicName(name = "") {
   return String(name).trim().toLowerCase();
@@ -93,7 +94,7 @@ export function resolveTopicLinks(text, topicMap = {}, options = {}) {
     lastIndex = pattern.lastIndex;
   }
 
-  parts.push(escapeHTML(text.slice(lastIndex)));
+  parts.push(renderMarkdownEmphasis(text.slice(lastIndex)));
   return parts.join("");
 }
 

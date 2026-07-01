@@ -4,6 +4,7 @@
  */
 
 import { normalizeAnchorName } from "./anchor-normalization.js";
+import { renderMarkdownEmphasis } from "./inline-emphasis.js";
 
 const TOPIC_LINK_PATTERN = /\[\[([^\]]+)\]\]/g;
 
@@ -271,7 +272,7 @@ export function renderSemanticAnchors(text, semanticMap = {}, options = {}) {
   TOPIC_LINK_PATTERN.lastIndex = 0;
 
   while ((match = TOPIC_LINK_PATTERN.exec(text)) !== null) {
-    parts.push(escapeHTML(text.slice(lastIndex, match.index)));
+    parts.push(renderMarkdownEmphasis(text.slice(lastIndex, match.index)));
 
     const label = match[1].trim();
     const entry = lookupSemanticEntry(semanticMap, label);
@@ -285,6 +286,6 @@ export function renderSemanticAnchors(text, semanticMap = {}, options = {}) {
     lastIndex = TOPIC_LINK_PATTERN.lastIndex;
   }
 
-  parts.push(escapeHTML(text.slice(lastIndex)));
+  parts.push(renderMarkdownEmphasis(text.slice(lastIndex)));
   return parts.join("");
 }

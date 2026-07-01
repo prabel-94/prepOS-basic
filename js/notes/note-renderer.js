@@ -36,7 +36,14 @@ import {
   isSemanticDividerLine,
   parseChronologyEventLine,
   parseDividerWrappedChronologyNode,
+  parseInterleavedChronologySegments,
+  parseLegacyDividedChronologySegments,
+  parseTimelineMilestoneLabel,
 } from "./note-chronology.js";
+import {
+  isLayerPurposeBlock,
+  parseLayerPurposeBlock,
+} from "./msmdf-layer-purpose-block.js";
 
 function escapeHTML(value = "") {
   return String(value)
@@ -486,6 +493,24 @@ function renderHighlightedQuoteBlock(
   return `<blockquote class="quote-blockquote quote-blockquote--highlighted${edit.className}"${edit.attrs}>${inner}</blockquote>`;
 }
 
+function renderLayerPurposeCallout(
+  purpose,
+  topicMap,
+  renderOptions,
+  representationKey,
+  block,
+  paraIndex
+) {
+  const edit = draftEditSurface(renderOptions, representationKey, block, paraIndex);
+  const label = resolveInlineSemantics(purpose.title, topicMap, renderOptions);
+  const body = resolveInlineSemantics(purpose.body, topicMap, renderOptions);
+
+  return `<aside class="msmdf-layer-purpose msmdf-layer-purpose--${representationKey}${edit.className}"${edit.attrs} role="note">
+    <div class="msmdf-layer-purpose__label">${label}</div>
+    <div class="msmdf-layer-purpose__body">${body}</div>
+  </aside>`;
+}
+
 function renderSemanticParagraph(
   p,
   topicMap,
@@ -505,6 +530,62 @@ function renderSemanticParagraph(
   if (isDraftParagraphPlaceholder(trimmed)) {
     const edit = draftEditSurface(renderOptions, representationKey, block, paraIndex);
     return `<p class="canonical-paragraph semantic-paragraph note-preview-editable--empty${edit.className}"${edit.attrs}>\u200b</p>`;
+  }
+
+  const purpose = parseLayerPurposeBlock(trimmed);
+  if (purpose) {
+    return renderLayerPurposeCallout(
+      purpose,
+      topicMap,
+      renderOptions,
+      representationKey,
+      block,
+      paraIndex
+    );
+  }
+
+  if (isRetrievalChainArrowLine(trimmed)) {
+    return `<div class="semantic-retrieval-arrow" aria-hidden="true">↓</div>`;
+  }
+
+  if (representationKey === "timeline") {
+    const milestoneLabel = parseTimelineMilestoneLabel(trimmed);
+    if (milestoneLabel) {
+      return renderTimelineMilestoneDate(
+        milestoneLabel,
+        topicMap,
+        renderOptions,
+        representationKey,
+        block,
+        paraIndex
+      );
+    }
+  }
+
+  if (representationKey === "timeline" || representationKey === "narrative") {
+    const legacyInline = parseLegacyDividedChronologySegments(trimmed);
+    if (legacyInline.length) {
+      return renderLegacyChronologySegments(
+        legacyInline,
+        topicMap,
+        renderOptions,
+        representationKey,
+        block,
+        paraIndex
+      );
+    }
+
+    const interleaved = parseInterleavedChronologySegments(trimmed);
+    if (interleaved.length) {
+      return renderLegacyChronologySegments(
+        interleaved,
+        topicMap,
+        renderOptions,
+        representationKey,
+        block,
+        paraIndex
+      );
+    }
   }
 
   // Important quotes in [QUOTES]: prefix with > for amber highlight.
@@ -886,6 +967,69 @@ function sortBlocks(blocks) {
   );
 }
 
+function isRecallBlock(block) {
+  return (
+    block?.block_type === "recall" ||
+    block?.block_type === "recall_section" ||
+    block?.metadata_json?.source_section === "recall"
+  );
+}
+
+/**
+ * MSMDF v3.1 canonical order: Revision cheatsheet before Recall drills.
+ * @param {Array} blocks
+ * @returns {Array}
+ */
+export function orderRevisionAndRecallBlocks(blocks = []) {
+  const revision = [];
+  const recall = [];
+
+  for (const block of sortBlocks(blocks)) {
+    if (isRecallBlock(block)) {
+      recall.push(block);
+    } else {
+      revision.push(block);
+    }
+  }
+
+  return [...revision, ...recall];
+}
+
+function renderLegacyChronologySegments(
+  segments,
+  topicMap,
+  renderOptions,
+  representationKey,
+  block,
+  paraIndex
+) {
+  return segments
+    .map((node, segmentIndex) =>
+      renderChronologyNode(node, topicMap, renderOptions, representationKey, {
+        block,
+        paraIndex: `${paraIndex}-${segmentIndex}`,
+      })
+    )
+    .join("");
+}
+
+function renderTimelineMilestoneDate(
+  label,
+  topicMap,
+  renderOptions,
+  representationKey,
+  block,
+  paraIndex
+) {
+  const edit = draftEditSurface(renderOptions, representationKey, block, paraIndex);
+
+  return `<div class="semantic-timeline-milestone semantic-chronology-date${edit.className}"${edit.attrs}>${resolveInlineSemantics(
+    label,
+    topicMap,
+    renderOptions
+  )}</div>`;
+}
+
 function isStructuralSection(block) {
   return Boolean(block.heading && block.block_type === "section");
 }
@@ -951,6 +1095,17 @@ function renderStructuralContentBlock(block, topicMap, renderOptions) {
     .map((p) => p.trim())
     .filter(Boolean)
     .map((p, paraIndex) => {
+      if (isLayerPurposeBlock(p)) {
+        return renderLayerPurposeCallout(
+          parseLayerPurposeBlock(p),
+          topicMap,
+          renderOptions,
+          "structural",
+          block,
+          paraIndex
+        );
+      }
+
       tracker?.resetParagraph?.();
       const anchorCount = countWikiLinksInText(p);
       const denseClass = isDenseParagraph(anchorCount) ? " semantic-paragraph--dense" : "";
@@ -1105,7 +1260,7 @@ export function bindStructuralCollapse(container) {
 
 export function renderRevision(blocks, topicMap, renderOptions) {
   return renderRepresentation(
-    blocks,
+    orderRevisionAndRecallBlocks(blocks),
     topicMap,
     "representation-revision",
     renderOptions,

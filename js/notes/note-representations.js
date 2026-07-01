@@ -19,10 +19,16 @@
  * @property {string} [mapsTo] — merge into another representation bucket (e.g. recall → revision)
  * @property {string} [storageField] — separate parsed field (e.g. entity_index)
  * @property {boolean} [recallTransform] — apply recall block_type metadata
- * @property {boolean} [prepOSExtension] — PrepOS-only section; not an MSMDF v3 cognitive layer
+ * @property {boolean} [prepOSExtension] — PrepOS-only section; not an MSMDF v3.1 cognitive layer
  */
 
-/** MSMDF v3.0 canonical cognitive layers (generation + CLIP). Excludes PrepOS extensions. */
+/** Current MSMDF protocol version (Cognitive Reconstruction Edition). */
+export const MSMDF_PROTOCOL_VERSION = "3.1.0";
+
+/** Human-readable protocol label for UI and diagnostics. */
+export const MSMDF_PROTOCOL_LABEL = "MSMDF v3.1";
+
+/** MSMDF v3.1 canonical cognitive layers (generation + CLIP). Excludes PrepOS extensions. */
 export const MSMDF_V3_CANONICAL_LAYER_TAGS = Object.freeze([
   "NARRATIVE",
   "EXPANSION",
@@ -240,7 +246,7 @@ export function isPrepOSExtensionSection(sectionKey) {
 }
 
 /**
- * Cognition entries that are PrepOS extensions, not MSMDF v3 canonical layers.
+ * Cognition entries that are PrepOS extensions, not MSMDF v3.1 canonical layers.
  * @returns {readonly RepresentationEntry[]}
  */
 export function getPrepOSExtensionEntries() {
