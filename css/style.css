@@ -2964,20 +2964,28 @@ PREPOS SIDE PANEL OVERLAYS
 }
 
 .semantic-reading-flow .semantic-paragraph-run,
-.semantic-expansion-cards .semantic-paragraph-run {
+.semantic-expansion-cards .semantic-paragraph-run,
+.semantic-interpretations-compact .semantic-paragraph-run,
+.semantic-timeline-linear .semantic-paragraph-run {
   max-width: 68ch;
   margin: 0 0 var(--semantic-paragraph-gap);
 }
 
 .semantic-reading-flow .semantic-paragraph-run .semantic-paragraph,
-.semantic-expansion-cards .semantic-paragraph-run .semantic-paragraph {
+.semantic-expansion-cards .semantic-paragraph-run .semantic-paragraph,
+.semantic-interpretations-compact .semantic-paragraph-run .semantic-paragraph,
+.semantic-timeline-linear .semantic-paragraph-run .semantic-paragraph {
   margin-bottom: var(--semantic-paragraph-gap);
 }
 
 .semantic-reading-flow .semantic-paragraph-run .semantic-paragraph:last-child,
 .semantic-expansion-cards .semantic-paragraph-run .semantic-paragraph:last-child,
+.semantic-interpretations-compact .semantic-paragraph-run .semantic-paragraph:last-child,
+.semantic-timeline-linear .semantic-paragraph-run .semantic-paragraph:last-child,
 .semantic-reading-flow .semantic-paragraph-run .semantic-chronology-node:last-child,
-.semantic-expansion-cards .semantic-paragraph-run .semantic-chronology-node:last-child {
+.semantic-expansion-cards .semantic-paragraph-run .semantic-chronology-node:last-child,
+.semantic-interpretations-compact .semantic-paragraph-run .semantic-chronology-node:last-child,
+.semantic-timeline-linear .semantic-paragraph-run .semantic-chronology-node:last-child {
   margin-bottom: 0;
 }
 

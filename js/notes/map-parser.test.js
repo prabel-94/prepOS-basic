@@ -27,6 +27,7 @@ describe("MSMDF section line detection", () => {
   it("accepts canonical bracket-only sections", () => {
     assert.equal(matchCanonicalSectionLine("[NARRATIVE]"), "NARRATIVE");
     assert.equal(matchCanonicalSectionLine("[EXPANSION]"), "EXPANSION");
+    assert.equal(matchCanonicalSectionLine("[INTERPRETATION]"), "INTERPRETATIONS");
     assert.equal(matchCanonicalSectionLine("  [STRUCTURAL]  "), "STRUCTURAL");
     assert.equal(matchCanonicalSectionLine("# [NARRATIVE]"), "NARRATIVE");
     assert.equal(matchCanonicalSectionLine("#[NARRATIVE]"), "NARRATIVE");

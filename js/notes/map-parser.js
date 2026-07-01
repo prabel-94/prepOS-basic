@@ -30,12 +30,31 @@ export { CANONICAL_BOUNDARY_TAGS };
  * MSMDF section line: optional leading #, bracket tag, whitespace tolerant.
  * Does NOT treat ## [TAG] as a section boundary (single optional # only).
  */
-const SECTION_LINE_PATTERN = new RegExp(
-  `^\\s*#?\\s*\\[(${CANONICAL_BOUNDARY_TAGS.join("|")})\\]\\s*$`,
-  "i"
-);
+const SECTION_LINE_PATTERN = /^\s*#?\s*\[([A-Z][A-Z0-9_]+)\]\s*$/i;
 
 const EXTENSION_SECTION_LINE_PATTERN = /^\s*#?\s*\[(EXT:[A-Z][A-Z0-9_]+)\]\s*$/i;
+
+/** Import aliases for externally generated MSMDF (maps to registry boundary tags). */
+export const MSMDF_BOUNDARY_TAG_ALIASES = Object.freeze({
+  INTERPRETATION: "INTERPRETATIONS",
+});
+
+/**
+ * @param {string} tag
+ * @returns {string}
+ */
+export function resolveBoundaryTag(tag) {
+  const upper = String(tag ?? "").trim().toUpperCase();
+  return MSMDF_BOUNDARY_TAG_ALIASES[upper] ?? upper;
+}
+
+/**
+ * @param {string} tag
+ * @returns {boolean}
+ */
+export function isRegisteredBoundaryTag(tag) {
+  return Boolean(getSectionKeyFromTag(resolveBoundaryTag(tag)));
+}
 
 export const MSMDF_SECTION_SYNTAX_EXAMPLES = Object.freeze([
   "[NARRATIVE]",
@@ -65,7 +84,12 @@ export function matchCanonicalSectionLine(line) {
     return null;
   }
 
-  return match[1].toUpperCase();
+  const resolved = resolveBoundaryTag(match[1]);
+  if (!getSectionKeyFromTag(resolved)) {
+    return null;
+  }
+
+  return resolved;
 }
 
 /**

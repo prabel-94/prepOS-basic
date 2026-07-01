@@ -654,6 +654,17 @@ function isFluidParagraphBlock(block) {
   return block?.block_type === "paragraph" && !block.heading;
 }
 
+const FLUID_PARAGRAPH_REPRESENTATIONS = new Set([
+  "narrative",
+  "expansion",
+  "interpretations",
+  "timeline",
+]);
+
+function usesFluidParagraphRuns(representationKey) {
+  return FLUID_PARAGRAPH_REPRESENTATIONS.has(representationKey);
+}
+
 /**
  * Render consecutive paragraph blocks as one reading flow (narrative / expansion).
  * @returns {{ html: string, nextIndex: number }}
@@ -795,10 +806,7 @@ function renderRepresentation(
       continue;
     }
 
-    if (
-      (representationKey === "narrative" || representationKey === "expansion") &&
-      isFluidParagraphBlock(block)
-    ) {
+    if (usesFluidParagraphRuns(representationKey) && isFluidParagraphBlock(block)) {
       const { html, nextIndex } = renderFluidParagraphRun(
         blocks,
         i,
