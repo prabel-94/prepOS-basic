@@ -179,9 +179,8 @@ export function createLayerFlipReading({
 
     if (btn) {
       btn.disabled = rendering;
-      btn.textContent = showingSibling
-        ? `English — ${tabLabel}`
-        : `മലയാളം — ${tabLabel}`;
+      const shortLabel = showingSibling ? "English" : "മലയാളം";
+      btn.textContent = shortLabel;
       btn.setAttribute(
         "aria-label",
         showingSibling
@@ -192,8 +191,8 @@ export function createLayerFlipReading({
 
     if (hint) {
       hint.textContent = showingSibling
-        ? `${tabLabel} · ${getLanguageLabel(siblingLanguageCode)}`
-        : `${tabLabel} · ${getLanguageLabel(primaryLanguage)}`;
+        ? `${tabLabel} · English`
+        : `${tabLabel} · മലയാളം`;
     }
   }
 

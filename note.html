@@ -527,28 +527,37 @@
       gap: 8px;
     }
     .note-layer-flip {
+      position: fixed;
+      right: max(16px, env(safe-area-inset-right, 0px));
+      bottom: max(20px, env(safe-area-inset-bottom, 0px));
+      z-index: 1100;
       display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 10px 14px;
-      margin: 0 0 12px;
-      padding: 10px 12px;
-      border: 1px solid #e2e8f0;
-      border-radius: 8px;
-      background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 6px;
+      max-width: min(300px, calc(100vw - 32px));
+      margin: 0;
+      padding: 0;
+      border: none;
+      background: transparent;
+      pointer-events: none;
+    }
+    .note-layer-flip:not(.hidden) {
+      pointer-events: auto;
     }
     .note-layer-flip.hidden {
       display: none;
     }
     .note-layer-flip-btn {
-      padding: 8px 14px;
+      padding: 12px 16px;
       border: 1px solid #cbd5e1;
-      border-radius: 6px;
+      border-radius: 999px;
       background: #fff;
       color: #0f172a;
-      font-size: 0.9rem;
+      font-size: 0.92rem;
       font-weight: 600;
       cursor: pointer;
+      box-shadow: 0 4px 18px rgba(15, 23, 42, 0.16);
     }
     .note-layer-flip-btn:hover:not(:disabled) {
       border-color: var(--primary, #4f46e5);
@@ -559,8 +568,14 @@
       cursor: wait;
     }
     .note-layer-flip-hint {
-      font-size: 0.82rem;
-      color: #64748b;
+      font-size: 0.75rem;
+      color: #475569;
+      text-align: right;
+      padding: 4px 10px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.94);
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
     }
     .note-content-wrap {
       transform-style: preserve-3d;
@@ -601,13 +616,6 @@
 
   <div id="representationTabs" role="tablist" aria-label="Representations"></div>
 
-  <div id="noteLayerFlip" class="note-layer-flip hidden" aria-label="Section language flip">
-    <button type="button" class="note-layer-flip-btn" data-layer-flip-toggle>
-      മലയാളം
-    </button>
-    <span class="note-layer-flip-hint" data-layer-flip-hint></span>
-  </div>
-
   <div id="noteSourcePanel" class="hidden">
     <label for="semanticSourceEditor">Semantic markdown source</label>
     <textarea id="semanticSourceEditor" spellcheck="false" aria-label="Semantic markdown source"></textarea>
@@ -623,6 +631,13 @@
 
   <div id="readerStatus">Loading…</div>
 
+</div>
+
+<div id="noteLayerFlip" class="note-layer-flip hidden" aria-label="Section language flip">
+  <button type="button" class="note-layer-flip-btn" data-layer-flip-toggle>
+    മലയാളം
+  </button>
+  <span class="note-layer-flip-hint" data-layer-flip-hint></span>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
