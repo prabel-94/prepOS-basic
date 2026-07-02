@@ -17,7 +17,8 @@ import {
   getMlVariantVerificationRecord,
 } from "./core/question-assistance.js";
 import { parseQuestionPaste } from "./core/question-parser.js";
-import { copyMalayalamTranslationRequest } from "./core/malayalam-copy.js";
+import { copyMalayalamTranslationRequest } from "./core/malayalam-copy.js?v=20260602";
+import { showMalayalamTranslationCopyDialog } from "./ui/malayalam-copy-dialog.js";
 import { openModal, closeModal } from "./ui/modal-system.js";
 
 const SIDE_PANEL_OPTIONS = {
@@ -145,14 +146,15 @@ async function reportQbCopyResult(result) {
     return;
   }
 
+  showMalayalamTranslationCopyDialog(result.text);
+
   if (result.ok) {
     const label = result.count === 1 ? "1 question" : `${result.count} questions`;
     showQbStatus(`Copied prompt + ${label} for translation 📋`);
     return;
   }
 
-  showQbStatus("Copy failed — select all text in the dialog and copy manually.", true);
-  window.prompt("Copy this text:", result.text);
+  showQbStatus("Clipboard blocked — copy from the dialog.", true);
 }
 
 async function copyBankQuestionForTranslation(question) {

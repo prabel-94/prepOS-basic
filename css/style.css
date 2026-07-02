@@ -4800,6 +4800,21 @@ PHASE 1 — STUDENT UI UPGRADE
   color: #b91c1c;
 }
 
+.malayalam-copy-dialog-text {
+  display: block;
+  width: 100%;
+  min-height: 320px;
+  margin-top: 10px;
+  padding: 10px 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
 .draft-ml-toolbar {
   display: flex;
   flex-wrap: wrap;

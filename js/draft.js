@@ -19,7 +19,8 @@ import {
   pruneMalayalamAssistance,
 } from "./core/question-assistance.js";
 import { cleanQcpText, parseQuestionPaste, parseBulkQuestionPaste } from "./core/question-parser.js";
-import { copyMalayalamTranslationRequest } from "./core/malayalam-copy.js";
+import { copyMalayalamTranslationRequest } from "./core/malayalam-copy.js?v=20260602";
+import { showMalayalamTranslationCopyDialog } from "./ui/malayalam-copy-dialog.js";
 import {
   DEFAULT_SECONDS_PER_QUESTION,
   normalizeSecondsPerQuestion,
@@ -1555,14 +1556,15 @@ async function reportCopyResult(result, { emptyMessage, successLabel = "question
     return;
   }
 
+  showMalayalamTranslationCopyDialog(result.text);
+
   if (result.ok) {
     const label = result.count === 1 ? successLabel : `${result.count} ${successLabel}s`;
     setStatus(`Copied prompt + ${label} for translation 📋`);
     return;
   }
 
-  setStatus("Copy failed — select all text in the dialog and copy manually.", true);
-  window.prompt("Copy this text:", result.text);
+  setStatus("Clipboard blocked — copy from the dialog.", true);
 }
 
 async function copyQuestionForMalayalamTranslation(index) {
