@@ -536,6 +536,7 @@ const SECTION_GROUPING_REPRESENTATIONS = new Set([
   "interpretations",
   "expansion",
   "quotes",
+  "timeline",
 ]);
 
 function usesSectionGrouping(representationKey) {
@@ -560,6 +561,81 @@ function isNarrativeSectionBlock(block, representationKey) {
 
 function sectionHeadingLevel(block) {
   return block?.hierarchy_level ?? 1;
+}
+
+function isTimelinePhaseContainerSection(sectionBlock, childBlocks, representationKey) {
+  if (representationKey !== "timeline" || sectionBlock?.block_type !== "section") {
+    return false;
+  }
+
+  const sectionLevel = sectionHeadingLevel(sectionBlock);
+  return childBlocks.some(
+    (child) =>
+      child?.block_type === "section" &&
+      child?.heading &&
+      sectionHeadingLevel(child) > sectionLevel
+  );
+}
+
+function isTimelineMilestoneParagraph(block, representationKey) {
+  return (
+    representationKey === "timeline" &&
+    block?.block_type === "paragraph" &&
+    parseTimelineMilestoneLabel(String(block.content ?? "")) !== null
+  );
+}
+
+function tryRenderTimelineEntry(
+  blocks,
+  index,
+  topicMap,
+  renderOptions,
+  representationKey
+) {
+  if (representationKey !== "timeline") {
+    return null;
+  }
+
+  let start = index;
+  let prefixHtml = "";
+
+  const leading = blocks[start];
+  if (
+    leading?.block_type === "paragraph" &&
+    isRetrievalChainArrowLine(String(leading.content ?? "").trim())
+  ) {
+    prefixHtml = `<div class="semantic-retrieval-arrow" aria-hidden="true">↓</div>`;
+    start += 1;
+  }
+
+  const block = blocks[start];
+  const next = blocks[start + 1];
+
+  if (!isTimelineMilestoneParagraph(block, representationKey) || next?.block_type !== "list") {
+    return null;
+  }
+
+  const label = parseTimelineMilestoneLabel(String(block.content ?? ""));
+  const milestoneHtml = renderTimelineMilestoneDate(
+    label,
+    topicMap,
+    renderOptions,
+    representationKey,
+    block,
+    0
+  );
+  const listHtml = renderListContent(
+    next.content,
+    topicMap,
+    renderOptions,
+    next,
+    representationKey
+  );
+
+  return {
+    html: `<div class="semantic-timeline-entry"${blockAlignmentAttrs(block, representationKey)}>${prefixHtml}${milestoneHtml}${listHtml}</div>`,
+    nextIndex: start + 2,
+  };
 }
 
 /**
@@ -724,6 +800,19 @@ function renderCollapsibleSection(
   );
   const body = `${ownBody}${childrenHtml}`;
 
+  if (isTimelinePhaseContainerSection(sectionBlock, childBlocks, representationKey)) {
+    const heading = renderSemanticHeading(
+      sectionBlock.heading,
+      parserLevel,
+      representationKey,
+      topicMap,
+      renderOptions,
+      sectionBlock
+    );
+
+    return `<div class="${blockClass}${sectionEntryClass}" data-semantic-level="${semanticLevel}"${blockAlignmentAttrs(sectionBlock, representationKey)}>${heading}${body}</div>`;
+  }
+
   if (!body.trim()) {
     const heading = renderSemanticHeading(
       sectionBlock.heading,
@@ -791,6 +880,10 @@ function renderNarrativeSection(
 }
 
 function renderGroupedBlocks(blocks, topicMap, renderOptions, representationKey) {
+  if (representationKey === "timeline") {
+    return renderRepresentationBlocks(blocks, topicMap, renderOptions, representationKey);
+  }
+
   const parts = [];
   const skip = new Set();
 
@@ -1314,6 +1407,24 @@ function renderRepresentationBlocks(
       parts.push(recallPair.html);
 
       for (let skipIndex = i + 1; skipIndex < recallPair.nextIndex; skipIndex += 1) {
+        skip.add(skipIndex);
+      }
+
+      continue;
+    }
+
+    const timelineEntry = tryRenderTimelineEntry(
+      blocks,
+      i,
+      topicMap,
+      renderOptions,
+      representationKey
+    );
+
+    if (timelineEntry) {
+      parts.push(timelineEntry.html);
+
+      for (let skipIndex = i + 1; skipIndex < timelineEntry.nextIndex; skipIndex += 1) {
         skip.add(skipIndex);
       }
 

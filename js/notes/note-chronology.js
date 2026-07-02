@@ -105,6 +105,26 @@ const TIMELINE_MILESTONE_PERIOD_PATTERN =
 const TIMELINE_MILESTONE_MONTH_PATTERN =
   /^(?:january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{3,4}$/i;
 
+const TIMELINE_MILESTONE_MALAYALAM_MONTH_PATTERN =
+  /^(?:ജനുവരി|ഫെബ്രുവരി|മാർച്ച്|ഏപ്രിൽ|മേയ്|ജൂൺ|ജൂലൈ|ഓഗസ്റ്റ്|സെപ്റ്റംബർ|ഒക്ടോബർ|നവംബർ|ഡിസംബർ)\s+\d{3,4}$/u;
+
+/**
+ * MSMDF-LX timeline period labels (Malayalam centuries, decades, ranges).
+ * @param {string} candidate
+ * @returns {boolean}
+ */
+function isMsmdfLxTimelineMilestoneLabel(candidate) {
+  if (TIMELINE_MILESTONE_MALAYALAM_MONTH_PATTERN.test(candidate)) {
+    return true;
+  }
+
+  if (/\d/.test(candidate) && /(?:നൂറ്റാണ്ട്|കൾ)/u.test(candidate)) {
+    return true;
+  }
+
+  return false;
+}
+
 /**
  * Standalone timeline milestone labels (v3 date headers without divider nodes).
  * @param {string} text
@@ -140,6 +160,10 @@ export function parseTimelineMilestoneLabel(text) {
   }
 
   if (/^(late|early|mid)\s+\d/i.test(candidate) && !candidate.includes(".")) {
+    return candidate;
+  }
+
+  if (isMsmdfLxTimelineMilestoneLabel(candidate)) {
     return candidate;
   }
 

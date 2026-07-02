@@ -3038,6 +3038,19 @@ PREPOS SIDE PANEL OVERLAYS
   margin: 0.35rem 0 0.15rem;
 }
 
+.semantic-timeline-entry {
+  margin-bottom: var(--semantic-paragraph-gap);
+}
+
+.semantic-timeline-entry .semantic-timeline-milestone {
+  margin-top: 0.15rem;
+  margin-bottom: 0.35rem;
+}
+
+.semantic-timeline-entry .semantic-list {
+  margin-bottom: 0;
+}
+
 .semantic-chronology-label {
   flex: 1 1 auto;
   min-width: 0;

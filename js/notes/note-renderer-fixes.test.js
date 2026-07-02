@@ -44,6 +44,19 @@ describe("timeline milestone labels", () => {
     assert.equal(parseTimelineMilestoneLabel("**April 1640**"), "April 1640");
   });
 
+  it("parses Malayalam MSMDF-LX timeline milestone labels", () => {
+    assert.equal(
+      parseTimelineMilestoneLabel("**13–16-ാം നൂറ്റാണ്ടുകൾ**"),
+      "13–16-ാം നൂറ്റാണ്ടുകൾ"
+    );
+    assert.equal(parseTimelineMilestoneLabel("**ഏപ്രിൽ 1640**"), "ഏപ്രിൽ 1640");
+    assert.equal(parseTimelineMilestoneLabel("**1630-കൾ**"), "1630-കൾ");
+    assert.equal(
+      parseTimelineMilestoneLabel("**1670-കളുടെ അവസാനം – 1680-കൾ**"),
+      "1670-കളുടെ അവസാനം – 1680-കൾ"
+    );
+  });
+
   it("rejects regular prose lines", () => {
     assert.equal(parseTimelineMilestoneLabel("Parliament challenged arbitrary royal authority"), null);
   });
@@ -333,5 +346,76 @@ Point two.`
     assert.match(html, /msmdf-layer-purpose/);
     assert.match(html, /ഘടനാപരമായ ലക്ഷ്യം/);
     assert.doesNotMatch(html, /&gt; \*\*ഘടനാപരമായ ലക്ഷ്യം\*\*/);
+  });
+});
+
+describe("timeline layer rendering", () => {
+  const timelineEn = readFileSync(
+    path.join(sampleDir, "English Revolution Timeline (Eng).md"),
+    "utf8"
+  );
+  const timelineMl = readFileSync(
+    path.join(sampleDir, "English Revolution Timeline note (mal).md"),
+    "utf8"
+  );
+
+  it("groups phase sections with their chronology content", () => {
+    const parsed = parseMapMarkdown(
+      `[TIMELINE]
+
+# English Revolution
+
+## Pre-Revolution Foundations
+
+**1215**
+- [[Magna Carta]]
+
+↓
+
+**1603**
+- [[James I]]`
+    );
+
+    const html = renderTimeline(parsed.representations.timeline, {});
+
+    assert.match(
+      html,
+      /Pre-Revolution Foundations<\/summary>[\s\S]*canonical-block-body semantic-body[\s\S]*1215/
+    );
+    assert.match(html, /semantic-timeline-entry[\s\S]*1215[\s\S]*Magna Carta/);
+
+    const emptyDetails = (
+      html.match(
+        /<details[^>]*>\s*<summary[^>]*>[^<]+<\/summary>\s*<div class="canonical-block-body semantic-body"><\/div>/g
+      ) || []
+    ).length;
+
+    assert.equal(emptyDetails, 0);
+  });
+
+  it("renders v3 English timeline without empty phase bodies", () => {
+    const parsed = parseMapMarkdown(timelineEn);
+    const html = renderTimeline(parsed.representations.timeline, {});
+
+    assert.match(html, /msmdf-layer-purpose/);
+    assert.match(html, /semantic-timeline-entry/);
+    assert.ok((html.match(/semantic-timeline-entry/g) ?? []).length >= 30);
+
+    const emptyDetails = (
+      html.match(
+        /<details[^>]*>\s*<summary[^>]*>[^<]+<\/summary>\s*<div class="canonical-block-body semantic-body"><\/div>/g
+      ) || []
+    ).length;
+
+    assert.equal(emptyDetails, 0);
+  });
+
+  it("renders Malayalam timeline milestone labels as milestones", () => {
+    const parsed = parseMapMarkdown(timelineMl);
+    const html = renderTimeline(parsed.representations.timeline, {});
+
+    assert.match(html, /semantic-timeline-milestone[^>]*>ഏപ്രിൽ 1640</);
+    assert.match(html, /semantic-timeline-milestone[^>]*>13–16-ാം നൂറ്റാണ്ടുകൾ</);
+    assert.doesNotMatch(html, /\*\*ഏപ്രിൽ 1640\*\*/);
   });
 });
