@@ -15,6 +15,7 @@ import {
 import { parseMapMarkdown } from "./map-parser.js";
 import {
   orderRevisionAndRecallBlocks,
+  renderNarrative,
   renderRepresentationTab,
   renderRevision,
   renderTimeline,
@@ -193,5 +194,67 @@ describe("revision layer rendering", () => {
     assert.match(directRecall, /semantic-recall-answer[\s\S]*Magna Carta/);
     assert.equal((directRecall.match(/semantic-recall-qa/g) ?? []).length, 20);
     assert.doesNotMatch(directRecall, /<p class="canonical-paragraph[^"]*">→ /);
+  });
+});
+
+describe("narrative layer rendering", () => {
+  const narrativeSample = readFileSync(
+    path.join(sampleDir, "English Revolution Narrative (eng).md"),
+    "utf8"
+  );
+
+  it("wraps section prose inside article semantic-body", () => {
+    const parsed = parseMapMarkdown(
+      `[NARRATIVE]
+
+## Section One
+
+First paragraph.
+
+Second paragraph.
+
+## Section Two
+
+Another paragraph.`
+    );
+
+    const html = renderNarrative(parsed.representations.narrative, {});
+
+    assert.match(
+      html,
+      /Section One[\s\S]*<div class="semantic-body">[\s\S]*semantic-paragraph-run[\s\S]*First paragraph/
+    );
+    assert.doesNotMatch(
+      html,
+      /<\/article>\s*<div class="semantic-paragraph-run"[\s\S]*First paragraph/
+    );
+  });
+
+  it("groups v3 English Revolution narrative sections with their prose", () => {
+    const parsed = parseMapMarkdown(narrativeSample);
+    const html = renderNarrative(parsed.representations.narrative, {});
+
+    assert.match(
+      html,
+      /Constitutional and Religious Foundations[\s\S]*<div class="semantic-body">[\s\S]*semantic-paragraph-run/
+    );
+
+    const orphanHeadingArticles =
+      html.match(
+        /<article class="semantic-block[^"]*">\s*<h[2-6][^>]*>[^<]+<\/h[2-6]>\s*<\/article>/g
+      ) || [];
+
+    assert.equal(orphanHeadingArticles.length, 0);
+  });
+
+  it("keeps the document title as a section entry without nesting all articles", () => {
+    const parsed = parseMapMarkdown(narrativeSample);
+    const html = renderNarrative(parsed.representations.narrative, {});
+
+    assert.match(html, /semantic-section-entry[\s\S]*ENGLISH REVOLUTION/);
+    assert.doesNotMatch(
+      html,
+      /<article class="semantic-block[^"]* semantic-section-entry[^"]*">/
+    );
   });
 });

@@ -561,6 +561,14 @@ function isCollapsibleSectionBlock(block, representationKey) {
   );
 }
 
+function isNarrativeSectionBlock(block, representationKey) {
+  return (
+    representationKey === "narrative" &&
+    block?.block_type === "section" &&
+    Boolean(block?.heading)
+  );
+}
+
 function sectionHeadingLevel(block) {
   return block?.hierarchy_level ?? 1;
 }
@@ -746,6 +754,51 @@ function renderCollapsibleSection(
       <div class="canonical-block-body semantic-body">${body}</div>
     </details>
   `;
+}
+
+function renderNarrativeSection(
+  sectionBlock,
+  childBlocks,
+  topicMap,
+  renderOptions,
+  representationKey
+) {
+  const parserLevel = clampParserHeadingLevel(sectionBlock.hierarchy_level);
+  const semanticLevel = resolveSemanticLevel(parserLevel, {
+    representation: representationKey,
+  });
+  const blockClass = semanticBlockClasses(semanticLevel, representationKey);
+  const sectionEntryClass = semanticLevel === 1 ? " semantic-section-entry" : "";
+
+  const heading = renderSemanticHeading(
+    sectionBlock.heading,
+    parserLevel,
+    representationKey,
+    topicMap,
+    renderOptions,
+    sectionBlock
+  );
+
+  const ownBody = sectionBlock.content?.trim()
+    ? renderBlockBody(sectionBlock, topicMap, renderOptions, representationKey)
+    : "";
+  const childrenHtml = renderRepresentationBlocks(
+    childBlocks,
+    topicMap,
+    renderOptions,
+    representationKey
+  );
+  const body = `${ownBody}${childrenHtml}`;
+
+  if (!body.trim()) {
+    return `<div class="${blockClass}${sectionEntryClass} semantic-section-heading-only" data-semantic-level="${semanticLevel}"${blockAlignmentAttrs(sectionBlock, representationKey)}>${heading}</div>`;
+  }
+
+  if (semanticLevel === 1) {
+    return `<div class="${blockClass}${sectionEntryClass}" data-semantic-level="${semanticLevel}"${blockAlignmentAttrs(sectionBlock, representationKey)}>${heading}${body}</div>`;
+  }
+
+  return `<article class="${blockClass}${sectionEntryClass}" data-semantic-level="${semanticLevel}"${blockAlignmentAttrs(sectionBlock, representationKey)}>${heading}<div class="semantic-body">${body}</div></article>`;
 }
 
 function renderGroupedBlocks(blocks, topicMap, renderOptions, representationKey) {
@@ -1164,20 +1217,12 @@ function renderFluidParagraphRun(
   };
 }
 
-function renderRepresentation(
+function renderRepresentationBlocks(
   blocks = [],
   topicMap = {},
-  className,
   renderOptions = {},
   representationKey = "narrative"
 ) {
-  if (!blocks.length) {
-    return `<p class="canonical-empty">No content in this representation.</p>`;
-  }
-
-  const modeClass = representationReadingClass(representationKey);
-  const readingOpts = withReadingErgonomics(renderOptions);
-
   const parts = [];
   const skip = new Set();
 
@@ -1195,9 +1240,7 @@ function renderRepresentation(
       isRetrievalAnchorCueParagraph(block) &&
       next?.block_type === "retrieval_anchor"
     ) {
-      parts.push(
-        renderRetrievalAnchorBlock(block, next, topicMap, readingOpts)
-      );
+      parts.push(renderRetrievalAnchorBlock(block, next, topicMap, renderOptions));
       skip.add(i);
       skip.add(i + 1);
       continue;
@@ -1213,7 +1256,7 @@ function renderRepresentation(
       const payload = renderSemanticEscalationPayload(
         next,
         topicMap,
-        readingOpts,
+        renderOptions,
         representationKey
       );
       parts.push(`<div class="semantic-retrieval-block">${cue}${payload}</div>`);
@@ -1226,13 +1269,30 @@ function renderRepresentation(
       blocks,
       i,
       topicMap,
-      readingOpts,
+      renderOptions,
       representationKey,
       skip
     );
 
     if (escalationHtml) {
       parts.push(escalationHtml);
+      continue;
+    }
+
+    if (isNarrativeSectionBlock(block, representationKey)) {
+      const { children, nextIndex } = collectSectionBodyBlocks(
+        blocks,
+        i,
+        representationKey
+      );
+      parts.push(
+        renderNarrativeSection(block, children, topicMap, renderOptions, representationKey)
+      );
+
+      for (let skipIndex = i + 1; skipIndex < nextIndex; skipIndex += 1) {
+        skip.add(skipIndex);
+      }
+
       continue;
     }
 
@@ -1243,7 +1303,7 @@ function renderRepresentation(
         representationKey
       );
       parts.push(
-        renderCollapsibleSection(block, children, topicMap, readingOpts, representationKey)
+        renderCollapsibleSection(block, children, topicMap, renderOptions, representationKey)
       );
 
       for (let skipIndex = i + 1; skipIndex < nextIndex; skipIndex += 1) {
@@ -1257,7 +1317,7 @@ function renderRepresentation(
       blocks,
       i,
       topicMap,
-      readingOpts,
+      renderOptions,
       representationKey
     );
 
@@ -1276,7 +1336,7 @@ function renderRepresentation(
         blocks,
         i,
         topicMap,
-        readingOpts,
+        renderOptions,
         representationKey
       );
 
@@ -1291,12 +1351,30 @@ function renderRepresentation(
       continue;
     }
 
-    parts.push(renderBlock(block, topicMap, readingOpts, representationKey));
+    parts.push(renderBlock(block, topicMap, renderOptions, representationKey));
   }
+
+  return parts.join("");
+}
+
+function renderRepresentation(
+  blocks = [],
+  topicMap = {},
+  className,
+  renderOptions = {},
+  representationKey = "narrative"
+) {
+  if (!blocks.length) {
+    return `<p class="canonical-empty">No content in this representation.</p>`;
+  }
+
+  const modeClass = representationReadingClass(representationKey);
+  const readingOpts = withReadingErgonomics(renderOptions);
+  const body = renderRepresentationBlocks(blocks, topicMap, readingOpts, representationKey);
 
   return `
     <section class="canonical-representation ${className} ${modeClass}" data-representation="${representationKey}">
-      ${parts.join("")}
+      ${body}
     </section>
   `;
 }
