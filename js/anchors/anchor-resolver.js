@@ -41,7 +41,7 @@ function indexByNormalized(rows = [], key) {
   const map = new Map();
 
   for (const row of rows) {
-    const normalized = row[key];
+    const normalized = normalizeAnchorName(row[key]);
     if (!normalized || map.has(normalized)) {
       continue;
     }
@@ -49,6 +49,24 @@ function indexByNormalized(rows = [], key) {
   }
 
   return map;
+}
+
+function lookupNormalizedIndex(map, normalizedName) {
+  if (!map || !normalizedName) {
+    return null;
+  }
+
+  if (map.has(normalizedName)) {
+    return map.get(normalizedName);
+  }
+
+  for (const [key, value] of map.entries()) {
+    if (normalizeAnchorName(key) === normalizedName) {
+      return value;
+    }
+  }
+
+  return null;
 }
 
 function indexAnchorsByTopicId(rows = []) {
@@ -184,7 +202,7 @@ export function resolveDeclarationAgainstIndexes(declaration, indexes) {
     return base;
   }
 
-  const aliasRow = indexes.aliasesByName.get(normalized_name);
+  const aliasRow = lookupNormalizedIndex(indexes.aliasesByName, normalized_name);
   if (aliasRow?.anchor_id) {
     const anchor = aliasRow.anchors ?? {};
     return {
@@ -198,7 +216,7 @@ export function resolveDeclarationAgainstIndexes(declaration, indexes) {
     };
   }
 
-  const anchorRow = indexes.anchorsByName.get(normalized_name);
+  const anchorRow = lookupNormalizedIndex(indexes.anchorsByName, normalized_name);
   if (anchorRow?.id) {
     return {
       ...base,
@@ -212,8 +230,8 @@ export function resolveDeclarationAgainstIndexes(declaration, indexes) {
   }
 
   const variantRow =
-    indexes.variantsByName.get(normalized_name) ??
-    indexes.variantsAnyLanguageByName?.get(normalized_name);
+    lookupNormalizedIndex(indexes.variantsByName, normalized_name) ??
+    lookupNormalizedIndex(indexes.variantsAnyLanguageByName, normalized_name);
   if (variantRow?.anchor_id) {
     const anchor = variantRow.anchors ?? {};
     return {
@@ -228,7 +246,7 @@ export function resolveDeclarationAgainstIndexes(declaration, indexes) {
     };
   }
 
-  const topicRow = indexes.topicsByName.get(normalized_name);
+  const topicRow = lookupNormalizedIndex(indexes.topicsByName, normalized_name);
   if (topicRow?.id) {
     const linkedAnchor = indexes.anchorsByTopicId?.get(topicRow.id);
 

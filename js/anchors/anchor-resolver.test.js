@@ -139,6 +139,30 @@ describe("resolveDeclarationAgainstIndexes", () => {
     assert.equal(resolved.state, NOTE_ANCHOR_STATES.ACTIVE);
   });
 
+  it("matches an existing anchor when declaration uses a curly apostrophe", () => {
+    const indexes = buildIndexes({
+      anchorsByName: new Map([
+        [
+          "bishops' wars",
+          {
+            id: "anchor-bishops",
+            normalized_name: "bishops' wars",
+            anchor_type: ANCHOR_TYPES.MICRO,
+            canonical_topic_id: null,
+          },
+        ],
+      ]),
+    });
+
+    const resolved = resolveDeclarationAgainstIndexes(
+      { name: "Bishops’ Wars", section: "narrative", block_index: 0 },
+      indexes
+    );
+
+    assert.equal(resolved.resolution, ANCHOR_RESOLUTION_KINDS.EXISTING);
+    assert.equal(resolved.anchor_id, "anchor-bishops");
+  });
+
   it("returns candidate when nothing matches", () => {
     const resolved = resolveDeclarationAgainstIndexes(
       { name: "Unknown Entity", section: "narrative", block_index: 0 },
