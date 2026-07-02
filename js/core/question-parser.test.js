@@ -120,6 +120,25 @@ D) Delta
     assert.equal(result.questions[1].correct, "B");
   });
 
+  it("keeps numbered statements inside Malayalam consider-style stems", () => {
+    const block = `Q6. പ്യൂരിറ്റൻമാരെ സംബന്ധിച്ച് താഴെപ്പറയുന്ന പ്രസ്താവനകൾ പരിഗണിക്കുക:
+1. അവർ പാർലമെന്റിനെ ശക്തമായി പിന്തുണച്ചു.
+2. ആംഗ്ലിക്കൻ സഭയിലെ മതപരിഷ്കാരങ്ങളെ അവർ എതിർത്തു.
+മുകളിൽ നൽകിയിരിക്കുന്ന പ്രസ്താവനകളിൽ ശരിയായത് ഏത്?
+A) 1 മാത്രം
+B) 2 മാത്രം
+C) 1 ഉം 2 ഉം
+D) 1 ഉം 2 ഉം അല്ല
+ഉത്തരം: C
+വിശദീകരണം: രണ്ടും ശരി.`;
+
+    const result = parseBulkQuestionPaste(block, { clean: true });
+    assert.equal(result.ok, true);
+    assert.equal(result.questions.length, 1);
+    assert.match(result.questions[0].text, /1\. അവർ പാർലമെന്റിനെ/);
+    assert.equal(result.questions[0].correct, "C");
+  });
+
   it("uses only first question when multiple blocks pasted", () => {
     const normalized = normalizeSingleQuestionPaste(`${ENGLISH_BLOCK}\n\nQ2. Second question?\nA) One\nB) Two\nC) Three\nD) Four\nAnswer: A`);
     assert.match(normalized, /^Q1\./);

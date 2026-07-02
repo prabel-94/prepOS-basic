@@ -62,49 +62,124 @@ export function normalizeMalayalamQcpLabels(text) {
     .replace(/\bExplanation\b\s*[:：\-]?\s*/gi, "Explanation: ");
 }
 
-/** Convert 1. / Q1) block starters to Q1. for the structural parser.
- *  Be conservative: only convert bare numbers that look like question starters.
- */
+const STATEMENT_LIST_INTRO_REGEX =
+  /പരിഗണിക്കുക|പ്രസ്താവന|consider the following|consider the statements?|with reference|ക്രമീകരിക്കുക|arrange the following|match the following/i;
+
+const QUESTION_STEM_INDICATOR_REGEX =
+  /\b(?:Which|What|Who|Why|How|Consider|With reference|Arrange|Match|Select|Choose|Identify|Assertion|Reason|How many)\b/i;
+
+function findPreviousNonEmptyLine(lines) {
+  for (let i = lines.length - 1; i >= 0; i -= 1) {
+    if (lines[i].trim()) {
+      return lines[i].trim();
+    }
+  }
+  return "";
+}
+
+function looksLikeTopLevelQuestionStem(content) {
+  return (
+    /[:?][\"""']?\s*$/.test(content) ||
+    QUESTION_STEM_INDICATOR_REGEX.test(content) ||
+    /\?/.test(content)
+  );
+}
+
+/** Convert 1. / Q1) block starters to Q1. for the structural parser. */
 export function normalizeQuestionBlockMarkers(text) {
-  // Normalize explicit Q markers first
   let normalized = text.replace(
     /(?:^|\n)Q\s*(\d+)[\.\)]\s+/gi,
     (match, num, offset) => `${offset > 0 ? "\n" : ""}Q${num}. `
   );
 
-  // Conservative pass for bare numbers: only convert when line appears to be a question
-  normalized = normalized.replace(/(?:^|\n)(\d+)[\.\)]\s+(.+?)(?=\n|$)/gm, (match, num, content, offset) => {
-    const trimmed = content.trim();
+  const lines = normalized.split("\n");
+  const output = [];
+  let blockPhase = "none";
+  let statementListIntro = false;
 
-    // heuristics for question indicators
-    const hasQuestionIndicator =
-      /[\?\:]$/.test(trimmed) ||
-      /\bWhich\b/i.test(trimmed) ||
-      /\bWhat\b/i.test(trimmed) ||
-      /\bWho\b/i.test(trimmed) ||
-      /\bWhy\b/i.test(trimmed) ||
-      /\bHow\b/i.test(trimmed) ||
-      /\bConsider\b/i.test(trimmed) ||
-      /\bWith reference\b/i.test(trimmed) ||
-      /\bArrange\b/i.test(trimmed) ||
-      /\bMatch\b/i.test(trimmed) ||
-      /\bSelect\b/i.test(trimmed) ||
-      /\bChoose\b/i.test(trimmed) ||
-      /\bIdentify\b/i.test(trimmed) ||
-      /\bAssertion\b/i.test(trimmed) ||
-      /\bReason\b/i.test(trimmed) ||
-      /\bHow many\b/i.test(trimmed) ||
-      /[\u0D00-\u0D7F]/.test(trimmed);
+  for (let i = 0; i < lines.length; i += 1) {
+    let line = lines[i];
+    const trimmed = line.trim();
 
-    if (hasQuestionIndicator) {
-      return (match.startsWith('\n') ? '\n' : '') + `Q${num}. ${content}`;
+    if (!trimmed) {
+      if (blockPhase === "answer" || blockPhase === "explanation") {
+        blockPhase = "none";
+      }
+      output.push(line);
+      continue;
     }
 
-    // Otherwise leave the numbered line as-is (likely a statement list)
-    return match;
-  });
+    if (/^Q\d+[\.\)]\s+/i.test(trimmed)) {
+      blockPhase = "question";
+      statementListIntro = STATEMENT_LIST_INTRO_REGEX.test(
+        trimmed.replace(/^Q\d+[\.\)]\s*/i, "")
+      );
+      output.push(line);
+      continue;
+    }
 
-  return normalized.trim();
+    if (OPTION_REGEX.test(trimmed)) {
+      blockPhase = "options";
+      output.push(line.replace(/^([A-D])[\.\):-]\s*/i, "$1) "));
+      continue;
+    }
+
+    if (ANSWER_LINE_REGEX.test(trimmed)) {
+      blockPhase = "answer";
+      output.push(line);
+      continue;
+    }
+
+    if (EXPLANATION_LINE_REGEX.test(trimmed)) {
+      blockPhase = "explanation";
+      output.push(line);
+      continue;
+    }
+
+    const numericMatch = trimmed.match(/^(\d+)[\.\)]\s+(.+)$/);
+    if (numericMatch) {
+      const num = numericMatch[1];
+      const content = numericMatch[2];
+      const nextLine = (lines[i + 1] || "").trim();
+      const nextIsNumeric = /^\d+[\.\)]\s+/.test(nextLine);
+      const prevNonEmpty = findPreviousNonEmptyLine(output);
+      const prevIntroducesStatements =
+        statementListIntro ||
+        STATEMENT_LIST_INTRO_REGEX.test(
+          prevNonEmpty.replace(/^Q\d+[\.\)]\s*/i, "")
+        );
+
+      const insideQuestionBeforeOptions =
+        blockPhase === "question" || blockPhase === "options";
+
+      if (
+        insideQuestionBeforeOptions ||
+        nextIsNumeric ||
+        prevIntroducesStatements
+      ) {
+        output.push(line);
+        continue;
+      }
+
+      if (blockPhase === "none" && looksLikeTopLevelQuestionStem(content)) {
+        blockPhase = "question";
+        statementListIntro = STATEMENT_LIST_INTRO_REGEX.test(content);
+        line = `Q${num}. ${content}`;
+      }
+
+      output.push(line);
+      continue;
+    }
+
+    if (blockPhase === "explanation") {
+      output.push(line);
+      continue;
+    }
+
+    output.push(line);
+  }
+
+  return output.join("\n").trim();
 }
 
 function applyQcpDeepCleanLines(text) {
@@ -171,8 +246,11 @@ function applyQcpDeepCleanLines(text) {
         /\bHow many\b/i.test(content) ||
         /[\u0D00-\u0D7F]/.test(content);
 
-      // If previous non-empty line contains 'consider the following' or similar, treat as statement list
-      const prevIndicatesStatementList = prevNonEmpty && /consider the following|with reference|consider the statements?/i.test(prevNonEmpty);
+      const prevIndicatesStatementList =
+        prevNonEmpty &&
+        STATEMENT_LIST_INTRO_REGEX.test(
+          prevNonEmpty.replace(/^(?:Q\s*)?\d+[\.\)]\s*/i, "")
+        );
 
       if (looksLikeQuestion && !nextIsNumeric && !prevIndicatesStatementList) {
         line = `Q${qNum}. ${content}`;
