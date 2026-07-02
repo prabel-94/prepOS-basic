@@ -4674,6 +4674,53 @@ PHASE 1 — STUDENT UI UPGRADE
   margin-top: 0;
 }
 
+.practice-ml-verify-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 8px 0 12px;
+  padding: 10px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #f9fafb;
+}
+
+.practice-ml-verify-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.practice-ml-verify-badge--pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.practice-ml-verify-badge--verified {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.practice-ml-verify-badge--stale {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.practice-ml-verify-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.practice-ml-qb-link {
+  text-decoration: none;
+}
+
 .question-assistance-panel {
   border: 1px dashed #c4b5fd;
   border-radius: 8px;

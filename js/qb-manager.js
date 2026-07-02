@@ -13,7 +13,9 @@ import {
   malayalamAssistanceFromMetadata,
   malayalamAssistanceToMetadataPayload,
   ML_VARIANT_VERIFICATION_KEY,
-  computeMalayalamAssistanceHash,
+  certifyMalayalamVariant,
+  revokeMalayalamVariantVerification,
+  enrichQuestionMalayalamVerification,
   getMlVariantVerificationRecord,
 } from "./core/question-assistance.js";
 import { parseQuestionPaste } from "./core/question-parser.js";
@@ -363,64 +365,33 @@ async function saveMalayalamAssistance(questionId, payload) {
 
 async function clearMlVariantVerification(questionId) {
   const sb = await getClient();
-  await sb
-    .from("question_metadata")
-    .delete()
-    .eq("question_id", questionId)
-    .eq("key", ML_VARIANT_VERIFICATION_KEY);
+  await revokeMalayalamVariantVerification(sb, questionId);
 }
 
 async function certifyMlVariant(questionId) {
   const payload = readMalayalamFromCard(questionId);
-  const question = { assistance: { malayalam: payload } };
-  const normalized = malayalamAssistanceToMetadataPayload(question);
-
-  if (!normalized || !hasMalayalamAssistance(question)) {
-    throw new Error("Add Malayalam content before marking as verified");
-  }
-
-  const contentHash = await computeMalayalamAssistanceHash(normalized);
+  const question = {
+    id: questionId,
+    assistance: { malayalam: payload },
+  };
   const sb = await getClient();
-  const { data: userData } = await sb.auth.getUser();
-
-  const { error } = await sb
-    .from("question_metadata")
-    .upsert(
-      {
-        question_id: questionId,
-        key: ML_VARIANT_VERIFICATION_KEY,
-        value: {
-          content_hash: contentHash,
-          verified_at: new Date().toISOString(),
-          verified_by: userData?.user?.id ?? null,
-        },
-      },
-      { onConflict: "question_id,key" }
-    );
-
-  if (error) {
-    throw error;
-  }
+  await certifyMalayalamVariant(sb, question);
 }
 
 async function enrichQuestionMlStatus(question) {
   const mlQuestion = questionWithAssistance(question);
-  const hasMl = hasMalayalamAssistance(mlQuestion);
-  let verified = false;
+  const statusTarget = {
+    ...mlQuestion,
+    id: question.id,
+    question_metadata: question.question_metadata,
+    mlVerificationRecord: getMlVariantVerificationRecord(question),
+  };
 
-  if (hasMl) {
-    const record = getMlVariantVerificationRecord(question);
-    const payload = malayalamAssistanceToMetadataPayload(mlQuestion);
+  await enrichQuestionMalayalamVerification(statusTarget);
 
-    if (record?.content_hash && payload) {
-      const currentHash = await computeMalayalamAssistanceHash(payload);
-      verified = currentHash === record.content_hash;
-    }
-  }
-
-  question._mlHasContent = hasMl;
-  question._mlVerified = verified;
-  question._mlNeedsReview = hasMl && !verified;
+  question._mlHasContent = statusTarget._mlHasContent;
+  question._mlVerified = statusTarget._mlVerified;
+  question._mlNeedsReview = statusTarget._mlNeedsReview;
 }
 
 function setRadioGroup(name, value) {

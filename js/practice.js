@@ -1,6 +1,7 @@
 import { runGenerator } from "./generator-core.js";
 import { getClient } from "./core/get-client.js";
 import { bootPage } from "./core/page-boot.js";
+import { resolveAppPath } from "./core/access.js";
 import {
   resolveActingStudentId,
   isLinkedStudentMode,
@@ -28,6 +29,13 @@ import {
   hasMalayalamAssistance,
   malayalamAssistanceFromMetadata,
   resolveQuestionDisplay,
+  ML_VARIANT_VERIFICATION_KEY,
+  ASSISTANCE_LANG_MALAYALAM,
+  fetchQuestionMetadataMaps,
+  enrichQuestionMalayalamVerification,
+  certifyMalayalamVariant,
+  revokeMalayalamVariantVerification,
+  parseMlVariantVerificationValue,
 } from "./core/question-assistance.js";
 
 const subjectSelect = document.getElementById("subjectSelect");
@@ -933,7 +941,7 @@ function shuffleQuestions(questions) {
   return shuffled;
 }
 
-function normalizeBankQuestion(row, metadataValue = null) {
+function normalizeBankQuestion(row, metadata = {}) {
   const rawOptions = [
     { id: "A", text: String(row.option_a || "").trim() },
     { id: "B", text: String(row.option_b || "").trim() },
@@ -964,12 +972,134 @@ function normalizeBankQuestion(row, metadataValue = null) {
     explanation: row.explanation || "",
   };
 
-  const assistancePatch = malayalamAssistanceFromMetadata(metadataValue);
+  const assistancePatch = malayalamAssistanceFromMetadata(
+    metadata[ASSISTANCE_LANG_MALAYALAM] ?? metadata.assistance_malayalam ?? null
+  );
   if (assistancePatch) {
     Object.assign(question, assistancePatch);
   }
 
+  const verificationRecord = parseMlVariantVerificationValue(
+    metadata[ML_VARIANT_VERIFICATION_KEY] ?? null
+  );
+  if (verificationRecord) {
+    question.mlVerificationRecord = verificationRecord;
+  }
+
   return question;
+}
+
+function canReviewMalayalamMasks() {
+  const role = practiceRuntime?.role;
+  return role === "teacher" || role === "admin";
+}
+
+function syncBankQuestionVerificationState(sourceQuestion) {
+  if (!sourceQuestion?.id) {
+    return;
+  }
+
+  const bankQuestion = state.bankQuestions.find(
+    (entry) => entry.id === sourceQuestion.id
+  );
+  if (!bankQuestion) {
+    return;
+  }
+
+  bankQuestion.mlVerificationRecord = sourceQuestion.mlVerificationRecord;
+  bankQuestion._mlHasContent = sourceQuestion._mlHasContent;
+  bankQuestion._mlVerified = sourceQuestion._mlVerified;
+  bankQuestion._mlNeedsReview = sourceQuestion._mlNeedsReview;
+}
+
+function renderMalayalamVerificationBar(question) {
+  if (!canReviewMalayalamMasks() || state.mode !== "bank") {
+    return "";
+  }
+
+  const hasMl =
+    question._mlHasContent ?? hasMalayalamAssistance(question);
+  if (!hasMl) {
+    return "";
+  }
+
+  const verified = Boolean(question._mlVerified);
+  const needsReview = Boolean(question._mlNeedsReview);
+  const hasStaleRecord = Boolean(question.mlVerificationRecord?.content_hash);
+
+  let badgeClass = "practice-ml-verify-badge--pending";
+  let badgeText = "ML unverified";
+
+  if (verified) {
+    badgeClass = "practice-ml-verify-badge--verified";
+    badgeText = "ML verified";
+  } else if (needsReview && hasStaleRecord) {
+    badgeClass = "practice-ml-verify-badge--stale";
+    badgeText = "ML needs re-review";
+  }
+
+  const qbHref = resolveAppPath("qb-manager.html");
+  const actionButton = verified
+    ? `<button type="button" class="secondary-btn practice-ml-revoke-btn" data-question-id="${escapeHTML(question.id)}">Revoke verification</button>`
+    : `<button type="button" class="primary-btn practice-ml-certify-btn" data-question-id="${escapeHTML(question.id)}">Mark Malayalam verified</button>`;
+
+  return `
+    <div class="practice-ml-verify-bar">
+      <span class="practice-ml-verify-badge ${badgeClass}">${escapeHTML(badgeText)}</span>
+      <div class="practice-ml-verify-actions">
+        ${actionButton}
+        <a
+          href="${escapeHTML(qbHref)}"
+          class="secondary-btn practice-ml-qb-link"
+          target="_blank"
+          rel="noopener noreferrer"
+        >Edit in Question Bank</a>
+      </div>
+    </div>
+  `;
+}
+
+function bindMalayalamVerificationActions(question) {
+  const certifyBtn = questionPrompt?.querySelector(".practice-ml-certify-btn");
+  const revokeBtn = questionPrompt?.querySelector(".practice-ml-revoke-btn");
+
+  certifyBtn?.addEventListener("click", () => {
+    handlePracticeCertifyMalayalam(question).catch((error) => {
+      console.error(error);
+      setStatus(error.message || "Could not verify Malayalam mask", true);
+    });
+  });
+
+  revokeBtn?.addEventListener("click", () => {
+    handlePracticeRevokeMalayalam(question).catch((error) => {
+      console.error(error);
+      setStatus(error.message || "Could not revoke verification", true);
+    });
+  });
+}
+
+async function handlePracticeCertifyMalayalam(question) {
+  if (!question?.id) {
+    return;
+  }
+
+  const sb = await getClient();
+  await certifyMalayalamVariant(sb, question);
+  syncBankQuestionVerificationState(question);
+  refreshCurrentQuestionDisplay();
+  setStatus("Malayalam mask marked as verified.");
+}
+
+async function handlePracticeRevokeMalayalam(question) {
+  if (!question?.id) {
+    return;
+  }
+
+  const sb = await getClient();
+  await revokeMalayalamVariantVerification(sb, question.id, question);
+  syncBankQuestionVerificationState(question);
+  refreshCurrentQuestionDisplay();
+  setStatus("Malayalam verification revoked.");
 }
 
 function isMaskEnabledForQuestion(question) {
@@ -1087,26 +1217,22 @@ function initPracticeAssistanceToggle() {
   });
 }
 
-async function fetchMalayalamAssistanceByQuestionId(questionIds = []) {
+async function fetchBankQuestionMetadata(questionIds = []) {
   if (!questionIds.length) {
     return new Map();
   }
 
-  const sb = await getClient();
-  const { data, error } = await sb
-    .from("question_metadata")
-    .select("question_id, value")
-    .in("question_id", questionIds)
-    .eq("key", "assistance_malayalam");
-
-  if (error) {
-    console.error("Malayalam assistance metadata load failed:", error);
+  try {
+    const sb = await getClient();
+    return await fetchQuestionMetadataMaps(sb, questionIds, [
+      ASSISTANCE_LANG_MALAYALAM,
+      "assistance_malayalam",
+      ML_VARIANT_VERIFICATION_KEY,
+    ]);
+  } catch (error) {
+    console.error("Bank question metadata load failed:", error);
     return new Map();
   }
-
-  return new Map(
-    (data || []).map((row) => [row.question_id, row.value])
-  );
 }
 
 async function loadBankTopics() {
@@ -1195,14 +1321,30 @@ async function loadBankQuestions() {
     throw error;
   }
 
-  const assistanceMap = await fetchMalayalamAssistanceByQuestionId(
+  const assistanceMap = await fetchBankQuestionMetadata(
     data.map((row) => row.id)
   );
 
   state.bankQuestions = data
     .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
-    .map((row) => normalizeBankQuestion(row, assistanceMap.get(row.id)))
+    .map((row) => {
+      const metadata = assistanceMap.get(row.id) ?? {};
+      const normalizedMetadata = {
+        [ASSISTANCE_LANG_MALAYALAM]:
+          metadata[ASSISTANCE_LANG_MALAYALAM] ?? metadata.assistance_malayalam,
+        [ML_VARIANT_VERIFICATION_KEY]: metadata[ML_VARIANT_VERIFICATION_KEY],
+      };
+      return normalizeBankQuestion(row, normalizedMetadata);
+    })
     .filter((question) => question.text && question.options.length >= 2);
+
+  if (canReviewMalayalamMasks()) {
+    await Promise.all(
+      state.bankQuestions.map((question) =>
+        enrichQuestionMalayalamVerification(question)
+      )
+    );
+  }
 
   const questionIds = state.bankQuestions.map((question) => question.id).filter(Boolean);
 
@@ -1534,6 +1676,7 @@ function renderQuestion(question) {
       ${metaHtml}
       ${renderQuestionAssistanceToggle(question)}
     </div>
+    ${renderMalayalamVerificationBar(question)}
     ${assistanceHint}
     <div class="question-text prepos-text">
       ${escapeHTML(display.text)}
@@ -1541,6 +1684,7 @@ function renderQuestion(question) {
   `;
 
   bindQuestionAssistanceToggle(question);
+  bindMalayalamVerificationActions(question);
 
   optionsContainer.innerHTML = "";
   resetOptionTouchTap();

@@ -13,6 +13,7 @@ import {
   normalizeMalayalamAssistanceForHash,
   pruneMalayalamAssistance,
   resolveQuestionDisplay,
+  enrichQuestionMalayalamVerification,
 } from "./question-assistance.js";
 
 describe("question-assistance", () => {
@@ -115,5 +116,40 @@ describe("question-assistance", () => {
 
     assert.equal(record.content_hash, "abc123");
     assert.equal(record.verified_by, "user-1");
+  });
+
+  it("enriches Malayalam verification flags from matching hash", async () => {
+    const payload = malayalamAssistanceToMetadataPayload(question);
+    const contentHash = await computeMalayalamAssistanceHash(payload);
+
+    const verifiedQuestion = {
+      ...question,
+      mlVerificationRecord: {
+        content_hash: contentHash,
+        verified_at: "2026-06-26T00:00:00.000Z",
+        verified_by: "user-1",
+      },
+    };
+
+    await enrichQuestionMalayalamVerification(verifiedQuestion);
+    assert.equal(verifiedQuestion._mlHasContent, true);
+    assert.equal(verifiedQuestion._mlVerified, true);
+    assert.equal(verifiedQuestion._mlNeedsReview, false);
+  });
+
+  it("flags stale Malayalam verification when content changes", async () => {
+    const staleQuestion = {
+      ...question,
+      mlVerificationRecord: {
+        content_hash: "stale-hash",
+        verified_at: "2026-06-26T00:00:00.000Z",
+        verified_by: "user-1",
+      },
+    };
+
+    await enrichQuestionMalayalamVerification(staleQuestion);
+    assert.equal(staleQuestion._mlHasContent, true);
+    assert.equal(staleQuestion._mlVerified, false);
+    assert.equal(staleQuestion._mlNeedsReview, true);
   });
 });

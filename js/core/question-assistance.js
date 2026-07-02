@@ -205,11 +205,18 @@ export async function computeMalayalamAssistanceHash(payload) {
 }
 
 export function getMlVariantVerificationRecord(question) {
+  if (question?.mlVerificationRecord && typeof question.mlVerificationRecord === "object") {
+    return question.mlVerificationRecord;
+  }
+
   const row = (question?.question_metadata || []).find(
     (entry) => entry.key === ML_VARIANT_VERIFICATION_KEY
   );
-  const value = row?.value;
 
+  return parseMlVariantVerificationValue(row?.value);
+}
+
+export function parseMlVariantVerificationValue(value) {
   if (!value || typeof value !== "object") {
     return null;
   }
@@ -219,4 +226,135 @@ export function getMlVariantVerificationRecord(question) {
     verified_at: value.verified_at ?? null,
     verified_by: value.verified_by ?? null,
   };
+}
+
+/**
+ * Attach _mlHasContent / _mlVerified / _mlNeedsReview on a question object.
+ */
+export async function enrichQuestionMalayalamVerification(question) {
+  if (!question || typeof question !== "object") {
+    return question;
+  }
+
+  const hasMl = hasMalayalamAssistance(question);
+  let verified = false;
+
+  if (hasMl) {
+    const record = getMlVariantVerificationRecord(question);
+    const payload = malayalamAssistanceToMetadataPayload(question);
+
+    if (record?.content_hash && payload) {
+      const currentHash = await computeMalayalamAssistanceHash(payload);
+      verified = currentHash === record.content_hash;
+    }
+  }
+
+  question._mlHasContent = hasMl;
+  question._mlVerified = verified;
+  question._mlNeedsReview = hasMl && !verified;
+  return question;
+}
+
+/**
+ * Batch-fetch question_metadata rows keyed by question id.
+ */
+export async function fetchQuestionMetadataMaps(
+  sb,
+  questionIds = [],
+  keys = []
+) {
+  const uniqueIds = [...new Set(questionIds.filter(Boolean))];
+  const uniqueKeys = [...new Set(keys.filter(Boolean))];
+  const result = new Map();
+
+  if (!uniqueIds.length || !uniqueKeys.length) {
+    return result;
+  }
+
+  const { data, error } = await sb
+    .from("question_metadata")
+    .select("question_id, key, value")
+    .in("question_id", uniqueIds)
+    .in("key", uniqueKeys);
+
+  if (error) {
+    throw error;
+  }
+
+  for (const row of data ?? []) {
+    const bucket = result.get(row.question_id) ?? {};
+    bucket[row.key] = row.value;
+    result.set(row.question_id, bucket);
+  }
+
+  return result;
+}
+
+/**
+ * Certify the Malayalam mask currently on the question object (bank metadata shape).
+ */
+export async function certifyMalayalamVariant(sb, question) {
+  const questionId = question?.id;
+  if (!questionId) {
+    throw new Error("Question id is required");
+  }
+
+  const normalized = malayalamAssistanceToMetadataPayload(question);
+  if (!normalized || !hasMalayalamAssistance(question)) {
+    throw new Error("Add Malayalam content before marking as verified");
+  }
+
+  const contentHash = await computeMalayalamAssistanceHash(normalized);
+  const { data: userData } = await sb.auth.getUser();
+
+  const record = {
+    content_hash: contentHash,
+    verified_at: new Date().toISOString(),
+    verified_by: userData?.user?.id ?? null,
+  };
+
+  const { error } = await sb.from("question_metadata").upsert(
+    {
+      question_id: questionId,
+      key: ML_VARIANT_VERIFICATION_KEY,
+      value: record,
+    },
+    { onConflict: "question_id,key" }
+  );
+
+  if (error) {
+    throw error;
+  }
+
+  question.mlVerificationRecord = record;
+  question._mlHasContent = true;
+  question._mlVerified = true;
+  question._mlNeedsReview = false;
+  return record;
+}
+
+export async function revokeMalayalamVariantVerification(
+  sb,
+  questionId,
+  question = null
+) {
+  if (!questionId) {
+    throw new Error("Question id is required");
+  }
+
+  const { error } = await sb
+    .from("question_metadata")
+    .delete()
+    .eq("question_id", questionId)
+    .eq("key", ML_VARIANT_VERIFICATION_KEY);
+
+  if (error) {
+    throw error;
+  }
+
+  if (question) {
+    delete question.mlVerificationRecord;
+    question._mlVerified = false;
+    question._mlNeedsReview = hasMalayalamAssistance(question);
+  }
 }
