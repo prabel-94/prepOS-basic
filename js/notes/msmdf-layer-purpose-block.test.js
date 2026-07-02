@@ -9,6 +9,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
   isLayerPurposeBlock,
+  isLayerPurposeTitle,
   parseLayerPurposeBlock,
 } from "./msmdf-layer-purpose-block.js";
 import { parseMapMarkdown } from "./map-parser.js";
@@ -41,6 +42,18 @@ describe("msmdf-layer-purpose-block", () => {
 
     assert.equal(parseLayerPurposeBlock(text), null);
   });
+
+  it("accepts Malayalam MSMDF-LX purpose titles", () => {
+    const text = `> **ഘടനാപരമായ ലക്ഷ്യം**
+>
+> ഈ Structural Layer Narrative-ലെയും Expansion-ലെയും അറിവിനെ പുനഃസംഘടിപ്പിക്കുന്നു.`;
+
+    assert.ok(isLayerPurposeTitle("ഘടനാപരമായ ലക്ഷ്യം"));
+    assert.ok(isLayerPurposeBlock(text));
+    const parsed = parseLayerPurposeBlock(text);
+    assert.equal(parsed.title, "ഘടനാപരമായ ലക്ഷ്യം");
+    assert.match(parsed.body, /Structural Layer/);
+  });
 });
 
 describe("purpose callout rendering", () => {
@@ -53,5 +66,19 @@ describe("purpose callout rendering", () => {
     assert.match(html, /hierarchical conceptual framework/);
     assert.doesNotMatch(html, /&gt; \*\*Structural Purpose\*\*/);
     assert.doesNotMatch(html, /> \*\*Structural Purpose\*\*/);
+  });
+
+  it("renders Malayalam timeline purpose titles", () => {
+    const parsed = parseMapMarkdown(
+      `[TIMELINE]
+
+> **ടൈംലൈൻ ലക്ഷ്യം**
+>
+> Chronological orientation for examination recall.`
+    );
+
+    const html = renderRepresentationTab("timeline", parsed.representations, {});
+    assert.match(html, /msmdf-layer-purpose/);
+    assert.match(html, /ടൈംലൈൻ ലക്ഷ്യം/);
   });
 });

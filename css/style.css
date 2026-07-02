@@ -3161,6 +3161,12 @@ PREPOS SIDE PANEL OVERLAYS
   max-width: 68ch;
 }
 
+.semantic-list--nested {
+  margin-top: 0.2rem;
+  margin-bottom: 0;
+  padding-left: 1.15rem;
+}
+
 /* Collapsible blocks (revision / timeline / interpretations) — subordinated chrome */
 .semantic-collapsible {
   margin-top: var(--semantic-l3-space-before);

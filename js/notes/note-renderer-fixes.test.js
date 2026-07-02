@@ -18,6 +18,7 @@ import {
   renderNarrative,
   renderRepresentationTab,
   renderRevision,
+  renderStructural,
   renderTimeline,
 } from "./note-renderer.js";
 import { parseMarkdownTable } from "./markdown-table.js";
@@ -256,5 +257,81 @@ Another paragraph.`
       html,
       /<article class="semantic-block[^"]* semantic-section-entry[^"]*">/
     );
+  });
+});
+
+describe("structural layer rendering", () => {
+  const structuralEn = readFileSync(
+    path.join(sampleDir, "English Revolution Structural (english).md"),
+    "utf8"
+  );
+  const structuralMl = readFileSync(
+    path.join(sampleDir, "English Revolution Structural (mal).md"),
+    "utf8"
+  );
+
+  it("renders --- dividers as semantic HR elements", () => {
+    const parsed = parseMapMarkdown(
+      `[STRUCTURAL]
+
+# Topic
+
+## Section
+
+Point one.
+
+---
+
+Point two.`
+    );
+
+    const html = renderStructural(parsed.representations.structural, {});
+
+    assert.match(html, /semantic-divider--hr/);
+    assert.doesNotMatch(html, /<p class="canonical-paragraph[^"]*">---<\/p>/);
+  });
+
+  it("renders nested structural lists from indent depth", () => {
+    const parsed = parseMapMarkdown(
+      `[STRUCTURAL]
+
+# Topic
+
+## Section
+
+- [[Magna Carta]] (1215)
+  - King subject to law
+  - Beginning of limited monarchy
+- Growth of Parliament`
+    );
+
+    const html = renderStructural(parsed.representations.structural, {});
+
+    assert.match(
+      html,
+      /<li class="semantic-list-item">[\s\S]*Magna Carta[\s\S]*<ul class="canonical-list semantic-list semantic-list--nested">[\s\S]*King subject to law/
+    );
+    assert.match(html, /Growth of Parliament/);
+  });
+
+  it("renders v3 English structural sample without literal divider paragraphs", () => {
+    const parsed = parseMapMarkdown(structuralEn);
+    const html = renderStructural(parsed.representations.structural, {});
+
+    assert.match(html, /msmdf-layer-purpose/);
+    assert.match(html, /semantic-list--nested/);
+    assert.equal(
+      (html.match(/<p class="canonical-paragraph[^"]*">---<\/p>/g) ?? []).length,
+      0
+    );
+  });
+
+  it("renders Malayalam structural purpose as a callout", () => {
+    const parsed = parseMapMarkdown(structuralMl);
+    const html = renderStructural(parsed.representations.structural, {});
+
+    assert.match(html, /msmdf-layer-purpose/);
+    assert.match(html, /ഘടനാപരമായ ലക്ഷ്യം/);
+    assert.doesNotMatch(html, /&gt; \*\*ഘടനാപരമായ ലക്ഷ്യം\*\*/);
   });
 });

@@ -45,6 +45,7 @@ import {
   parseLayerPurposeBlock,
 } from "./msmdf-layer-purpose-block.js";
 import { parseMarkdownTable } from "./markdown-table.js";
+import { renderNestedListHtml } from "./nested-list.js";
 
 function escapeHTML(value = "") {
   return String(value)
@@ -469,33 +470,21 @@ function renderSemanticHeading(
 }
 
 function renderListContent(content, topicMap, renderOptions, block, representationKey) {
-  const lines = String(content ?? "")
-    .split("\n")
-    .map((l) => l.trim())
-    .filter(Boolean);
-
-  if (!lines.length) {
-    return "";
-  }
-
-  const items = lines
-    .map((line, lineIndex) => {
-      const text = line.replace(/^\s*([-*•]|\d+[\.)])\s+/, "");
-      const edit = draftEditSurface(
-        renderOptions,
-        representationKey,
-        block,
-        `list-${lineIndex}`
-      );
+  return renderNestedListHtml({
+    content,
+    topicMap,
+    renderOptions,
+    block,
+    representationKey,
+    renderListItem: ({ text, block: listBlock, representationKey: repKey, itemKey, nested }) => {
+      const edit = draftEditSurface(renderOptions, repKey, listBlock, itemKey);
       return `<li class="semantic-list-item${edit.className}"${edit.attrs}>${resolveInlineSemantics(
         text,
         topicMap,
         renderOptions
-      )}</li>`;
-    })
-    .join("");
-
-  return `<ul class="canonical-list semantic-list">${items}</ul>`;
+      )}${nested}</li>`;
+    },
+  });
 }
 
 function renderMarkdownTableHtml(
@@ -1557,6 +1546,10 @@ function renderStructuralContentBlock(block, topicMap, renderOptions) {
     .map((p) => p.trim())
     .filter(Boolean)
     .map((p, paraIndex) => {
+      if (isSemanticDividerLine(p)) {
+        return renderSemanticDividerElement(p);
+      }
+
       if (isLayerPurposeBlock(p)) {
         return renderLayerPurposeCallout(
           parseLayerPurposeBlock(p),
