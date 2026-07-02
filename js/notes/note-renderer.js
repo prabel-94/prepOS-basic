@@ -44,6 +44,7 @@ import {
   isLayerPurposeBlock,
   parseLayerPurposeBlock,
 } from "./msmdf-layer-purpose-block.js";
+import { parseMarkdownTable } from "./markdown-table.js";
 
 function escapeHTML(value = "") {
   return String(value)
@@ -497,6 +498,307 @@ function renderListContent(content, topicMap, renderOptions, block, representati
   return `<ul class="canonical-list semantic-list">${items}</ul>`;
 }
 
+function renderMarkdownTableHtml(
+  table,
+  topicMap,
+  renderOptions,
+  representationKey,
+  block,
+  paraIndex
+) {
+  const edit = draftEditSurface(renderOptions, representationKey, block, paraIndex);
+  const headerCells = table.headers
+    .map(
+      (header) =>
+        `<th class="semantic-table__header">${resolveInlineSemantics(
+          header,
+          topicMap,
+          renderOptions
+        )}</th>`
+    )
+    .join("");
+
+  const bodyRows = table.rows
+    .map((row) => {
+      const cells = row
+        .map(
+          (cell) =>
+            `<td class="semantic-table__cell">${resolveInlineSemantics(
+              cell,
+              topicMap,
+              renderOptions
+            )}</td>`
+        )
+        .join("");
+      return `<tr class="semantic-table__row">${cells}</tr>`;
+    })
+    .join("");
+
+  return `<div class="semantic-table-wrap${edit.className}"${edit.attrs}>
+    <table class="semantic-table semantic-table--${representationKey}">
+      <thead><tr class="semantic-table__row">${headerCells}</tr></thead>
+      <tbody>${bodyRows}</tbody>
+    </table>
+  </div>`;
+}
+
+const SECTION_GROUPING_REPRESENTATIONS = new Set([
+  "revision",
+  "interpretations",
+  "expansion",
+  "quotes",
+]);
+
+function usesSectionGrouping(representationKey) {
+  return SECTION_GROUPING_REPRESENTATIONS.has(representationKey);
+}
+
+function isCollapsibleSectionBlock(block, representationKey) {
+  return (
+    (block?.block_type === "section" || block?.block_type === "recall_section") &&
+    Boolean(block?.heading) &&
+    shouldCollapseBlock(block, representationKey)
+  );
+}
+
+function sectionHeadingLevel(block) {
+  return block?.hierarchy_level ?? 1;
+}
+
+/**
+ * Blocks that belong inside a section until the next peer-or-higher heading.
+ */
+function collectSectionBodyBlocks(blocks, sectionIndex, representationKey) {
+  const sectionLevel = sectionHeadingLevel(blocks[sectionIndex]);
+  const children = [];
+  let nextIndex = sectionIndex + 1;
+
+  while (nextIndex < blocks.length) {
+    const candidate = blocks[nextIndex];
+
+    if (
+      (candidate?.block_type === "section" || candidate?.block_type === "recall_section") &&
+      candidate?.heading &&
+      sectionHeadingLevel(candidate) <= sectionLevel
+    ) {
+      break;
+    }
+
+    children.push(candidate);
+    nextIndex += 1;
+  }
+
+  return { children, nextIndex };
+}
+
+function isDirectRecallAnswerBlock(block) {
+  const text = String(block?.content ?? "").trim();
+  return text.startsWith("→") || text.startsWith("->");
+}
+
+function isDirectRecallQuestionBlock(block) {
+  if (block?.block_type !== "recall" && block?.block_type !== "paragraph") {
+    return false;
+  }
+
+  const text = String(block?.content ?? "").trim();
+  return /^\d+\.\s/.test(text) && !isDirectRecallAnswerBlock(block);
+}
+
+function renderRecallQuestionAnswerPair(
+  questionBlock,
+  answerBlock,
+  topicMap,
+  renderOptions,
+  representationKey
+) {
+  const questionText = String(questionBlock.content ?? "").trim();
+  const answerText = String(answerBlock.content ?? "")
+    .trim()
+    .replace(/^→\s*/, "")
+    .replace(/^->\s*/, "");
+
+  const questionEdit = draftEditSurface(
+    renderOptions,
+    representationKey,
+    questionBlock,
+    0
+  );
+  const answerEdit = draftEditSurface(renderOptions, representationKey, answerBlock, 0);
+
+  return `<div class="semantic-recall-qa"${blockAlignmentAttrs(questionBlock, representationKey)}>
+    <div class="semantic-recall-question${questionEdit.className}"${questionEdit.attrs}>${resolveInlineSemantics(
+      questionText,
+      topicMap,
+      renderOptions
+    )}</div>
+    <div class="semantic-recall-answer${answerEdit.className}"${answerEdit.attrs}>${resolveInlineSemantics(
+      answerText,
+      topicMap,
+      renderOptions
+    )}</div>
+  </div>`;
+}
+
+function tryRenderRecallQuestionAnswer(
+  blocks,
+  index,
+  topicMap,
+  renderOptions,
+  representationKey
+) {
+  if (representationKey !== "revision") {
+    return null;
+  }
+
+  const block = blocks[index];
+  const next = blocks[index + 1];
+
+  if (!isDirectRecallQuestionBlock(block) || !isDirectRecallAnswerBlock(next)) {
+    return null;
+  }
+
+  return {
+    html: renderRecallQuestionAnswerPair(
+      block,
+      next,
+      topicMap,
+      renderOptions,
+      representationKey
+    ),
+    nextIndex: index + 2,
+  };
+}
+
+function renderInlineBlock(block, topicMap, renderOptions, representationKey) {
+  if (block.block_type === "retrieval_anchor") {
+    const cue = `<div class="semantic-retrieval-cue">Retrieval Anchor</div>`;
+    const payload = renderRetrievalAnchorChain(
+      block.content,
+      topicMap,
+      renderOptions
+    );
+    return `<div class="semantic-retrieval-block">${cue}${payload}</div>`;
+  }
+
+  if (block.block_type === "list") {
+    return renderListContent(block.content, topicMap, renderOptions, block, representationKey);
+  }
+
+  const body = renderBlockBody(block, topicMap, renderOptions, representationKey);
+  if (!body) {
+    return "";
+  }
+
+  return `<div class="semantic-inline-block"${blockAlignmentAttrs(block, representationKey)}>${body}</div>`;
+}
+
+function renderCollapsibleSection(
+  sectionBlock,
+  childBlocks,
+  topicMap,
+  renderOptions,
+  representationKey
+) {
+  const parserLevel = clampParserHeadingLevel(sectionBlock.hierarchy_level);
+  const semanticLevel = resolveSemanticLevel(parserLevel, {
+    representation: representationKey,
+  });
+  const blockClass = semanticBlockClasses(semanticLevel, representationKey);
+  const sectionEntryClass = semanticLevel === 1 ? " semantic-section-entry" : "";
+  const open = defaultCollapsibleOpen(representationKey, semanticLevel, sectionBlock);
+  const headingEdit = draftEditSurface(renderOptions, representationKey, sectionBlock, "heading");
+
+  const summaryLabel =
+    sectionBlock.heading && headingEdit.attrs
+      ? `<span class="semantic-collapsible-summary-text${headingEdit.className}"${headingEdit.attrs}>${escapeHTML(sectionBlock.heading)}</span>`
+      : sectionBlock.heading
+        ? resolveInlineSemantics(sectionBlock.heading, topicMap, renderOptions)
+        : escapeHTML(sectionBlock.block_type);
+
+  const ownBody = sectionBlock.content?.trim()
+    ? renderBlockBody(sectionBlock, topicMap, renderOptions, representationKey)
+    : "";
+  const childrenHtml = renderGroupedBlocks(
+    childBlocks,
+    topicMap,
+    renderOptions,
+    representationKey
+  );
+  const body = `${ownBody}${childrenHtml}`;
+
+  if (!body.trim()) {
+    const heading = renderSemanticHeading(
+      sectionBlock.heading,
+      parserLevel,
+      representationKey,
+      topicMap,
+      renderOptions,
+      sectionBlock
+    );
+
+    return `<div class="${blockClass}${sectionEntryClass} semantic-section-heading-only" data-semantic-level="${semanticLevel}"${blockAlignmentAttrs(sectionBlock, representationKey)}>${heading}</div>`;
+  }
+
+  return `
+    <details class="${blockClass}${sectionEntryClass} collapsible semantic-collapsible semantic-collapsible--${representationKey}" data-semantic-level="${semanticLevel}"${blockAlignmentAttrs(sectionBlock, representationKey)} ${open ? "open" : ""}>
+      <summary class="semantic-collapsible-summary semantic-heading--l${semanticLevel}">${summaryLabel}</summary>
+      <div class="canonical-block-body semantic-body">${body}</div>
+    </details>
+  `;
+}
+
+function renderGroupedBlocks(blocks, topicMap, renderOptions, representationKey) {
+  const parts = [];
+  const skip = new Set();
+
+  for (let i = 0; i < blocks.length; i += 1) {
+    if (skip.has(i)) {
+      continue;
+    }
+
+    const block = blocks[i];
+
+    if (isCollapsibleSectionBlock(block, representationKey)) {
+      const { children, nextIndex } = collectSectionBodyBlocks(blocks, i, representationKey);
+      parts.push(
+        renderCollapsibleSection(block, children, topicMap, renderOptions, representationKey)
+      );
+
+      for (let j = i + 1; j < nextIndex; j += 1) {
+        skip.add(j);
+      }
+
+      continue;
+    }
+
+    const qa = tryRenderRecallQuestionAnswer(
+      blocks,
+      i,
+      topicMap,
+      renderOptions,
+      representationKey
+    );
+
+    if (qa) {
+      parts.push(qa.html);
+
+      for (let j = i + 1; j < qa.nextIndex; j += 1) {
+        skip.add(j);
+      }
+
+      continue;
+    }
+
+    const inline = renderInlineBlock(block, topicMap, renderOptions, representationKey);
+    if (inline) {
+      parts.push(inline);
+    }
+  }
+
+  return parts.join("");
+}
+
 function renderHighlightedQuoteBlock(
   text,
   topicMap,
@@ -581,6 +883,18 @@ function renderSemanticParagraph(
 
   if (isRetrievalChainArrowLine(trimmed)) {
     return `<div class="semantic-retrieval-arrow" aria-hidden="true">↓</div>`;
+  }
+
+  const table = parseMarkdownTable(trimmed);
+  if (table) {
+    return renderMarkdownTableHtml(
+      table,
+      topicMap,
+      renderOptions,
+      representationKey,
+      block,
+      paraIndex
+    );
   }
 
   if (representationKey === "timeline") {
@@ -919,6 +1233,41 @@ function renderRepresentation(
 
     if (escalationHtml) {
       parts.push(escalationHtml);
+      continue;
+    }
+
+    if (usesSectionGrouping(representationKey) && isCollapsibleSectionBlock(block, representationKey)) {
+      const { children, nextIndex } = collectSectionBodyBlocks(
+        blocks,
+        i,
+        representationKey
+      );
+      parts.push(
+        renderCollapsibleSection(block, children, topicMap, readingOpts, representationKey)
+      );
+
+      for (let skipIndex = i + 1; skipIndex < nextIndex; skipIndex += 1) {
+        skip.add(skipIndex);
+      }
+
+      continue;
+    }
+
+    const recallPair = tryRenderRecallQuestionAnswer(
+      blocks,
+      i,
+      topicMap,
+      readingOpts,
+      representationKey
+    );
+
+    if (recallPair) {
+      parts.push(recallPair.html);
+
+      for (let skipIndex = i + 1; skipIndex < recallPair.nextIndex; skipIndex += 1) {
+        skip.add(skipIndex);
+      }
+
       continue;
     }
 

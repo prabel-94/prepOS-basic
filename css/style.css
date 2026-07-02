@@ -3383,6 +3383,70 @@ PREPOS SIDE PANEL OVERLAYS
   margin-bottom: 0.85rem;
 }
 
+.semantic-table-wrap {
+  overflow-x: auto;
+  margin: 0.35rem 0 0.65rem;
+  max-width: 100%;
+}
+
+.semantic-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.semantic-table__header,
+.semantic-table__cell {
+  border: 1px solid #e2e8f0;
+  padding: 0.4rem 0.6rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.semantic-table__header {
+  background: #f8fafc;
+  font-weight: 600;
+  color: #334155;
+}
+
+.semantic-table--revision .semantic-table__header {
+  background: #f1f5f9;
+}
+
+.semantic-recall-qa {
+  margin: 0.45rem 0 0.65rem;
+  padding: 0.7rem 0.85rem;
+  border-left: 3px solid #94a3b8;
+  border-radius: 0 0.4rem 0.4rem 0;
+  background: #f8fafc;
+}
+
+.semantic-recall-question {
+  font-weight: 500;
+  color: #1e293b;
+  margin-bottom: 0.35rem;
+}
+
+.semantic-recall-answer {
+  color: #334155;
+  padding-left: 0.15rem;
+}
+
+.semantic-recall-answer::before {
+  content: "→ ";
+  color: #64748b;
+  font-weight: 600;
+}
+
+.semantic-inline-block {
+  margin-bottom: 0.35rem;
+}
+
+.semantic-inline-block:last-child {
+  margin-bottom: 0;
+}
+
 .semantic-expansion-cards .semantic-block--expansion {
   border: 1px solid #e2e8f0;
   border-radius: 0.5rem;

@@ -16,8 +16,10 @@ import { parseMapMarkdown } from "./map-parser.js";
 import {
   orderRevisionAndRecallBlocks,
   renderRepresentationTab,
+  renderRevision,
   renderTimeline,
 } from "./note-renderer.js";
+import { parseMarkdownTable } from "./markdown-table.js";
 
 const sampleDir = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -122,5 +124,74 @@ describe("revision tab ordering", () => {
     const recallIndex = html.indexOf("Direct Recall");
     assert.ok(revisionIndex >= 0 && recallIndex >= 0);
     assert.ok(revisionIndex < recallIndex);
+  });
+});
+
+describe("revision layer rendering", () => {
+  const revisionSample = readFileSync(
+    path.join(sampleDir, "English Revolution Revision English.md"),
+    "utf8"
+  );
+  const recallSample = readFileSync(
+    path.join(sampleDir, "English Revolution recall note (eng).md"),
+    "utf8"
+  );
+
+  it("parses markdown pipe tables", () => {
+    const table = parseMarkdownTable(`| Document | Revision Trigger |
+|-----------|------------------|
+| [[Magna Carta]] | King under Law |`);
+
+    assert.equal(table?.headers.length, 2);
+    assert.equal(table?.rows.length, 1);
+    assert.equal(table?.rows[0][0], "[[Magna Carta]]");
+  });
+
+  it("groups section content inside collapsible bodies", () => {
+    const parsed = parseMapMarkdown(revisionSample);
+    const html = renderRevision(parsed.representations.revision, {});
+
+    assert.match(
+      html,
+      /1\. Revision Flow<\/summary>[\s\S]*canonical-block-body semantic-body[\s\S]*Magna Carta/
+    );
+    assert.doesNotMatch(html, /\| Document \| Revision Trigger \|/);
+    assert.match(html, /<table class="semantic-table/);
+  });
+
+  it("renders fewer empty section bodies and standalone flow articles", () => {
+    const parsed = parseMapMarkdown(revisionSample);
+    const html = renderRevision(parsed.representations.revision, {});
+
+    const emptyDetails = (
+      html.match(
+        /<details[^>]*>\s*<summary[^>]*>[^<]+<\/summary>\s*<div class="canonical-block-body semantic-body"><\/div>/g
+      ) || []
+    ).length;
+
+    assert.equal(emptyDetails, 0);
+    assert.doesNotMatch(
+      html,
+      /<article[^>]*>[\s\S]*semantic-retrieval-arrow[\s\S]*<\/article>/
+    );
+  });
+
+  it("pairs direct recall questions with arrow answers", () => {
+    const parsed = parseMapMarkdown(recallSample);
+    const html = renderRevision(parsed.representations.revision, {});
+
+    const directRecall = html.slice(
+      html.indexOf("1. Direct Recall"),
+      html.indexOf("2. Completion Recall")
+    );
+
+    assert.match(directRecall, /semantic-recall-qa/);
+    assert.match(
+      directRecall,
+      /semantic-recall-question[\s\S]*Which document first established/
+    );
+    assert.match(directRecall, /semantic-recall-answer[\s\S]*Magna Carta/);
+    assert.equal((directRecall.match(/semantic-recall-qa/g) ?? []).length, 20);
+    assert.doesNotMatch(directRecall, /<p class="canonical-paragraph[^"]*">→ /);
   });
 });
