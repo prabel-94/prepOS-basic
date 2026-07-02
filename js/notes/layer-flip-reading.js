@@ -107,6 +107,10 @@ function siblingLanguage(language) {
   return normalized === "malayalam" ? "english" : "malayalam";
 }
 
+function flipButtonLabel(language) {
+  return normalizeLanguage(language) === "malayalam" ? "മലയാളം" : "English";
+}
+
 function resolveSiblingVariant(variants, primaryLanguage) {
   const target = siblingLanguage(primaryLanguage);
   return (
@@ -150,9 +154,6 @@ export function createLayerFlipReading({
   const flipEnabled = Boolean(enabled);
   const primaryLanguage = normalizeLanguage(primaryBundle.variant.language);
   const siblingVariant = resolveSiblingVariant(variants, primaryLanguage);
-  const siblingLanguageCode = siblingVariant
-    ? siblingLanguage(primaryLanguage)
-    : null;
 
   const layerCache = new Map();
   const semanticMapCache = new Map();
@@ -174,7 +175,7 @@ export function createLayerFlipReading({
 
     const tabMeta = getTabs().find((entry) => entry.key === tab);
     const tabLabel = tabMeta?.label ?? tab;
-    const showingSibling = contentLanguage === siblingLanguageCode;
+    const targetLanguage = siblingLanguage(contentLanguage);
     const btn = flipBarEl.querySelector("[data-layer-flip-toggle]");
     const hint = flipBarEl.querySelector("[data-layer-flip-hint]");
 
@@ -182,20 +183,15 @@ export function createLayerFlipReading({
 
     if (btn) {
       btn.disabled = rendering;
-      const shortLabel = showingSibling ? "English" : "മലയാളം";
-      btn.textContent = shortLabel;
+      btn.textContent = flipButtonLabel(targetLanguage);
       btn.setAttribute(
         "aria-label",
-        showingSibling
-          ? `Read ${tabLabel} in English`
-          : `Read ${tabLabel} in Malayalam`
+        `Read ${tabLabel} in ${getLanguageLabel(targetLanguage)}`
       );
     }
 
     if (hint) {
-      hint.textContent = showingSibling
-        ? `${tabLabel} · English`
-        : `${tabLabel} · മലയാളം`;
+      hint.textContent = `${tabLabel} · ${getLanguageLabel(contentLanguage)}`;
     }
   }
 
@@ -368,21 +364,19 @@ export function createLayerFlipReading({
 
     const tab = getActiveTab();
     const leavingState = captureBeforeLeave(tab);
-    const nextLanguage =
-      contentLanguage === primaryLanguage
-        ? siblingLanguageCode
-        : primaryLanguage;
+    const nextLanguage = siblingLanguage(contentLanguage);
 
-    if (!SUPPORTED_LANGUAGES.includes(nextLanguage)) {
+    if (!SUPPORTED_LANGUAGES.includes(nextLanguage) || !siblingVariant) {
       return;
     }
 
     contentWrapEl?.classList.add("is-flipping");
 
     pendingFlipRestore =
-      nextLanguage === primaryLanguage
-        ? scrollMemory.get(scrollMemoryKey(nextLanguage, tab)) ?? leavingState
-        : { blockSeq: leavingState.blockSeq, ratio: leavingState.ratio };
+      scrollMemory.get(scrollMemoryKey(nextLanguage, tab)) ?? {
+        blockSeq: leavingState.blockSeq,
+        ratio: leavingState.ratio,
+      };
 
     contentLanguage = nextLanguage;
     await renderActiveTab();
