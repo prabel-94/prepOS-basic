@@ -109,6 +109,16 @@ WORKSPACE
           Shuffle Questions
         </button>
       </div>
+
+      <div class="draft-ml-toolbar mt-10">
+        <span id="draftMlStatus" class="draft-ml-status text-muted small"></span>
+        <button type="button" id="toolbarCopyMalayalamSource" class="secondary-btn">
+          Copy all for translation
+        </button>
+        <button type="button" id="toolbarCopyMissingMalayalamSource" class="secondary-btn">
+          Copy missing ML
+        </button>
+      </div>
     </div>
 
     <details id="bulkMalayalamPastePanel" class="bulk-malayalam-paste-panel">
@@ -180,7 +190,13 @@ WORKSPACE
       <div id="topicDropdown" class="topic-tags mt-10 hidden"></div>
     </div>
 
-    <div class="mt-10 flex gap-10">
+    <div class="qb-bank-actions mt-10">
+      <label for="qbMlFilter" class="qb-ml-filter-label small">Malayalam:</label>
+      <select id="qbMlFilter" class="qb-ml-filter-select">
+        <option value="all">All</option>
+        <option value="ml-missing">Missing</option>
+        <option value="ml-has">Has mask</option>
+      </select>
       <button id="addAllResultsBtn" class="secondary-btn">
         + Add All Results
       </button>
