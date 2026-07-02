@@ -253,7 +253,7 @@ function renderChronologyNode(
   return `
     <div class="semantic-chronology-node chronology-group note-preview-chronology${edit.className}" data-representation="${escapeHTML(
       representationKey
-    )}"${block ? blockAlignmentAttrs(block, representationKey) : ""}${edit.attrs} role="${edit.attrs ? "button" : "group"}" tabindex="${edit.attrs ? "0" : "-1"}" title="${edit.attrs ? "Click to edit chronology event" : ""}">
+    )}" data-chronology-date="${escapeHTML(node.event.date)}"${block ? blockAlignmentAttrs(block, representationKey) : ""}${edit.attrs} role="${edit.attrs ? "button" : "group"}" tabindex="${edit.attrs ? "0" : "-1"}" title="${edit.attrs ? "Click to edit chronology event" : ""}">
       ${leadingDivider}
       <div class="semantic-chronology-row chronology-row">
         <span class="semantic-chronology-date">${escapeHTML(node.event.date)}</span>
@@ -399,7 +399,33 @@ function blockAlignmentAttrs(block, representationKey) {
   }
 
   const seq = block.sequence_order ?? 0;
-  return ` data-msmdf-layer="${escapeHTML(representationKey)}" data-block-seq="${seq}" data-block-type="${escapeHTML(block.block_type ?? "block")}"`;
+  const attrs = [
+    `data-msmdf-layer="${escapeHTML(representationKey)}"`,
+    `data-block-seq="${seq}"`,
+    `data-block-type="${escapeHTML(block.block_type ?? "block")}"`,
+  ];
+
+  const wikiText = `${block.heading ?? ""}\n${block.content ?? ""}`;
+  const wikiKeys = [
+    ...new Set(
+      [...wikiText.matchAll(/\[\[([^\]]+)\]\]/g)].map((match) =>
+        match[1].trim().toLowerCase()
+      )
+    ),
+  ].filter(Boolean);
+
+  if (wikiKeys.length) {
+    attrs.push(`data-wiki-anchors="${escapeHTML(wikiKeys.join(","))}"`);
+  }
+
+  const sectionNumber = String(block.heading ?? "").match(
+    /^#*\s*(\d+(?:\.\d+)*)/
+  )?.[1];
+  if (sectionNumber) {
+    attrs.push(`data-section-number="${escapeHTML(sectionNumber)}"`);
+  }
+
+  return ` ${attrs.join(" ")}`;
 }
 
 function resolveInlineSemantics(text, topicMap, renderOptions = {}) {

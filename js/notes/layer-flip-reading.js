@@ -16,91 +16,14 @@ import {
 } from "./note-renderer.js";
 import { withReadingErgonomics } from "./reading-ergonomics.js";
 import {
+  captureLayerScrollState,
+  restoreLayerScrollState,
+} from "./layer-flip-alignment.js";
+import {
   getLanguageLabel,
   normalizeLanguage,
   SUPPORTED_LANGUAGES,
 } from "./note-variants.js";
-
-/**
- * @param {HTMLElement} container
- * @returns {{ blockSeq: number|null, ratio: number, scrollY: number }}
- */
-export function captureLayerScrollState(container) {
-  const scrollY = window.scrollY;
-  const docHeight = document.documentElement.scrollHeight - window.innerHeight;
-  const ratio = docHeight > 0 ? scrollY / docHeight : 0;
-  const anchor = findViewportBlockAnchor(container);
-
-  return {
-    blockSeq: anchor?.blockSeq ?? null,
-    ratio,
-    scrollY,
-  };
-}
-
-/**
- * @param {HTMLElement} container
- * @returns {{ blockSeq: number, el: Element }|null}
- */
-export function findViewportBlockAnchor(container) {
-  if (!container) {
-    return null;
-  }
-
-  const marks = container.querySelectorAll("[data-block-seq]");
-  if (!marks.length) {
-    return null;
-  }
-
-  const viewMid = window.innerHeight * 0.35;
-
-  for (const el of marks) {
-    const rect = el.getBoundingClientRect();
-    if (rect.top <= viewMid && rect.bottom >= viewMid) {
-      return { blockSeq: Number(el.dataset.blockSeq), el };
-    }
-  }
-
-  for (const el of marks) {
-    const rect = el.getBoundingClientRect();
-    if (rect.bottom > 0 && rect.top < window.innerHeight) {
-      return { blockSeq: Number(el.dataset.blockSeq), el };
-    }
-  }
-
-  return null;
-}
-
-/**
- * @param {HTMLElement} container
- * @param {{ blockSeq?: number|null, ratio?: number, scrollY?: number }} state
- */
-export function restoreLayerScrollState(container, state = {}) {
-  requestAnimationFrame(() => {
-    if (state.blockSeq != null) {
-      const target = container?.querySelector(
-        `[data-block-seq="${CSS.escape(String(state.blockSeq))}"]`
-      );
-      if (target) {
-        target.scrollIntoView({ block: "start", behavior: "instant" });
-        return;
-      }
-    }
-
-    if (state.ratio != null) {
-      const max = Math.max(
-        0,
-        document.documentElement.scrollHeight - window.innerHeight
-      );
-      window.scrollTo({ top: state.ratio * max, left: 0, behavior: "instant" });
-      return;
-    }
-
-    if (state.scrollY != null) {
-      window.scrollTo({ top: state.scrollY, left: 0, behavior: "instant" });
-    }
-  });
-}
 
 function siblingLanguage(language) {
   const normalized = normalizeLanguage(language);
@@ -373,10 +296,7 @@ export function createLayerFlipReading({
     contentWrapEl?.classList.add("is-flipping");
 
     pendingFlipRestore =
-      scrollMemory.get(scrollMemoryKey(nextLanguage, tab)) ?? {
-        blockSeq: leavingState.blockSeq,
-        ratio: leavingState.ratio,
-      };
+      scrollMemory.get(scrollMemoryKey(nextLanguage, tab)) ?? leavingState;
 
     contentLanguage = nextLanguage;
     await renderActiveTab();
