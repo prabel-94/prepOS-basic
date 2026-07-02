@@ -2028,6 +2028,8 @@ ${q.generator?.enabled ? `
   updateMalayalamToolbarStatus();
 }
 
+function renderMetadataPanel(i) {
+
   const q = currentDraft.schema_json.sections[0].questions[i];
 
   if (!q.difficulty) {
