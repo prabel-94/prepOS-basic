@@ -80,6 +80,8 @@ async function refreshPublishedPartMeta() {
 let pendingSetLoadId = null;
 let publishedPartCount = 0;
 let currentSearchResults = [];
+let bankSearchResults = [];
+let qbMlFilter = "all";
 let selectedQuestionIndex = null;
 let autosaveTimer = null;
 let topicTimer = null;
@@ -433,6 +435,130 @@ async function searchQuestionBank(query) {
 
   return data || [];
 }
+
+function isQuestionInDraft(bankQuestion, draftQuestions = []) {
+  return draftQuestions.some(
+    (dq) =>
+      (bankQuestion.id && dq.question_id === bankQuestion.id) ||
+      dq.text === bankQuestion.question_text
+  );
+}
+
+function buildDraftQuestionFromBank(data, mlMetadataValue) {
+  const newQuestion = {
+    id: crypto.randomUUID(),
+    question_id: data.id,
+    text: data.question_text,
+    options: [
+      { id: "A", text: data.option_a || "" },
+      { id: "B", text: data.option_b || "" },
+      { id: "C", text: data.option_c || "" },
+      { id: "D", text: data.option_d || "" },
+    ],
+    correct: data.correct_option || "A",
+    explanation: data.explanation || "",
+    topics: [],
+    bank_status: "saved",
+    primary_pattern: null,
+    difficulty: {
+      cognitive_level: null,
+      complexity_level: null,
+      depth_level: null,
+      score: null,
+      label: null,
+    },
+  };
+  ensureMetadata(newQuestion);
+
+  const assistancePatch = malayalamAssistanceFromMetadata(mlMetadataValue);
+  if (assistancePatch) {
+    Object.assign(newQuestion, assistancePatch);
+  }
+
+  return newQuestion;
+}
+
+async function fetchMalayalamMetadataByQuestionIds(questionIds) {
+  if (!questionIds.length) {
+    return new Map();
+  }
+
+  const sb = await getClient();
+  const { data, error } = await sb
+    .from("question_metadata")
+    .select("question_id, value")
+    .in("question_id", questionIds)
+    .eq("key", "assistance_malayalam");
+
+  if (error) {
+    console.error("ML metadata fetch error:", error);
+    return new Map();
+  }
+
+  return new Map((data || []).map((row) => [row.question_id, row.value]));
+}
+
+function enrichBankQuestionWithMlMetadata(question, metaById) {
+  const value = metaById.get(question.id);
+  const patch = malayalamAssistanceFromMetadata(value);
+  const hasMl = patch ? hasMalayalamAssistance(patch) : false;
+
+  return {
+    ...question,
+    _mlHasContent: hasMl,
+    _assistanceMetadata: value ?? null,
+  };
+}
+
+async function enrichBankQuestionsWithMlMetadata(questions) {
+  const ids = questions.map((q) => q.id).filter(Boolean);
+  const metaById = await fetchMalayalamMetadataByQuestionIds(ids);
+
+  return questions.map((question) =>
+    enrichBankQuestionWithMlMetadata(question, metaById)
+  );
+}
+
+function applyQbMlFilter(questions) {
+  if (qbMlFilter === "ml-missing") {
+    return questions.filter((q) => !q._mlHasContent);
+  }
+
+  if (qbMlFilter === "ml-has") {
+    return questions.filter((q) => q._mlHasContent);
+  }
+
+  return questions;
+}
+
+async function processBankSearchResults(questions) {
+  bankSearchResults = await enrichBankQuestionsWithMlMetadata(questions);
+  displayBankSearchResults();
+}
+
+function displayBankSearchResults() {
+  const filtered = applyQbMlFilter(bankSearchResults);
+  renderQuestionBankResults(filtered);
+}
+
+function updateMalayalamToolbarStatus() {
+  const statusEl = document.getElementById("draftMlStatus");
+  const missingBtn = document.getElementById("toolbarCopyMissingMalayalamSource");
+  const questions = currentDraft?.schema_json?.sections?.[0]?.questions || [];
+  const total = questions.length;
+  const withMl = questions.filter((q) => hasMalayalamAssistance(q)).length;
+  const missing = total - withMl;
+
+  if (statusEl) {
+    statusEl.textContent = total ? `Malayalam: ${withMl}/${total} complete` : "";
+  }
+
+  if (missingBtn) {
+    missingBtn.textContent =
+      missing > 0 ? `Copy missing ML (${missing})` : "Copy missing ML";
+    missingBtn.disabled = missing === 0;
+  }
+}
 // --------------------------------
 // ADD QUESTION FROM BANK → DRAFT (UPDATED)
 // --------------------------------
@@ -455,14 +581,11 @@ async function addQuestionFromBank(qId, btn) {
     return;
   }
 
-  // 🚨 PREVENT DUPLICATE
-  const exists = currentDraft.schema_json.sections[0].questions
-    .some(q => q.text === data.question_text);
+  const draftQuestions = currentDraft.schema_json.sections[0].questions;
 
-  if (exists) {
+  if (isQuestionInDraft(data, draftQuestions)) {
     setStatus("Already in draft ⚠️");
 
-    // 🔥 soft feedback
     if (btn) {
       btn.innerText = "Already Added";
       btn.classList.add("secondary-btn");
@@ -471,37 +594,7 @@ async function addQuestionFromBank(qId, btn) {
     return;
   }
 
-  const newQuestion = {
-  id: crypto.randomUUID(),
-  question_id: data.id, // 🔥 CRITICAL
-  text: data.question_text,
-    options: [
-  { id:"A", text: data.option_a || "" },
-  { id:"B", text: data.option_b || "" },
-  { id:"C", text: data.option_c || "" },
-  { id:"D", text: data.option_d || "" }
-],
-    correct: data.correct_option || "A",
-    explanation: data.explanation || "",
-    topics: [],
-    bank_status: "saved",
-    primary_pattern: null, 
-
-// 🔥 ADD THIS BLOCK
-  difficulty: {
-    cognitive_level: null,
-    complexity_level: null,
-    depth_level: null,
-    score: null,
-    label: null
-  },
-  };
-ensureMetadata(newQuestion);
-
-  const assistancePatch = malayalamAssistanceFromMetadata(metaRes.data?.value);
-  if (assistancePatch) {
-    Object.assign(newQuestion, assistancePatch);
-  }
+  const newQuestion = buildDraftQuestionFromBank(data, metaRes.data?.value);
 
   currentDraft.schema_json.sections[0].questions.push(newQuestion);
 
@@ -509,10 +602,8 @@ ensureMetadata(newQuestion);
   scheduleAutosave();
 
   setStatus("Question added to draft ✅");
-  // 🔥 AUTO REFRESH SEARCH RESULTS
-  renderQuestionBankResults(currentSearchResults);
+  displayBankSearchResults();
 
-  // 🔥 visual confirmation
   if (btn) {
     btn.innerText = "Added ✓";
   }
@@ -528,7 +619,11 @@ function renderQuestionBankResults(questions) {
   if (!container) return;
 
   if (!questions.length) {
-    container.innerHTML = `<div class="qb-loading">No results found</div>`;
+    const emptyMessage =
+      bankSearchResults.length && qbMlFilter !== "all"
+        ? "No questions match this Malayalam filter"
+        : "No results found";
+    container.innerHTML = `<div class="qb-loading">${emptyMessage}</div>`;
     return;
   }
 
@@ -537,15 +632,19 @@ function renderQuestionBankResults(questions) {
 
   container.innerHTML = questions.map(q => {
 
-    // ✅ DEFINE exists HERE
-    const exists = draftQuestions.some(
-      dq => dq.text === q.question_text
-    );
+    const exists = isQuestionInDraft(q, draftQuestions);
+    const mlBadgeClass = q._mlHasContent
+      ? "qb-ml-badge qb-ml-badge--has"
+      : "qb-ml-badge qb-ml-badge--missing";
+    const mlBadgeText = q._mlHasContent ? "ML ✓" : "ML missing";
 
     return `
       <div class="question-card">
 
-        <div><b>${escapeHTML(q.question_text)}</b></div>
+        <div class="qb-result-header">
+          <b>${escapeHTML(q.question_text)}</b>
+          <span class="${mlBadgeClass}">${mlBadgeText}</span>
+        </div>
 
         <div class="mt-10 small">
           A. ${escapeHTML(q.option_a || "-")}<br>
@@ -573,50 +672,29 @@ async function addAllResultsToDraft() {
     return;
   }
 
+  const ids = currentSearchResults.map((q) => q.id).filter(Boolean);
+  const metaById = await fetchMalayalamMetadataByQuestionIds(ids);
+
   let added = 0;
   let skipped = 0;
+  const draftQuestions = currentDraft.schema_json.sections[0].questions;
 
-  const existingTexts = currentDraft.schema_json.sections[0].questions
-    .map(q => q.text);
-
-  currentSearchResults.forEach(data => {
-
-    if (existingTexts.includes(data.question_text)) {
+  for (const data of currentSearchResults) {
+    if (isQuestionInDraft(data, draftQuestions)) {
       skipped++;
-      return;
+      continue;
     }
 
-    const newQuestion = {
-  id: crypto.randomUUID(),
-  question_id: data.id, // 🔥 CRITICAL
-  text: data.question_text,
-      options: [
-  { id:"A", text: data.option_a || "" },
-  { id:"B", text: data.option_b || "" },
-  { id:"C", text: data.option_c || "" },
-  { id:"D", text: data.option_d || "" }
-],
-      correct: data.correct_option || "A",
-      explanation: data.explanation || "",
-      topics: [],
-      bank_status: "saved",
-
-// 🔥 ADD THIS BLOCK
-  difficulty: {
-    cognitive_level: null,
-    complexity_level: null,
-    depth_level: null,
-    score: null,
-    label: null
-  },
-  };
-ensureMetadata(newQuestion);
-
+    const mlValue =
+      data._assistanceMetadata ?? metaById.get(data.id) ?? null;
+    const newQuestion = buildDraftQuestionFromBank(data, mlValue);
     currentDraft.schema_json.sections[0].questions.push(newQuestion);
     added++;
-  });
+  }
 
   renderDraft(currentDraft);
+  scheduleAutosave();
+  displayBankSearchResults();
 
   setStatus(`Added ${added}, skipped ${skipped}`);
 }
@@ -1724,6 +1802,7 @@ function renderDraft(draft) {
       </div>
     `;
     updateComputedDurationDisplay();
+    updateMalayalamToolbarStatus();
     return;
   }
 
@@ -1946,6 +2025,7 @@ ${q.generator?.enabled ? `
   });
 
   updateComputedDurationDisplay();
+  updateMalayalamToolbarStatus();
 }
 
 function renderMetadataPanel(i) {
@@ -2976,13 +3056,15 @@ document.getElementById("questionBankResults")
   ?.addEventListener("input", async (e) => {
 
   const query = e.target.value.trim();
-
-  console.log("SEARCH QUERY:", query); // 👈 add this
   const results = await searchQuestionBank(query);
-  console.log("RESULTS:", results); // 👈 add this
-
-  renderQuestionBankResults(results);
+  await processBankSearchResults(results);
 });
+
+document.getElementById("qbMlFilter")
+  ?.addEventListener("change", (e) => {
+    qbMlFilter = e.target.value || "all";
+    displayBankSearchResults();
+  });
 
 document.getElementById("topicSearch")
   ?.addEventListener("input", async (e) => {
@@ -3049,7 +3131,7 @@ document.getElementById("topicDropdown")
 
   const questions = data.map(qt => qt.questions);
 
-  renderQuestionBankResults(questions);
+  await processBankSearchResults(questions);
 
   document.getElementById("topicDropdown").classList.add("hidden");
 });
@@ -3766,6 +3848,14 @@ document.addEventListener("DOMContentLoaded", () => {
     ?.addEventListener("click", () => copyBulkForMalayalamTranslation());
 
   document.getElementById("bulkCopyMissingMalayalamSource")
+    ?.addEventListener("click", () =>
+      copyBulkForMalayalamTranslation({ missingOnly: true })
+    );
+
+  document.getElementById("toolbarCopyMalayalamSource")
+    ?.addEventListener("click", () => copyBulkForMalayalamTranslation());
+
+  document.getElementById("toolbarCopyMissingMalayalamSource")
     ?.addEventListener("click", () =>
       copyBulkForMalayalamTranslation({ missingOnly: true })
     );

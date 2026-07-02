@@ -4736,6 +4736,61 @@ PHASE 1 — STUDENT UI UPGRADE
   color: #b91c1c;
 }
 
+.draft-ml-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  align-items: center;
+}
+
+.draft-ml-status {
+  margin-right: auto;
+}
+
+.qb-bank-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  align-items: center;
+}
+
+.qb-ml-filter-label {
+  margin: 0;
+}
+
+.qb-ml-filter-select {
+  min-width: 8rem;
+}
+
+.qb-result-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.qb-ml-badge {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.qb-ml-badge--has {
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+.qb-ml-badge--missing {
+  background: #fff7ed;
+  color: #9a3412;
+  border: 1px solid #fed7aa;
+}
+
 .exam-header--active .exam-header-right {
   display: flex;
   flex-direction: column;
