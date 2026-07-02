@@ -6,6 +6,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
   parseBulkQuestionPaste,
+  parseQuestionPaste,
   prepareQcpForParsing,
 } from "./question-parser.js";
 
@@ -76,5 +77,21 @@ describe("question-parser numbered statements", () => {
     const prepared = prepareQcpForParsing(Q6);
     assert.doesNotMatch(prepared, /\nQ1\./);
     assert.doesNotMatch(prepared, /\nQ2\./);
+  });
+
+  it("does not convert statement 4 to Q4 when deep clean is enabled", () => {
+    const prepared = prepareQcpForParsing(Q8, { deepClean: true });
+    assert.doesNotMatch(prepared, /\nQ4\./);
+    assert.match(prepared, /4\. ഇത് രാജാവിന്റെ/);
+  });
+
+  it("parses Q8 with four statements after deep clean", () => {
+    const result = parseBulkQuestionPaste(Q8, { clean: true });
+    assert.equal(result.ok, true, result.error);
+    assert.equal(result.questions.length, 1);
+    assert.match(result.questions[0].text, /പരിഗണിക്കുക/);
+    assert.match(result.questions[0].text, /1\. ഇത് രാജാവ് ജോണിന്റെ/);
+    assert.match(result.questions[0].text, /4\. ഇത് രാജാവിന്റെ/);
+    assert.equal(result.questions[0].correct, "B");
   });
 });

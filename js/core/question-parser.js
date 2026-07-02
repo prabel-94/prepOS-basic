@@ -252,7 +252,13 @@ function applyQcpDeepCleanLines(text) {
           prevNonEmpty.replace(/^(?:Q\s*)?\d+[\.\)]\s*/i, "")
         );
 
-      if (looksLikeQuestion && !nextIsNumeric && !prevIndicatesStatementList) {
+      const prevIsNumericStatement =
+        prevNonEmpty && /^\d+[\.\)]\s+/.test(prevNonEmpty);
+
+      const insideStatementSequence =
+        prevIndicatesStatementList || prevIsNumericStatement || nextIsNumeric;
+
+      if (looksLikeQuestion && !insideStatementSequence) {
         line = `Q${qNum}. ${content}`;
       } else {
         // keep as statement/numbered line
