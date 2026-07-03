@@ -7,12 +7,16 @@ import assert from "node:assert/strict";
 import {
   applyQuoteHighlight,
   convertTextToHeading,
+  deriveSectionTitle,
+  expandRangeToParagraphBoundaries,
   formatRetrievalAnchorBlock,
   insertBlockAt,
   insertDividerAt,
   insertWikiLinkAt,
+  nestHeadingsInText,
   prefixSelectionAsBulletList,
   prefixSelectionAsNumberedList,
+  wrapRangeAsSection,
   wrapSelectionAsWikiLink,
 } from "./note-source-transforms.js";
 
@@ -74,5 +78,32 @@ describe("note-source-transforms", () => {
       insertDividerAt("Before after", 6),
       "Before\n\n---\n\nafter"
     );
+  });
+
+  it("expands a caret position to paragraph boundaries", () => {
+    const md = "Alpha\n\nBeta\n\nGamma";
+    const betaStart = md.indexOf("Beta");
+    const expanded = expandRangeToParagraphBoundaries(md, betaStart + 1, betaStart + 1);
+    assert.equal(md.slice(expanded.start, expanded.end), "Beta");
+  });
+
+  it("nests headings inside wrapped body", () => {
+    assert.equal(nestHeadingsInText("## Child"), "### Child");
+  });
+
+  it("wraps a markdown range as a section", () => {
+    const md = "Intro\n\nPoint one\n\nPoint two\n\nOutro";
+    const start = md.indexOf("Point one");
+    const end = md.indexOf("Point two") + "Point two".length;
+    const result = wrapRangeAsSection(md, start, end, { title: "Summary", level: 2 });
+
+    assert.match(result, /Intro\n\n## Summary\n\nPoint one\n\nPoint two\n\nOutro/);
+  });
+
+  it("promotes a leading heading to the section title", () => {
+    const md = "## Recall block\n\nPrompt text";
+    const result = wrapRangeAsSection(md, 0, md.length, { level: 2 });
+
+    assert.equal(result, "## Recall block\n\nPrompt text");
   });
 });

@@ -71,6 +71,18 @@ export function bindPreviewEditor(contentEl, options) {
     getActiveRepresentation: () => options.getActiveRepresentation?.() ?? "",
     getPreferLanguage: () => options.getPreferLanguage?.() ?? "english",
     getActiveElement: () => activeEl,
+    getEditableUnits: () => options.editableUnits,
+    getActiveUnitId: () => activeUnitId,
+    prepareMarkdown: () => {
+      commitActiveEdit();
+      return options.getMarkdown();
+    },
+    applyMarkdown: (markdown, detail = {}) => {
+      options.setMarkdown(markdown);
+      suppressBlurCommit = false;
+      finishEditing();
+      options.onPatched?.(detail);
+    },
     onToolbarPointerDown: () => {
       suppressBlurCommit = true;
     },
