@@ -789,20 +789,17 @@ CARD SYSTEM
     background-color 0.2s ease;
 }
 
-/* Hover lift — fine pointer only (avoids touch sticky-hover overlap) */
+/* Hover lift — actionable cards only (avoids static panels feeling clickable) */
 @media (hover: hover) and (pointer: fine) {
-  .card:hover {
+  .student-action-card:hover,
+  .student-exam-card:hover {
     transform: translateY(-2px);
     box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
   }
 }
 
-/* Touch feedback — no movement */
-.card:active {
-  border-color: var(--primary);
-  box-shadow: var(--shadow-md);
-}
-
+/* Touch feedback — actionable cards only */
+.student-action-card:active,
 .student-exam-card:active {
   border-color: var(--primary);
   box-shadow: var(--shadow-md);
@@ -2407,6 +2404,21 @@ STUDENT LEARNING INTELLIGENCE (minimal)
 .student-intel-confidence--high {
   border-color: #86efac;
   background: #f0fdf4;
+}
+
+.student-intel-composed {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.student-intel-composed-meta {
+  padding: 0 2px;
+  font-size: 14px;
+}
+
+.student-intel-composed--empty .student-intel-confidence {
+  margin-top: 4px;
 }
 
 /* ======================================================
@@ -4131,6 +4143,14 @@ PHASE 1 — STUDENT UI UPGRADE
   margin-top: 0;
 }
 
+.student-action-card,
+.student-exam-card {
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
 .student-exam-card {
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -4159,6 +4179,184 @@ PHASE 1 — STUDENT UI UPGRADE
 .student-exam-card-meta li::before {
   content: "• ";
   color: var(--primary);
+}
+
+/* Flat list rows inside dashboard section cards */
+.student-dashboard-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.student-dashboard-list .student-exam-card,
+.student-dashboard-list .topic-note-row {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 14px 0;
+  margin: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.student-dashboard-list .topic-note-row:last-child,
+.student-dashboard-list .student-dashboard-row:last-child {
+  border-bottom: none;
+}
+
+.student-dashboard-list .topic-notes-canonical-group {
+  margin-top: 0;
+  padding: 12px 0;
+}
+
+.student-dashboard-list .topic-notes-canonical-group:not(:last-child) {
+  border-bottom: 1px solid var(--border);
+}
+
+.student-dashboard-list .topic-notes-canonical-group .h3 {
+  margin-bottom: 8px;
+}
+
+.student-dashboard-list .topic-notes-canonical-group .topic-note-row.mt-10 {
+  margin-top: 0;
+}
+
+.student-dashboard-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.student-dashboard-row-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.student-dashboard-row-title {
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.student-dashboard-row-meta {
+  margin-top: 4px;
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+
+.student-dashboard-row-body {
+  margin-top: 8px;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.student-dashboard-row--strong {
+  border-left: 3px solid #86efac;
+  padding-left: 12px;
+}
+
+.student-dashboard-row--weak {
+  border-left: 3px solid #fcd34d;
+  padding-left: 12px;
+}
+
+.student-dashboard-row-action {
+  flex: 0 0 auto;
+  align-self: flex-start;
+  margin-top: 0;
+}
+
+.student-progress-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.student-progress-tab {
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: #f8fafc;
+  color: var(--text);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.student-progress-tab:hover {
+  background: #eef2ff;
+  border-color: #c7d2fe;
+}
+
+.student-progress-tab.is-active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.student-dashboard-list--progress .student-intel-empty {
+  margin-top: 4px;
+}
+
+@keyframes student-dashboard-skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.student-dashboard-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.student-dashboard-skeleton-line,
+.student-dashboard-skeleton-card,
+.student-dashboard-skeleton-stat,
+.student-dashboard-skeleton-band,
+.student-dashboard-skeleton-pill {
+  border-radius: 8px;
+  background: linear-gradient(90deg, #eef2f7 0%, #f8fafc 45%, #eef2f7 100%);
+  background-size: 200% 100%;
+  animation: student-dashboard-skeleton-shimmer 1.3s ease-in-out infinite;
+}
+
+.student-dashboard-skeleton-card {
+  height: 72px;
+}
+
+.student-dashboard-skeleton--stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+}
+
+.student-dashboard-skeleton--stats .student-dashboard-skeleton-stat {
+  height: 64px;
+}
+
+.student-dashboard-skeleton-band {
+  grid-column: 1 / -1;
+  height: 56px;
+}
+
+.student-dashboard-skeleton-tab-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.student-dashboard-skeleton-pill {
+  width: 108px;
+  height: 32px;
+  border-radius: 999px;
 }
 
 .student-management-label {

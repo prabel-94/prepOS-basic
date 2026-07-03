@@ -1,277 +1,88 @@
 <!DOCTYPE html>
-
 <html lang="en">
-
-
-
 <head>
-
-
-
   <link rel="icon" type="image/png" href="assets/prepos-icon.png">
-
   <meta charset="UTF-8">
-
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-
-
   <title>PrepOS Student</title>
-
-
-
   <link rel="stylesheet" href="css/style.css">
-
-
-
 </head>
-
-
-
 <body>
-
-
 
   <div id="app-nav-root"></div>
 
-
-
   <div class="container">
-
-
 
     <p class="dashboard-section-label mt-30">Primary Actions</p>
 
-
-
     <div class="student-primary-actions mt-10">
-
-
-
       <div class="card student-action-card">
-
         <div class="h2">Practice</div>
-
         <div class="section-sub mt-5">
-
           Build skills with smart generators or question bank practice.
-
         </div>
-
         <button onclick="goToPractice()" class="primary-btn w-full mt-20">
-
           Start Practice
-
         </button>
-
       </div>
-
-
 
       <div class="card student-action-card">
-
         <div class="h2">Read Notes</div>
-
         <div class="section-sub mt-5">
-
           Review topic notes — narrative, structural, and revision views.
-
         </div>
-
         <button type="button" onclick="scrollToTopicNotes()" class="primary-btn w-full mt-20">
-
           Browse Notes
-
         </button>
-
       </div>
-
-
-
     </div>
-
-
 
     <div class="card mt-20">
-
-
-
       <div class="h2">Available Exams</div>
-
       <div class="section-sub mt-5">
-
         Exams assigned by your teacher.
-
       </div>
-
-
-
-      <div id="availableExams" class="mt-10">
-
-        Loading exams...
-
-      </div>
-
-
-
+      <div id="availableExams" class="student-dashboard-list mt-10" aria-busy="true"></div>
     </div>
-
-
 
     <div class="card mt-20" id="topicNotesSection">
-
-
-
       <div class="h2">Topic Notes</div>
-
-
-
       <div class="section-sub mt-5">
-
         Read published canonical notes by topic.
-
       </div>
-
-
-
-      <div id="studentTopicNotes" class="mt-10">
-
-        Loading topic notes…
-
-      </div>
-
-
-
+      <div id="studentTopicNotes" class="student-dashboard-list mt-10" aria-busy="true"></div>
     </div>
 
-
-
     <div class="card mt-20">
-
       <div class="h2">Learning Intelligence</div>
-
       <div class="section-sub mt-5">
-
         Topic mastery and revision guidance from verified practice.
-
       </div>
-
-
-
-      <div id="learningSnapshot" class="mt-20">
-
-        Loading learning snapshot...
-
-      </div>
-
-
-
-      <div id="confidenceState" class="mt-20"></div>
-
+      <div id="learningIntelligence" class="mt-15" aria-busy="true"></div>
     </div>
 
-
-
-    <div class="card mt-20">
-
-      <div class="h2">Weak Topics</div>
-
+    <div class="card mt-20" id="myProgressSection">
+      <div class="h2">My Progress</div>
       <div class="section-sub mt-5">
-
-        Focus here first for the biggest learning gains.
-
+        Weak areas, strengths, and revision suggestions from verified practice.
       </div>
-
-      <div id="weakTopicsList" class="mt-10">
-
-        Loading weak topics...
-
-      </div>
-
+      <div id="myProgress" class="mt-15" aria-busy="true"></div>
     </div>
 
-
-
     <div class="card mt-20">
-
-      <div class="h2">Strong Topics</div>
-
+      <div class="h2">Recent Attempts</div>
       <div class="section-sub mt-5">
-
-        Topics where your verified mastery is solid.
-
+        Your latest submitted exams and scores.
       </div>
-
-      <div id="strongTopicsList" class="mt-10">
-
-        Loading strong topics...
-
-      </div>
-
+      <div id="recentAttempts" class="student-dashboard-list mt-10" aria-busy="true"></div>
     </div>
-
-
-
-    <div class="card mt-20">
-
-      <div class="h2">Recommended Revision</div>
-
-      <div class="section-sub mt-5">
-
-        Suggested next practice based on your learning profile.
-
-      </div>
-
-      <div id="revisionRecommendations" class="mt-10">
-
-        Loading recommendations...
-
-      </div>
-
-    </div>
-
-
-
-    <div class="card mt-20">
-
-
-
-      <div class="h3">Recent Attempts</div>
-
-
-
-      <div id="recentAttempts" class="mt-10">
-
-        Loading attempts...
-
-      </div>
-
-
-
-    </div>
-
-
 
   </div>
 
-
-
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
   <script src="js/config.js?v=20260520"></script>
-
   <script type="module" src="js/auth.js"></script>
-
-
-
   <script type="module" src="js/student-dashboard.js"></script>
 
-
-
 </body>
-
-
-
 </html>
-
-

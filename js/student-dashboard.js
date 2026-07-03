@@ -27,6 +27,7 @@ import {
   bindPracticeActions,
   bindExamStartActions,
   renderEmptyState,
+  renderDashboardSkeleton,
 } from "./student/student-dashboard-renderer.js";
 import { loadTopicNotesSection } from "./notes/note-home.js";
 
@@ -50,6 +51,16 @@ function goToPracticeTopic(topic) {
   location.href = resolveAppPath(`practice.html?topic=${encodeURIComponent(key)}`);
 }
 
+function showInitialDashboardSkeletons() {
+  renderDashboardSkeleton(document.getElementById("availableExams"), { rows: 2 });
+  renderDashboardSkeleton(document.getElementById("studentTopicNotes"), { rows: 2 });
+  renderDashboardSkeleton(document.getElementById("learningIntelligence"), {
+    variant: "stats",
+  });
+  renderDashboardSkeleton(document.getElementById("myProgress"), { variant: "tabs", rows: 2 });
+  renderDashboardSkeleton(document.getElementById("recentAttempts"), { rows: 2 });
+}
+
 function renderIntelligenceSections(learningState) {
   const snapshotView = selectLearningSnapshot(learningState);
   const confidenceView = selectKnowledgeConfidence(learningState);
@@ -70,37 +81,21 @@ function renderIntelligenceSections(learningState) {
 
 function renderIntelligenceErrorStates() {
   renderEmptyState(
-    document.getElementById("learningSnapshot"),
+    document.getElementById("learningIntelligence"),
     "Unable to load learning intelligence right now.",
     { variant: "error" }
   );
 
   renderEmptyState(
-    document.getElementById("confidenceState"),
-    "Learning profile status is unavailable.",
-    { variant: "error" }
-  );
-
-  renderEmptyState(
-    document.getElementById("weakTopicsList"),
-    "Weak topic insights are unavailable.",
-    { variant: "error" }
-  );
-
-  renderEmptyState(
-    document.getElementById("strongTopicsList"),
-    "Strong topic insights are unavailable.",
-    { variant: "error" }
-  );
-
-  renderEmptyState(
-    document.getElementById("revisionRecommendations"),
-    "Revision recommendations are unavailable.",
+    document.getElementById("myProgress"),
+    "Progress insights are unavailable right now.",
     { variant: "error" }
   );
 }
 
 async function initStudent() {
+  showInitialDashboardSkeletons();
+
   const runtime = await bootPage({
     roles: ["student", "admin"],
     allowLinkedStudentMode: true,
@@ -125,7 +120,9 @@ async function initStudent() {
   const topicNotesEl = document.getElementById("studentTopicNotes");
 
   async function loadStudentTopicNotes() {
+    renderDashboardSkeleton(topicNotesEl, { rows: 2 });
     await loadTopicNotesSection(topicNotesEl, { role: "student" });
+    topicNotesEl?.removeAttribute("aria-busy");
     const { upgradeLegacyOnclickNav } = await import("./core/navigate.js");
     if (topicNotesEl) {
       upgradeLegacyOnclickNav(topicNotesEl);

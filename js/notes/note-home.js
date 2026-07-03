@@ -302,7 +302,7 @@ export async function loadTopicNotesSection(container, { role = "student", limit
     return;
   }
 
-  container.innerHTML = '<div class="text-muted">Loading topic notes…</div>';
+  container.innerHTML = "";
 
   try {
     const rows = await fetchNotesForHome(role, limit);

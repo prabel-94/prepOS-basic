@@ -14,8 +14,57 @@ function escapeHTML(value = "") {
     .replace(/'/g, "&#039;");
 }
 
+export function renderDashboardSkeleton(
+  container,
+  { variant = "list", rows = 3 } = {}
+) {
+  if (!container) {
+    return;
+  }
+
+  if (variant === "stats") {
+    container.innerHTML = `
+      <div class="student-dashboard-skeleton student-dashboard-skeleton--stats" aria-hidden="true">
+        <div class="student-dashboard-skeleton-stat"></div>
+        <div class="student-dashboard-skeleton-stat"></div>
+        <div class="student-dashboard-skeleton-stat"></div>
+        <div class="student-dashboard-skeleton-band"></div>
+      </div>
+    `;
+    return;
+  }
+
+  if (variant === "tabs") {
+    container.innerHTML = `
+      <div class="student-dashboard-skeleton student-dashboard-skeleton--tabs" aria-hidden="true">
+        <div class="student-dashboard-skeleton-tab-row">
+          <div class="student-dashboard-skeleton-pill"></div>
+          <div class="student-dashboard-skeleton-pill"></div>
+          <div class="student-dashboard-skeleton-pill"></div>
+        </div>
+        ${Array.from({ length: rows }, () => '<div class="student-dashboard-skeleton-card"></div>').join("")}
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="student-dashboard-skeleton student-dashboard-skeleton--list" aria-hidden="true">
+      ${Array.from({ length: rows }, () => '<div class="student-dashboard-skeleton-card"></div>').join("")}
+    </div>
+  `;
+}
+
+function markLoaded(container) {
+  container?.removeAttribute("aria-busy");
+}
+
 export function renderEmptyState(container, message, { variant = "default" } = {}) {
-  if (!container) return;
+  if (!container) {
+    return;
+  }
+
+  markLoaded(container);
   container.innerHTML = `
     <div class="student-intel-empty student-intel-empty--${escapeHTML(variant)}">
       ${escapeHTML(message)}
@@ -23,63 +72,90 @@ export function renderEmptyState(container, message, { variant = "default" } = {
   `;
 }
 
-export function renderConfidenceState(container, confidenceView = {}) {
-  if (!container) return;
-
-  container.innerHTML = `
+function renderConfidenceStrip(confidenceView = {}) {
+  return `
     <div class="student-intel-confidence student-intel-confidence--${escapeHTML(confidenceView.level ?? "low")}">
       <div class="student-intel-confidence-label">${escapeHTML(confidenceView.label ?? "Learning Profile Building")}</div>
       <div class="text-muted mt-5">${escapeHTML(confidenceView.message ?? "")}</div>
-      <div class="text-muted mt-5">${escapeHTML(confidenceView.trend ?? "")}</div>
+      ${
+        confidenceView.trend
+          ? `<div class="text-muted mt-5">${escapeHTML(confidenceView.trend)}</div>`
+          : ""
+      }
     </div>
   `;
 }
 
-export function renderLearningSnapshot(container, snapshot = {}, confidenceView = {}) {
-  if (!container) return;
+export function renderLearningIntelligence(container, snapshot = {}, confidenceView = {}) {
+  if (!container) {
+    return;
+  }
+
+  markLoaded(container);
 
   if (!snapshot.hasData) {
-    renderEmptyState(
-      container,
-      confidenceView.message ??
-        "Your learning profile is still being built. Complete more verified practice to unlock topic mastery insights.",
-      { variant: "no-data" }
-    );
+    container.innerHTML = `
+      <div class="student-intel-composed student-intel-composed--empty">
+        <div class="student-intel-empty student-intel-empty--no-data">
+          ${escapeHTML(
+            confidenceView.message ??
+              "Your learning profile is still being built. Complete more verified practice to unlock topic mastery insights."
+          )}
+        </div>
+        ${renderConfidenceStrip(confidenceView)}
+      </div>
+    `;
     return;
   }
 
   container.innerHTML = `
-    <div class="student-intel-grid">
-      <div class="student-intel-stat">
-        <div class="student-intel-stat-value">${escapeHTML(snapshot.topicsMastered)}</div>
-        <div class="student-intel-stat-label">Topics Mastered</div>
+    <div class="student-intel-composed">
+      <div class="student-intel-grid">
+        <div class="student-intel-stat">
+          <div class="student-intel-stat-value">${escapeHTML(snapshot.topicsMastered)}</div>
+          <div class="student-intel-stat-label">Topics Mastered</div>
+        </div>
+        <div class="student-intel-stat">
+          <div class="student-intel-stat-value">${escapeHTML(snapshot.weakTopicCount)}</div>
+          <div class="student-intel-stat-label">Weak Topics</div>
+        </div>
+        <div class="student-intel-stat">
+          <div class="student-intel-stat-value">${escapeHTML(snapshot.knowledgeConfidence)}</div>
+          <div class="student-intel-stat-label">Knowledge Confidence</div>
+        </div>
       </div>
-      <div class="student-intel-stat">
-        <div class="student-intel-stat-value">${escapeHTML(snapshot.weakTopicCount)}</div>
-        <div class="student-intel-stat-label">Weak Topics</div>
-      </div>
-      <div class="student-intel-stat">
-        <div class="student-intel-stat-value">${escapeHTML(snapshot.knowledgeConfidence)}</div>
-        <div class="student-intel-stat-label">Knowledge Confidence</div>
-      </div>
+      ${
+        snapshot.recentTrend || snapshot.recommendedFocus
+          ? `<div class="student-intel-composed-meta">
+              ${
+                snapshot.recentTrend
+                  ? `<div class="text-muted">${escapeHTML(snapshot.recentTrend)}</div>`
+                  : ""
+              }
+              ${
+                snapshot.recommendedFocus
+                  ? `<div class="mt-5"><strong>Recommended focus:</strong> ${escapeHTML(snapshot.recommendedFocus)}</div>`
+                  : ""
+              }
+            </div>`
+          : ""
+      }
+      ${renderConfidenceStrip(confidenceView)}
     </div>
-    <div class="mt-10 text-muted">${escapeHTML(snapshot.recentTrend ?? "")}</div>
-    ${
-      snapshot.recommendedFocus
-        ? `<div class="mt-10"><b>Recommended focus:</b> ${escapeHTML(snapshot.recommendedFocus)}</div>`
-        : ""
-    }
   `;
 }
 
-function renderPracticeButton(action = {}) {
+function renderPracticeButton(action = {}, { compact = true } = {}) {
   const topicKey = escapeHTML(action.topicKey ?? "");
   const label = escapeHTML(action.label ?? "Practice");
+  const className = compact
+    ? "secondary-btn student-practice-btn student-dashboard-row-action"
+    : "primary-btn mt-10 student-practice-btn";
 
   return `
     <button
       type="button"
-      class="primary-btn mt-10 student-practice-btn"
+      class="${className}"
       data-topic-key="${topicKey}"
     >
       ${label}
@@ -87,26 +163,25 @@ function renderPracticeButton(action = {}) {
   `;
 }
 
-export function renderWeakTopics(container, cards = []) {
-  if (!container) return;
-
+function renderWeakTopicRows(cards = []) {
   if (!cards.length) {
-    renderEmptyState(
-      container,
-      "No weak topics identified yet. Complete more practice and PrepOS will highlight areas that need attention.",
-      { variant: "weak-empty" }
-    );
-    return;
+    return `
+      <div class="student-intel-empty student-intel-empty--weak-empty">
+        No weak topics identified yet. Complete more practice and PrepOS will highlight areas that need attention.
+      </div>
+    `;
   }
 
-  container.innerHTML = cards
+  return cards
     .map(
-      card => `
-    <div class="student-intel-card recent-item mt-10">
-      <b>${escapeHTML(card.topic)}</b>
-      <div class="text-muted mt-5">Mastery: ${escapeHTML(card.mastery)}%</div>
-      <div class="text-muted mt-5">${escapeHTML(card.confidence)} — ${escapeHTML(card.confidenceMessage)}</div>
-      <div class="mt-10">${escapeHTML(card.recommendation)}</div>
+      (card) => `
+    <div class="student-dashboard-row student-dashboard-row--weak">
+      <div class="student-dashboard-row-main">
+        <div class="student-dashboard-row-title">${escapeHTML(card.topic)}</div>
+        <div class="student-dashboard-row-meta">Mastery: ${escapeHTML(card.mastery)}%</div>
+        <div class="student-dashboard-row-meta">${escapeHTML(card.confidence)} — ${escapeHTML(card.confidenceMessage)}</div>
+        <div class="student-dashboard-row-body">${escapeHTML(card.recommendation)}</div>
+      </div>
       ${renderPracticeButton(card.practiceAction)}
     </div>
   `
@@ -114,54 +189,52 @@ export function renderWeakTopics(container, cards = []) {
     .join("");
 }
 
-export function renderStrongTopics(container, cards = []) {
-  if (!container) return;
-
+function renderStrongTopicRows(cards = []) {
   if (!cards.length) {
-    renderEmptyState(
-      container,
-      "No strong topics identified yet. Keep practicing to build your mastery profile.",
-      { variant: "strong-empty" }
-    );
-    return;
+    return `
+      <div class="student-intel-empty student-intel-empty--strong-empty">
+        No strong topics identified yet. Keep practicing to build your mastery profile.
+      </div>
+    `;
   }
 
-  container.innerHTML = cards
+  return cards
     .map(
-      card => `
-    <div class="student-intel-card recent-item mt-10 student-intel-card--strong">
-      <b>${escapeHTML(card.topic)}</b>
-      <div class="text-muted mt-5">Mastery: ${escapeHTML(card.mastery)}%</div>
-      <div class="mt-10">${escapeHTML(card.message)}</div>
+      (card) => `
+    <div class="student-dashboard-row student-dashboard-row--strong">
+      <div class="student-dashboard-row-main">
+        <div class="student-dashboard-row-title">${escapeHTML(card.topic)}</div>
+        <div class="student-dashboard-row-meta">Mastery: ${escapeHTML(card.mastery)}%</div>
+        <div class="student-dashboard-row-body">${escapeHTML(card.message)}</div>
+      </div>
     </div>
   `
     )
     .join("");
 }
 
-export function renderRecommendations(container, items = []) {
-  if (!container) return;
-
+function renderRecommendationRows(items = []) {
   if (!items.length) {
-    renderEmptyState(
-      container,
-      "Revision recommendations will appear after enough verified topic-linked practice.",
-      { variant: "recommendations-empty" }
-    );
-    return;
+    return `
+      <div class="student-intel-empty student-intel-empty--recommendations-empty">
+        Revision recommendations will appear after enough verified topic-linked practice.
+      </div>
+    `;
   }
 
-  container.innerHTML = items
+  return items
     .map(
-      item => `
-    <div class="student-intel-card recent-item mt-10">
-      <b>${escapeHTML(item.topic)}</b>
-      ${
-        item.mastery != null
-          ? `<div class="text-muted mt-5">Current mastery: ${escapeHTML(item.mastery)}%</div>`
-          : ""
-      }
-      <div class="mt-10">${escapeHTML(item.message)}</div>
+      (item) => `
+    <div class="student-dashboard-row">
+      <div class="student-dashboard-row-main">
+        <div class="student-dashboard-row-title">${escapeHTML(item.topic)}</div>
+        ${
+          item.mastery != null
+            ? `<div class="student-dashboard-row-meta">Current mastery: ${escapeHTML(item.mastery)}%</div>`
+            : ""
+        }
+        <div class="student-dashboard-row-body">${escapeHTML(item.message)}</div>
+      </div>
       ${renderPracticeButton(item.practiceAction)}
     </div>
   `
@@ -169,9 +242,117 @@ export function renderRecommendations(container, items = []) {
     .join("");
 }
 
-export function renderAvailableExams(container, exams = []) {
-  if (!container) return;
+export function renderMyProgress(
+  container,
+  { weakTopicCards = [], strongTopicCards = [], recommendations = [] } = {}
+) {
+  if (!container) {
+    return;
+  }
 
+  markLoaded(container);
+
+  container.innerHTML = `
+    <div class="student-progress-tabs" role="tablist" aria-label="Progress views">
+      <button
+        type="button"
+        role="tab"
+        class="student-progress-tab is-active"
+        data-progress-tab="weak"
+        aria-selected="true"
+        id="progress-tab-weak"
+        aria-controls="progress-panel-weak"
+      >
+        Weak Topics
+      </button>
+      <button
+        type="button"
+        role="tab"
+        class="student-progress-tab"
+        data-progress-tab="strong"
+        aria-selected="false"
+        id="progress-tab-strong"
+        aria-controls="progress-panel-strong"
+      >
+        Strong Topics
+      </button>
+      <button
+        type="button"
+        role="tab"
+        class="student-progress-tab"
+        data-progress-tab="revision"
+        aria-selected="false"
+        id="progress-tab-revision"
+        aria-controls="progress-panel-revision"
+      >
+        Revision
+      </button>
+    </div>
+    <div class="student-dashboard-list student-dashboard-list--progress mt-10">
+      <div
+        class="student-progress-panel"
+        role="tabpanel"
+        id="progress-panel-weak"
+        data-progress-panel="weak"
+        aria-labelledby="progress-tab-weak"
+      >
+        ${renderWeakTopicRows(weakTopicCards)}
+      </div>
+      <div
+        class="student-progress-panel hidden"
+        role="tabpanel"
+        id="progress-panel-strong"
+        data-progress-panel="strong"
+        aria-labelledby="progress-tab-strong"
+        hidden
+      >
+        ${renderStrongTopicRows(strongTopicCards)}
+      </div>
+      <div
+        class="student-progress-panel hidden"
+        role="tabpanel"
+        id="progress-panel-revision"
+        data-progress-panel="revision"
+        aria-labelledby="progress-tab-revision"
+        hidden
+      >
+        ${renderRecommendationRows(recommendations)}
+      </div>
+    </div>
+  `;
+}
+
+export function bindMyProgressTabs(root = document) {
+  const section = root.getElementById?.("myProgress") ?? root.querySelector?.("#myProgress");
+  if (!section) {
+    return;
+  }
+
+  section.querySelectorAll("[data-progress-tab]").forEach((tab) => {
+    tab.addEventListener("click", () => {
+      const key = tab.dataset.progressTab;
+
+      section.querySelectorAll(".student-progress-tab").forEach((button) => {
+        const active = button === tab;
+        button.classList.toggle("is-active", active);
+        button.setAttribute("aria-selected", active ? "true" : "false");
+      });
+
+      section.querySelectorAll("[data-progress-panel]").forEach((panel) => {
+        const active = panel.dataset.progressPanel === key;
+        panel.classList.toggle("hidden", !active);
+        panel.toggleAttribute("hidden", !active);
+      });
+    });
+  });
+}
+
+export function renderAvailableExams(container, exams = []) {
+  if (!container) {
+    return;
+  }
+
+  markLoaded(container);
   container.innerHTML = "";
 
   if (!exams.length) {
@@ -183,15 +364,14 @@ export function renderAvailableExams(container, exams = []) {
     return;
   }
 
-  exams.forEach(exam => {
+  exams.forEach((exam) => {
     const metaLines = [];
 
     if (exam.questionCount) {
       metaLines.push(`${exam.questionCount} Question${exam.questionCount === 1 ? "" : "s"}`);
     }
 
-    const durationLabel =
-      exam.durationLabel ?? formatExamDuration(exam.duration);
+    const durationLabel = exam.durationLabel ?? formatExamDuration(exam.duration);
     if (durationLabel) {
       metaLines.push(durationLabel);
     }
@@ -215,7 +395,7 @@ export function renderAvailableExams(container, exams = []) {
     const isLocked = exam.attemptStatus === "locked";
 
     const div = document.createElement("div");
-    div.className = "student-exam-card recent-item mt-10";
+    div.className = "student-exam-card";
     div.innerHTML = `
       <div class="student-exam-card-title">${escapeHTML(exam.title || "Untitled Exam")}</div>
       <ul class="student-exam-card-meta">
@@ -223,7 +403,7 @@ export function renderAvailableExams(container, exams = []) {
       </ul>
       <button
         type="button"
-        class="primary-btn mt-10"
+        class="primary-btn student-dashboard-row-action"
         data-exam-id="${escapeHTML(exam.id)}"
         ${isLocked ? "disabled" : ""}
       >
@@ -235,8 +415,11 @@ export function renderAvailableExams(container, exams = []) {
 }
 
 export function renderRecentAttempts(container, attempts = []) {
-  if (!container) return;
+  if (!container) {
+    return;
+  }
 
+  markLoaded(container);
   container.innerHTML = "";
 
   if (!attempts.length) {
@@ -244,25 +427,28 @@ export function renderRecentAttempts(container, attempts = []) {
     return;
   }
 
-  attempts.forEach(attempt => {
+  attempts.forEach((attempt) => {
     const title = attempt.examTitle ?? "Exam";
     const score = attempt.score ?? 0;
     const total = attempt.total ?? attempt.question_count;
     const scoreLabel = total != null ? `${score} / ${total}` : String(score);
     const submittedAt = attempt.submittedAt ?? attempt.submitted_at;
     const examId = attempt.examId ?? attempt.exam_id;
+    const submittedLabel = submittedAt
+      ? new Date(submittedAt).toLocaleString()
+      : "Submitted";
 
     const div = document.createElement("div");
-    div.className = "recent-item mt-10";
+    div.className = "student-exam-card student-exam-card--attempt";
     div.innerHTML = `
-      <b>${escapeHTML(title)}</b><br>
-      Score: ${escapeHTML(scoreLabel)}<br>
-      <div class="text-muted mt-5">
-        ${escapeHTML(new Date(submittedAt).toLocaleString())}
-      </div>
+      <div class="student-exam-card-title">${escapeHTML(title)}</div>
+      <ul class="student-exam-card-meta">
+        <li>Score ${escapeHTML(scoreLabel)}</li>
+        <li>${escapeHTML(submittedLabel)}</li>
+      </ul>
       <button
         type="button"
-        class="primary-btn mt-10"
+        class="secondary-btn student-dashboard-row-action"
         data-exam-id="${escapeHTML(examId)}"
       >
         View Results
@@ -281,23 +467,19 @@ export function renderStudentDashboard({
   exams = null,
   recentAttempts = null,
 } = {}) {
-  renderLearningSnapshot(
-    document.getElementById("learningSnapshot"),
+  renderLearningIntelligence(
+    document.getElementById("learningIntelligence"),
     snapshotView,
     confidenceView
   );
 
-  renderConfidenceState(
-    document.getElementById("confidenceState"),
-    confidenceView
-  );
+  renderMyProgress(document.getElementById("myProgress"), {
+    weakTopicCards,
+    strongTopicCards,
+    recommendations,
+  });
 
-  renderWeakTopics(document.getElementById("weakTopicsList"), weakTopicCards);
-  renderStrongTopics(document.getElementById("strongTopicsList"), strongTopicCards);
-  renderRecommendations(
-    document.getElementById("revisionRecommendations"),
-    recommendations
-  );
+  bindMyProgressTabs();
 
   if (Array.isArray(exams)) {
     renderAvailableExams(document.getElementById("availableExams"), exams);
@@ -309,7 +491,7 @@ export function renderStudentDashboard({
 }
 
 export function bindPracticeActions(onPracticeTopic) {
-  document.querySelectorAll(".student-practice-btn").forEach(button => {
+  document.querySelectorAll(".student-practice-btn").forEach((button) => {
     button.addEventListener("click", () => {
       const topicKey = button.dataset.topicKey;
       if (topicKey && typeof onPracticeTopic === "function") {
@@ -324,7 +506,9 @@ export function bindExamStartActions(onStartExam) {
 
   containerIds.forEach((containerId) => {
     const container = document.getElementById(containerId);
-    if (!container) return;
+    if (!container) {
+      return;
+    }
 
     container.querySelectorAll("[data-exam-id]").forEach((button) => {
       button.addEventListener("click", () => {
