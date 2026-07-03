@@ -763,7 +763,7 @@ function renderInlineBlock(block, topicMap, renderOptions, representationKey) {
     return "";
   }
 
-  return `<div class="semantic-inline-block"${blockAlignmentAttrs(block, representationKey)}>${body}</div>`;
+  return `<div class="semantic-inline-block">${body}</div>`;
 }
 
 function renderCollapsibleSection(
@@ -1294,7 +1294,7 @@ function renderFluidParagraphRun(
   }
 
   return {
-    html: `<div class="semantic-paragraph-run"${blockAlignmentAttrs(run[0], representationKey)}>${parts.join("")}</div>`,
+    html: `<div class="semantic-paragraph-run">${parts.join("")}</div>`,
     nextIndex,
   };
 }
@@ -1677,7 +1677,7 @@ function renderStructuralContentBlock(block, topicMap, renderOptions) {
       const denseClass = isDenseParagraph(anchorCount) ? " semantic-paragraph--dense" : "";
       const edit = draftEditSurface(renderOptions, "structural", block, paraIndex);
 
-      return `<p class="canonical-paragraph structural-leaf semantic-paragraph${denseClass}${edit.className}"${edit.attrs}>${resolveInlineSemantics(
+      return `<p class="canonical-paragraph structural-leaf semantic-paragraph${denseClass}${edit.className}"${blockAlignmentAttrs(block, "structural")}${edit.attrs}>${resolveInlineSemantics(
         p,
         topicMap,
         renderOptions

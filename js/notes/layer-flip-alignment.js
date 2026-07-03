@@ -4,6 +4,37 @@
 
 const WIKI_PATTERN = /\[\[([^\]]+)\]\]/g;
 
+const VIEWPORT_ANCHOR_SELECTORS = [
+  "p.semantic-paragraph",
+  ".semantic-chronology-node",
+  ".semantic-timeline-entry",
+  ".semantic-recall-qa",
+  ".structural-group",
+  "article",
+  "details",
+  ".semantic-inline-block",
+  ".semantic-section-heading-only",
+  "div.semantic-section-entry",
+  ".semantic-paragraph-run",
+  "[data-block-seq]",
+];
+
+const VIEWPORT_ANCHOR_SELECTOR = VIEWPORT_ANCHOR_SELECTORS.join(", ");
+
+const RESTORE_ELEMENT_RANK = [
+  "p.semantic-paragraph",
+  ".semantic-chronology-node",
+  ".semantic-timeline-entry",
+  ".semantic-recall-qa",
+  ".structural-group",
+  "article",
+  "details",
+  ".semantic-inline-block",
+  ".semantic-section-heading-only",
+  "div.semantic-section-entry",
+  ".semantic-paragraph-run",
+];
+
 export function viewportAnchorY() {
   return window.innerHeight * 0.35;
 }
@@ -54,6 +85,96 @@ export function wikiKeysFromElement(el) {
 
 /**
  * @param {Element} el
+ */
+export function anchorKind(el) {
+  if (!el?.matches) {
+    return "block";
+  }
+
+  if (el.matches("p.semantic-paragraph")) {
+    return "paragraph";
+  }
+  if (el.matches(".semantic-chronology-node")) {
+    return "chronology";
+  }
+  if (el.matches(".semantic-timeline-entry")) {
+    return "timeline-entry";
+  }
+  if (el.matches(".semantic-recall-qa")) {
+    return "recall";
+  }
+  if (el.matches(".structural-group")) {
+    return "structural";
+  }
+  if (el.matches("article")) {
+    return "article";
+  }
+  if (el.matches("details")) {
+    return "details";
+  }
+  if (el.matches(".semantic-section-heading-only, div.semantic-section-entry")) {
+    return "section";
+  }
+
+  return "block";
+}
+
+/**
+ * @param {Element} el
+ */
+export function restoreElementRank(el) {
+  if (!el?.matches) {
+    return RESTORE_ELEMENT_RANK.length;
+  }
+
+  for (let index = 0; index < RESTORE_ELEMENT_RANK.length; index += 1) {
+    if (el.matches(RESTORE_ELEMENT_RANK[index])) {
+      return index;
+    }
+  }
+
+  return RESTORE_ELEMENT_RANK.length;
+}
+
+/**
+ * @param {Element[]} matches
+ * @param {object} state
+ * @returns {Element|null}
+ */
+export function pickBestSeqMatch(matches, state = {}) {
+  if (!matches?.length) {
+    return null;
+  }
+
+  if (matches.length === 1) {
+    return matches[0];
+  }
+
+  let best = matches[0];
+  let bestScore = Infinity;
+
+  for (const el of matches) {
+    let score = restoreElementRank(el);
+
+    if (state.anchorKind && anchorKind(el) === state.anchorKind) {
+      score -= 100;
+    }
+
+    if (state.blockType && el.dataset?.blockType === state.blockType) {
+      score -= 50;
+    }
+
+    if (score < bestScore) {
+      bestScore = score;
+      best = el;
+    }
+  }
+
+  return best;
+}
+
+/**
+ * @param {Element} el
  * @param {number} viewY
  */
 function scoreAnchorCandidate(el, viewY) {
@@ -69,11 +190,17 @@ function scoreAnchorCandidate(el, viewY) {
     score -= 1200;
   } else if (el.matches(".semantic-chronology-node")) {
     score -= 1000;
+  } else if (el.matches(".semantic-timeline-entry")) {
+    score -= 950;
   } else if (el.matches(".structural-group")) {
     score -= 800;
   } else if (el.matches("article, details")) {
     score -= 600;
-  } else if (el.matches(".semantic-paragraph-run")) {
+  } else if (el.matches(".semantic-recall-qa, .semantic-section-heading-only")) {
+    score -= 500;
+  } else if (el.matches("div.semantic-section-entry")) {
+    score -= 450;
+  } else if (el.matches(".semantic-paragraph-run, .semantic-inline-block")) {
     score -= 400;
   }
 
@@ -89,10 +216,7 @@ export function readAlignmentFromElement(el) {
     return null;
   }
 
-  const anchor =
-    el.closest?.(
-      "p.semantic-paragraph, .semantic-chronology-node, .structural-group, article, details, .semantic-paragraph-run, [data-block-seq]"
-    ) ?? el;
+  const anchor = el.closest?.(VIEWPORT_ANCHOR_SELECTOR) ?? el;
 
   const viewY = viewportAnchorY();
   const rect = anchor.getBoundingClientRect();
@@ -111,6 +235,7 @@ export function readAlignmentFromElement(el) {
     el: anchor,
     blockSeq: Number.isFinite(blockSeq) ? blockSeq : null,
     blockType: anchor.dataset?.blockType ?? null,
+    anchorKind: anchorKind(anchor),
     ratioInElement: Math.min(1, Math.max(0, ratioInElement)),
     structuralId: structuralToggle?.dataset?.structuralId ?? null,
     chronologyDate:
@@ -132,9 +257,7 @@ export function findViewportBlockAnchor(container) {
   }
 
   const viewY = viewportAnchorY();
-  const candidates = container.querySelectorAll(
-    "p.semantic-paragraph, .semantic-chronology-node, .structural-group, article, details, .semantic-paragraph-run, [data-block-seq]"
-  );
+  const candidates = container.querySelectorAll(VIEWPORT_ANCHOR_SELECTOR);
 
   let best = null;
   let bestScore = Infinity;
@@ -162,6 +285,7 @@ export function captureLayerScrollState(container) {
   return {
     blockSeq: anchor?.blockSeq ?? null,
     blockType: anchor?.blockType ?? null,
+    anchorKind: anchor?.anchorKind ?? null,
     ratioInElement: anchor?.ratioInElement ?? null,
     structuralId: anchor?.structuralId ?? null,
     chronologyDate: anchor?.chronologyDate ?? null,
@@ -201,6 +325,24 @@ export function expandStructuralAncestors(target) {
 }
 
 /**
+ * @param {Element} target
+ */
+export function expandSemanticCollapsibleAncestors(target) {
+  if (!target) {
+    return;
+  }
+
+  let details = target.closest?.("details.semantic-collapsible");
+  while (details) {
+    if (!details.open) {
+      details.open = true;
+    }
+
+    details = details.parentElement?.closest?.("details.semantic-collapsible") ?? null;
+  }
+}
+
+/**
  * @param {HTMLElement} container
  * @param {object} state
  * @returns {Element|null}
@@ -211,11 +353,12 @@ export function findRestoreTarget(container, state = {}) {
   }
 
   if (state.blockSeq != null) {
-    const bySeq = container.querySelector(
+    const bySeq = container.querySelectorAll(
       `[data-block-seq="${CSS.escape(String(state.blockSeq))}"]`
     );
-    if (bySeq) {
-      return bySeq;
+    const bestSeqMatch = pickBestSeqMatch([...bySeq], state);
+    if (bestSeqMatch) {
+      return bestSeqMatch;
     }
   }
 
@@ -238,11 +381,12 @@ export function findRestoreTarget(container, state = {}) {
   }
 
   if (state.sectionNumber) {
-    const bySection = container.querySelector(
+    const bySection = container.querySelectorAll(
       `[data-section-number="${CSS.escape(String(state.sectionNumber))}"]`
     );
-    if (bySection) {
-      return bySection;
+    const bestSectionMatch = pickBestSeqMatch([...bySection], state);
+    if (bestSectionMatch) {
+      return bestSectionMatch;
     }
   }
 
@@ -279,6 +423,7 @@ export function findRestoreTarget(container, state = {}) {
  */
 export function scrollToAlignmentTarget(target, ratioInElement = 0) {
   expandStructuralAncestors(target);
+  expandSemanticCollapsibleAncestors(target);
 
   const rect = target.getBoundingClientRect();
   const viewY = viewportAnchorY();
