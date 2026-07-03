@@ -38,6 +38,7 @@ import {
   renderVersionHistoryPanel,
 } from "./note-variant-history.js";
 import { createLayerFlipReading } from "./layer-flip-reading.js";
+import { renderDashboardSkeleton } from "../student/student-dashboard-renderer.js";
 
 function getQueryParam(key) {
   return new URLSearchParams(window.location.search).get(key);
@@ -486,6 +487,8 @@ export async function bootNoteReader() {
   const versionHistoryEl = document.getElementById("noteVersionHistory");
   const sectionInventoryEl = document.getElementById("noteSectionInventory");
   const statusEl = document.getElementById("readerStatus");
+  const skeletonEl = document.getElementById("noteReaderSkeleton");
+  renderDashboardSkeleton(skeletonEl, { variant: "tabs", rows: 2 });
 
   if (!contentEl) {
     return null;
@@ -498,6 +501,8 @@ export async function bootNoteReader() {
       lang,
       runtime,
     });
+
+    if (skeletonEl) skeletonEl.innerHTML = "";
 
     if (!ctx) {
       statusEl.textContent = "No note found. Import a canonical note first.";
@@ -598,6 +603,7 @@ export async function bootNoteReader() {
       publishedVariantId: ctx.publishedVariantId ?? null,
     });
   } catch (err) {
+    if (skeletonEl) skeletonEl.innerHTML = "";
     statusEl.textContent = err.message || "Failed to load note.";
     if (backlinksEl) {
       backlinksEl.innerHTML = "";

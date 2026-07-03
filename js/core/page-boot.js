@@ -56,6 +56,10 @@ export async function bootPage(options = {}) {
     return null;
   }
 
+  if (runtime.appMode === "student") {
+    document.body.classList.add("student-surface");
+  }
+
   initPrepOSLinkRouting();
   upgradeLegacyOnclickNav(document);
 

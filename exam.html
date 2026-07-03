@@ -148,12 +148,12 @@
     <section id="quiz" class="quiz-container">
 
       <div id="loadingState" class="loading-state">
-        <p>Loading exam...</p>
+        <div id="examLoadingSkeleton"></div>
       </div>
 
       <div id="errorState" class="error-state hidden">
         <p id="errorMessage"></p>
-        <button type="button" onclick="location.reload()">Retry</button>
+        <button type="button" class="secondary-btn" onclick="location.reload()">Retry</button>
       </div>
 
       <div id="examContent" class="exam-content hidden"></div>

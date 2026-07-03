@@ -39,9 +39,9 @@
       font-weight: 600;
     }
     .canonical-tab-add:hover {
-      border-color: var(--primary, #4f46e5);
-      color: var(--primary, #4f46e5);
-      background: #eef2ff;
+      border-color: var(--primary);
+      color: var(--primary);
+      background: color-mix(in srgb, var(--primary) 8%, #fff);
     }
     .note-add-section-modal {
       max-width: 560px;
@@ -149,7 +149,7 @@
       font-size: 0.7rem;
       text-transform: uppercase;
       letter-spacing: 0.04em;
-      color: #6366f1;
+      color: var(--primary);
       font-weight: 600;
     }
     .note-section-chip-action {
@@ -346,7 +346,7 @@
     .note-preview-format-btn:hover {
       border-color: var(--primary);
       color: var(--primary);
-      background: #eff6ff;
+      background: color-mix(in srgb, var(--primary) 8%, #fff);
     }
     .note-preview-format-btn[hidden] {
       display: none;
@@ -566,8 +566,8 @@
       box-shadow: 0 4px 18px rgba(15, 23, 42, 0.16);
     }
     .note-layer-flip-btn:hover:not(:disabled) {
-      border-color: var(--primary, #4f46e5);
-      color: var(--primary, #4f46e5);
+      border-color: var(--primary);
+      color: var(--primary);
     }
     .note-layer-flip-btn:disabled {
       opacity: 0.6;
@@ -635,7 +635,7 @@
 
   <div id="noteBacklinks"></div>
 
-  <div id="readerStatus">Loading…</div>
+  <div id="readerStatus"><div id="noteReaderSkeleton"></div></div>
 
 </div>
 

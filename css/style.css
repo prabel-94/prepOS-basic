@@ -124,7 +124,7 @@ LAYOUT
   font-size:0.9rem;
   font-weight:600;
   text-decoration:none;
-  color:#2563eb;
+  color:var(--primary);
 }
 
 .exam-home-btn:hover{
@@ -150,9 +150,9 @@ LAYOUT
   margin:12px 0 0;
   padding:10px 14px;
   border-radius:8px;
-  background:#eff6ff;
-  border:1px solid #bfdbfe;
-  color:#1e40af;
+  background:color-mix(in srgb, var(--primary) 8%, #fff);
+  border:1px solid color-mix(in srgb, var(--primary) 25%, #fff);
+  color:var(--primary-dark);
   font-size:0.9rem;
   font-weight:600;
 }
@@ -263,7 +263,7 @@ button:active{
   background:var(--primary);
   color:#fff;
   font-weight:600;
-  box-shadow:0 4px 10px rgba(37,99,235,0.2);
+  box-shadow:0 4px 10px color-mix(in srgb, var(--primary) 20%, transparent);
 }
 
 .primary-btn:hover{
@@ -683,27 +683,27 @@ QUESTION CARD (BUILDER)
 }
 
 .malayalam-btn--active{
-  background:#dbeafe;
-  color:#1d4ed8;
+  background:color-mix(in srgb, var(--primary) 14%, #fff);
+  color:var(--primary-dark);
 }
 
 .malayalam-btn--active:hover{
-  background:#bfdbfe;
+  background:color-mix(in srgb, var(--primary) 25%, #fff);
 }
 
 .malayalam-btn--open{
-  background:#1d4ed8;
+  background:var(--primary-dark);
   color:#fff;
 }
 
 .malayalam-btn--open:hover{
-  background:#1e40af;
+  background:var(--primary);
 }
 
 .malayalam-block{
   margin-top:10px;
   padding:12px;
-  border-left:3px solid #1d4ed8;
+  border-left:3px solid var(--primary-dark);
   background:#f0f9ff;
   border-radius:6px;
 }
@@ -950,7 +950,7 @@ DIFFICULTY SYSTEM
 .practice-mode-card.active{
   border-color:var(--primary);
   background:#f8fbff;
-  box-shadow:0 4px 12px rgba(37,99,235,0.14);
+  box-shadow:0 4px 12px color-mix(in srgb, var(--primary) 14%, transparent);
 }
 
 .practice-mode-title{
@@ -1037,8 +1037,8 @@ DIFFICULTY SYSTEM
   text-align:center;
   padding:10px 12px;
   border-radius:999px;
-  background:#f0f7ff;
-  border:1px solid #bfdbfe;
+  background:color-mix(in srgb, var(--primary) 6%, #fff);
+  border:1px solid color-mix(in srgb, var(--primary) 25%, #fff);
 }
 
 .practice-topic-progress-ring-value{
@@ -1081,7 +1081,7 @@ DIFFICULTY SYSTEM
 }
 
 .practice-topic-progress-segment--learning{
-  background:#2563eb;
+  background:var(--primary);
 }
 
 .practice-topic-progress-segment--review{
@@ -1114,7 +1114,7 @@ DIFFICULTY SYSTEM
 }
 
 .practice-topic-progress-dot--learning{
-  background:#2563eb;
+  background:var(--primary);
 }
 
 .practice-topic-progress-dot--review{
@@ -1985,7 +1985,7 @@ EXAM UI ENHANCEMENT
 /* HOVER FEEDBACK */
 .exam-content .option-row:hover{
   border-color:var(--primary);
-  background:#f1f5ff;
+  background:color-mix(in srgb, var(--primary) 6%, #fff);
 }
 
 /* SELECTED OPTION (FULL ROW HIGHLIGHT) */
@@ -2000,7 +2000,7 @@ EXAM UI ENHANCEMENT
 /* STRONG VISUAL SELECTION */
 .exam-content .option-row:has(input:checked){
   border-color:var(--primary);
-  background:#eef3ff;
+  background:color-mix(in srgb, var(--primary) 10%, #fff);
 }
 
 /* OPTION TEXT */
@@ -2120,7 +2120,7 @@ Explanation Toggle & Block
 .explanation-toggle{
   margin-top:10px;
   font-size:13px;
-  color:#2563eb;
+  color:var(--primary);
   cursor:pointer;
   font-weight:600;
 }
@@ -2132,7 +2132,7 @@ Explanation Toggle & Block
 .explanation-block{
   margin-top:10px;
   padding:10px;
-  border-left:3px solid #2563eb;
+  border-left:3px solid var(--primary);
   background:#f9fafb;
   border-radius:6px;
 }
@@ -2397,8 +2397,8 @@ STUDENT LEARNING INTELLIGENCE (minimal)
 }
 
 .student-intel-confidence--medium {
-  border-color: #93c5fd;
-  background: #eff6ff;
+  border-color: color-mix(in srgb, var(--primary) 35%, #fff);
+  background: color-mix(in srgb, var(--primary) 8%, #fff);
 }
 
 .student-intel-confidence--high {
@@ -4187,6 +4187,66 @@ body.student-surface .student-dashboard-section--insights {
   border-color: #d1fae5;
 }
 
+/* Practice page */
+body.student-surface .practice-mode-card.active {
+  background: color-mix(in srgb, var(--primary) 5%, #fff);
+}
+
+body.student-surface .practice-topic-progress-ring {
+  background: #f0fdfa;
+  border-color: #99f6e4;
+}
+
+body.student-surface .practice-topic-progress-segment--learning {
+  background: var(--primary);
+}
+
+body.student-surface .practice-topic-progress-dot--learning {
+  background: var(--primary);
+}
+
+body.student-surface .practice-feedback-card--correct {
+  border-color: var(--success);
+}
+
+/* Exam page */
+body.student-surface .exam-overview {
+  border-color: #99f6e4;
+}
+
+body.student-surface .exam-results-card {
+  border-color: #99f6e4;
+}
+
+body.student-surface .exam-review-fab {
+  box-shadow: 0 6px 18px rgba(13, 148, 136, 0.3);
+}
+
+body.student-surface .exam-progress-fill {
+  background: var(--primary);
+}
+
+/* Note reader page */
+body.student-surface .canonical-tab.active {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+body.student-surface .note-layer-flip-btn {
+  border-color: #99f6e4;
+  color: var(--primary-dark);
+}
+
+body.student-surface .note-layer-flip-btn:hover:not(:disabled) {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: #f0fdfa;
+}
+
+body.student-surface .referenced-in-link {
+  color: var(--primary);
+}
+
 .student-dashboard-grid {
   display: flex;
   flex-direction: column;
@@ -4305,9 +4365,9 @@ body.student-surface .student-dashboard-section--insights {
 }
 
 .student-welcome {
-  border: 1px solid #c7d2fe;
+  border: 1px solid color-mix(in srgb, var(--primary) 25%, #fff);
   border-radius: var(--radius);
-  background: linear-gradient(135deg, #eff6ff 0%, #f8fafc 100%);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--primary) 8%, #fff) 0%, #f8fafc 100%);
   box-shadow: var(--shadow);
 }
 
@@ -4346,7 +4406,7 @@ body.student-surface .student-dashboard-section--insights {
   height: 42px;
   border-radius: 12px;
   color: var(--primary);
-  background: #eff6ff;
+  background: color-mix(in srgb, var(--primary) 10%, #fff);
 }
 
 .student-action-card--notes .student-action-icon {
@@ -4387,9 +4447,9 @@ body.student-surface .student-dashboard-section--insights {
 }
 
 .student-status-badge--ready {
-  color: #1d4ed8;
-  background: #dbeafe;
-  border: 1px solid #93c5fd;
+  color: var(--primary-dark);
+  background: color-mix(in srgb, var(--primary) 14%, #fff);
+  border: 1px solid color-mix(in srgb, var(--primary) 35%, #fff);
 }
 
 .student-status-badge--in_progress {
@@ -4437,7 +4497,7 @@ body.student-surface .student-dashboard-section--insights {
 }
 
 .student-mastery-bar--revision .student-mastery-bar-fill {
-  background: #2563eb;
+  background: var(--primary);
 }
 
 .student-mastery-bar-label {
@@ -5289,10 +5349,10 @@ body.student-surface .student-dashboard-section--insights {
 }
 
 .question-paste-panel {
-  border: 1px dashed #93c5fd;
+  border: 1px dashed color-mix(in srgb, var(--primary) 35%, #fff);
   border-radius: 8px;
   padding: 10px 12px;
-  background: #f0f9ff;
+  background: color-mix(in srgb, var(--primary) 6%, #fff);
 }
 
 .question-paste-summary {

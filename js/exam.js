@@ -1,4 +1,5 @@
 import { TimerEngine } from "./timer.js";
+import { renderDashboardSkeleton } from "./student/student-dashboard-renderer.js";
 import { PREPOS_ANALYTICS_ENABLED } from "./analytics/analytics-config.js";
 import { getClient } from "./core/get-client.js";
 import {
@@ -105,6 +106,7 @@ function showLoading(){
   document.getElementById("errorState").style.display="none";
   document.getElementById("examContent").style.display="none";
   document.getElementById("examOverviewSection")?.classList.add("hidden");
+  renderDashboardSkeleton(document.getElementById("examLoadingSkeleton"), { rows: 2 });
 }
 
 function showOverview(){
@@ -1168,6 +1170,10 @@ async function setupExamHomeLink() {
 
     const role = await fetchUserRole(sb, user.id);
     if (!role) return;
+
+    if (!TEACHER_ROLES.includes(role)) {
+      document.body.classList.add("student-surface");
+    }
 
     if (inspectModeRequested && TEACHER_ROLES.includes(role)) {
       btn.href = resolveAppPath("teacher-student-preview.html");

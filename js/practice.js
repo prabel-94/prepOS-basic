@@ -37,6 +37,7 @@ import {
   revokeMalayalamVariantVerification,
   parseMlVariantVerificationValue,
 } from "./core/question-assistance.js";
+import { renderDashboardSkeleton } from "./student/student-dashboard-renderer.js";
 
 const subjectSelect = document.getElementById("subjectSelect");
 const patternSelect = document.getElementById("patternSelect");
@@ -597,9 +598,12 @@ function setLoading(isLoading, label = "Generating question...") {
   startBtn.innerText = isLoading ? "Loading..." : "Start Practice";
 
   if (isLoading) {
+    renderDashboardSkeleton(questionPrompt, { rows: 1 });
     setStatus(label, false);
-  } else if (practiceStatus.textContent === label) {
-    setStatus("");
+  } else {
+    if (practiceStatus.textContent === label) {
+      setStatus("");
+    }
   }
 }
 
