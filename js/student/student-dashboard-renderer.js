@@ -4,6 +4,7 @@
  */
 
 import { formatExamDuration } from "./student-exam-meta.js";
+import { buildWelcomeMessage } from "./student-welcome.js";
 
 function escapeHTML(value = "") {
   return String(value ?? "")
@@ -57,6 +58,67 @@ export function renderDashboardSkeleton(
 
 function markLoaded(container) {
   container?.removeAttribute("aria-busy");
+}
+
+function clampMastery(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return 0;
+  }
+
+  return Math.min(100, Math.max(0, Math.round(numeric)));
+}
+
+function renderMasteryBar(mastery, { variant = "default" } = {}) {
+  const percent = clampMastery(mastery);
+
+  return `
+    <div class="student-mastery-bar student-mastery-bar--${escapeHTML(variant)}">
+      <div class="student-mastery-bar-track" aria-hidden="true">
+        <div class="student-mastery-bar-fill" style="width: ${percent}%"></div>
+      </div>
+      <div class="student-mastery-bar-label">${percent}% mastery</div>
+    </div>
+  `;
+}
+
+function renderExamStatusBadge(exam = {}) {
+  const status = exam.attemptStatus ?? "not_attempted";
+  const labels = {
+    completed: "Completed",
+    in_progress: "In progress",
+    locked: "Locked",
+    not_attempted: "Ready",
+  };
+
+  let label = labels[status] ?? "Ready";
+  if (status === "completed" && exam.score != null) {
+    const total = exam.total ?? exam.questionCount ?? "?";
+    label = `Completed · ${exam.score}/${total}`;
+  }
+
+  return `
+    <span class="student-status-badge student-status-badge--${escapeHTML(status)}">
+      ${escapeHTML(label)}
+    </span>
+  `;
+}
+
+export function renderWelcomeBanner(container, { displayName = "", exams = [] } = {}) {
+  if (!container) {
+    return;
+  }
+
+  const { headline, detail } = buildWelcomeMessage({ displayName, exams });
+
+  container.innerHTML = `
+    <div class="student-welcome-inner">
+      <div class="student-welcome-copy">
+        <div class="student-welcome-headline">${escapeHTML(headline)}</div>
+        <div class="student-welcome-detail">${escapeHTML(detail)}</div>
+      </div>
+    </div>
+  `;
 }
 
 export function renderEmptyState(container, message, { variant = "default" } = {}) {
@@ -178,7 +240,7 @@ function renderWeakTopicRows(cards = []) {
     <div class="student-dashboard-row student-dashboard-row--weak">
       <div class="student-dashboard-row-main">
         <div class="student-dashboard-row-title">${escapeHTML(card.topic)}</div>
-        <div class="student-dashboard-row-meta">Mastery: ${escapeHTML(card.mastery)}%</div>
+        ${renderMasteryBar(card.mastery, { variant: "weak" })}
         <div class="student-dashboard-row-meta">${escapeHTML(card.confidence)} — ${escapeHTML(card.confidenceMessage)}</div>
         <div class="student-dashboard-row-body">${escapeHTML(card.recommendation)}</div>
       </div>
@@ -204,7 +266,7 @@ function renderStrongTopicRows(cards = []) {
     <div class="student-dashboard-row student-dashboard-row--strong">
       <div class="student-dashboard-row-main">
         <div class="student-dashboard-row-title">${escapeHTML(card.topic)}</div>
-        <div class="student-dashboard-row-meta">Mastery: ${escapeHTML(card.mastery)}%</div>
+        ${renderMasteryBar(card.mastery, { variant: "strong" })}
         <div class="student-dashboard-row-body">${escapeHTML(card.message)}</div>
       </div>
     </div>
@@ -230,7 +292,7 @@ function renderRecommendationRows(items = []) {
         <div class="student-dashboard-row-title">${escapeHTML(item.topic)}</div>
         ${
           item.mastery != null
-            ? `<div class="student-dashboard-row-meta">Current mastery: ${escapeHTML(item.mastery)}%</div>`
+            ? renderMasteryBar(item.mastery, { variant: "revision" })
             : ""
         }
         <div class="student-dashboard-row-body">${escapeHTML(item.message)}</div>
@@ -366,6 +428,7 @@ export function renderAvailableExams(container, exams = []) {
 
   exams.forEach((exam) => {
     const metaLines = [];
+    const status = exam.attemptStatus ?? "not_attempted";
 
     if (exam.questionCount) {
       metaLines.push(`${exam.questionCount} Question${exam.questionCount === 1 ? "" : "s"}`);
@@ -378,26 +441,24 @@ export function renderAvailableExams(container, exams = []) {
 
     metaLines.push("Assigned by Teacher");
 
-    if (exam.attemptStatus === "completed" && exam.score != null) {
-      metaLines.push("Completed");
-      metaLines.push(`Score ${exam.score}/${exam.total ?? exam.questionCount ?? "?"}`);
-    } else if (exam.attemptStatus === "in_progress") {
-      metaLines.push("In Progress");
-    } else if (exam.attemptStatus === "locked") {
-      metaLines.push(exam.lockReason || "Complete the previous part first");
-    }
-
     if (exam.part_index) {
       metaLines.push(`Part ${exam.part_index}${exam.part_count ? ` of ${exam.part_count}` : ""}`);
     }
 
+    if (status === "locked") {
+      metaLines.push(exam.lockReason || "Complete the previous part first");
+    }
+
     const buttonLabel = exam.buttonLabel ?? "Start Exam";
-    const isLocked = exam.attemptStatus === "locked";
+    const isLocked = status === "locked";
 
     const div = document.createElement("div");
     div.className = "student-exam-card";
     div.innerHTML = `
-      <div class="student-exam-card-title">${escapeHTML(exam.title || "Untitled Exam")}</div>
+      <div class="student-exam-card-header">
+        <div class="student-exam-card-title">${escapeHTML(exam.title || "Untitled Exam")}</div>
+        ${renderExamStatusBadge(exam)}
+      </div>
       <ul class="student-exam-card-meta">
         ${metaLines.map((line) => `<li>${escapeHTML(line)}</li>`).join("")}
       </ul>
@@ -441,9 +502,11 @@ export function renderRecentAttempts(container, attempts = []) {
     const div = document.createElement("div");
     div.className = "student-exam-card student-exam-card--attempt";
     div.innerHTML = `
-      <div class="student-exam-card-title">${escapeHTML(title)}</div>
+      <div class="student-exam-card-header">
+        <div class="student-exam-card-title">${escapeHTML(title)}</div>
+        <span class="student-status-badge student-status-badge--completed">Completed · ${escapeHTML(scoreLabel)}</span>
+      </div>
       <ul class="student-exam-card-meta">
-        <li>Score ${escapeHTML(scoreLabel)}</li>
         <li>${escapeHTML(submittedLabel)}</li>
       </ul>
       <button

@@ -4132,6 +4132,149 @@ PHASE 1 — STUDENT UI UPGRADE
   color: var(--muted);
 }
 
+.student-welcome {
+  border: 1px solid #c7d2fe;
+  border-radius: var(--radius);
+  background: linear-gradient(135deg, #eff6ff 0%, #f8fafc 100%);
+  box-shadow: var(--shadow);
+}
+
+.student-welcome-inner {
+  padding: 18px 20px;
+}
+
+.student-welcome-headline {
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1.25;
+  color: #1e3a8a;
+}
+
+.student-welcome-detail {
+  margin-top: 6px;
+  font-size: 0.95rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.student-action-card-head,
+.student-section-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.student-action-icon,
+.student-section-icon {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  color: var(--primary);
+  background: #eff6ff;
+}
+
+.student-action-card--notes .student-action-icon {
+  color: #0f766e;
+  background: #ecfdf5;
+}
+
+.student-action-icon svg,
+.student-section-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.student-action-link {
+  display: inline-block;
+  text-align: center;
+  text-decoration: none;
+  box-sizing: border-box;
+}
+
+.student-exam-card-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+
+.student-status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.student-status-badge--ready {
+  color: #1d4ed8;
+  background: #dbeafe;
+  border: 1px solid #93c5fd;
+}
+
+.student-status-badge--in_progress {
+  color: #92400e;
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+}
+
+.student-status-badge--completed {
+  color: #166534;
+  background: #dcfce7;
+  border: 1px solid #86efac;
+}
+
+.student-status-badge--locked {
+  color: #7f1d1d;
+  background: #fee2e2;
+  border: 1px solid #fca5a5;
+}
+
+.student-mastery-bar {
+  margin-top: 8px;
+}
+
+.student-mastery-bar-track {
+  height: 8px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  overflow: hidden;
+}
+
+.student-mastery-bar-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--primary);
+  transition: width 0.25s ease;
+}
+
+.student-mastery-bar--weak .student-mastery-bar-fill {
+  background: #f59e0b;
+}
+
+.student-mastery-bar--strong .student-mastery-bar-fill {
+  background: #16a34a;
+}
+
+.student-mastery-bar--revision .student-mastery-bar-fill {
+  background: #2563eb;
+}
+
+.student-mastery-bar-label {
+  margin-top: 4px;
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
 .student-primary-actions {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));

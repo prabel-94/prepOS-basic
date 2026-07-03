@@ -28,8 +28,13 @@ import {
   bindExamStartActions,
   renderEmptyState,
   renderDashboardSkeleton,
+  renderWelcomeBanner,
 } from "./student/student-dashboard-renderer.js";
+import {
+  resolveStudentDisplayName,
+} from "./student/student-welcome.js";
 import { loadTopicNotesSection } from "./notes/note-home.js";
+import { mountAppNav } from "./ui/app-nav.js";
 
 function startExamById(id) {
   location.href = resolveAppPath(`exam.html?id=${id}`);
@@ -40,9 +45,52 @@ function goToPractice() {
 }
 
 function scrollToTopicNotes() {
-  document.getElementById("topicNotesSection")?.scrollIntoView({
+  const section = document.getElementById("topicNotesSection");
+  if (!section) {
+    return;
+  }
+
+  section.scrollIntoView({
     behavior: "smooth",
     block: "start",
+  });
+
+  if (window.location.hash !== "#topicNotesSection") {
+    history.replaceState(null, "", "#topicNotesSection");
+  }
+}
+
+function handleNotesHashOnLoad() {
+  if (window.location.hash === "#topicNotesSection") {
+    window.requestAnimationFrame(() => scrollToTopicNotes());
+  }
+}
+
+function mountStudentDashboardNav(runtime) {
+  const title =
+    runtime.learnerContext?.studentModeActive ? "My Learning" : "Student Dashboard";
+
+  mountAppNav({
+    variant: "home",
+    showHome: false,
+    title,
+    subtitle: "Exams, practice, and learning intelligence",
+    role: runtime.role,
+    links: [
+      { label: "Practice", href: "practice.html" },
+      {
+        label: "Notes",
+        href: "student-dashboard.html#topicNotesSection",
+        active: true,
+      },
+    ],
+  });
+}
+
+async function updateWelcomeBanner(displayName, exams = []) {
+  renderWelcomeBanner(document.getElementById("studentWelcome"), {
+    displayName,
+    exams,
   });
 }
 
@@ -95,27 +143,28 @@ function renderIntelligenceErrorStates() {
 
 async function initStudent() {
   showInitialDashboardSkeletons();
+  renderWelcomeBanner(document.getElementById("studentWelcome"));
 
   const runtime = await bootPage({
     roles: ["student", "admin"],
     allowLinkedStudentMode: true,
-    nav: {
-      variant: "home",
-      showHome: false,
-      title: "Student Dashboard",
-      subtitle: "Exams, practice, and learning intelligence",
-    },
+    nav: false,
   });
 
   if (!runtime) return;
 
+  mountStudentDashboardNav(runtime);
+  handleNotesHashOnLoad();
+
+  document.querySelector('a[href="#topicNotesSection"]')?.addEventListener("click", (event) => {
+    event.preventDefault();
+    scrollToTopicNotes();
+  });
+
   const { mountStudentModeNav } = await import("./teacher/linked-learner-ui.js");
   await mountStudentModeNav(runtime);
 
-  const dashboardTitle = document.querySelector(".prepos-app-nav-title");
-  if (runtime.learnerContext?.studentModeActive && dashboardTitle) {
-    dashboardTitle.textContent = "My Learning";
-  }
+  const displayName = await resolveStudentDisplayName(runtime);
 
   const topicNotesEl = document.getElementById("studentTopicNotes");
 
@@ -134,6 +183,8 @@ async function initStudent() {
   try {
     examDashboardData = await loadStudentExamDashboardData();
 
+    await updateWelcomeBanner(displayName, examDashboardData.exams ?? []);
+
     renderAvailableExams(
       document.getElementById("availableExams"),
       examDashboardData.exams ?? []
@@ -147,6 +198,8 @@ async function initStudent() {
     bindExamStartActions(startExamById);
   } catch (error) {
     console.error("[Student Dashboard] Exam data load failed", error);
+
+    await updateWelcomeBanner(displayName, []);
 
     renderEmptyState(
       document.getElementById("availableExams"),

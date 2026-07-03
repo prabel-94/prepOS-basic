@@ -15,6 +15,7 @@ export const NAV_PRESETS = Object.freeze({
   studentHome: {
     links: [
       { label: "Practice", href: "practice.html" },
+      { label: "Notes", href: "student-dashboard.html#topicNotesSection" },
     ],
   },
   teacherKnowledge: {

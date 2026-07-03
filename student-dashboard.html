@@ -13,34 +13,70 @@
 
   <div class="container">
 
-    <p class="dashboard-section-label mt-30">Primary Actions</p>
+    <div id="studentWelcome" class="student-welcome mt-30" aria-live="polite"></div>
+
+    <p class="dashboard-section-label mt-20">Primary Actions</p>
 
     <div class="student-primary-actions mt-10">
-      <div class="card student-action-card">
-        <div class="h2">Practice</div>
-        <div class="section-sub mt-5">
-          Build skills with smart generators or question bank practice.
+      <div class="card student-action-card student-action-card--practice">
+        <div class="student-action-card-head">
+          <span class="student-action-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+            </svg>
+          </span>
+          <div>
+            <div class="h2">Practice</div>
+            <div class="section-sub mt-5">
+              Build skills with smart generators or question bank practice.
+            </div>
+          </div>
         </div>
-        <button onclick="goToPractice()" class="primary-btn w-full mt-20">
+        <button type="button" onclick="goToPractice()" class="primary-btn w-full mt-20">
           Start Practice
         </button>
       </div>
 
-      <div class="card student-action-card">
-        <div class="h2">Read Notes</div>
-        <div class="section-sub mt-5">
-          Review topic notes — narrative, structural, and revision views.
+      <div class="card student-action-card student-action-card--notes">
+        <div class="student-action-card-head">
+          <span class="student-action-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+            </svg>
+          </span>
+          <div>
+            <div class="h2">Read Notes</div>
+            <div class="section-sub mt-5">
+              Review topic notes — narrative, structural, and revision views.
+            </div>
+          </div>
         </div>
-        <button type="button" onclick="scrollToTopicNotes()" class="primary-btn w-full mt-20">
+        <a href="#topicNotesSection" class="primary-btn w-full mt-20 student-action-link">
           Browse Notes
-        </button>
+        </a>
       </div>
     </div>
 
     <div class="card mt-20">
-      <div class="h2">Available Exams</div>
-      <div class="section-sub mt-5">
-        Exams assigned by your teacher.
+      <div class="student-section-head">
+        <span class="student-section-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="16" y1="2" x2="16" y2="6"></line>
+            <line x1="8" y1="2" x2="8" y2="6"></line>
+            <line x1="3" y1="10" x2="21" y2="10"></line>
+          </svg>
+        </span>
+        <div>
+          <div class="h2">Available Exams</div>
+          <div class="section-sub mt-5">
+            Exams assigned by your teacher.
+          </div>
+        </div>
       </div>
       <div id="availableExams" class="student-dashboard-list mt-10" aria-busy="true"></div>
     </div>
