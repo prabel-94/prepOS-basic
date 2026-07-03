@@ -5,7 +5,6 @@
 import {
   applyQuoteHighlight,
   convertTextToHeading,
-  deriveSectionTitle,
   insertBlockAt,
   insertDividerAt,
   insertWikiLinkAt,
@@ -17,13 +16,6 @@ import { pickTopicLinkName } from "./note-topic-link-picker.js";
 import { pickSemanticAnchorName } from "./note-semantic-anchor-picker.js";
 import { openChronologyEditor } from "./note-chronology-editor.js";
 import { openRetrievalAnchorInserter } from "./note-retrieval-anchor-inserter.js";
-import { openSectionWrapDialog } from "./note-section-wrap-dialog.js";
-import {
-  collectUnitsForSectionWrap,
-  SECTION_WRAP_REPRESENTATIONS,
-  wrapUnitSelectionAsSection,
-  wrapUnitsAsSection,
-} from "./note-section-wrap.js";
 
 const CHRONOLOGY_REPS = new Set(["narrative", "timeline"]);
 const RETRIEVAL_REPS = new Set(["narrative"]);
@@ -57,10 +49,6 @@ function getSelectionOffsets(element) {
  * @param {() => string} [options.getMarkdown]
  * @param {(markdown: string) => void} [options.setMarkdown]
  * @param {() => void|Promise<void>} [options.onPatched]
- * @param {() => string} [options.prepareMarkdown]
- * @param {(markdown: string, detail?: { focusOffset?: number }) => void} [options.applyMarkdown]
- * @param {() => Map<string, object>} [options.getEditableUnits]
- * @param {() => string|null} [options.getActiveUnitId]
  * @param {() => void} [options.onToolbarPointerDown]
  * @param {() => void} [options.onToolbarPointerUp]
  */
@@ -85,7 +73,6 @@ export function createPreviewFormatToolbar(options) {
     <button type="button" class="note-preview-format-btn" data-format="quote" title="Highlight quote" hidden>Quote</button>
     <button type="button" class="note-preview-format-btn" data-format="chronology" title="Insert chronology event" hidden>Chrono</button>
     <button type="button" class="note-preview-format-btn" data-format="retrieval" title="Insert retrieval anchor" hidden>Retrieve</button>
-    <button type="button" class="note-preview-format-btn" data-format="section" title="Wrap selection as collapsible section">Section</button>
     <button type="button" class="note-preview-format-btn" data-format="divider" title="Insert divider">Divider</button>
   `;
 
@@ -157,7 +144,6 @@ export function createPreviewFormatToolbar(options) {
     const quoteBtn = toolbar.querySelector('[data-format="quote"]');
     const chronoBtn = toolbar.querySelector('[data-format="chronology"]');
     const retrievalBtn = toolbar.querySelector('[data-format="retrieval"]');
-    const sectionBtn = toolbar.querySelector('[data-format="section"]');
 
     if (quoteBtn) {
       quoteBtn.hidden = rep !== "quotes";
@@ -168,84 +154,6 @@ export function createPreviewFormatToolbar(options) {
     if (retrievalBtn) {
       retrievalBtn.hidden = !RETRIEVAL_REPS.has(rep);
     }
-    if (sectionBtn) {
-      sectionBtn.hidden =
-        !SECTION_WRAP_REPRESENTATIONS.has(rep) || typeof options.applyMarkdown !== "function";
-    }
-  }
-
-  async function handleSectionWrap(activeEl) {
-    if (typeof options.applyMarkdown !== "function" || typeof options.prepareMarkdown !== "function") {
-      return;
-    }
-
-    const rep = activeRepresentation();
-    if (!SECTION_WRAP_REPRESENTATIONS.has(rep)) {
-      return;
-    }
-
-    const units = options.getEditableUnits?.();
-    const activeUnitId = options.getActiveUnitId?.();
-    const unit = activeUnitId ? units?.get(activeUnitId) ?? null : null;
-    if (!units || !unit) {
-      return;
-    }
-
-    const selection = getEffectiveSelection(activeEl);
-    const hasRange = Boolean(selection && !selection.collapsed);
-    let wrapUnits = [unit];
-    let previewBody = unit.sourceText;
-
-    if (hasRange) {
-      previewBody = unit.sourceText.slice(selection.start, selection.end);
-    } else {
-      wrapUnits = collectUnitsForSectionWrap(units, activeUnitId);
-      if (!wrapUnits.length) {
-        return;
-      }
-
-      const markdownPreview = options.prepareMarkdown();
-      previewBody = markdownPreview.slice(
-        wrapUnits[0].start,
-        wrapUnits[wrapUnits.length - 1].end
-      );
-    }
-
-    const headingMatch = unit.kind === "heading" ? unit.sourceText.match(/^(#{1,6})\s+/) : null;
-    const defaultLevel = headingMatch
-      ? Math.min(headingMatch[1].length + 1, 6)
-      : 2;
-
-    const dialogResult = await openSectionWrapDialog({
-      defaultTitle: deriveSectionTitle(previewBody),
-      defaultLevel,
-    });
-
-    if (!dialogResult) {
-      return;
-    }
-
-    const markdown = options.prepareMarkdown();
-    let updated = markdown;
-
-    if (hasRange) {
-      updated = wrapUnitSelectionAsSection(
-        markdown,
-        unit,
-        selection.start,
-        selection.end,
-        dialogResult
-      );
-    } else {
-      updated = wrapUnitsAsSection(markdown, wrapUnits, dialogResult);
-    }
-
-    if (updated === markdown) {
-      return;
-    }
-
-    options.applyMarkdown(updated, { focusOffset: wrapUnits[0].start });
-    hide();
   }
 
   function positionToolbar(range) {
@@ -408,9 +316,6 @@ export function createPreviewFormatToolbar(options) {
           }
           insertAtCaret(activeEl, block);
         });
-        return;
-      case "section":
-        handleSectionWrap(activeEl);
         return;
       case "divider":
         nextText = insertDividerAt(currentText, offset);

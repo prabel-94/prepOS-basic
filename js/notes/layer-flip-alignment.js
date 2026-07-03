@@ -1,5 +1,16 @@
 /**
  * Layer flip scroll capture + restore (Phase A/B landing accuracy).
+ *
+ * Restore priority (cross-language flip):
+ *   1. anchor_id  — language-invariant UUID from the nearest visible semantic anchor
+ *   2. chronologyDate — dates are language-invariant
+ *   3. sectionNumber — heading numbering like "3.2"
+ *   4. wikiKeys overlap — data-wiki-anchors (same-language only, text differs across variants)
+ *   5. blockSeq — same-language only (sequence_order is independent per variant)
+ *   6. structuralId — same-language only
+ *   7. ratio / scrollY — last resort
+ *
+ * Same-language tab switches use blockSeq first (fast, reliable within one variant).
  */
 
 const WIKI_PATTERN = /\[\[([^\]]+)\]\]/g;
@@ -34,6 +45,8 @@ const RESTORE_ELEMENT_RANK = [
   "div.semantic-section-entry",
   ".semantic-paragraph-run",
 ];
+
+const ANCHOR_NOTE_SELECTOR = ".semantic-anchor[data-anchor-id]";
 
 export function viewportAnchorY() {
   return window.innerHeight * 0.35;
@@ -81,6 +94,33 @@ export function wikiKeysFromElement(el) {
   }
 
   return [...keys].slice(0, 8);
+}
+
+/**
+ * Find the nearest resolved semantic anchor (with anchor_id UUID) in or near
+ * the given block element. Checks the element itself, then its previous sibling.
+ * @param {Element} blockEl
+ * @returns {string|null} anchor_id UUID or null
+ */
+export function nearestVisibleAnchorId(blockEl) {
+  if (!blockEl) {
+    return null;
+  }
+
+  const inBlock = blockEl.querySelector?.(ANCHOR_NOTE_SELECTOR);
+  if (inBlock?.dataset?.anchorId) {
+    return inBlock.dataset.anchorId;
+  }
+
+  const prev = blockEl.previousElementSibling;
+  if (prev) {
+    const inPrev = prev.querySelector?.(ANCHOR_NOTE_SELECTOR);
+    if (inPrev?.dataset?.anchorId) {
+      return inPrev.dataset.anchorId;
+    }
+  }
+
+  return null;
 }
 
 /**
@@ -174,6 +214,45 @@ export function pickBestSeqMatch(matches, state = {}) {
 }
 
 /**
+ * When multiple elements contain the same anchor_id, pick the one closest
+ * to the captured scroll ratio (proportional document position).
+ * @param {Element[]} candidates
+ * @param {number} capturedRatio - 0..1 proportional scroll position from capture
+ * @returns {Element|null}
+ */
+export function pickClosestByRatio(candidates, capturedRatio = 0) {
+  if (!candidates?.length) {
+    return null;
+  }
+
+  if (candidates.length === 1) {
+    return candidates[0];
+  }
+
+  const docHeight = Math.max(
+    1,
+    document.documentElement.scrollHeight - window.innerHeight
+  );
+
+  let best = candidates[0];
+  let bestDist = Infinity;
+
+  for (const el of candidates) {
+    const rect = el.getBoundingClientRect();
+    const elTop = rect.top + window.scrollY;
+    const elRatio = elTop / (docHeight + window.innerHeight);
+    const dist = Math.abs(elRatio - capturedRatio);
+
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = el;
+    }
+  }
+
+  return best;
+}
+
+/**
  * @param {Element} el
  * @param {number} viewY
  */
@@ -233,6 +312,7 @@ export function readAlignmentFromElement(el) {
 
   return {
     el: anchor,
+    anchorId: nearestVisibleAnchorId(anchor),
     blockSeq: Number.isFinite(blockSeq) ? blockSeq : null,
     blockType: anchor.dataset?.blockType ?? null,
     anchorKind: anchorKind(anchor),
@@ -283,6 +363,7 @@ export function captureLayerScrollState(container) {
   const anchor = findViewportBlockAnchor(container);
 
   return {
+    anchorId: anchor?.anchorId ?? null,
     blockSeq: anchor?.blockSeq ?? null,
     blockType: anchor?.blockType ?? null,
     anchorKind: anchor?.anchorKind ?? null,
@@ -343,16 +424,58 @@ export function expandSemanticCollapsibleAncestors(target) {
 }
 
 /**
+ * Restore by anchor_id — the primary cross-language homing signal.
+ * Finds `.semantic-anchor[data-anchor-id="UUID"]` in the target content,
+ * then returns its containing block element for scroll alignment.
  * @param {HTMLElement} container
- * @param {object} state
+ * @param {string} anchorId
+ * @param {number} ratio - captured scroll ratio for positional tiebreaking
  * @returns {Element|null}
  */
-export function findRestoreTarget(container, state = {}) {
+function findByAnchorId(container, anchorId, ratio = 0) {
+  const matches = container.querySelectorAll(
+    `${ANCHOR_NOTE_SELECTOR}[data-anchor-id="${CSS.escape(anchorId)}"]`
+  );
+
+  if (!matches.length) {
+    return null;
+  }
+
+  const blockParents = [];
+  for (const el of matches) {
+    const block = el.closest(
+      "[data-block-seq], p.semantic-paragraph, article, details, .structural-group, .semantic-chronology-node, .semantic-timeline-entry"
+    );
+    blockParents.push(block ?? el);
+  }
+
+  return pickClosestByRatio(blockParents, ratio);
+}
+
+/**
+ * @param {HTMLElement} container
+ * @param {object} state
+ * @param {object} [options]
+ * @param {boolean} [options.crossLanguage] - true when flipping between languages
+ * @returns {Element|null}
+ */
+export function findRestoreTarget(container, state = {}, options = {}) {
   if (!container) {
     return null;
   }
 
-  if (state.blockSeq != null) {
+  const crossLanguage = Boolean(options.crossLanguage);
+
+  // --- Cross-language primary: anchor_id (always tried first regardless of mode) ---
+  if (state.anchorId) {
+    const byAnchor = findByAnchorId(container, state.anchorId, state.ratio ?? 0);
+    if (byAnchor) {
+      return byAnchor;
+    }
+  }
+
+  // --- Same-language fast path: blockSeq is reliable within one variant ---
+  if (!crossLanguage && state.blockSeq != null) {
     const bySeq = container.querySelectorAll(
       `[data-block-seq="${CSS.escape(String(state.blockSeq))}"]`
     );
@@ -368,15 +491,6 @@ export function findRestoreTarget(container, state = {}) {
     );
     if (byDate) {
       return byDate;
-    }
-  }
-
-  if (state.structuralId) {
-    const toggle = container.querySelector(
-      `[data-structural-id="${CSS.escape(String(state.structuralId))}"]`
-    );
-    if (toggle) {
-      return toggle.closest(".structural-group") ?? toggle;
     }
   }
 
@@ -414,6 +528,26 @@ export function findRestoreTarget(container, state = {}) {
     }
   }
 
+  // blockSeq as late fallback for cross-language (positional heuristic)
+  if (crossLanguage && state.blockSeq != null) {
+    const bySeq = container.querySelectorAll(
+      `[data-block-seq="${CSS.escape(String(state.blockSeq))}"]`
+    );
+    const bestSeqMatch = pickBestSeqMatch([...bySeq], state);
+    if (bestSeqMatch) {
+      return bestSeqMatch;
+    }
+  }
+
+  if (state.structuralId) {
+    const toggle = container.querySelector(
+      `[data-structural-id="${CSS.escape(String(state.structuralId))}"]`
+    );
+    if (toggle) {
+      return toggle.closest(".structural-group") ?? toggle;
+    }
+  }
+
   return null;
 }
 
@@ -439,8 +573,8 @@ export function scrollToAlignmentTarget(target, ratioInElement = 0) {
   });
 }
 
-function applyLayerScrollRestore(container, state = {}) {
-  const target = findRestoreTarget(container, state);
+function applyLayerScrollRestore(container, state = {}, options = {}) {
+  const target = findRestoreTarget(container, state, options);
   if (target) {
     scrollToAlignmentTarget(target, state.ratioInElement);
     return true;
@@ -470,10 +604,12 @@ function applyLayerScrollRestore(container, state = {}) {
 /**
  * @param {HTMLElement} container
  * @param {object} state
+ * @param {object} [options]
+ * @param {boolean} [options.crossLanguage]
  */
-export function restoreLayerScrollState(container, state = {}) {
+export function restoreLayerScrollState(container, state = {}, options = {}) {
   const run = () => {
-    applyLayerScrollRestore(container, state);
+    applyLayerScrollRestore(container, state, options);
   };
 
   requestAnimationFrame(() => {

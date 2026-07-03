@@ -24,10 +24,6 @@ import {
 } from "./reading-ergonomics.js";
 import { getTabEligibleRepresentations } from "./note-representations.js";
 import {
-  isNarrativePartHeading,
-  narrativePartSlug,
-} from "./narrative-part-section.js";
-import {
   getDefinitionById,
   getDefinitionByRepresentationBucket,
   getTabSectionDefinitions,
@@ -852,6 +848,15 @@ function renderNarrativeSection(
   const blockClass = semanticBlockClasses(semanticLevel, representationKey);
   const sectionEntryClass = semanticLevel === 1 ? " semantic-section-entry" : "";
 
+  const heading = renderSemanticHeading(
+    sectionBlock.heading,
+    parserLevel,
+    representationKey,
+    topicMap,
+    renderOptions,
+    sectionBlock
+  );
+
   const ownBody = sectionBlock.content?.trim()
     ? renderBlockBody(sectionBlock, topicMap, renderOptions, representationKey)
     : "";
@@ -864,57 +869,12 @@ function renderNarrativeSection(
   const body = `${ownBody}${childrenHtml}`;
 
   if (!body.trim()) {
-    const heading = renderSemanticHeading(
-      sectionBlock.heading,
-      parserLevel,
-      representationKey,
-      topicMap,
-      renderOptions,
-      sectionBlock
-    );
-
     return `<div class="${blockClass}${sectionEntryClass} semantic-section-heading-only" data-semantic-level="${semanticLevel}"${blockAlignmentAttrs(sectionBlock, representationKey)}>${heading}</div>`;
   }
 
   if (semanticLevel === 1) {
-    const heading = renderSemanticHeading(
-      sectionBlock.heading,
-      parserLevel,
-      representationKey,
-      topicMap,
-      renderOptions,
-      sectionBlock
-    );
-
     return `<div class="${blockClass}${sectionEntryClass}" data-semantic-level="${semanticLevel}"${blockAlignmentAttrs(sectionBlock, representationKey)}>${heading}${body}</div>`;
   }
-
-  if (isNarrativePartHeading(sectionBlock.heading)) {
-    const partSlug = narrativePartSlug(sectionBlock.heading);
-    const headingEdit = draftEditSurface(renderOptions, representationKey, sectionBlock, "heading");
-    const summaryLabel =
-      sectionBlock.heading && headingEdit.attrs
-        ? `<span class="semantic-collapsible-summary-text${headingEdit.className}"${headingEdit.attrs}>${escapeHTML(sectionBlock.heading)}</span>`
-        : sectionBlock.heading
-          ? resolveInlineSemantics(sectionBlock.heading, topicMap, renderOptions)
-          : escapeHTML(sectionBlock.block_type);
-
-    return `
-    <details class="${blockClass}${sectionEntryClass} collapsible semantic-collapsible semantic-collapsible--narrative semantic-narrative-part" data-semantic-level="${semanticLevel}" data-narrative-part="${escapeHTML(partSlug ?? "")}"${blockAlignmentAttrs(sectionBlock, representationKey)} open>
-      <summary class="semantic-collapsible-summary semantic-heading--l${semanticLevel}">${summaryLabel}</summary>
-      <div class="canonical-block-body semantic-body">${body}</div>
-    </details>
-  `;
-  }
-
-  const heading = renderSemanticHeading(
-    sectionBlock.heading,
-    parserLevel,
-    representationKey,
-    topicMap,
-    renderOptions,
-    sectionBlock
-  );
 
   return `<article class="${blockClass}${sectionEntryClass}" data-semantic-level="${semanticLevel}"${blockAlignmentAttrs(sectionBlock, representationKey)}>${heading}<div class="semantic-body">${body}</div></article>`;
 }
@@ -1994,5 +1954,3 @@ export function getAvailableTabs(representations = {}, context = {}) {
       label: def.label,
     }));
 }
-
-export { bindNarrativePartCollapse } from "./narrative-part-section.js";

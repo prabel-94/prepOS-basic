@@ -3591,18 +3591,6 @@ PREPOS SIDE PANEL OVERLAYS
   text-align: left;
 }
 
-.semantic-reading-flow .semantic-narrative-part {
-  margin-top: var(--semantic-l3-space-before);
-}
-
-.semantic-reading-flow .semantic-narrative-part summary {
-  cursor: pointer;
-}
-
-.semantic-reading-flow .semantic-narrative-part[open] .semantic-body {
-  margin-top: calc(var(--semantic-body-gap) + 0.15rem);
-}
-
 /* Cognition inspector — micro-modal, low chrome */
 .prepos-modal-content.semantic-cognition-inspector {
   max-width: min(420px, calc(100vw - 24px));

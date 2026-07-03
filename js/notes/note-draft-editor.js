@@ -14,7 +14,6 @@ import {
 import { fetchNoteSource, loadVariantBundle } from "./note-selectors.js";
 import {
   bindStructuralCollapse,
-  bindNarrativePartCollapse,
   getAvailableTabs,
   renderRepresentationTab,
 } from "./note-renderer.js";
@@ -41,7 +40,6 @@ import { buildEditableUnitMap } from "./note-editable-map.js";
 import { findEditableUnitIdAtOffset } from "./note-source-patch.js";
 import { bindPreviewEditor } from "./note-preview-editor.js";
 import { openMetadataEditor } from "./note-metadata-editor.js";
-import { bindSourceSectionWrap } from "./note-section-wrap.js";
 
 function escapeHTML(value = "") {
   return String(value)
@@ -122,7 +120,6 @@ export function initDraftWorkspace({
   let previewEditableUnits = new Map();
   let previewRenderOptions = { preferLanguage: normalizeLanguage(variant?.language) };
   let unbindPreviewEditor = null;
-  let unbindSourceSectionWrap = null;
   let pendingFocusUnitId = null;
   let sectionExtensions = normalizeSectionExtensions(variant?.section_extensions);
   let unbindSectionInventory = null;
@@ -292,22 +289,6 @@ export function initDraftWorkspace({
   function teardownPreviewEditor() {
     unbindPreviewEditor?.destroy?.();
     unbindPreviewEditor = null;
-  }
-
-  function ensureSourceSectionWrap() {
-    unbindSourceSectionWrap?.destroy?.();
-    unbindSourceSectionWrap = bindSourceSectionWrap(sourceEditorEl, {
-      onApplied: ({ markdown, error }) => {
-        if (error) {
-          setStatus(error, true);
-          return;
-        }
-
-        if (markdown) {
-          setStatus("Section wrapped (unsaved). Click Save Draft to persist.");
-        }
-      },
-    });
   }
 
   function showEditMode() {
@@ -525,13 +506,6 @@ export function initDraftWorkspace({
       bindStructuralCollapse(contentEl);
     }
 
-    if (activeTab === "narrative") {
-      bindNarrativePartCollapse(contentEl, {
-        variantId: variant.id,
-        language: preferLanguage,
-      });
-    }
-
     bindSemanticPreviewInteractions(contentEl, {
       semanticMap: previewSemanticMap,
       preferLanguage,
@@ -743,7 +717,6 @@ export function initDraftWorkspace({
 
   renderDraftHeader();
   renderToolbar();
-  ensureSourceSectionWrap();
 
   if (backlinksEl) {
     backlinksEl.innerHTML = "";
