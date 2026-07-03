@@ -14,6 +14,7 @@ import {
 import { fetchNoteSource, loadVariantBundle } from "./note-selectors.js";
 import {
   bindStructuralCollapse,
+  bindNarrativePartCollapse,
   getAvailableTabs,
   renderRepresentationTab,
 } from "./note-renderer.js";
@@ -522,6 +523,13 @@ export function initDraftWorkspace({
 
     if (activeTab === "structural") {
       bindStructuralCollapse(contentEl);
+    }
+
+    if (activeTab === "narrative") {
+      bindNarrativePartCollapse(contentEl, {
+        variantId: variant.id,
+        language: preferLanguage,
+      });
     }
 
     bindSemanticPreviewInteractions(contentEl, {

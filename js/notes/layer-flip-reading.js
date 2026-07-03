@@ -11,6 +11,7 @@ import {
 import { fetchRepresentationLayer } from "./note-selectors.js";
 import {
   bindStructuralCollapse,
+  bindNarrativePartCollapse,
   getAvailableTabs,
   renderRepresentationTab,
 } from "./note-renderer.js";
@@ -247,6 +248,13 @@ export function createLayerFlipReading({
 
       if (tab === "structural") {
         bindStructuralCollapse(contentEl);
+      }
+
+      if (tab === "narrative") {
+        bindNarrativePartCollapse(contentEl, {
+          variantId: layerData.variantId,
+          language: contentLanguage,
+        });
       }
 
       if (semanticMap && Object.keys(semanticMap).length) {
