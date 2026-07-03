@@ -42,4 +42,14 @@ describe("student-welcome", () => {
     assert.equal(getTimeGreeting(new Date("2026-01-01T15:00:00")), "Good afternoon");
     assert.equal(getTimeGreeting(new Date("2026-01-01T20:00:00")), "Good evening");
   });
+
+  it("builds achievement hints from learning state", async () => {
+    const { buildAchievementHint } = await import("./student-welcome.js");
+    const hint = buildAchievementHint({
+      snapshot: { topicsMastered: 6 },
+      strongTopics: [],
+      weakTopics: [{ topicName: "X" }],
+    });
+    assert.match(hint, /6 topics mastered/);
+  });
 });

@@ -7,17 +7,19 @@
   <title>PrepOS Student</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
-<body>
+<body class="student-surface">
 
   <div id="app-nav-root"></div>
 
-  <div class="container">
+  <div class="container student-dashboard">
 
     <div id="studentWelcome" class="student-welcome mt-30" aria-live="polite"></div>
 
-    <p class="dashboard-section-label mt-20">Primary Actions</p>
+    <div id="studentSectionNavRoot"></div>
 
-    <div class="student-primary-actions mt-10">
+    <p class="dashboard-section-label mt-15">Primary Actions</p>
+
+    <div class="student-primary-actions mt-10" id="studentPrimarySection">
       <div class="card student-action-card student-action-card--practice">
         <div class="student-action-card-head">
           <span class="student-action-icon" aria-hidden="true">
@@ -61,51 +63,57 @@
       </div>
     </div>
 
-    <div class="card mt-20">
-      <div class="student-section-head">
-        <span class="student-section-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-            <line x1="16" y1="2" x2="16" y2="6"></line>
-            <line x1="8" y1="2" x2="8" y2="6"></line>
-            <line x1="3" y1="10" x2="21" y2="10"></line>
-          </svg>
-        </span>
-        <div>
-          <div class="h2">Available Exams</div>
-          <div class="section-sub mt-5">
-            Exams assigned by your teacher.
+    <div class="student-dashboard-grid mt-20">
+      <div class="student-dashboard-column student-dashboard-column--main">
+        <div class="card student-dashboard-section" id="availableExamsSection">
+          <div class="student-section-head">
+            <span class="student-section-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
+            </span>
+            <div>
+              <div class="h2">Available Exams</div>
+              <div class="section-sub mt-5">
+                Exams assigned by your teacher.
+              </div>
+            </div>
           </div>
+          <div id="availableExams" class="student-dashboard-list mt-10" aria-busy="true"></div>
+        </div>
+
+        <div class="card student-dashboard-section" id="topicNotesSection">
+          <div class="h2">Topic Notes</div>
+          <div class="section-sub mt-5">
+            Read published canonical notes by topic.
+          </div>
+          <div id="studentTopicNotes" class="student-dashboard-list mt-10" aria-busy="true"></div>
         </div>
       </div>
-      <div id="availableExams" class="student-dashboard-list mt-10" aria-busy="true"></div>
-    </div>
 
-    <div class="card mt-20" id="topicNotesSection">
-      <div class="h2">Topic Notes</div>
-      <div class="section-sub mt-5">
-        Read published canonical notes by topic.
+      <div class="student-dashboard-column student-dashboard-column--insights">
+        <div class="card student-dashboard-section student-dashboard-section--insights" id="learningIntelligenceSection">
+          <div class="h2">Learning Intelligence</div>
+          <div class="section-sub mt-5">
+            Topic mastery and revision guidance from verified practice.
+          </div>
+          <div id="learningIntelligence" class="mt-15" aria-busy="true"></div>
+        </div>
+
+        <div class="card student-dashboard-section student-dashboard-section--insights" id="myProgressSection">
+          <div class="h2">My Progress</div>
+          <div class="section-sub mt-5">
+            Weak areas, strengths, and revision suggestions from verified practice.
+          </div>
+          <div id="myProgress" class="mt-15" aria-busy="true"></div>
+        </div>
       </div>
-      <div id="studentTopicNotes" class="student-dashboard-list mt-10" aria-busy="true"></div>
     </div>
 
-    <div class="card mt-20">
-      <div class="h2">Learning Intelligence</div>
-      <div class="section-sub mt-5">
-        Topic mastery and revision guidance from verified practice.
-      </div>
-      <div id="learningIntelligence" class="mt-15" aria-busy="true"></div>
-    </div>
-
-    <div class="card mt-20" id="myProgressSection">
-      <div class="h2">My Progress</div>
-      <div class="section-sub mt-5">
-        Weak areas, strengths, and revision suggestions from verified practice.
-      </div>
-      <div id="myProgress" class="mt-15" aria-busy="true"></div>
-    </div>
-
-    <div class="card mt-20">
+    <div class="card student-dashboard-section mt-20" id="recentAttemptsSection">
       <div class="h2">Recent Attempts</div>
       <div class="section-sub mt-5">
         Your latest submitted exams and scores.

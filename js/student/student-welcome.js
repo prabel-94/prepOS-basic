@@ -64,6 +64,33 @@ export function buildWelcomeMessage({ displayName = "", exams = [] } = {}) {
 }
 
 /**
+ * @param {object} learningState
+ */
+export function buildAchievementHint(learningState = {}) {
+  const mastered = Number(learningState.snapshot?.topicsMastered ?? 0);
+  const strongCount = Array.isArray(learningState.strongTopics)
+    ? learningState.strongTopics.length
+    : 0;
+  const weakCount = Array.isArray(learningState.weakTopics)
+    ? learningState.weakTopics.length
+    : 0;
+
+  if (strongCount >= 3) {
+    return `${strongCount} strong topics on your profile — great momentum.`;
+  }
+
+  if (mastered >= 5) {
+    return `${mastered} topics mastered — you're building a solid foundation.`;
+  }
+
+  if (weakCount > 0 && mastered > 0) {
+    return "Focus on weak topics next — small sessions add up quickly.";
+  }
+
+  return null;
+}
+
+/**
  * @param {object} runtime
  */
 export async function resolveStudentDisplayName(runtime = {}) {

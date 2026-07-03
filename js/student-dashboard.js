@@ -32,9 +32,15 @@ import {
 } from "./student/student-dashboard-renderer.js";
 import {
   resolveStudentDisplayName,
+  buildAchievementHint,
 } from "./student/student-welcome.js";
 import { loadTopicNotesSection } from "./notes/note-home.js";
 import { mountAppNav } from "./ui/app-nav.js";
+import {
+  bindStudentSectionNav,
+  renderStudentSectionNav,
+  scrollToStudentSection,
+} from "./student/student-section-nav.js";
 
 function startExamById(id) {
   location.href = resolveAppPath(`exam.html?id=${id}`);
@@ -45,19 +51,7 @@ function goToPractice() {
 }
 
 function scrollToTopicNotes() {
-  const section = document.getElementById("topicNotesSection");
-  if (!section) {
-    return;
-  }
-
-  section.scrollIntoView({
-    behavior: "smooth",
-    block: "start",
-  });
-
-  if (window.location.hash !== "#topicNotesSection") {
-    history.replaceState(null, "", "#topicNotesSection");
-  }
+  scrollToStudentSection("topicNotesSection");
 }
 
 function handleNotesHashOnLoad() {
@@ -87,10 +81,11 @@ function mountStudentDashboardNav(runtime) {
   });
 }
 
-async function updateWelcomeBanner(displayName, exams = []) {
+async function updateWelcomeBanner(displayName, exams = [], learningState = null) {
   renderWelcomeBanner(document.getElementById("studentWelcome"), {
     displayName,
     exams,
+    achievementHint: learningState ? buildAchievementHint(learningState) : "",
   });
 }
 
@@ -154,6 +149,8 @@ async function initStudent() {
   if (!runtime) return;
 
   mountStudentDashboardNav(runtime);
+  renderStudentSectionNav(document.getElementById("studentSectionNavRoot"));
+  bindStudentSectionNav();
   handleNotesHashOnLoad();
 
   document.querySelector('a[href="#topicNotesSection"]')?.addEventListener("click", (event) => {
@@ -222,6 +219,11 @@ async function initStudent() {
     window.__PREPOS_STUDENT_LEARNING_STATE__ = learningState;
 
     renderIntelligenceSections(learningState);
+    await updateWelcomeBanner(
+      displayName,
+      examDashboardData?.exams ?? [],
+      learningState
+    );
 
     if (!examDashboardData) {
       renderRecentAttempts(

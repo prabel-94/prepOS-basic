@@ -4124,6 +4124,166 @@ PREPOS SIDE PANEL OVERLAYS
 PHASE 1 — STUDENT UI UPGRADE
 ====================================================== */
 
+body.student-surface {
+  --primary: #0d9488;
+  --primary-dark: #0f766e;
+  --student-accent: #f59e0b;
+  --student-accent-soft: #fff7ed;
+  --student-surface-bg: #f8f6f2;
+  --student-card-tint: #fffdf9;
+  background: var(--student-surface-bg);
+}
+
+body.student-surface .prepos-app-nav-kicker {
+  color: var(--primary);
+}
+
+body.student-surface .prepos-app-nav-link.is-active {
+  background: #ccfbf1;
+  border-color: #99f6e4;
+  color: #115e59;
+}
+
+body.student-surface .primary-btn {
+  box-shadow: 0 4px 10px rgba(13, 148, 136, 0.22);
+}
+
+body.student-surface .student-welcome {
+  border-color: #99f6e4;
+  background: linear-gradient(135deg, #f0fdfa 0%, #fffdf9 100%);
+}
+
+body.student-surface .student-welcome-headline {
+  color: #115e59;
+}
+
+body.student-surface .student-action-icon {
+  color: var(--primary);
+  background: #ccfbf1;
+}
+
+body.student-surface .student-action-card--notes .student-action-icon {
+  color: #b45309;
+  background: var(--student-accent-soft);
+}
+
+body.student-surface .card {
+  background: var(--student-card-tint);
+}
+
+body.student-surface .student-dashboard-section--insights {
+  border-color: #d1fae5;
+}
+
+.student-dashboard-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.student-dashboard-column {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+
+.student-dashboard-section {
+  scroll-margin-top: 76px;
+}
+
+#studentSectionNavRoot {
+  position: sticky;
+  top: 0;
+  z-index: 25;
+  margin-top: 16px;
+  padding: 8px 0 10px;
+  background: linear-gradient(
+    to bottom,
+    var(--student-surface-bg, var(--bg)) 0%,
+    var(--student-surface-bg, var(--bg)) 72%,
+    transparent 100%
+  );
+}
+
+.student-section-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.student-section-nav-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  font-size: 0.84rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.student-section-nav-chip:hover {
+  background: #f0fdfa;
+  border-color: #99f6e4;
+  color: #115e59;
+}
+
+.student-section-nav-chip.is-active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.student-welcome-achievement {
+  display: inline-flex;
+  margin-top: 10px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--student-accent-soft, #fff7ed);
+  border: 1px solid #fed7aa;
+  color: #9a3412;
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+@media (max-width: 959px) {
+  .student-dashboard-grid {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .student-dashboard-column--insights {
+    order: 2;
+  }
+
+  .student-dashboard-column--main {
+    order: 1;
+  }
+}
+
+@media (min-width: 960px) {
+  body.student-surface .container.student-dashboard {
+    max-width: 1120px;
+  }
+
+  .student-dashboard-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+    gap: 20px;
+    align-items: start;
+  }
+
+  .student-dashboard-column--insights {
+    position: sticky;
+    top: 64px;
+  }
+}
+
 .dashboard-section-label {
   font-size: 0.8rem;
   font-weight: 700;

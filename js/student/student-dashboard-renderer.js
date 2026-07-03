@@ -104,18 +104,27 @@ function renderExamStatusBadge(exam = {}) {
   `;
 }
 
-export function renderWelcomeBanner(container, { displayName = "", exams = [] } = {}) {
+export function renderWelcomeBanner(
+  container,
+  { displayName = "", exams = [], achievementHint = "" } = {}
+) {
   if (!container) {
     return;
   }
 
   const { headline, detail } = buildWelcomeMessage({ displayName, exams });
+  const hint = String(achievementHint ?? "").trim();
 
   container.innerHTML = `
     <div class="student-welcome-inner">
       <div class="student-welcome-copy">
         <div class="student-welcome-headline">${escapeHTML(headline)}</div>
         <div class="student-welcome-detail">${escapeHTML(detail)}</div>
+        ${
+          hint
+            ? `<div class="student-welcome-achievement">${escapeHTML(hint)}</div>`
+            : ""
+        }
       </div>
     </div>
   `;
