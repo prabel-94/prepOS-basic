@@ -38,6 +38,7 @@ import {
   renderVersionHistoryPanel,
 } from "./note-variant-history.js";
 import { createLayerFlipReading } from "./layer-flip-reading.js";
+import { initReadingBookmark } from "./reading-bookmark.js";
 import { renderDashboardSkeleton } from "../student/student-dashboard-renderer.js";
 
 function getQueryParam(key) {
@@ -363,6 +364,18 @@ async function bootPublishedReader({
 
   renderRepTabs();
 
+  const bookmark = initReadingBookmark({
+    variantId: variant.id,
+    contentEl,
+    getActiveTab: () => activeTab,
+  });
+
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      bookmark.restore();
+    });
+  });
+
   let unbindHistory = () => {};
   if (isTeacher && versionHistoryEl) {
     unbindHistory = await mountVersionHistory({
@@ -381,6 +394,7 @@ async function bootPublishedReader({
     unbindRestore();
     unbindHistory();
     unbindFlip();
+    bookmark.destroy();
   };
 }
 

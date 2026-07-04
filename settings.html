@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="icon" type="image/png" href="assets/prepos-icon.png">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Settings — PrepOS</title>
+
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+
+<body>
+
+<div id="app-nav-root"></div>
+
+<div class="container">
+
+  <div class="settings-header mt-20">
+    <h2>Settings</h2>
+    <p class="text-muted">Customize your PrepOS experience.</p>
+  </div>
+
+  <!-- READING -->
+  <section class="card settings-section" id="settingsReading">
+    <h3 class="settings-section-title">Reading</h3>
+    <p class="settings-section-desc">How PrepOS handles your reading progress across notes.</p>
+
+    <div class="settings-row">
+      <div class="settings-row-info">
+        <span class="settings-row-label">Auto-bookmark position</span>
+        <span class="settings-row-hint">Resume where you left off when you return to a note.</span>
+      </div>
+      <label class="settings-toggle">
+        <input type="checkbox" id="prefReadingAutoBookmark" />
+        <span class="settings-toggle-track"></span>
+      </label>
+    </div>
+
+    <div class="settings-row">
+      <div class="settings-row-info">
+        <span class="settings-row-label">Default language</span>
+        <span class="settings-row-hint">Preferred language when opening notes.</span>
+      </div>
+      <select id="prefReadingDefaultLanguage" class="settings-select">
+        <option value="english">English</option>
+        <option value="malayalam">Malayalam</option>
+      </select>
+    </div>
+  </section>
+
+  <!-- PRACTICE -->
+  <section class="card settings-section" id="settingsPractice">
+    <h3 class="settings-section-title">Practice</h3>
+    <p class="settings-section-desc">Default behavior for practice sessions.</p>
+
+    <div class="settings-row">
+      <div class="settings-row-info">
+        <span class="settings-row-label">Malayalam assistance</span>
+        <span class="settings-row-hint">Show Malayalam help by default in bank practice.</span>
+      </div>
+      <label class="settings-toggle">
+        <input type="checkbox" id="prefPracticeAssistance" />
+        <span class="settings-toggle-track"></span>
+      </label>
+    </div>
+
+    <div class="settings-row">
+      <div class="settings-row-info">
+        <span class="settings-row-label">Adaptive mode</span>
+        <span class="settings-row-hint">Use spaced repetition logic for generator questions.</span>
+      </div>
+      <label class="settings-toggle">
+        <input type="checkbox" id="prefPracticeAdaptive" />
+        <span class="settings-toggle-track"></span>
+      </label>
+    </div>
+
+    <div class="settings-row">
+      <div class="settings-row-info">
+        <span class="settings-row-label">Session limit</span>
+        <span class="settings-row-hint">Default number of questions per practice session.</span>
+      </div>
+      <select id="prefPracticeSessionLimit" class="settings-select">
+        <option value="5">5 questions</option>
+        <option value="10">10 questions</option>
+        <option value="15">15 questions</option>
+        <option value="20">20 questions</option>
+        <option value="0">Unlimited</option>
+      </select>
+    </div>
+  </section>
+
+  <!-- STATUS -->
+  <div class="settings-status hidden" id="settingsStatus" aria-live="polite"></div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js?v=20260704"></script>
+<script type="module" src="js/auth.js"></script>
+<script type="module" src="js/settings.js"></script>
+</body>
+</html>
