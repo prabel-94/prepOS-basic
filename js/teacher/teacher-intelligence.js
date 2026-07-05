@@ -5,6 +5,8 @@
  */
 
 import { getClient } from "../core/get-client.js";
+import { fetchTeacherLearnerContext } from "../core/learner-context.js";
+import { getBatchDetails } from "../core/batch-management.js";
 import {
   buildTopicMastery,
   buildWeakTopics,
@@ -709,7 +711,12 @@ export function buildClassroomLearningState(intelligence = {}) {
   };
 }
 
-export async function loadTeacherIntelligence() {
+export async function loadTeacherIntelligence(options = {}) {
+  const {
+    batchId = null,
+    excludeLinkedLearners = true,
+  } = options;
+
   const sb = await getClient();
   const { data: userData } = await sb.auth.getUser();
   const user = userData?.user;
@@ -728,10 +735,38 @@ export async function loadTeacherIntelligence() {
   const exams = await fetchTeacherExams(sb, user.id, role);
   const examIds = exams.map((e) => e.id);
 
-  const [attemptRows, publicAttemptCount] = await Promise.all([
+  let [attemptRows, publicAttemptCount] = await Promise.all([
     fetchClassroomAttempts(sb, examIds),
     fetchPublicAttemptCount(sb, examIds),
   ]);
+
+  if (excludeLinkedLearners) {
+    const learnerContext = await fetchTeacherLearnerContext(sb);
+    const linkedStudentId = learnerContext?.studentUserId ?? null;
+    const excludeLinked =
+      learnerContext?.excludeFromClassAnalytics !== false;
+
+    if (linkedStudentId && excludeLinked) {
+      attemptRows = attemptRows.filter(
+        (row) => row.student_id !== linkedStudentId
+      );
+    }
+  }
+
+  if (batchId) {
+    const batch = await getBatchDetails(batchId);
+    const memberIds = new Set(
+      (batch?.members ?? []).map((member) => member.userId).filter(Boolean)
+    );
+
+    if (memberIds.size) {
+      attemptRows = attemptRows.filter((row) =>
+        memberIds.has(row.student_id)
+      );
+    } else {
+      attemptRows = [];
+    }
+  }
 
   const canonicalAttempts = toAttemptRecords(attemptRows);
   const questions = await fetchQuestionsForAttempts(sb, attemptRows);
@@ -744,6 +779,8 @@ export async function loadTeacherIntelligence() {
     canonicalAttempts,
     questions,
     publicAttemptCount,
+    batchId,
+    excludeLinkedLearners,
   };
 }
 

@@ -45,9 +45,23 @@
           <div class="h2">Learner Activity</div>
           <div class="section-sub mt-5">Recent activity across your managed learners.</div>
         </div>
-        <button type="button" class="secondary-btn" id="refreshMonitoringBtn">Refresh</button>
+        <div class="monitoring-toolbar-actions">
+          <label class="monitoring-filter-label">
+            Batch
+            <select id="monitoringBatchFilter" class="settings-select monitoring-filter-select">
+              <option value="">All learners</option>
+            </select>
+          </label>
+          <label class="monitoring-filter-toggle">
+            <input type="checkbox" id="monitoringIncludeLinked" />
+            Include linked learners
+          </label>
+          <button type="button" class="secondary-btn" id="exportMonitoringBtn">Export CSV</button>
+          <button type="button" class="secondary-btn" id="refreshMonitoringBtn">Refresh</button>
+        </div>
       </div>
 
+      <div id="monitoringBatchSummary" class="hidden mt-10"></div>
       <div id="monitoringStatus" class="text-muted mt-10"></div>
       <div id="monitoringLearnerList" class="mt-20">
         <div class="text-muted">Loading learner activity...</div>

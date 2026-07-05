@@ -4,7 +4,16 @@
 
 import { bootPage } from "./core/page-boot.js";
 import { getClient } from "./core/get-client.js";
+import { listBatches } from "./core/batch-management.js";
 import { openLearnerModal, initLearnerDetailsModal } from "./teacher/learner-details.js";
+
+const MONITORING_FILTER_KEY = "prepos:monitoring-filters";
+
+const state = {
+  batchId: "",
+  includeLinked: false,
+  learners: [],
+};
 
 const EVENT_LABELS = Object.freeze({
   "page.view": "Viewed page",
@@ -99,7 +108,41 @@ function normalizeOverviewRow(raw) {
     examAttempts7Days: Number(
       raw.examAttempts7Days ?? raw.exam_attempts_7_days ?? 0
     ),
+    isLinkedLearner: Boolean(raw.isLinkedLearner ?? raw.is_linked_learner),
   };
+}
+
+function loadSavedFilters() {
+  try {
+    const raw = localStorage.getItem(MONITORING_FILTER_KEY);
+    if (!raw) return;
+    const saved = JSON.parse(raw);
+    state.batchId = saved.batchId ?? "";
+    state.includeLinked = saved.includeLinked === true;
+  } catch {
+    /* ignore */
+  }
+}
+
+function saveFilters() {
+  try {
+    localStorage.setItem(
+      MONITORING_FILTER_KEY,
+      JSON.stringify({
+        batchId: state.batchId,
+        includeLinked: state.includeLinked,
+      })
+    );
+  } catch {
+    /* ignore */
+  }
+}
+
+function readFilterControls() {
+  state.batchId = document.getElementById("monitoringBatchFilter")?.value ?? "";
+  state.includeLinked =
+    document.getElementById("monitoringIncludeLinked")?.checked === true;
+  saveFilters();
 }
 
 function renderSummary(learners = []) {
@@ -150,7 +193,14 @@ function renderLearnerList(learners = []) {
       return `
         <div class="monitoring-learner-row">
           <div class="monitoring-learner-main">
-            <div class="monitoring-learner-name">${escapeHTML(learner.displayName)}</div>
+            <div class="monitoring-learner-name">
+              ${escapeHTML(learner.displayName)}
+              ${
+                learner.isLinkedLearner
+                  ? `<span class="monitoring-linked-badge">Linked</span>`
+                  : ""
+              }
+            </div>
             <div class="monitoring-learner-email text-muted">${escapeHTML(learner.email || "No email")}</div>
           </div>
           <div class="monitoring-learner-stats">
@@ -205,7 +255,10 @@ function setStatus(message, isError = false) {
 
 async function loadMonitoringOverview() {
   const sb = await getClient();
-  const { data, error } = await sb.rpc("get_teacher_monitoring_overview");
+  const { data, error } = await sb.rpc("get_teacher_monitoring_overview", {
+    p_batch_id: state.batchId || null,
+    p_include_linked: state.includeLinked,
+  });
 
   if (error) {
     throw error;
@@ -213,6 +266,99 @@ async function loadMonitoringOverview() {
 
   const rows = Array.isArray(data) ? data : [];
   return rows.map(normalizeOverviewRow).filter(Boolean);
+}
+
+async function loadBatchSummary() {
+  if (!state.batchId) {
+    return null;
+  }
+
+  const sb = await getClient();
+  const { data, error } = await sb.rpc("get_batch_monitoring_summary", {
+    p_batch_id: state.batchId,
+  });
+
+  if (error) {
+    console.warn("[Monitoring] batch summary failed", error);
+    return null;
+  }
+
+  return data;
+}
+
+function renderBatchSummaryBanner(summary) {
+  const el = document.getElementById("monitoringBatchSummary");
+  if (!el) return;
+
+  if (!summary) {
+    el.classList.add("hidden");
+    el.innerHTML = "";
+    return;
+  }
+
+  el.classList.remove("hidden");
+  el.innerHTML = `
+    <div class="monitoring-batch-banner">
+      <strong>${escapeHTML(summary.batchName ?? summary.batch_name ?? "Batch")}</strong>
+      <span class="text-muted">
+        ${escapeHTML(summary.memberCount ?? summary.member_count ?? 0)} members ·
+        ${escapeHTML(summary.activeToday ?? summary.active_today ?? 0)} active today ·
+        ${escapeHTML(summary.activeThisWeek ?? summary.active_this_week ?? 0)} active this week ·
+        ${escapeHTML(summary.inactive ?? 0)} inactive
+      </span>
+    </div>
+  `;
+}
+
+function exportMonitoringCsv() {
+  if (!state.learners.length) {
+    setStatus("Nothing to export.", { isError: true });
+    return;
+  }
+
+  const headers = [
+    "Display Name",
+    "Email",
+    "Linked Learner",
+    "Last Activity",
+    "Last Event",
+    "Events (7d)",
+    "Practice (7d)",
+    "Exams (7d)",
+    "Status",
+  ];
+
+  const rows = state.learners.map((learner) => {
+    const status = getActivityStatus(learner.lastActivityAt).label;
+    return [
+      learner.displayName,
+      learner.email || "",
+      learner.isLinkedLearner ? "Yes" : "No",
+      learner.lastActivityAt || "",
+      learner.lastEventType || "",
+      learner.eventsLast7Days,
+      learner.practiceSessions7Days,
+      learner.examAttempts7Days,
+      status,
+    ];
+  });
+
+  const csv = [headers, ...rows]
+    .map((row) =>
+      row
+        .map((cell) => `"${String(cell ?? "").replace(/"/g, '""')}"`)
+        .join(",")
+    )
+    .join("\n");
+
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `prepos-monitoring-${new Date().toISOString().slice(0, 10)}.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
+  setStatus("CSV exported.");
 }
 
 async function refreshMonitoring() {
@@ -224,8 +370,14 @@ async function refreshMonitoring() {
   setStatus("");
 
   try {
-    const learners = await loadMonitoringOverview();
+    const [learners, batchSummary] = await Promise.all([
+      loadMonitoringOverview(),
+      loadBatchSummary(),
+    ]);
+
+    state.learners = learners;
     renderSummary(learners);
+    renderBatchSummaryBanner(batchSummary);
     renderLearnerList(learners);
 
     const updatedAt = new Date().toLocaleTimeString(undefined, {
@@ -244,7 +396,30 @@ async function refreshMonitoring() {
   }
 }
 
+async function initBatchFilter() {
+  const select = document.getElementById("monitoringBatchFilter");
+  if (!select) return;
+
+  try {
+    const batches = await listBatches();
+    select.innerHTML =
+      `<option value="">All learners</option>` +
+      batches
+        .map(
+          (batch) =>
+            `<option value="${escapeHTML(batch.id)}">${escapeHTML(batch.name)} (${escapeHTML(batch.memberCount)})</option>`
+        )
+        .join("");
+
+    select.value = state.batchId;
+  } catch (error) {
+    console.warn("[Monitoring] batch list failed", error);
+  }
+}
+
 async function init() {
+  loadSavedFilters();
+
   const runtime = await bootPage({
     roles: ["teacher", "admin"],
     nav: {
@@ -257,9 +432,37 @@ async function init() {
   if (!runtime) return;
 
   initLearnerDetailsModal();
+  await initBatchFilter();
+
+  const includeLinkedEl = document.getElementById("monitoringIncludeLinked");
+  if (includeLinkedEl) {
+    includeLinkedEl.checked = state.includeLinked;
+  }
+
   document
     .getElementById("refreshMonitoringBtn")
-    ?.addEventListener("click", refreshMonitoring);
+    ?.addEventListener("click", () => {
+      readFilterControls();
+      refreshMonitoring();
+    });
+
+  document
+    .getElementById("exportMonitoringBtn")
+    ?.addEventListener("click", exportMonitoringCsv);
+
+  document
+    .getElementById("monitoringBatchFilter")
+    ?.addEventListener("change", () => {
+      readFilterControls();
+      refreshMonitoring();
+    });
+
+  document
+    .getElementById("monitoringIncludeLinked")
+    ?.addEventListener("change", () => {
+      readFilterControls();
+      refreshMonitoring();
+    });
 
   await refreshMonitoring();
 }

@@ -13,7 +13,34 @@
 
   <div class="container">
 
-    <div class="card mt-30">
+    <div class="card mt-30 monitoring-filter-card">
+      <div class="monitoring-toolbar">
+        <div>
+          <div class="h2">Scope</div>
+          <div class="section-sub mt-5">
+            Filter classroom intelligence by batch and linked learner policy.
+          </div>
+        </div>
+        <div class="monitoring-toolbar-actions">
+          <label class="monitoring-filter-label">
+            Batch
+            <select id="teacherIntelBatchFilter" class="settings-select monitoring-filter-select">
+              <option value="">All classroom learners</option>
+            </select>
+          </label>
+          <label class="monitoring-filter-toggle">
+            <input type="checkbox" id="teacherIntelExcludeLinked" checked />
+            Exclude linked learners
+          </label>
+          <button type="button" class="secondary-btn" id="teacherIntelApplyFiltersBtn">
+            Apply
+          </button>
+        </div>
+      </div>
+      <div id="teacherIntelFilterStatus" class="text-muted mt-10"></div>
+    </div>
+
+    <div class="card mt-20">
       <div class="h2">Classroom Snapshot</div>
       <div class="section-sub mt-5">
         What is happening across students, topics, exams, and concepts?

@@ -6,6 +6,7 @@ import { getClient } from "../core/get-client.js";
 import { updateLearnerDisplayName } from "../core/learner-profile.js";
 import { invokeEdgeFunction } from "../core/edge-invoke.js";
 import { openModal, closeModal } from "../ui/modal-system.js";
+import { renderLearnerMonitoringIntelligenceSection } from "./learner-monitoring-intelligence.js";
 
 const MODAL_ID = "learnerDetailModal";
 const DELETE_MODAL_ID = "learnerDeleteModal";
@@ -581,6 +582,7 @@ export function renderLearnerDetails(details) {
     <div id="learnerActivityTimeline" class="mt-15">
       <div class="text-muted">Loading activity...</div>
     </div>
+    <div id="learnerMonitoringIntelligence" class="mt-15"></div>
     <div id="learnerDetailEditStatus" class="mt-10 text-muted"></div>
   `;
 
@@ -600,6 +602,11 @@ async function renderActivityTimelineSection(userId) {
     timelineEl.innerHTML = `<p class="text-muted">${escapeHTML(
       error.message || "Unable to load activity timeline."
     )}</p>`;
+  }
+
+  const intelEl = document.getElementById("learnerMonitoringIntelligence");
+  if (intelEl) {
+    await renderLearnerMonitoringIntelligenceSection(userId, intelEl);
   }
 }
 
