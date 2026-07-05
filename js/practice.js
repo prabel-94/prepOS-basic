@@ -666,6 +666,27 @@ function resetSession() {
   resetPracticeAssistanceDefaults();
   state.currentAnswer = null;
 
+  import("./core/activity-log.js")
+    .then(({ logActivity, ACTIVITY_EVENTS }) => {
+      const topicLabel =
+        bankTopicSelect?.options?.[bankTopicSelect.selectedIndex]?.text?.replace(
+          /\s+\(\d+\)$/,
+          ""
+        ) || null;
+
+      logActivity(ACTIVITY_EVENTS.PRACTICE_STARTED, {
+        resourceType: "practice",
+        resourceId: bankTopicSelect?.value || null,
+        metadata: {
+          mode: state.mode,
+          topicName: topicLabel,
+          sessionLimit:
+            state.sessionLimit === Infinity ? 0 : state.sessionLimit,
+        },
+      });
+    })
+    .catch(() => {});
+
   updateProgress();
 }
 
@@ -1936,6 +1957,26 @@ async function finishSession(message = "Session finished. Start again for a new 
           "",
       });
       statusMessage = `${message} Your learning profile was updated.`;
+
+      const completedQuestionCount = state.sessionAnswers.length;
+      const completedScore = state.correctCount;
+
+      import("./core/activity-log.js")
+        .then(({ logActivity, ACTIVITY_EVENTS }) => {
+          logActivity(ACTIVITY_EVENTS.PRACTICE_COMPLETED, {
+            resourceType: "practice",
+            resourceId: bankTopicSelect.value || null,
+            metadata: {
+              mode: state.mode,
+              topicName: topicLabel,
+              score: completedScore,
+              questionCount: completedQuestionCount,
+              timeTaken: elapsed,
+              accuracy,
+            },
+          });
+        })
+        .catch(() => {});
     } catch (error) {
       console.warn("[PrepOS Practice] Knowledge analytics submission failed:", error);
       statusMessage =

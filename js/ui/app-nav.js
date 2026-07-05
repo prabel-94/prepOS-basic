@@ -10,6 +10,7 @@ export const NAV_PRESETS = Object.freeze({
       { label: "Published", href: "published-exams.html" },
       { label: "Results", href: "teacher-results.html" },
       { label: "Intelligence", href: "teacher-intelligence.html" },
+      { label: "Monitoring", href: "teacher-monitoring.html" },
     ],
   },
   studentHome: {

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="icon" type="image/png" href="assets/prepos-icon.png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Monitoring — PrepOS</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <div id="app-nav-root"></div>
+
+  <div class="container">
+
+    <div class="monitoring-header mt-20">
+      <h2>Student Monitoring</h2>
+      <p class="text-muted">Track learner activity during beta testing.</p>
+    </div>
+
+    <div class="card monitoring-summary-card mt-20">
+      <div class="monitoring-summary-grid" id="monitoringSummary">
+        <div class="monitoring-summary-item">
+          <span class="monitoring-summary-value" id="monitoringTotalLearners">—</span>
+          <span class="monitoring-summary-label">Total learners</span>
+        </div>
+        <div class="monitoring-summary-item">
+          <span class="monitoring-summary-value monitoring-summary-value--active" id="monitoringActiveToday">—</span>
+          <span class="monitoring-summary-label">Active today</span>
+        </div>
+        <div class="monitoring-summary-item">
+          <span class="monitoring-summary-value monitoring-summary-value--week" id="monitoringActiveWeek">—</span>
+          <span class="monitoring-summary-label">Active this week</span>
+        </div>
+        <div class="monitoring-summary-item">
+          <span class="monitoring-summary-value monitoring-summary-value--inactive" id="monitoringInactive">—</span>
+          <span class="monitoring-summary-label">Inactive (7+ days)</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card mt-20">
+      <div class="monitoring-toolbar">
+        <div>
+          <div class="h2">Learner Activity</div>
+          <div class="section-sub mt-5">Recent activity across your managed learners.</div>
+        </div>
+        <button type="button" class="secondary-btn" id="refreshMonitoringBtn">Refresh</button>
+      </div>
+
+      <div id="monitoringStatus" class="text-muted mt-10"></div>
+      <div id="monitoringLearnerList" class="mt-20">
+        <div class="text-muted">Loading learner activity...</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div id="learnerDetailModal" class="prepos-modal hidden">
+    <div class="prepos-modal-backdrop"></div>
+    <div class="prepos-modal-content">
+      <div class="prepos-modal-header">
+        <div id="learnerDetailTitle" class="h2">Learner Details</div>
+      </div>
+      <div id="learnerDetailBody" class="prepos-modal-body">
+        Loading learner details...
+      </div>
+      <div class="prepos-modal-footer">
+        <div id="learnerDetailViewActions" class="flex gap-10">
+          <button id="closeLearnerDetailModal" type="button" class="secondary-btn">
+            Close
+          </button>
+        </div>
+        <div id="learnerDetailEditActions" class="flex gap-10 hidden"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/config.js?v=20260705"></script>
+  <script type="module" src="js/auth.js"></script>
+  <script type="module" src="js/teacher-monitoring-dashboard.js"></script>
+</body>
+</html>

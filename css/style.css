@@ -2888,6 +2888,218 @@ APP NAV
   background: var(--danger-bg, #fef2f2);
 }
 
+/* =========================================
+   STUDENT MONITORING
+========================================= */
+
+.monitoring-header {
+  margin-bottom: 20px;
+}
+
+.monitoring-header h2 {
+  margin: 0 0 4px;
+}
+
+.monitoring-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 720px) {
+  .monitoring-summary-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.monitoring-summary-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: center;
+  padding: 12px 8px;
+}
+
+.monitoring-summary-value {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.monitoring-summary-value--active {
+  color: var(--success, #16a34a);
+}
+
+.monitoring-summary-value--week {
+  color: var(--primary);
+}
+
+.monitoring-summary-value--inactive {
+  color: var(--muted);
+}
+
+.monitoring-summary-label {
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.monitoring-toolbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.monitoring-learner-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 1.2fr) minmax(280px, 2fr) auto;
+  gap: 16px;
+  align-items: center;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.monitoring-learner-row:last-child {
+  border-bottom: none;
+}
+
+@media (max-width: 900px) {
+  .monitoring-learner-row {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+}
+
+.monitoring-learner-name {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.monitoring-learner-email {
+  font-size: 0.82rem;
+  margin-top: 2px;
+}
+
+.monitoring-learner-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+@media (max-width: 900px) {
+  .monitoring-learner-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.monitoring-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.monitoring-stat-label {
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.monitoring-stat-value {
+  font-size: 0.88rem;
+  font-weight: 500;
+}
+
+.monitoring-learner-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.monitoring-status {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.monitoring-status--today {
+  background: rgba(22, 163, 74, 0.1);
+  color: #16a34a;
+}
+
+.monitoring-status--week {
+  background: rgba(37, 99, 235, 0.08);
+  color: var(--primary);
+}
+
+.monitoring-status--inactive {
+  background: rgba(107, 114, 128, 0.1);
+  color: var(--muted);
+}
+
+.monitoring-status-message--error {
+  color: var(--danger);
+}
+
+.learner-activity-section {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.learner-activity-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0 0 10px;
+}
+
+.learner-activity-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.learner-activity-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.learner-activity-item:last-child {
+  border-bottom: none;
+}
+
+.learner-activity-item-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.learner-activity-item-label {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.learner-activity-item-detail {
+  font-size: 0.82rem;
+}
+
+.learner-activity-item-time {
+  font-size: 0.78rem;
+  color: var(--muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 @media (max-width: 720px) {
   .prepos-app-nav-inner {
     align-items: flex-start;

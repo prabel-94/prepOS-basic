@@ -79,6 +79,14 @@ export async function bootPage(options = {}) {
     }
   }
 
+  if (runtime?.appMode === "student" && options.activityLog !== false) {
+    import("./activity-log.js")
+      .then(({ initStudentActivityLogging }) => initStudentActivityLogging(runtime))
+      .catch((err) => {
+        console.warn("[Activity Log] Init failed:", err);
+      });
+  }
+
   return runtime;
 }
 

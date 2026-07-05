@@ -615,6 +615,19 @@ function beginExamSession(examDurationSeconds){
   showActiveExamChrome();
   document.getElementById("examTimer")?.classList.remove("hidden");
 
+  import("./core/activity-log.js")
+    .then(({ logActivity, ACTIVITY_EVENTS }) => {
+      logActivity(ACTIVITY_EVENTS.EXAM_STARTED, {
+        resourceType: "exam",
+        resourceId: examId || null,
+        metadata: {
+          examTitle: window.examTitle || null,
+          questionCount: window.examQuestionsRaw?.length ?? 0,
+        },
+      });
+    })
+    .catch(() => {});
+
   totalQuestions = window.examQuestionsRaw?.length ?? 0;
   visibleQuestionIndex = 1;
   updateExamProgress();
@@ -1585,6 +1598,23 @@ try{
     console.error("Failed to save attempt", attemptError)
     alert("Submission failed. Please try again.")
     return
+  }
+
+  if (useCanonical) {
+    import("./core/activity-log.js")
+      .then(({ logActivity, ACTIVITY_EVENTS }) => {
+        logActivity(ACTIVITY_EVENTS.EXAM_SUBMITTED, {
+          resourceType: "exam",
+          resourceId: examId || null,
+          metadata: {
+            examTitle: window.examTitle || null,
+            score,
+            questionCount: answers.length,
+            timeTaken: time_taken,
+          },
+        });
+      })
+      .catch(() => {});
   }
 
   const submissionMode = useCanonical ? "canonical" : "public";

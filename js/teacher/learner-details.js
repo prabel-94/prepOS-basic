@@ -104,9 +104,121 @@ function normalizeLearnerDetails(raw) {
     createdAt: raw.createdAt ?? raw.created_at ?? null,
     examsAssigned: Number(raw.examsAssigned ?? raw.exams_assigned ?? 0),
     examsAttempted: Number(raw.examsAttempted ?? raw.exams_attempted ?? 0),
+    practiceSessions: Number(raw.practiceSessions ?? raw.practice_sessions ?? 0),
     lastActivityAt: lastActivityAt || null,
     batchMemberships,
   };
+}
+
+function formatActivityEventLabel(eventType) {
+  const labels = {
+    "page.view": "Viewed page",
+    "exam.started": "Started exam",
+    "exam.submitted": "Submitted exam",
+    "practice.session_started": "Started practice",
+    "practice.session_completed": "Completed practice",
+    "note.opened": "Opened note",
+  };
+
+  return labels[eventType] || eventType || "Activity";
+}
+
+function formatActivityTime(value) {
+  if (!value) return "—";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+
+  return date.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function formatActivityMetadata(metadata = {}) {
+  const parts = [];
+
+  if (metadata.page) parts.push(String(metadata.page));
+  if (metadata.examTitle) parts.push(String(metadata.examTitle));
+  if (metadata.topicName) parts.push(String(metadata.topicName));
+  if (metadata.score != null && metadata.questionCount != null) {
+    parts.push(`${metadata.score}/${metadata.questionCount}`);
+  }
+  if (metadata.accuracy != null) parts.push(`${metadata.accuracy}%`);
+
+  return parts.join(" · ");
+}
+
+function normalizeActivityEvent(raw) {
+  if (!raw || typeof raw !== "object") return null;
+
+  return {
+    id: raw.id ?? null,
+    eventType: raw.eventType ?? raw.event_type ?? "",
+    resourceType: raw.resourceType ?? raw.resource_type ?? null,
+    metadata: raw.metadata ?? {},
+    occurredAt: raw.occurredAt ?? raw.occurred_at ?? null,
+    pagePath: raw.pagePath ?? raw.page_path ?? null,
+  };
+}
+
+export async function loadLearnerActivityFeed(userId, limit = 20) {
+  if (!userId) {
+    throw new Error("Learner id is required");
+  }
+
+  const sb = await getClient();
+  const { data, error } = await sb.rpc("get_learner_activity_feed", {
+    target_user_id: userId,
+    p_limit: limit,
+  });
+
+  if (error) {
+    console.error("[Learner Details] activity feed failed", error);
+    throw error;
+  }
+
+  const rows = Array.isArray(data) ? data : [];
+  return rows.map(normalizeActivityEvent).filter(Boolean);
+}
+
+function renderActivityTimeline(events = []) {
+  if (!events.length) {
+    return `
+      <div class="learner-activity-section">
+        <h4 class="learner-activity-title">Recent Activity</h4>
+        <p class="text-muted">No activity events recorded yet.</p>
+      </div>
+    `;
+  }
+
+  const items = events
+    .map((event) => {
+      const detail = formatActivityMetadata(event.metadata);
+      const subtitle = detail || event.pagePath || "";
+
+      return `
+        <li class="learner-activity-item">
+          <div class="learner-activity-item-main">
+            <span class="learner-activity-item-label">${escapeHTML(formatActivityEventLabel(event.eventType))}</span>
+            ${subtitle ? `<span class="learner-activity-item-detail text-muted">${escapeHTML(subtitle)}</span>` : ""}
+          </div>
+          <time class="learner-activity-item-time">${escapeHTML(formatActivityTime(event.occurredAt))}</time>
+        </li>
+      `;
+    })
+    .join("");
+
+  return `
+    <div class="learner-activity-section">
+      <h4 class="learner-activity-title">Recent Activity</h4>
+      <ul class="learner-activity-list">
+        ${items}
+      </ul>
+    </div>
+  `;
 }
 
 function renderBatchMemberships(memberships = []) {
@@ -458,15 +570,37 @@ export function renderLearnerDetails(details) {
       <dt>Attempted Exams</dt>
       <dd>${escapeHTML(details.examsAttempted)}</dd>
 
+      <dt>Practice Sessions</dt>
+      <dd>${escapeHTML(details.practiceSessions ?? 0)}</dd>
+
       <dt>Last Activity</dt>
       <dd>${escapeHTML(formatLastActivity(details.lastActivityAt))}</dd>
 
       ${renderBatchMemberships(details.batchMemberships)}
     </dl>
+    <div id="learnerActivityTimeline" class="mt-15">
+      <div class="text-muted">Loading activity...</div>
+    </div>
     <div id="learnerDetailEditStatus" class="mt-10 text-muted"></div>
   `;
 
   setFooterMode(isEditingName ? "edit" : "view");
+}
+
+async function renderActivityTimelineSection(userId) {
+  const timelineEl = document.getElementById("learnerActivityTimeline");
+  if (!timelineEl || !userId) {
+    return;
+  }
+
+  try {
+    const events = await loadLearnerActivityFeed(userId, 20);
+    timelineEl.innerHTML = renderActivityTimeline(events);
+  } catch (error) {
+    timelineEl.innerHTML = `<p class="text-muted">${escapeHTML(
+      error.message || "Unable to load activity timeline."
+    )}</p>`;
+  }
 }
 
 function setModalLoading() {
@@ -579,6 +713,7 @@ export async function openLearnerModal(userId) {
   try {
     const details = await loadLearnerDetails(userId);
     renderLearnerDetails(details);
+    await renderActivityTimelineSection(userId);
   } catch (error) {
     setModalError(error.message || "Unable to load learner details.");
   }

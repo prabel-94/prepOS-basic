@@ -370,6 +370,21 @@ async function bootPublishedReader({
     getActiveTab: () => activeTab,
   });
 
+  import("../core/activity-log.js")
+    .then(({ logActivity, ACTIVITY_EVENTS }) => {
+      logActivity(ACTIVITY_EVENTS.NOTE_OPENED, {
+        resourceType: "note",
+        resourceId: variant.id,
+        metadata: {
+          noteId: variant.note_id,
+          topicId: note?.topic_id ?? null,
+          language: variant.language,
+          topicName,
+        },
+      });
+    })
+    .catch(() => {});
+
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       bookmark.restore();
