@@ -3741,7 +3741,7 @@ PREPOS SIDE PANEL OVERLAYS
 }
 
 .semantic-collapsible[open] summary::before {
-  content: "âˆ’";
+  content: "\2212";
 }
 
 .semantic-collapsible .canonical-block-body {
@@ -3984,7 +3984,7 @@ PREPOS SIDE PANEL OVERLAYS
 }
 
 .semantic-recall-answer::before {
-  content: "â†’ ";
+  content: "\2192 ";
   color: #64748b;
   font-weight: 600;
 }

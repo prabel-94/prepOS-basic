@@ -429,7 +429,7 @@
   position: relative;
 }
 .referenced-in-list li::before {
-  content: "ΓÇó";
+  content: "\2022";
   position: absolute;
   left: 0;
   color: #94a3b8;
