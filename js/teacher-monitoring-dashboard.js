@@ -3,9 +3,11 @@
  */
 
 import { bootPage } from "./core/page-boot.js";
+import { resolveAppPath } from "./core/access.js";
 import { getClient } from "./core/get-client.js";
 import { listBatches } from "./core/batch-management.js";
 import { openLearnerModal, initLearnerDetailsModal } from "./teacher/learner-details.js";
+import { requireStudentManagementVisible } from "./teacher/student-management-visibility.js";
 import { renderDashboardSkeleton } from "./student/student-dashboard-renderer.js";
 
 const MONITORING_FILTER_KEY = "prepos:monitoring-filters";
@@ -444,6 +446,11 @@ async function init() {
   });
 
   if (!runtime) return;
+
+  if (!requireStudentManagementVisible()) {
+    window.location.replace(resolveAppPath("index.html"));
+    return;
+  }
 
   initLearnerDetailsModal();
   await initBatchFilter();

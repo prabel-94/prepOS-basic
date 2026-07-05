@@ -60,6 +60,10 @@ export async function bootPage(options = {}) {
     document.body.classList.add("student-surface");
   } else if (runtime.appMode === "teacher" || runtime.role === "admin") {
     document.body.classList.add("pro-surface");
+    const { bootStudentManagementVisibility } = await import(
+      "../teacher/student-management-visibility.js"
+    );
+    bootStudentManagementVisibility();
   }
 
   initPrepOSLinkRouting();
@@ -68,6 +72,12 @@ export async function bootPage(options = {}) {
   const navOptions = resolveNavOptions(options.nav, runtime);
   if (navOptions) {
     mountAppNav(navOptions);
+    if (runtime.appMode === "teacher" || runtime.role === "admin") {
+      const { applyStudentManagementVisibility } = await import(
+        "../teacher/student-management-visibility.js"
+      );
+      applyStudentManagementVisibility();
+    }
   }
 
   if (runtime && (options.classOverlay !== false)) {

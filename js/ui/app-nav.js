@@ -2,6 +2,10 @@ import {
   getHomePathForRole,
   resolveAppPath,
 } from "../core/access.js";
+import {
+  isMonitoringNavLink,
+  isStudentManagementVisible,
+} from "../teacher/student-management-visibility.js";
 
 export const NAV_PRESETS = Object.freeze({
   teacherExam: {
@@ -33,6 +37,8 @@ export const NAV_PRESETS = Object.freeze({
   },
 });
 
+const COMPACT_LINK_THRESHOLD = 4;
+
 function escapeHTML(value = "") {
   return String(value)
     .replaceAll("&", "&amp;")
@@ -62,6 +68,14 @@ function getNavRoot(target) {
   return document.getElementById("app-nav-root");
 }
 
+function resolveNavDensity(links = [], options = {}) {
+  if (options.density === "compact" || options.density === "default") {
+    return options.density;
+  }
+
+  return links.length >= COMPACT_LINK_THRESHOLD ? "compact" : "default";
+}
+
 function buildLinksMarkup(links = []) {
   if (!links.length) {
     return "";
@@ -71,7 +85,12 @@ function buildLinksMarkup(links = []) {
     .map((link) => {
       const href = resolveNavHref(link.href);
       const active = link.active ? " is-active" : "";
-      return `<a class="prepos-app-nav-link${active}" href="${escapeHTML(href)}">${escapeHTML(link.label)}</a>`;
+      const ariaCurrent = link.active ? ' aria-current="page"' : "";
+      const hidden =
+        isMonitoringNavLink(link) && !isStudentManagementVisible()
+          ? " hidden"
+          : "";
+      return `<a class="prepos-app-nav-link${active}${hidden}" href="${escapeHTML(href)}"${ariaCurrent}>${escapeHTML(link.label)}</a>`;
     })
     .join("");
 }
@@ -89,6 +108,7 @@ function buildBackMarkup(backHref) {
  * @param {string} [options.title]
  * @param {string} [options.subtitle]
  * @param {"home"|"page"} [options.variant]
+ * @param {"default"|"compact"} [options.density]
  * @param {string} [options.role]
  * @param {string} [options.back]
  * @param {Array<{label:string,href:string,active?:boolean}>} [options.links]
@@ -102,6 +122,7 @@ export function mountAppNav(options = {}) {
   const links = options.links ?? preset?.links ?? [];
   const role = options.role ?? window.__PREPOS_RUNTIME__?.role ?? null;
   const variant = options.variant ?? "page";
+  const density = resolveNavDensity(links, options);
   const showLogout = options.showLogout !== false;
   const showHome = options.showHome !== false;
   const title = options.title ?? "";
@@ -116,10 +137,15 @@ export function mountAppNav(options = {}) {
 
   const homeHref = resolveNavHref(getHomePathForRole(role));
   const homeLabel = role === "student" ? "Dashboard" : "Home";
+  const navVariantClass = variant === "home" ? " prepos-app-nav--home" : "";
+  const innerDensityClass =
+    density === "compact" ? " prepos-app-nav-inner--compact" : "";
+  const linksScrollClass =
+    density === "compact" ? " prepos-app-nav-links--scroll" : "";
 
   root.innerHTML = `
-    <header class="prepos-app-nav">
-      <div class="prepos-app-nav-inner">
+    <header class="prepos-app-nav${navVariantClass}">
+      <div class="prepos-app-nav-inner${innerDensityClass}">
         <div class="prepos-app-nav-start">
           ${buildBackMarkup(backHref)}
           <div class="prepos-app-nav-brand">
@@ -129,11 +155,15 @@ export function mountAppNav(options = {}) {
           </div>
         </div>
 
-        ${links.length ? `<nav class="prepos-app-nav-links" aria-label="Section">${buildLinksMarkup(links)}</nav>` : ""}
+        ${
+          links.length
+            ? `<nav class="prepos-app-nav-links${linksScrollClass}" aria-label="Section">${buildLinksMarkup(links)}</nav>`
+            : ""
+        }
 
         <div class="prepos-app-nav-actions">
           ${showHome ? `<a class="secondary-btn" href="${escapeHTML(homeHref)}">${homeLabel}</a>` : ""}
-          <a class="prepos-app-nav-settings-link" href="${escapeHTML(resolveNavHref("settings.html"))}" title="Settings" aria-label="Settings">
+          <a class="prepos-app-nav-settings-link" href="${escapeHTML(resolveAppPath("settings.html"))}" title="Settings" aria-label="Settings">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
           </a>
           ${showLogout ? `<button type="button" class="secondary-btn" data-prepos-logout>Logout</button>` : ""}

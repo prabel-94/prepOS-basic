@@ -5,9 +5,8 @@ import { getClient } from "./core/get-client.js";
 import { loadTopicNotesSection } from "./notes/note-home.js";
 import { initStudentManagement } from "./teacher/student-management.js";
 import {
-  applyStudentManagementVisibility,
   ensureStudentManagementReady,
-  initStudentManagementSecretToggle,
+  requireStudentManagementVisible,
 } from "./teacher/student-management-visibility.js";
 import { mountLinkedLearnerUI } from "./teacher/linked-learner-ui.js";
 import { getTimeGreeting, getFirstName } from "./student/student-welcome.js";
@@ -229,9 +228,6 @@ async function initTeacherHome() {
 
   const { upgradeLegacyOnclickNav } = await import("./core/navigate.js");
   upgradeLegacyOnclickNav(document);
-
-  applyStudentManagementVisibility();
-  initStudentManagementSecretToggle();
 
   window.addEventListener("prepos:student-management-unlocked", () => {
     ensureStudentManagementReady(initStudentManagement).catch((error) => {
