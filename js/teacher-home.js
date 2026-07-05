@@ -10,6 +10,81 @@ import {
   initStudentManagementSecretToggle,
 } from "./teacher/student-management-visibility.js";
 import { mountLinkedLearnerUI } from "./teacher/linked-learner-ui.js";
+import { getTimeGreeting, getFirstName } from "./student/student-welcome.js";
+import { renderDashboardSkeleton } from "./student/student-dashboard-renderer.js";
+
+function escapeHTML(value = "") {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function resolveTeacherDisplayName(runtime = {}) {
+  const user = runtime.user;
+  const fromMeta = user?.user_metadata?.full_name;
+  if (fromMeta?.trim()) {
+    return fromMeta.trim();
+  }
+
+  const emailPrefix = user?.email?.split("@")?.[0];
+  if (emailPrefix) {
+    return emailPrefix;
+  }
+
+  return "Teacher";
+}
+
+function renderTeacherWelcome(runtime = {}) {
+  const container = document.getElementById("teacherWelcome");
+  if (!container) {
+    return;
+  }
+
+  const displayName = resolveTeacherDisplayName(runtime);
+  const greeting = getTimeGreeting();
+  const firstName = getFirstName(displayName);
+
+  container.innerHTML = `
+    <div class="teacher-welcome-inner">
+      <div class="teacher-welcome-headline">${escapeHTML(greeting)}, ${escapeHTML(firstName)}.</div>
+      <div class="teacher-welcome-detail">
+        Create exams, manage learners, and review classroom intelligence below.
+      </div>
+    </div>
+  `;
+}
+
+function formatRecentDate(iso) {
+  if (!iso) {
+    return "";
+  }
+
+  try {
+    return new Date(iso).toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  } catch {
+    return "";
+  }
+}
+
+function markListLoaded(container) {
+  container?.removeAttribute("aria-busy");
+}
+
+function renderTeacherEmptyState(container, message) {
+  if (!container) {
+    return;
+  }
+
+  markListLoaded(container);
+  container.innerHTML = `<div class="empty-state">${escapeHTML(message)}</div>`;
+}
 
 function goToStudentPreview() {
   location.href = teacherStudentPreviewHubPath();
@@ -52,25 +127,36 @@ async function loadRecentExams() {
     container.innerHTML = "";
 
     if (!data?.length) {
-      container.innerHTML = "<div class='empty-state'>No exams yet</div>";
+      renderTeacherEmptyState(container, "No exams yet — create your first draft above.");
       return;
     }
 
+    markListLoaded(container);
+
     data.forEach((exam) => {
-      const div = document.createElement("div");
-      div.className = "recent-item mt-10";
-      div.innerHTML = `
-        <b>${exam.title}</b><br>
-        <div class="mt-5">
-          <button type="button" data-prepos-href="exam.html?id=${exam.id}">Open</button>
-          <button onclick="viewResults('${exam.id}')">Results</button>
+      const row = document.createElement("div");
+      row.className = "teacher-recent-row";
+      row.innerHTML = `
+        <div class="teacher-recent-row-main">
+          <div class="teacher-recent-row-title">${escapeHTML(exam.title)}</div>
+          <div class="teacher-recent-row-meta">${escapeHTML(formatRecentDate(exam.created_at))}</div>
+        </div>
+        <div class="teacher-recent-row-actions">
+          <button type="button" class="secondary-btn" data-prepos-href="exam.html?id=${escapeHTML(exam.id)}">Open</button>
+          <button type="button" class="secondary-btn" data-action="view-results" data-exam-id="${escapeHTML(exam.id)}">Results</button>
         </div>
       `;
-      container.appendChild(div);
+      container.appendChild(row);
+    });
+
+    container.querySelectorAll('[data-action="view-results"]').forEach((button) => {
+      button.addEventListener("click", () => {
+        viewResults(button.dataset.examId);
+      });
     });
   } catch (error) {
     console.error(error);
-    container.innerHTML = "<div class='empty-state'>Unable to load exams</div>";
+    renderTeacherEmptyState(container, "Unable to load exams");
   }
 }
 
@@ -89,25 +175,39 @@ async function loadRecentDraft() {
     if (error) throw error;
 
     if (!data?.length) {
-      container.innerHTML = "<div class='empty-state'>No drafts yet</div>";
+      renderTeacherEmptyState(container, "No drafts yet — start with Create New Exam.");
       return;
     }
 
     const draft = data[0];
+    markListLoaded(container);
     container.innerHTML = `
-      <div class="recent-item">
-        <b>${draft.title}</b><br>
-        <button type="button" class="mt-5" data-prepos-href="draft.html?id=${draft.id}">
-          Resume Draft
-        </button>
+      <div class="teacher-recent-row">
+        <div class="teacher-recent-row-main">
+          <div class="teacher-recent-row-title">${escapeHTML(draft.title)}</div>
+          <div class="teacher-recent-row-meta">Updated ${escapeHTML(formatRecentDate(draft.updated_at))}</div>
+        </div>
+        <div class="teacher-recent-row-actions">
+          <button type="button" class="primary-btn" data-prepos-href="draft.html?id=${escapeHTML(draft.id)}">
+            Resume Draft
+          </button>
+        </div>
       </div>
     `;
   } catch (error) {
-    container.innerHTML = "<div class='empty-state'>Unable to load draft</div>";
+    renderTeacherEmptyState(container, "Unable to load draft");
   }
 }
 
+function showTeacherHomeSkeletons() {
+  renderDashboardSkeleton(document.getElementById("recentExams"), { rows: 3 });
+  renderDashboardSkeleton(document.getElementById("recentDraft"), { rows: 1 });
+  renderDashboardSkeleton(document.getElementById("teacherTopicNotes"), { rows: 2 });
+}
+
 async function initTeacherHome() {
+  showTeacherHomeSkeletons();
+
   const runtime = await bootPage({
     roles: ["teacher", "admin"],
     nav: {
@@ -125,6 +225,8 @@ async function initTeacherHome() {
 
   if (!runtime) return;
 
+  renderTeacherWelcome(runtime);
+
   const { upgradeLegacyOnclickNav } = await import("./core/navigate.js");
   upgradeLegacyOnclickNav(document);
 
@@ -137,9 +239,11 @@ async function initTeacherHome() {
     });
   });
 
-  await loadRecentExams();
-  await loadRecentDraft();
-  await mountLinkedLearnerUI();
+  await Promise.all([
+    loadRecentExams(),
+    loadRecentDraft(),
+    mountLinkedLearnerUI(),
+  ]);
 
   window.addEventListener("prepos:learner-deleted", (event) => {
     if (event.detail?.isLinkedLearner) {
@@ -153,6 +257,7 @@ async function initTeacherHome() {
   await loadTopicNotesSection(document.getElementById("teacherTopicNotes"), {
     role: "teacher",
   });
+  document.getElementById("teacherTopicNotes")?.removeAttribute("aria-busy");
   upgradeLegacyOnclickNav(document);
 }
 

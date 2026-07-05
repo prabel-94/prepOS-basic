@@ -6,7 +6,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>PrepOS Home</title>
+<title>PrepOS Teacher</title>
 
 <link rel="stylesheet" href="css/style.css">
 
@@ -16,273 +16,355 @@
 
 <div id="app-nav-root"></div>
 
-<div class="container">
+<div class="container teacher-dashboard">
 
-<div class="card mt-30">
+  <div id="teacherWelcome" class="teacher-welcome mt-30" aria-live="polite"></div>
 
-  <div class="h2">Practice</div>
-  <div class="section-sub mt-5">
-    Practice questions instantly using smart generators.
+  <p class="dashboard-section-label mt-20">Primary Actions</p>
+
+  <div class="teacher-primary-actions mt-10">
+    <div class="card teacher-action-card teacher-action-card--create">
+      <div class="teacher-action-card-head">
+        <span class="teacher-action-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+        </span>
+        <div>
+          <div class="h2">Create Exam</div>
+          <div class="section-sub mt-5">
+            Start a new draft with manual entry or the parser.
+          </div>
+        </div>
+      </div>
+      <button type="button" onclick="goToCreatorMode()" class="primary-btn w-full mt-20">
+        Create New Exam
+      </button>
+    </div>
+
+    <div class="card teacher-action-card teacher-action-card--preview">
+      <div class="teacher-action-card-head">
+        <span class="teacher-action-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+            <circle cx="12" cy="12" r="3"></circle>
+          </svg>
+        </span>
+        <div>
+          <div class="h2">Student Preview</div>
+          <div class="section-sub mt-5">
+            See how students view your published exams and notes.
+          </div>
+        </div>
+      </div>
+      <button type="button" onclick="goToStudentPreview()" class="primary-btn w-full mt-20">
+        Open Student Preview
+      </button>
+    </div>
+
+    <div class="card teacher-action-card teacher-action-card--practice">
+      <div class="teacher-action-card-head">
+        <span class="teacher-action-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+          </svg>
+        </span>
+        <div>
+          <div class="h2">Practice</div>
+          <div class="section-sub mt-5">
+            Try questions yourself with smart generators.
+          </div>
+        </div>
+      </div>
+      <button type="button" class="secondary-btn w-full mt-20" data-prepos-href="practice.html">
+        Start Practice
+      </button>
+    </div>
   </div>
 
-  <button onclick="location.href='practice.html'" class="primary-btn w-full mt-20">
-    🎯 Start Practice
-  </button>
-
-</div>
-
-<div class="card mt-20">
-
-  <div class="h2">Preview Student Experience</div>
-
-  <div class="section-sub mt-5">
-    See how students view your published exams and notes. Preview only — nothing is saved.
+  <div class="card mt-20 hidden teacher-dashboard-section" id="linkedLearnerSection">
+    <div class="teacher-section-head">
+      <span class="teacher-section-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+          <circle cx="12" cy="7" r="4"></circle>
+        </svg>
+      </span>
+      <div>
+        <div class="h2" id="linkedLearnerTitle">My Learning Account</div>
+      </div>
+    </div>
+    <div id="linkedLearnerBody" class="mt-5"></div>
+    <div id="linkedLearnerActions" class="mt-20"></div>
+    <div id="linkedLearnerStatus" class="mt-10 text-muted"></div>
   </div>
 
-  <button
-    onclick="goToStudentPreview()"
-    class="primary-btn w-full mt-20"
-  >
-    👁️ Open Student Preview
-  </button>
+  <div class="card mt-20 hidden teacher-dashboard-section" id="studentManagementSection">
+    <div class="teacher-section-head">
+      <span class="teacher-section-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+          <circle cx="9" cy="7" r="4"></circle>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+        </svg>
+      </span>
+      <div>
+        <div class="h2">Student Management</div>
+        <div class="section-sub mt-5">
+          Create learners, organize batches, and manage your roster for exam assignment.
+        </div>
+      </div>
+    </div>
 
-</div>
-
-<div class="card mt-20 hidden" id="linkedLearnerSection">
-
-  <div class="h2" id="linkedLearnerTitle">My Learning Account</div>
-
-  <div id="linkedLearnerBody" class="mt-5"></div>
-
-  <div id="linkedLearnerActions" class="mt-20"></div>
-
-  <div id="linkedLearnerStatus" class="mt-10 text-muted"></div>
-
-</div>
-
-<div class="card mt-20 hidden" id="studentManagementSection">
-
-  <div class="h2">Student Management</div>
-  <div class="section-sub mt-5">
-    Create learners, organize batches, and manage your roster for exam assignment.
-  </div>
-
-  <div
-    class="student-management-tabs mt-20"
-    role="tablist"
-    aria-label="Student management sections"
-  >
-    <button
-      type="button"
-      id="studentManagementTabStudents"
-      class="student-management-tab student-management-tab--active"
-      role="tab"
-      aria-selected="true"
-      aria-controls="studentManagementStudentsPanel"
+    <div
+      class="student-management-tabs mt-20"
+      role="tablist"
+      aria-label="Student management sections"
     >
-      Students
-    </button>
-    <button
-      type="button"
-      id="studentManagementTabBatches"
-      class="student-management-tab"
-      role="tab"
-      aria-selected="false"
-      aria-controls="studentManagementBatchesPanel"
-    >
-      Batches
-    </button>
-  </div>
-
-  <div id="studentManagementStudentsPanel" class="student-management-panel mt-20">
-
-  <form id="createLearnerForm" class="mt-20">
-    <label class="student-management-label" for="learnerDisplayName">Display Name</label>
-    <input
-      id="learnerDisplayName"
-      type="text"
-      placeholder="John Smith"
-      class="w-full mt-5"
-      autocomplete="name"
-      required
-    >
-
-    <label class="student-management-label mt-15" for="learnerEmail">Email</label>
-    <input
-      id="learnerEmail"
-      type="email"
-      placeholder="student@example.com"
-      class="w-full mt-5"
-      autocomplete="off"
-      required
-    >
-
-    <label class="student-management-label mt-15" for="learnerPassword">Password</label>
-    <input
-      id="learnerPassword"
-      type="password"
-      placeholder="Temporary password"
-      class="w-full mt-5"
-      autocomplete="new-password"
-      required
-    >
-
-    <button id="createLearnerBtn" type="submit" class="primary-btn w-full mt-20">
-      Create Learner
-    </button>
-  </form>
-
-  <div id="studentManagementStatus" class="mt-10 text-muted"></div>
-
-  <div class="h3 mt-20">Your Learners</div>
-  <div id="learnerList" class="mt-10 text-muted">
-    Loading learners...
-  </div>
-
-  </div>
-
-  <div id="studentManagementBatchesPanel" class="student-management-panel mt-20 hidden">
-
-    <div class="flex gap-10 batch-management-toolbar">
       <button
         type="button"
-        id="openCreateBatchModalBtn"
-        class="primary-btn"
+        id="studentManagementTabStudents"
+        class="student-management-tab student-management-tab--active"
+        role="tab"
+        aria-selected="true"
+        aria-controls="studentManagementStudentsPanel"
       >
-        + Create Batch
+        Students
+      </button>
+      <button
+        type="button"
+        id="studentManagementTabBatches"
+        class="student-management-tab"
+        role="tab"
+        aria-selected="false"
+        aria-controls="studentManagementBatchesPanel"
+      >
+        Batches
       </button>
     </div>
 
-    <div id="batchManagementStatus" class="mt-10 text-muted"></div>
+    <div id="studentManagementStudentsPanel" class="student-management-panel mt-20">
+      <form id="createLearnerForm" class="mt-20">
+        <label class="student-management-label" for="learnerDisplayName">Display Name</label>
+        <input
+          id="learnerDisplayName"
+          type="text"
+          placeholder="John Smith"
+          class="w-full mt-5"
+          autocomplete="name"
+          required
+        >
 
-    <div class="h3 mt-20">Your Batches</div>
-    <div id="batchList" class="mt-10 text-muted">
-      Loading batches...
+        <label class="student-management-label mt-15" for="learnerEmail">Email</label>
+        <input
+          id="learnerEmail"
+          type="email"
+          placeholder="student@example.com"
+          class="w-full mt-5"
+          autocomplete="off"
+          required
+        >
+
+        <label class="student-management-label mt-15" for="learnerPassword">Password</label>
+        <input
+          id="learnerPassword"
+          type="password"
+          placeholder="Temporary password"
+          class="w-full mt-5"
+          autocomplete="new-password"
+          required
+        >
+
+        <button id="createLearnerBtn" type="submit" class="primary-btn w-full mt-20">
+          Create Learner
+        </button>
+      </form>
+
+      <div id="studentManagementStatus" class="mt-10 text-muted"></div>
+
+      <div class="h3 mt-20">Your Learners</div>
+      <div id="learnerList" class="mt-10 text-muted">
+        Loading learners...
+      </div>
     </div>
 
+    <div id="studentManagementBatchesPanel" class="student-management-panel mt-20 hidden">
+      <div class="flex gap-10 batch-management-toolbar">
+        <button type="button" id="openCreateBatchModalBtn" class="primary-btn">
+          + Create Batch
+        </button>
+      </div>
+
+      <div id="batchManagementStatus" class="mt-10 text-muted"></div>
+
+      <div class="h3 mt-20">Your Batches</div>
+      <div id="batchList" class="mt-10 text-muted">
+        Loading batches...
+      </div>
+    </div>
   </div>
 
-</div>
+  <div class="teacher-dashboard-grid mt-20">
+    <div class="teacher-dashboard-column teacher-dashboard-column--main">
+      <div class="card teacher-dashboard-section">
+        <div class="teacher-section-head">
+          <span class="teacher-section-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+            </svg>
+          </span>
+          <div>
+            <div class="h2">Continue Work</div>
+            <div class="section-sub mt-5">Pick up your latest exam draft.</div>
+          </div>
+        </div>
+        <div id="recentDraft" class="teacher-dashboard-list mt-10" aria-busy="true"></div>
+      </div>
 
-  <div class="card mt-30">
+      <div class="card teacher-dashboard-section">
+        <div class="teacher-section-head">
+          <span class="teacher-section-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="16" y1="2" x2="16" y2="6"></line>
+              <line x1="8" y1="2" x2="8" y2="6"></line>
+              <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+          </span>
+          <div>
+            <div class="h2">Recent Exams</div>
+            <div class="section-sub mt-5">Your latest published and draft exam sessions.</div>
+          </div>
+        </div>
+        <div id="recentExams" class="teacher-dashboard-list mt-10" aria-busy="true"></div>
+      </div>
 
-    <div class="h2">Start Creating</div>
-    <div class="section-sub mt-5">
-      Create a new exam draft using manual entry or parser.
+      <div class="card teacher-dashboard-section">
+        <div class="teacher-section-head">
+          <span class="teacher-section-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="8" y1="6" x2="21" y2="6"></line>
+              <line x1="8" y1="12" x2="21" y2="12"></line>
+              <line x1="8" y1="18" x2="21" y2="18"></line>
+              <line x1="3" y1="6" x2="3.01" y2="6"></line>
+              <line x1="3" y1="12" x2="3.01" y2="12"></line>
+              <line x1="3" y1="18" x2="3.01" y2="18"></line>
+            </svg>
+          </span>
+          <div>
+            <div class="h2">Topic Notes</div>
+            <div class="section-sub mt-5">Canonical knowledge notes — refine drafts or open published notes.</div>
+          </div>
+        </div>
+        <div id="teacherTopicNotes" class="teacher-dashboard-list mt-10" aria-busy="true"></div>
+        <button type="button" class="secondary-btn mt-20" data-prepos-href="qb-manager.html">
+          Manage in Question Bank
+        </button>
+      </div>
     </div>
 
-    <button onclick="goToCreatorMode()" class="primary-btn w-full mt-20">
-      + Create New Exam
-    </button>
+    <div class="teacher-dashboard-column teacher-dashboard-column--sidebar">
+      <div class="card teacher-dashboard-section teacher-dashboard-section--intel">
+        <div class="h2">Classroom Intelligence</div>
+        <div class="section-sub mt-5">
+          Diagnose weak topics, intervention priorities, and exam insights across your class.
+        </div>
+        <div class="teacher-intel-cta mt-20">
+          <a href="teacher-intelligence.html" class="primary-btn w-full teacher-intel-cta-btn">
+            Open Intelligence
+          </a>
+          <a href="teacher-monitoring.html" class="secondary-btn w-full mt-10 teacher-intel-cta-btn">
+            Learner Monitoring
+          </a>
+        </div>
+      </div>
 
-  </div>
+      <div class="card teacher-dashboard-section">
+        <div class="h2">Knowledge Base</div>
+        <div class="section-sub mt-5">Build and manage your topic-based question bank.</div>
+        <div class="teacher-quick-link-grid mt-20">
+          <a href="qb-manager.html" class="teacher-quick-link">
+            <span class="teacher-quick-link-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+              </svg>
+            </span>
+            <span class="teacher-quick-link-label">Question Bank</span>
+          </a>
+          <a href="topics.html" class="teacher-quick-link">
+            <span class="teacher-quick-link-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+              </svg>
+            </span>
+            <span class="teacher-quick-link-label">Topics</span>
+          </a>
+          <a href="lexicon-manager.html" class="teacher-quick-link">
+            <span class="teacher-quick-link-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 20h9"></path>
+                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+              </svg>
+            </span>
+            <span class="teacher-quick-link-label">Lexicon</span>
+          </a>
+        </div>
+      </div>
 
+      <div class="card teacher-dashboard-section">
+        <div class="h2">Exam Management</div>
+        <div class="section-sub mt-5">Drafts, publishing, and results.</div>
+        <div class="teacher-quick-link-grid mt-20">
+          <a href="draft.html" class="teacher-quick-link">
+            <span class="teacher-quick-link-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+              </svg>
+            </span>
+            <span class="teacher-quick-link-label">Drafts</span>
+          </a>
+          <a href="published-exams.html" class="teacher-quick-link">
+            <span class="teacher-quick-link-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            </span>
+            <span class="teacher-quick-link-label">Published</span>
+          </a>
+          <a href="teacher-results.html" class="teacher-quick-link">
+            <span class="teacher-quick-link-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="20" x2="18" y2="10"></line>
+                <line x1="12" y1="20" x2="12" y2="4"></line>
+                <line x1="6" y1="20" x2="6" y2="14"></line>
+              </svg>
+            </span>
+            <span class="teacher-quick-link-label">Results</span>
+          </a>
+        </div>
+      </div>
 
-  <div class="card">
-
-    <div class="h3">Continue Work</div>
-
-    <div id="recentDraft" class="mt-10 text-muted">
-      Loading draft...
+      <div class="card teacher-dashboard-section">
+        <div class="h2">Quick Open</div>
+        <div class="section-sub mt-5">Preview an exam using its ID.</div>
+        <input
+          id="examId2"
+          placeholder="Paste exam id"
+          class="w-full mt-20"
+        >
+        <button type="button" onclick="openExam()" class="secondary-btn w-full mt-10">
+          Open Exam
+        </button>
+      </div>
     </div>
-
-  </div>
-
-
-  <div class="card">
-
-    <div class="h3">Knowledge Base</div>
-    <div class="section-sub mt-5">
-      Build and manage your topic-based question bank.
-    </div>
-
-    <div class="flex gap-10 mt-20">
-
-      <button onclick="location.href='qb-manager.html'">
-        📚 Question Bank
-      </button>
-
-      <button onclick="location.href='topics.html'">
-        🧠 Topics
-      </button>
-
-    </div>
-
-  </div>
-
-  <div class="card mt-20">
-
-    <div class="h3">Topic Notes</div>
-    <div class="section-sub mt-5">
-      Canonical knowledge notes — refine drafts or open published notes.
-    </div>
-
-    <div id="teacherTopicNotes" class="mt-10">
-      Loading topic notes…
-    </div>
-
-    <button type="button" class="secondary-btn mt-20" data-prepos-href="qb-manager.html">
-      Manage in Question Bank
-    </button>
-
-  </div>
-
-
-  <div class="card">
-
-    <div class="h3">Exam Management</div>
-
-    <div class="flex gap-10 mt-20">
-
-      <button onclick="location.href='draft.html'">
-        📄 Drafts
-      </button>
-
-      <button onclick="location.href='published-exams.html'">
-        Published Exams
-      </button>
-
-      <button onclick="location.href='teacher-results.html'">
-        📊 Results
-      </button>
-
-      <button onclick="location.href='teacher-intelligence.html'">
-        🧠 Classroom Intelligence
-      </button>
-
-    </div>
-
-  </div>
-
-
-  <div class="card">
-
-    <div class="h3">Recent Exams</div>
-
-    <div id="recentExams" class="mt-10">
-      Loading recent exams...
-    </div>
-
-  </div>
-
-
-  <div class="card">
-
-    <div class="h3">Quick Open</div>
-    <div class="section-sub mt-5">
-      Preview exam using ID.
-    </div>
-
-    <input
-      id="examId2"
-      placeholder="Paste exam id"
-      class="w-full mt-20"
-    >
-
-    <button onclick="openExam()" class="mt-10">
-      Open Exam
-    </button>
-
   </div>
 
 </div>
