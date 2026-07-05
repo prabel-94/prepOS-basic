@@ -5273,7 +5273,7 @@ body.pro-surface .student-dashboard-skeleton-pill {
 }
 
 .student-exam-card-meta li::before {
-  content: "â€¢ ";
+  content: "\2022 ";
   color: var(--primary);
 }
 
