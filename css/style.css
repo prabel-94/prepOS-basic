@@ -56,7 +56,7 @@ body{
   padding:30px 20px;
   color:var(--text);
 
-  overflow-x: hidden; /* ðŸ”¥ ADD THIS */
+  overflow-x: hidden; /* ADD THIS */
 }
 
 h1,h2,h3{
@@ -99,11 +99,11 @@ LAYOUT
 .container,
 .exam-wrapper,
 .draft-wrapper{
-  width:100%;              /* ðŸ”¥ ADD */
+  width:100%;              /* ADD */
   max-width:900px;
   margin:auto;
   padding:16px;            /* slightly tighter for mobile */
-  box-sizing:border-box;   /* ðŸ”¥ ADD */
+  box-sizing:border-box;   /* ADD */
 }
 /* EXAM HEADER */
 
@@ -320,14 +320,14 @@ WORKSPACE
   margin-top:20px;
   align-items:flex-start;
 
-  width:100%;        /* ðŸ”¥ ADD */
-  overflow:hidden;   /* ðŸ”¥ ADD */
+  width:100%;        /* ADD */
+  overflow:hidden;   /* ADD */
 }
 
 .draft-area{
   flex:1;
   min-width:0;
-  width:100%; /* ðŸ”¥ ADD */
+  width:100%; /* ADD */
 }
 
 /* ======================================================
@@ -461,9 +461,9 @@ QUESTION CARD (BUILDER)
   border:1px solid var(--border);
   transition:all 0.2s ease;
 
-  max-width:100%;              /* ðŸ”¥ ADD */
-  word-wrap:break-word;        /* ðŸ”¥ ADD */
-  overflow-wrap:break-word;    /* ðŸ”¥ ADD */
+  max-width:100%;              /* ADD */
+  word-wrap:break-word;        /* ADD */
+  overflow-wrap:break-word;    /* ADD */
 }
 
 .question-card--copy-footer{
@@ -791,7 +791,7 @@ CARD SYSTEM
     background-color 0.2s ease;
 }
 
-/* Hover lift â€” actionable cards only (avoids static panels feeling clickable) */
+/* Hover lift — actionable cards only (avoids static panels feeling clickable) */
 @media (hover: hover) and (pointer: fine) {
   .student-action-card:hover,
   .student-exam-card:hover {
@@ -800,7 +800,7 @@ CARD SYSTEM
   }
 }
 
-/* Touch feedback â€” actionable cards only */
+/* Touch feedback — actionable cards only */
 .student-action-card:active,
 .student-exam-card:active {
   border-color: var(--primary);
@@ -1569,7 +1569,7 @@ QUESTION BANK PANEL
 
   z-index:1000;
 
-  box-shadow: -2px 0 10px rgba(0,0,0,0.1); /* ðŸ”¥ ADD */
+  box-shadow: -2px 0 10px rgba(0,0,0,0.1); /* ADD */
 }
 .qb-header{
   display:flex;
@@ -2040,8 +2040,8 @@ MOBILE
   left:0;
   right:0;
 
-  border-left:none;   /* ðŸ”¥ REMOVE desktop feel */
-  border-radius:0;    /* ðŸ”¥ full screen feel */
+  border-left:none;   /* REMOVE desktop feel */
+  border-radius:0;    /* full screen feel */
 
   transform:translateX(100%);
 }
@@ -3711,7 +3711,7 @@ PREPOS SIDE PANEL OVERLAYS
   padding-left: 1.15rem;
 }
 
-/* Collapsible blocks (revision / timeline / interpretations) â€” subordinated chrome */
+/* Collapsible blocks (revision / timeline / interpretations) — subordinated chrome */
 .semantic-collapsible {
   margin-top: var(--semantic-l3-space-before);
   margin-bottom: 0.5rem;
@@ -3761,7 +3761,7 @@ PREPOS SIDE PANEL OVERLAYS
   font-weight: var(--semantic-l2-weight);
 }
 
-/* Structural representation â€” hierarchy without debug-tree aesthetics */
+/* Structural representation — hierarchy without debug-tree aesthetics */
 .structural-hierarchy.semantic-structural-flow {
   max-width: 720px;
 }
@@ -3886,7 +3886,7 @@ PREPOS SIDE PANEL OVERLAYS
   font-weight: inherit;
 }
 
-/* Phase 2 â€” reading ergonomics */
+/* Phase 2 — reading ergonomics */
 .semantic-reading-surface {
   --semantic-anchor-primary-opacity: 1;
   --semantic-anchor-repeat-opacity: 0.82;
@@ -3928,7 +3928,7 @@ PREPOS SIDE PANEL OVERLAYS
 
 .semantic-revision-compact .semantic-collapsible,
 .semantic-interpretations-compact .semantic-collapsible,
-/* MSMDF v3.1 Expansion layer â€” modular unit cards */
+/* MSMDF v3.1 Expansion layer — modular unit cards */
 .semantic-expansion-cards .semantic-collapsible {
   margin-bottom: 0.85rem;
 }
@@ -4110,7 +4110,7 @@ PREPOS SIDE PANEL OVERLAYS
   text-align: left;
 }
 
-/* Cognition inspector â€” micro-modal, low chrome */
+/* Cognition inspector — micro-modal, low chrome */
 .prepos-modal-content.semantic-cognition-inspector {
   max-width: min(420px, calc(100vw - 24px));
   padding: 0;
@@ -4640,7 +4640,7 @@ PREPOS SIDE PANEL OVERLAYS
 }
 
 /* ======================================================
-PHASE 1 â€” STUDENT UI UPGRADE
+PHASE 1 — STUDENT UI UPGRADE
 ====================================================== */
 
 body.student-surface {
