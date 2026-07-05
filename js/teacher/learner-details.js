@@ -6,7 +6,10 @@ import { getClient } from "../core/get-client.js";
 import { updateLearnerDisplayName } from "../core/learner-profile.js";
 import { invokeEdgeFunction } from "../core/edge-invoke.js";
 import { openModal, closeModal } from "../ui/modal-system.js";
-import { renderLearnerMonitoringIntelligenceSection } from "./learner-monitoring-intelligence.js";
+import {
+  renderLearnerMonitoringIntelligence,
+  normalizeIntelligence,
+} from "./learner-monitoring-intelligence.js";
 
 const MODAL_ID = "learnerDetailModal";
 const DELETE_MODAL_ID = "learnerDeleteModal";
@@ -162,6 +165,46 @@ function normalizeActivityEvent(raw) {
     metadata: raw.metadata ?? {},
     occurredAt: raw.occurredAt ?? raw.occurred_at ?? null,
     pagePath: raw.pagePath ?? raw.page_path ?? null,
+  };
+}
+
+export async function loadLearnerMonitoringPanel(userId, limit = 20) {
+  if (!userId) {
+    throw new Error("Learner id is required");
+  }
+
+  const sb = await getClient();
+  const { data, error } = await sb.rpc("get_learner_monitoring_panel", {
+    target_user_id: userId,
+    p_limit: limit,
+  });
+
+  if (error) {
+    console.error("[Learner Details] monitoring panel failed", error);
+    throw error;
+  }
+
+  if (!data || typeof data !== "object") {
+    throw new Error("Unable to load learner monitoring panel");
+  }
+
+  const details = normalizeLearnerDetails(data.details);
+  if (!details) {
+    throw new Error("Unable to load learner monitoring panel");
+  }
+
+  const activityFeed = Array.isArray(data.activityFeed)
+    ? data.activityFeed.map(normalizeActivityEvent).filter(Boolean)
+    : Array.isArray(data.activity_feed)
+      ? data.activity_feed.map(normalizeActivityEvent).filter(Boolean)
+      : [];
+
+  const intelligenceRaw = data.intelligence ?? null;
+
+  return {
+    details,
+    activityFeed,
+    intelligence: intelligenceRaw,
   };
 }
 
@@ -589,24 +632,19 @@ export function renderLearnerDetails(details) {
   setFooterMode(isEditingName ? "edit" : "view");
 }
 
-async function renderActivityTimelineSection(userId) {
+async function renderMonitoringPanelSections(panel) {
   const timelineEl = document.getElementById("learnerActivityTimeline");
-  if (!timelineEl || !userId) {
-    return;
-  }
-
-  try {
-    const events = await loadLearnerActivityFeed(userId, 20);
-    timelineEl.innerHTML = renderActivityTimeline(events);
-  } catch (error) {
-    timelineEl.innerHTML = `<p class="text-muted">${escapeHTML(
-      error.message || "Unable to load activity timeline."
-    )}</p>`;
+  if (timelineEl) {
+    timelineEl.innerHTML = renderActivityTimeline(panel.activityFeed);
   }
 
   const intelEl = document.getElementById("learnerMonitoringIntelligence");
-  if (intelEl) {
-    await renderLearnerMonitoringIntelligenceSection(userId, intelEl);
+  if (intelEl && panel.intelligence) {
+    intelEl.innerHTML = renderLearnerMonitoringIntelligence(
+      normalizeIntelligence(panel.intelligence)
+    );
+  } else if (intelEl) {
+    intelEl.innerHTML = "";
   }
 }
 
@@ -718,9 +756,9 @@ export async function openLearnerModal(userId) {
   setModalLoading();
 
   try {
-    const details = await loadLearnerDetails(userId);
-    renderLearnerDetails(details);
-    await renderActivityTimelineSection(userId);
+    const panel = await loadLearnerMonitoringPanel(userId);
+    renderLearnerDetails(panel.details);
+    await renderMonitoringPanelSections(panel);
   } catch (error) {
     setModalError(error.message || "Unable to load learner details.");
   }

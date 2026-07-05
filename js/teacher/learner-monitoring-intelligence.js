@@ -25,7 +25,7 @@ function formatDateTime(value) {
   });
 }
 
-function normalizeIntelligence(raw) {
+export function normalizeIntelligence(raw) {
   if (!raw || typeof raw !== "object") return null;
 
   const examStats = raw.examStats ?? raw.exam_stats ?? {};
