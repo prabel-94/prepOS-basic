@@ -1,4 +1,4 @@
-import { copyTextToClipboard } from "../core/malayalam-copy.js?v=20260602";
+import { copyTextToClipboard } from "../core/malayalam-copy.js?v=20260705";
 import { openModal, closeModal } from "./modal-system.js";
 
 const DIALOG_ID = "malayalamCopyDialog";

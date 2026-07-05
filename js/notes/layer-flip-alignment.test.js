@@ -8,6 +8,7 @@ import {
   anchorKind,
   extractWikiKeys,
   nearestVisibleAnchorId,
+  nearestVisibleSemanticAnchor,
   pickBestSeqMatch,
   pickClosestByRatio,
   restoreElementRank,
@@ -83,6 +84,9 @@ function mockElement({
     querySelector(selector) {
       if (selector === ".semantic-anchor[data-anchor-id]") {
         return children.find((c) => c.dataset?.anchorId) ?? null;
+      }
+      if (selector === ".semantic-anchor") {
+        return children.find((c) => c.dataset?.anchorId || c.dataset?.normalizedName) ?? null;
       }
       return null;
     },
@@ -190,6 +194,40 @@ describe("layer-flip-alignment", () => {
 
     it("returns null for null input", () => {
       assert.equal(nearestVisibleAnchorId(null), null);
+    });
+  });
+
+  describe("nearestVisibleSemanticAnchor", () => {
+    it("captures normalized name for unresolved anchors", () => {
+      const anchorButton = {
+        dataset: { normalizedName: "magna carta" },
+      };
+      const block = mockElement({
+        tag: "p",
+        className: "semantic-paragraph",
+        children: [anchorButton],
+      });
+
+      assert.deepEqual(nearestVisibleSemanticAnchor(block), {
+        anchorId: null,
+        anchorNormalizedName: "magna carta",
+      });
+    });
+
+    it("captures both anchor_id and normalized name when present", () => {
+      const anchorButton = {
+        dataset: { anchorId: "uuid-789", normalizedName: "charles i" },
+      };
+      const block = mockElement({
+        tag: "p",
+        className: "semantic-paragraph",
+        children: [anchorButton],
+      });
+
+      assert.deepEqual(nearestVisibleSemanticAnchor(block), {
+        anchorId: "uuid-789",
+        anchorNormalizedName: "charles i",
+      });
     });
   });
 

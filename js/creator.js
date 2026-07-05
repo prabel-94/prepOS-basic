@@ -5,7 +5,7 @@
 
 import { bootPage } from "./core/page-boot.js";
 import { createDraft } from "./creator-draft.js";
-import { parseQuiz, cleanQcpText } from "./core/question-parser.js";
+import { parseQuiz, cleanQcpText } from "./core/question-parser.js?v=20260705";
 
 function cleanQCP() {
   const input = document.getElementById("input");

@@ -18,8 +18,8 @@ import {
   malayalamAssistanceToMetadataPayload,
   pruneMalayalamAssistance,
 } from "./core/question-assistance.js";
-import { cleanQcpText, parseQuestionPaste, parseBulkQuestionPaste } from "./core/question-parser.js";
-import { copyMalayalamTranslationRequest } from "./core/malayalam-copy.js?v=20260602";
+import { cleanQcpText, parseQuestionPaste, parseBulkQuestionPaste } from "./core/question-parser.js?v=20260705";
+import { copyMalayalamTranslationRequest } from "./core/malayalam-copy.js?v=20260705";
 import { showMalayalamTranslationCopyDialog } from "./ui/malayalam-copy-dialog.js";
 import {
   DEFAULT_SECONDS_PER_QUESTION,

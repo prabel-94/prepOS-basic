@@ -63,7 +63,9 @@ export function normalizeMalayalamQcpLabels(text) {
 }
 
 const STATEMENT_LIST_INTRO_REGEX =
-  /പരിഗണിക്കുക|പ്രസ്താവന|consider the following|consider the statements?|with reference|ക്രമീകരിക്കുക|arrange the following|match the following/i;
+  /പരിഗണിക്കുക|പ്രസ്താവന|consider the following|consider the statements?|with reference|ക്രമീകരിക്കുക|arrange the following|match the following|match\s+list\s+i/i;
+
+const MATCH_LIST_CONTEXT_REGEX = /match\s+list\s+i|list\s+i\b/i;
 
 const QUESTION_STEM_INDICATOR_REGEX =
   /\b(?:Which|What|Who|Why|How|Consider|With reference|Arrange|Match|Select|Choose|Identify|Assertion|Reason|How many)\b/i;
@@ -83,6 +85,20 @@ function looksLikeTopLevelQuestionStem(content) {
     QUESTION_STEM_INDICATOR_REGEX.test(content) ||
     /\?/.test(content)
   );
+}
+
+/** List I rows use A. B. C. D. — not MCQ option lines. */
+function isMatchListLetterItemLine(trimmed, recentLines = []) {
+  if (!/^[A-D]\.\s+/i.test(trimmed)) {
+    return false;
+  }
+
+  const context = recentLines
+    .slice(-6)
+    .map((line) => String(line ?? "").trim())
+    .join("\n");
+
+  return MATCH_LIST_CONTEXT_REGEX.test(context);
 }
 
 /** Convert 1. / Q1) block starters to Q1. for the structural parser. */
@@ -119,6 +135,11 @@ export function normalizeQuestionBlockMarkers(text) {
     }
 
     if (OPTION_REGEX.test(trimmed)) {
+      if (isMatchListLetterItemLine(trimmed, output)) {
+        output.push(line);
+        continue;
+      }
+
       blockPhase = "options";
       output.push(line.replace(/^([A-D])[\.\):-]\s*/i, "$1) "));
       continue;
@@ -267,8 +288,10 @@ function applyQcpDeepCleanLines(text) {
       }
     }
 
-    // normalize options A-D formatting
-    line = line.replace(/^([A-D])[\.\):-]\s*/i, "$1) ");
+    // normalize options A-D formatting (skip List I letter rows in match-list stems)
+    if (!isMatchListLetterItemLine(line, cleaned)) {
+      line = line.replace(/^([A-D])[\.\):-]\s*/i, "$1) ");
+    }
     cleaned.push(line);
   }
 
@@ -345,9 +368,12 @@ function parseQuestionBlock(block) {
       .trim();
   }
 
-  const optionLines = lines.filter(
+  const allOptionLines = lines.filter(
     (line, idx) => idx < answerIndex && OPTION_REGEX.test(line)
   );
+
+  const optionLines =
+    allOptionLines.length > 4 ? allOptionLines.slice(-4) : allOptionLines;
 
   if (optionLines.length !== 4) {
     return null;

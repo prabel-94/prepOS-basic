@@ -18,8 +18,8 @@ import {
   enrichQuestionMalayalamVerification,
   getMlVariantVerificationRecord,
 } from "./core/question-assistance.js";
-import { parseQuestionPaste } from "./core/question-parser.js";
-import { copyMalayalamTranslationRequest } from "./core/malayalam-copy.js?v=20260602";
+import { parseQuestionPaste } from "./core/question-parser.js?v=20260705";
+import { copyMalayalamTranslationRequest } from "./core/malayalam-copy.js?v=20260705";
 import { showMalayalamTranslationCopyDialog } from "./ui/malayalam-copy-dialog.js";
 import { openModal, closeModal } from "./ui/modal-system.js";
 

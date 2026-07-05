@@ -84,6 +84,7 @@ export function createLayerFlipReading({
 
   let contentLanguage = primaryLanguage;
   let pendingFlipRestore = null;
+  let pendingCrossLanguage = false;
   let rendering = false;
 
   function cacheKey(variantId, tab) {
@@ -269,10 +270,12 @@ export function createLayerFlipReading({
         restoreFrom ??
         scrollMemory.get(scrollMemoryKey(contentLanguage, tab)) ??
         pendingFlipRestore;
+      const crossLanguage = pendingCrossLanguage;
       pendingFlipRestore = null;
+      pendingCrossLanguage = false;
 
       if (saved) {
-        restoreLayerScrollState(contentEl, saved);
+        restoreLayerScrollState(contentEl, saved, { crossLanguage });
       }
     } finally {
       rendering = false;
@@ -297,6 +300,7 @@ export function createLayerFlipReading({
 
     pendingFlipRestore =
       scrollMemory.get(scrollMemoryKey(nextLanguage, tab)) ?? leavingState;
+    pendingCrossLanguage = true;
 
     contentLanguage = nextLanguage;
     await renderActiveTab();
@@ -336,6 +340,7 @@ export function createLayerFlipReading({
   function resetContentLanguage() {
     contentLanguage = primaryLanguage;
     pendingFlipRestore = null;
+    pendingCrossLanguage = false;
   }
 
   return {

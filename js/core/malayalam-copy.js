@@ -49,6 +49,39 @@ Critical rules (strict):
 - Do NOT move statements into the explanation or options.
 - Option lines MUST be exactly A) B) C) D) in order; labels MUST be ഉത്തരം: and വിശദീകരണം:.`;
 
+export const MATCH_LIST_MALAYALAM_FORMAT = `Match-list questions (English stem contains "List I" / "List II" with A. B. rows and 1. 2. rows before the code options):
+Use this layout so PrepOS can paste the Malayalam mask without breaking the block.
+
+STRICT (must follow exactly):
+Q<n>. <intro — flexible wording; see below>
+List I
+A. <item>
+B. <item>
+C. <item>
+D. <item>
+List II
+1. <item>
+2. <item>
+3. <item>
+4. <item>
+<closing instruction — flexible wording>
+A) <code option, e.g. A-1, B-2, C-4, D-3>
+B) <code option>
+C) <code option>
+D) <code option>
+ഉത്തരം: <same letter as English Answer:>
+വിശദീകരണം: <translation>
+
+FLEXIBLE (wording is yours — translate naturally):
+• Intro line — e.g. "List I-നെ List II-മായി യോജിപ്പിക്കുക:" or any natural Malayalam match-list intro.
+• Closing line before code options — e.g. "താഴെ നൽകിയിരിക്കുന്ന കോഡ് ഉപയോഗിച്ച് ശരിയായ ഉത്തരം തിരഞ്ഞെടുക്കുക:"
+
+Critical rules (strict):
+- Keep the headings "List I" and "List II" exactly (English labels).
+- List I rows MUST use A. B. C. D. (period) — not A) B) C) D).
+- List II rows MUST use 1. 2. 3. 4. on separate lines before the code options.
+- ONLY the four code lines at the end use A) B) C) D) before ഉത്തരം:`;
+
 export const MALAYALAM_TRANSLATION_PROMPT = `Translate the following question block into Malayalam using cognitive translation model we developed for prepOS.
 Rules:
 - Keep exact structure: Q1., A) B) C) D), then Answer: and Explanation:
@@ -58,10 +91,13 @@ Rules:
 
 ${NUMBERED_STATEMENT_MALAYALAM_FORMAT}
 
+${MATCH_LIST_MALAYALAM_FORMAT}
+
 Output only the Malayalam block below, ready to paste back into PrepOS.`;
 
 const NUMBERED_STATEMENT_LINE_REGEX = /^\d+[\.\)]\s+\S/;
 const OPTION_LINE_REGEX = /^[A-D][\)\.\:\-]\s+/i;
+const MATCH_LIST_STEM_REGEX = /match\s+list\s+i|list\s+i\b/i;
 
 /** True when stem text has internal 1. / 2. lines before options (statement-list type). */
 export function questionHasNumberedStatements(question = {}) {
@@ -87,6 +123,15 @@ export function questionHasNumberedStatements(question = {}) {
   return sawNumbered;
 }
 
+/** True when stem is a List I / List II match question. */
+export function questionHasMatchList(question = {}) {
+  const text = String(
+    question.text ?? question.question ?? question.question_text ?? ""
+  ).trim();
+
+  return MATCH_LIST_STEM_REGEX.test(text);
+}
+
 export const MALAYALAM_COPY_SEPARATOR = "---";
 
 /**
@@ -105,10 +150,27 @@ export function buildMalayalamTranslationCopyText(questions, { startIndex = 1 } 
     )
     .filter((index) => index !== null);
 
-  const statementNote =
-    statementIndexes.length > 0
-      ? `IMPORTANT: ${statementIndexes.length > 1 ? "Questions" : "Question"} ${statementIndexes.join(", ")} ${statementIndexes.length > 1 ? "use" : "uses"} numbered statements inside the stem. Follow the numbered-statement Malayalam format exactly for those block(s).\n\n`
-      : "";
+  const matchListIndexes = list
+    .map((question, offset) =>
+      questionHasMatchList(question) ? startIndex + offset : null
+    )
+    .filter((index) => index !== null);
+
+  const formatNotes = [];
+
+  if (statementIndexes.length > 0) {
+    formatNotes.push(
+      `IMPORTANT: ${statementIndexes.length > 1 ? "Questions" : "Question"} ${statementIndexes.join(", ")} ${statementIndexes.length > 1 ? "use" : "uses"} numbered statements inside the stem. Follow the numbered-statement Malayalam format for those block(s).`
+    );
+  }
+
+  if (matchListIndexes.length > 0) {
+    formatNotes.push(
+      `IMPORTANT: ${matchListIndexes.length > 1 ? "Questions" : "Question"} ${matchListIndexes.join(", ")} ${matchListIndexes.length > 1 ? "are" : "is"} match-list (List I / List II) questions. Follow the match-list Malayalam format for those block(s).`
+    );
+  }
+
+  const statementNote = formatNotes.length ? `${formatNotes.join("\n")}\n\n` : "";
 
   const body = blocks.join("\n\n");
   return `${MALAYALAM_TRANSLATION_PROMPT}\n\n${statementNote}${MALAYALAM_COPY_SEPARATOR}\n\n${body}`;

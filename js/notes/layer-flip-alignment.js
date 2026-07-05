@@ -47,6 +47,7 @@ const RESTORE_ELEMENT_RANK = [
 ];
 
 const ANCHOR_NOTE_SELECTOR = ".semantic-anchor[data-anchor-id]";
+const SEMANTIC_ANCHOR_SELECTOR = ".semantic-anchor";
 
 export function viewportAnchorY() {
   return window.innerHeight * 0.35;
@@ -97,30 +98,40 @@ export function wikiKeysFromElement(el) {
 }
 
 /**
+ * Find the nearest semantic anchor note in or near the given block element.
+ * @param {Element} blockEl
+ * @returns {{ anchorId: string|null, anchorNormalizedName: string|null }}
+ */
+export function nearestVisibleSemanticAnchor(blockEl) {
+  if (!blockEl) {
+    return { anchorId: null, anchorNormalizedName: null };
+  }
+
+  const findIn = (el) => el?.querySelector?.(SEMANTIC_ANCHOR_SELECTOR) ?? null;
+
+  let note = findIn(blockEl);
+  if (!note && blockEl.previousElementSibling) {
+    note = findIn(blockEl.previousElementSibling);
+  }
+
+  if (!note) {
+    return { anchorId: null, anchorNormalizedName: null };
+  }
+
+  return {
+    anchorId: note.dataset?.anchorId ?? null,
+    anchorNormalizedName: note.dataset?.normalizedName ?? null,
+  };
+}
+
+/**
  * Find the nearest resolved semantic anchor (with anchor_id UUID) in or near
  * the given block element. Checks the element itself, then its previous sibling.
  * @param {Element} blockEl
  * @returns {string|null} anchor_id UUID or null
  */
 export function nearestVisibleAnchorId(blockEl) {
-  if (!blockEl) {
-    return null;
-  }
-
-  const inBlock = blockEl.querySelector?.(ANCHOR_NOTE_SELECTOR);
-  if (inBlock?.dataset?.anchorId) {
-    return inBlock.dataset.anchorId;
-  }
-
-  const prev = blockEl.previousElementSibling;
-  if (prev) {
-    const inPrev = prev.querySelector?.(ANCHOR_NOTE_SELECTOR);
-    if (inPrev?.dataset?.anchorId) {
-      return inPrev.dataset.anchorId;
-    }
-  }
-
-  return null;
+  return nearestVisibleSemanticAnchor(blockEl).anchorId;
 }
 
 /**
@@ -310,9 +321,12 @@ export function readAlignmentFromElement(el) {
     ":scope > .structural-heading-row .structural-toggle"
   );
 
+  const semanticAnchor = nearestVisibleSemanticAnchor(anchor);
+
   return {
     el: anchor,
-    anchorId: nearestVisibleAnchorId(anchor),
+    anchorId: semanticAnchor.anchorId,
+    anchorNormalizedName: semanticAnchor.anchorNormalizedName,
     blockSeq: Number.isFinite(blockSeq) ? blockSeq : null,
     blockType: anchor.dataset?.blockType ?? null,
     anchorKind: anchorKind(anchor),
@@ -364,6 +378,7 @@ export function captureLayerScrollState(container) {
 
   return {
     anchorId: anchor?.anchorId ?? null,
+    anchorNormalizedName: anchor?.anchorNormalizedName ?? null,
     blockSeq: anchor?.blockSeq ?? null,
     blockType: anchor?.blockType ?? null,
     anchorKind: anchor?.anchorKind ?? null,
@@ -423,6 +438,24 @@ export function expandSemanticCollapsibleAncestors(target) {
   }
 }
 
+function blockParentForSemanticAnchor(el) {
+  return (
+    el.closest(
+      "[data-block-seq], p.semantic-paragraph, article, details, .structural-group, .semantic-chronology-node, .semantic-timeline-entry"
+    ) ?? el
+  );
+}
+
+function findBySemanticAnchorMatches(container, selector, ratio = 0) {
+  const matches = container.querySelectorAll(selector);
+  if (!matches.length) {
+    return null;
+  }
+
+  const blockParents = [...matches].map(blockParentForSemanticAnchor);
+  return pickClosestByRatio(blockParents, ratio);
+}
+
 /**
  * Restore by anchor_id — the primary cross-language homing signal.
  * Finds `.semantic-anchor[data-anchor-id="UUID"]` in the target content,
@@ -433,23 +466,37 @@ export function expandSemanticCollapsibleAncestors(target) {
  * @returns {Element|null}
  */
 function findByAnchorId(container, anchorId, ratio = 0) {
-  const matches = container.querySelectorAll(
-    `${ANCHOR_NOTE_SELECTOR}[data-anchor-id="${CSS.escape(anchorId)}"]`
+  return findBySemanticAnchorMatches(
+    container,
+    `${ANCHOR_NOTE_SELECTOR}[data-anchor-id="${CSS.escape(anchorId)}"]`,
+    ratio
   );
+}
 
-  if (!matches.length) {
+/**
+ * Same-language fallback when anchor_id is unavailable (candidate/dormant anchors).
+ * @param {HTMLElement} container
+ * @param {string} normalizedName
+ * @param {number} ratio
+ * @returns {Element|null}
+ */
+function findByNormalizedName(container, normalizedName, ratio = 0) {
+  return findBySemanticAnchorMatches(
+    container,
+    `.semantic-anchor[data-normalized-name="${CSS.escape(normalizedName)}"]`,
+    ratio
+  );
+}
+
+function findByBlockSeq(container, state) {
+  if (state.blockSeq == null) {
     return null;
   }
 
-  const blockParents = [];
-  for (const el of matches) {
-    const block = el.closest(
-      "[data-block-seq], p.semantic-paragraph, article, details, .structural-group, .semantic-chronology-node, .semantic-timeline-entry"
-    );
-    blockParents.push(block ?? el);
-  }
-
-  return pickClosestByRatio(blockParents, ratio);
+  const bySeq = container.querySelectorAll(
+    `[data-block-seq="${CSS.escape(String(state.blockSeq))}"]`
+  );
+  return pickBestSeqMatch([...bySeq], state);
 }
 
 /**
@@ -465,23 +512,19 @@ export function findRestoreTarget(container, state = {}, options = {}) {
   }
 
   const crossLanguage = Boolean(options.crossLanguage);
+  const ratio = state.ratio ?? 0;
 
-  // --- Cross-language primary: anchor_id (always tried first regardless of mode) ---
-  if (state.anchorId) {
-    const byAnchor = findByAnchorId(container, state.anchorId, state.ratio ?? 0);
+  if (crossLanguage && state.anchorId) {
+    const byAnchor = findByAnchorId(container, state.anchorId, ratio);
     if (byAnchor) {
       return byAnchor;
     }
   }
 
-  // --- Same-language fast path: blockSeq is reliable within one variant ---
-  if (!crossLanguage && state.blockSeq != null) {
-    const bySeq = container.querySelectorAll(
-      `[data-block-seq="${CSS.escape(String(state.blockSeq))}"]`
-    );
-    const bestSeqMatch = pickBestSeqMatch([...bySeq], state);
-    if (bestSeqMatch) {
-      return bestSeqMatch;
+  if (!crossLanguage) {
+    const bySeq = findByBlockSeq(container, state);
+    if (bySeq) {
+      return bySeq;
     }
   }
 
@@ -528,14 +571,28 @@ export function findRestoreTarget(container, state = {}, options = {}) {
     }
   }
 
-  // blockSeq as late fallback for cross-language (positional heuristic)
-  if (crossLanguage && state.blockSeq != null) {
-    const bySeq = container.querySelectorAll(
-      `[data-block-seq="${CSS.escape(String(state.blockSeq))}"]`
+  if (!crossLanguage && state.anchorId) {
+    const byAnchor = findByAnchorId(container, state.anchorId, ratio);
+    if (byAnchor) {
+      return byAnchor;
+    }
+  }
+
+  if (!crossLanguage && state.anchorNormalizedName) {
+    const byName = findByNormalizedName(
+      container,
+      state.anchorNormalizedName,
+      ratio
     );
-    const bestSeqMatch = pickBestSeqMatch([...bySeq], state);
-    if (bestSeqMatch) {
-      return bestSeqMatch;
+    if (byName) {
+      return byName;
+    }
+  }
+
+  if (crossLanguage) {
+    const bySeq = findByBlockSeq(container, state);
+    if (bySeq) {
+      return bySeq;
     }
   }
 
