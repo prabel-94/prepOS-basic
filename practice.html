@@ -13,124 +13,153 @@
 
 <div id="app-nav-root"></div>
 
-<div class="container">
+<div class="container student-practice">
 
-  <!-- HEADER -->
-  <div class="exam-header hidden">
-    <h2>Practice</h2>
-  </div>
+  <header class="student-practice-hero mt-30">
+    <div class="student-section-head">
+      <span class="student-section-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+        </svg>
+      </span>
+      <div>
+        <div class="h2">Practice</div>
+        <div class="section-sub mt-5">
+          Build skills with smart generators or question bank practice.
+        </div>
+      </div>
+    </div>
+  </header>
 
-  <div class="practice-mode-grid mt-20" role="group" aria-label="Practice mode">
-    <button
-      id="generatorModeBtn"
-      class="practice-mode-card active"
-      type="button"
-      data-mode="generator"
-    >
-      <span class="practice-mode-title">Generator Practice</span>
-      <span class="practice-mode-sub">Practice with smart generated questions.</span>
-    </button>
+  <div id="practiceSetup" class="student-practice-setup">
 
-    <button
-      id="bankModeBtn"
-      class="practice-mode-card"
-      type="button"
-      data-mode="bank"
-    >
-      <span class="practice-mode-title">Question Bank Practice</span>
-      <span class="practice-mode-sub">Practice saved questions from the bank.</span>
-    </button>
-  </div>
+    <p class="dashboard-section-label mt-20">Practice mode</p>
 
-  <!-- CONTROLS -->
-  <div class="control-bar mt-20">
+    <div class="practice-mode-grid mt-10" role="group" aria-label="Practice mode">
+      <button
+        id="generatorModeBtn"
+        class="practice-mode-card active"
+        type="button"
+        data-mode="generator"
+      >
+        <span class="practice-mode-title">Generator Practice</span>
+        <span class="practice-mode-sub">Practice with smart generated questions.</span>
+      </button>
 
-    <div id="generatorControls" class="practice-control-group">
-      <select id="subjectSelect">
-        <option value="malayalam">Malayalam</option>
-        <option value="english">English</option>
-      </select>
-
-      <select id="patternSelect">
-        <option value="SYNONYM">Synonym</option>
-        <option value="OPPOSITE_WORD">Opposite</option>
-      </select>
-
-      <label class="toggle-row">
-        <input id="adaptiveToggle" type="checkbox" checked>
-        <span>Adaptive Mode</span>
-      </label>
-      <p class="small text-muted practice-adaptive-hint">
-        Off: synonym prompts are random. On: primary word first, then random after familiarity.
-      </p>
+      <button
+        id="bankModeBtn"
+        class="practice-mode-card"
+        type="button"
+        data-mode="bank"
+      >
+        <span class="practice-mode-title">Question Bank Practice</span>
+        <span class="practice-mode-sub">Practice saved questions from the bank.</span>
+      </button>
     </div>
 
-  <div id="bankControls" class="practice-control-group hidden">
-    <select id="bankTopicSelect">
-      <option value="">All Topics</option>
-    </select>
+    <div class="card student-practice-config mt-20">
+      <div class="h2">Session setup</div>
+      <div class="section-sub mt-5">Choose your settings, then start practicing.</div>
 
-    <select id="bankOrderSelect">
-      <option value="focus_gaps" selected>Focus Gaps (recommended)</option>
-      <option value="random">Random Bank Questions</option>
-      <option value="latest">Latest Bank Questions</option>
-    </select>
-    <p class="small text-muted practice-bank-order-hint">
-      Focus Gaps prioritizes new and weak questions before ones you have already mastered.
-    </p>
+      <div class="control-bar student-practice-control-bar mt-15">
 
-    <button
-      type="button"
-      id="practiceAssistanceToggle"
-      class="exam-assistance-toggle hidden"
-      aria-pressed="false"
-      title="Optional Malayalam help mask — English is default. Applies to all bank questions unless you override on a card."
-    >
-      മലയാളം
-    </button>
-  </div>
+        <div id="generatorControls" class="practice-control-group">
+          <select id="subjectSelect" class="student-practice-select" aria-label="Subject">
+            <option value="malayalam">Malayalam</option>
+            <option value="english">English</option>
+          </select>
 
-    <select id="sessionLimitSelect">
-      <option value="0">Unlimited</option>
-      <option value="5">5 Questions</option>
-      <option value="10" selected>10 Questions</option>
-      <option value="20">20 Questions</option>
-    </select>
+          <select id="patternSelect" class="student-practice-select" aria-label="Pattern">
+            <option value="SYNONYM">Synonym</option>
+            <option value="OPPOSITE_WORD">Opposite</option>
+          </select>
 
-    <button id="startBtn" class="primary-btn">
-      Start Practice
-    </button>
+          <label class="toggle-row student-practice-toggle">
+            <input id="adaptiveToggle" type="checkbox" checked>
+            <span>Adaptive Mode</span>
+          </label>
+          <p class="small text-muted practice-adaptive-hint">
+            Off: synonym prompts are random. On: primary word first, then random after familiarity.
+          </p>
+        </div>
 
+        <div id="bankControls" class="practice-control-group hidden">
+          <select id="bankTopicSelect" class="student-practice-select" aria-label="Topic">
+            <option value="">All Topics</option>
+          </select>
+
+          <select id="bankOrderSelect" class="student-practice-select" aria-label="Question order">
+            <option value="focus_gaps" selected>Focus Gaps (recommended)</option>
+            <option value="random">Random Bank Questions</option>
+            <option value="latest">Latest Bank Questions</option>
+          </select>
+          <p class="small text-muted practice-bank-order-hint">
+            Focus Gaps prioritizes new and weak questions before ones you have already mastered.
+          </p>
+
+          <button
+            type="button"
+            id="practiceAssistanceToggle"
+            class="exam-assistance-toggle hidden"
+            aria-pressed="false"
+            title="Optional Malayalam help mask — English is default. Applies to all bank questions unless you override on a card."
+          >
+            മലയാളം
+          </button>
+        </div>
+
+        <select id="sessionLimitSelect" class="student-practice-select" aria-label="Session limit">
+          <option value="0">Unlimited</option>
+          <option value="5">5 Questions</option>
+          <option value="10" selected>10 Questions</option>
+          <option value="20">20 Questions</option>
+        </select>
+
+        <button id="startBtn" class="primary-btn student-practice-start-btn">
+          Start Practice
+        </button>
+
+      </div>
+    </div>
   </div>
 
   <div id="topicProgressPanel" class="practice-topic-progress hidden" aria-live="polite"></div>
 
-  <div id="practiceStatus" class="practice-status hidden"></div>
-  <div id="practiceProgress" class="practice-progress hidden"></div>
-  <div
-    id="practiceProgressBar"
-    class="practice-progress-bar hidden"
-    role="progressbar"
-    aria-valuemin="0"
-    aria-valuemax="100"
-    aria-valuenow="0"
-  >
-    <div id="practiceProgressFill" class="practice-progress-fill"></div>
+  <div id="practiceSessionStrip" class="student-practice-session-strip hidden" aria-live="polite">
+    <div class="card student-practice-session-card">
+      <div id="practiceProgress" class="student-practice-session-label"></div>
+      <div
+        id="practiceProgressBar"
+        class="student-mastery-bar student-practice-session-progress hidden"
+        role="progressbar"
+        aria-valuemin="0"
+        aria-valuemax="100"
+        aria-valuenow="0"
+      >
+        <div class="student-mastery-bar-track" aria-hidden="true">
+          <div id="practiceProgressFill" class="student-mastery-bar-fill"></div>
+        </div>
+      </div>
+    </div>
   </div>
 
-  <!-- QUESTION AREA -->
-  <div id="practiceArea" class="mt-30 hidden">
+  <div id="practiceStatus" class="practice-status hidden"></div>
 
-    <div id="questionCard" class="practice-question-card">
-      <div id="questionPrompt"></div>
-      <div class="practice-options-wrap">
-        <div id="optionsContainer" class="practice-options options"></div>
-        <div
-          id="practiceOptionShield"
-          class="practice-option-shield hidden"
-          aria-hidden="true"
-        >
-          <span id="practiceOptionShieldText" class="practice-option-shield-text"></span>
+  <div id="practiceArea" class="student-practice-active mt-20 hidden">
+
+    <div class="card student-practice-question-wrap">
+      <div id="questionCard" class="practice-question-card">
+        <div id="questionPrompt"></div>
+        <div class="practice-options-wrap">
+          <div id="optionsContainer" class="practice-options options"></div>
+          <div
+            id="practiceOptionShield"
+            class="practice-option-shield hidden"
+            aria-hidden="true"
+          >
+            <span id="practiceOptionShieldText" class="practice-option-shield-text"></span>
+          </div>
         </div>
       </div>
     </div>
@@ -142,7 +171,7 @@
 
     <div id="sessionSummary" class="practice-session-summary hidden"></div>
 
-    <button id="nextBtn" class="primary-btn mt-20 hidden">
+    <button id="nextBtn" class="primary-btn w-full mt-20 hidden">
       Next Question
     </button>
 
@@ -150,9 +179,7 @@
 
 </div>
 
-<!-- Supabase -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
 <script src="js/config.js?v=20260520"></script>
 <script type="module" src="js/auth.js"></script>
 <script type="module" src="js/practice.js"></script>

@@ -76,6 +76,9 @@ async function initStudentPreviewHub() {
 
   if (!runtime) return;
 
+  document.body.classList.remove("pro-surface");
+  document.body.classList.add("student-surface");
+
   const examsEl = document.getElementById("previewAvailableExams");
   const intelligenceEl = document.getElementById("previewIntelligenceMock");
   const notesEl = document.getElementById("previewTopicNotes");

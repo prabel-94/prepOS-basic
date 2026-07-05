@@ -1171,6 +1171,30 @@ async function fetchExamSession(examId) {
   return exam;
 }
 
+async function applyExamSurfaceTheme(sb) {
+  if (inspectModeRequested) {
+    return;
+  }
+
+  try {
+    const { data: userData } = await sb.auth.getUser();
+    const user = userData?.user;
+
+    if (!user) {
+      document.body.classList.add("student-surface");
+      return;
+    }
+
+    const role = await fetchUserRole(sb, user.id);
+    if (!role || !TEACHER_ROLES.includes(role)) {
+      document.body.classList.add("student-surface");
+    }
+  } catch (error) {
+    console.warn("[Exam] Surface theme not applied", error);
+    document.body.classList.add("student-surface");
+  }
+}
+
 async function setupExamHomeLink() {
   const btn = document.getElementById("examHomeBtn");
   if (!btn) return;
@@ -1183,10 +1207,6 @@ async function setupExamHomeLink() {
 
     const role = await fetchUserRole(sb, user.id);
     if (!role) return;
-
-    if (!TEACHER_ROLES.includes(role)) {
-      document.body.classList.add("student-surface");
-    }
 
     if (inspectModeRequested && TEACHER_ROLES.includes(role)) {
       btn.href = resolveAppPath("teacher-student-preview.html");
@@ -1212,9 +1232,11 @@ async function loadExam(){
   try{
 
     const exam = await fetchExamSession(examId);
-    await setupExamHomeLink();
 
     const sb = await getClient();
+    await applyExamSurfaceTheme(sb);
+    await setupExamHomeLink();
+
     const { data: userData } = await sb.auth.getUser();
     const userId = userData?.user?.id ?? null;
 

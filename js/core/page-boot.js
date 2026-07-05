@@ -58,6 +58,8 @@ export async function bootPage(options = {}) {
 
   if (runtime.appMode === "student") {
     document.body.classList.add("student-surface");
+  } else if (runtime.appMode === "teacher" || runtime.role === "admin") {
+    document.body.classList.add("pro-surface");
   }
 
   initPrepOSLinkRouting();

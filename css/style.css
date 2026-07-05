@@ -1,6 +1,8 @@
-/* ======================================================
+﻿/* ======================================================
 DESIGN SYSTEM
 ====================================================== */
+
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
 
 :root{
   --primary:#2563eb;
@@ -48,13 +50,13 @@ BASE
 ====================================================== */
 
 body{
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: Inter, system-ui, -apple-system, sans-serif;
   background:var(--bg);
   margin:0;
   padding:30px 20px;
   color:var(--text);
 
-  overflow-x: hidden; /* 🔥 ADD THIS */
+  overflow-x: hidden; /* ðŸ”¥ ADD THIS */
 }
 
 h1,h2,h3{
@@ -97,11 +99,11 @@ LAYOUT
 .container,
 .exam-wrapper,
 .draft-wrapper{
-  width:100%;              /* 🔥 ADD */
+  width:100%;              /* ðŸ”¥ ADD */
   max-width:900px;
   margin:auto;
   padding:16px;            /* slightly tighter for mobile */
-  box-sizing:border-box;   /* 🔥 ADD */
+  box-sizing:border-box;   /* ðŸ”¥ ADD */
 }
 /* EXAM HEADER */
 
@@ -318,14 +320,14 @@ WORKSPACE
   margin-top:20px;
   align-items:flex-start;
 
-  width:100%;        /* 🔥 ADD */
-  overflow:hidden;   /* 🔥 ADD */
+  width:100%;        /* ðŸ”¥ ADD */
+  overflow:hidden;   /* ðŸ”¥ ADD */
 }
 
 .draft-area{
   flex:1;
   min-width:0;
-  width:100%; /* 🔥 ADD */
+  width:100%; /* ðŸ”¥ ADD */
 }
 
 /* ======================================================
@@ -459,9 +461,9 @@ QUESTION CARD (BUILDER)
   border:1px solid var(--border);
   transition:all 0.2s ease;
 
-  max-width:100%;              /* 🔥 ADD */
-  word-wrap:break-word;        /* 🔥 ADD */
-  overflow-wrap:break-word;    /* 🔥 ADD */
+  max-width:100%;              /* ðŸ”¥ ADD */
+  word-wrap:break-word;        /* ðŸ”¥ ADD */
+  overflow-wrap:break-word;    /* ðŸ”¥ ADD */
 }
 
 .question-card--copy-footer{
@@ -789,7 +791,7 @@ CARD SYSTEM
     background-color 0.2s ease;
 }
 
-/* Hover lift — actionable cards only (avoids static panels feeling clickable) */
+/* Hover lift â€” actionable cards only (avoids static panels feeling clickable) */
 @media (hover: hover) and (pointer: fine) {
   .student-action-card:hover,
   .student-exam-card:hover {
@@ -798,7 +800,7 @@ CARD SYSTEM
   }
 }
 
-/* Touch feedback — actionable cards only */
+/* Touch feedback â€” actionable cards only */
 .student-action-card:active,
 .student-exam-card:active {
   border-color: var(--primary);
@@ -1173,10 +1175,11 @@ DIFFICULTY SYSTEM
   align-items:center;
   padding:2px 10px;
   border-radius:999px;
-  background:#eef4ff;
-  color:#3b5bdb;
+  background:color-mix(in srgb, var(--primary) 10%, #fff);
+  color:var(--primary-dark);
   font-size:12px;
   font-weight:600;
+  border:1px solid color-mix(in srgb, var(--primary) 25%, #fff);
 }
 
 .practice-options{
@@ -1566,7 +1569,7 @@ QUESTION BANK PANEL
 
   z-index:1000;
 
-  box-shadow: -2px 0 10px rgba(0,0,0,0.1); /* 🔥 ADD */
+  box-shadow: -2px 0 10px rgba(0,0,0,0.1); /* ðŸ”¥ ADD */
 }
 .qb-header{
   display:flex;
@@ -1956,7 +1959,7 @@ EXAM UI ENHANCEMENT
 .question-text{
   font-size:16px;
   line-height:1.6;
-  white-space:pre-line; /* ⭐ FIXES FORMATTING */
+  white-space:pre-line; /* â­ FIXES FORMATTING */
   margin-bottom:10px;
 }
 
@@ -2037,8 +2040,8 @@ MOBILE
   left:0;
   right:0;
 
-  border-left:none;   /* 🔥 REMOVE desktop feel */
-  border-radius:0;    /* 🔥 full screen feel */
+  border-left:none;   /* ðŸ”¥ REMOVE desktop feel */
+  border-radius:0;    /* ðŸ”¥ full screen feel */
 
   transform:translateX(100%);
 }
@@ -2713,13 +2716,13 @@ APP NAV
 }
 
 .prepos-app-nav-link:hover {
-  background: #eef2ff;
+  background: color-mix(in srgb, var(--primary) 8%, #fff);
   color: var(--primary-dark);
 }
 
 .prepos-app-nav-link.is-active {
-  background: #eef2ff;
-  border-color: #c7d2fe;
+  background: color-mix(in srgb, var(--primary) 12%, #fff);
+  border-color: color-mix(in srgb, var(--primary) 30%, #fff);
   color: var(--primary-dark);
   font-weight: 600;
 }
@@ -3708,7 +3711,7 @@ PREPOS SIDE PANEL OVERLAYS
   padding-left: 1.15rem;
 }
 
-/* Collapsible blocks (revision / timeline / interpretations) — subordinated chrome */
+/* Collapsible blocks (revision / timeline / interpretations) â€” subordinated chrome */
 .semantic-collapsible {
   margin-top: var(--semantic-l3-space-before);
   margin-bottom: 0.5rem;
@@ -3738,7 +3741,7 @@ PREPOS SIDE PANEL OVERLAYS
 }
 
 .semantic-collapsible[open] summary::before {
-  content: "−";
+  content: "âˆ’";
 }
 
 .semantic-collapsible .canonical-block-body {
@@ -3758,7 +3761,7 @@ PREPOS SIDE PANEL OVERLAYS
   font-weight: var(--semantic-l2-weight);
 }
 
-/* Structural representation — hierarchy without debug-tree aesthetics */
+/* Structural representation â€” hierarchy without debug-tree aesthetics */
 .structural-hierarchy.semantic-structural-flow {
   max-width: 720px;
 }
@@ -3883,7 +3886,7 @@ PREPOS SIDE PANEL OVERLAYS
   font-weight: inherit;
 }
 
-/* Phase 2 — reading ergonomics */
+/* Phase 2 â€” reading ergonomics */
 .semantic-reading-surface {
   --semantic-anchor-primary-opacity: 1;
   --semantic-anchor-repeat-opacity: 0.82;
@@ -3925,7 +3928,7 @@ PREPOS SIDE PANEL OVERLAYS
 
 .semantic-revision-compact .semantic-collapsible,
 .semantic-interpretations-compact .semantic-collapsible,
-/* MSMDF v3.1 Expansion layer — modular unit cards */
+/* MSMDF v3.1 Expansion layer â€” modular unit cards */
 .semantic-expansion-cards .semantic-collapsible {
   margin-bottom: 0.85rem;
 }
@@ -3981,7 +3984,7 @@ PREPOS SIDE PANEL OVERLAYS
 }
 
 .semantic-recall-answer::before {
-  content: "→ ";
+  content: "â†’ ";
   color: #64748b;
   font-weight: 600;
 }
@@ -4107,7 +4110,7 @@ PREPOS SIDE PANEL OVERLAYS
   text-align: left;
 }
 
-/* Cognition inspector — micro-modal, low chrome */
+/* Cognition inspector â€” micro-modal, low chrome */
 .prepos-modal-content.semantic-cognition-inspector {
   max-width: min(420px, calc(100vw - 24px));
   padding: 0;
@@ -4637,7 +4640,7 @@ PREPOS SIDE PANEL OVERLAYS
 }
 
 /* ======================================================
-PHASE 1 — STUDENT UI UPGRADE
+PHASE 1 â€” STUDENT UI UPGRADE
 ====================================================== */
 
 body.student-surface {
@@ -4656,6 +4659,12 @@ body.student-surface .prepos-app-nav-kicker {
 
 body.student-surface .prepos-app-nav-link.is-active {
   background: #ccfbf1;
+  border-color: #99f6e4;
+  color: #115e59;
+}
+
+body.student-surface .prepos-app-nav-link:hover {
+  background: #f0fdfa;
   border-color: #99f6e4;
   color: #115e59;
 }
@@ -4749,6 +4758,214 @@ body.student-surface .note-layer-flip-btn:hover:not(:disabled) {
 
 body.student-surface .referenced-in-link {
   color: var(--primary);
+}
+
+body.student-surface .language-tab.active {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+/* Settings page */
+body.student-surface .settings-section {
+  background: var(--student-card-tint);
+}
+
+body.student-surface .settings-header h2 {
+  color: #115e59;
+}
+
+body.student-surface .settings-select:focus {
+  border-color: var(--primary);
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 25%, transparent);
+}
+
+body.student-surface .settings-status {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+/* Auth pages (login) */
+body.auth-surface {
+  --primary: #0d9488;
+  --primary-dark: #0f766e;
+  background: #f8f6f2;
+}
+
+body.auth-surface .container {
+  max-width: 420px;
+}
+
+body.auth-surface .card {
+  background: #fffdf9;
+  border-color: #d1fae5;
+}
+
+body.auth-surface .primary-btn {
+  box-shadow: 0 4px 10px rgba(13, 148, 136, 0.22);
+}
+
+body.auth-surface input {
+  border-color: #d1fae5;
+}
+
+body.auth-surface input:focus {
+  border-color: var(--primary);
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 25%, transparent);
+}
+
+/* ======================================================
+PRO SURFACE — Teacher / Admin command center
+====================================================== */
+
+body.pro-surface {
+  --primary: #2563eb;
+  --primary-dark: #1d4ed8;
+  --pro-surface-bg: #f8fafc;
+  --pro-card: #ffffff;
+  --pro-border: #e2e8f0;
+  --pro-accent: #6366f1;
+  --pro-radius: 8px;
+  --workbench-padding: 14px;
+  background: var(--pro-surface-bg);
+}
+
+body.pro-surface .card {
+  background: var(--pro-card);
+  border-color: var(--pro-border);
+  border-radius: var(--pro-radius);
+}
+
+body.pro-surface .prepos-app-nav-inner {
+  border-color: var(--pro-border);
+  border-radius: var(--pro-radius);
+}
+
+body.pro-surface .prepos-app-nav-kicker {
+  color: var(--pro-accent);
+}
+
+body.pro-surface .prepos-app-nav-link:hover {
+  background: color-mix(in srgb, var(--primary) 8%, #fff);
+  border-color: color-mix(in srgb, var(--primary) 20%, #fff);
+  color: var(--primary-dark);
+}
+
+body.pro-surface .prepos-app-nav-link.is-active {
+  background: color-mix(in srgb, var(--primary) 12%, #fff);
+  border-color: color-mix(in srgb, var(--primary) 35%, #fff);
+  color: var(--primary-dark);
+}
+
+body.pro-surface .primary-btn {
+  box-shadow: 0 4px 10px color-mix(in srgb, var(--primary) 20%, transparent);
+}
+
+body.pro-surface .monitoring-filter-card,
+body.pro-surface .monitoring-summary-card {
+  border-color: var(--pro-border);
+}
+
+body.pro-surface .monitoring-summary-card {
+  background: linear-gradient(135deg, #eff6ff 0%, var(--pro-card) 100%);
+  border-color: color-mix(in srgb, var(--primary) 25%, #fff);
+}
+
+body.pro-surface .monitoring-summary-value {
+  color: var(--primary-dark);
+}
+
+body.pro-surface .monitoring-summary-value--active {
+  color: #16a34a;
+}
+
+body.pro-surface .monitoring-summary-value--week {
+  color: var(--primary);
+}
+
+body.pro-surface .monitoring-summary-value--inactive {
+  color: #94a3b8;
+}
+
+body.pro-surface .teacher-intel-stat {
+  background: var(--pro-card);
+  border-color: var(--pro-border);
+  border-radius: var(--pro-radius);
+}
+
+body.pro-surface .teacher-intel-stat-value {
+  color: var(--primary-dark);
+}
+
+body.pro-surface .teacher-intel-card--featured {
+  border-color: color-mix(in srgb, var(--pro-accent) 40%, #fff);
+  background: linear-gradient(135deg, #eef2ff 0%, #f8fafc 100%);
+}
+
+body.pro-surface .teacher-intel-card--intervention.teacher-intel-priority--high {
+  border-left-color: #ef4444;
+  background: #fef2f2;
+}
+
+body.pro-surface .teacher-intel-card--intervention.teacher-intel-priority--medium {
+  border-left-color: #f59e0b;
+  background: #fffbeb;
+}
+
+body.pro-surface .teacher-intel-card--intervention.teacher-intel-priority--low {
+  border-left-color: #94a3b8;
+}
+
+body.pro-surface .teacher-intel-confidence--medium {
+  border-color: color-mix(in srgb, var(--primary) 35%, #fff);
+  background: color-mix(in srgb, var(--primary) 6%, #fff);
+}
+
+body.pro-surface .monitoring-learner-row {
+  border-color: var(--pro-border);
+}
+
+body.pro-surface .settings-section {
+  border-radius: var(--pro-radius);
+}
+
+body.pro-surface.draft-page .card,
+body.pro-surface.draft-page .draft-meta {
+  padding: var(--workbench-padding);
+}
+
+body.pro-surface #noteDraftToolbar {
+  border-bottom-color: var(--pro-border);
+}
+
+body.pro-surface #noteDraftToolbar .secondary-btn.is-active,
+body.pro-surface #noteDraftToolbar .primary-btn.is-active {
+  outline-color: var(--pro-accent);
+}
+
+body.pro-surface .canonical-tab.active {
+  background: var(--primary-dark);
+  border-color: var(--primary-dark);
+}
+
+body.pro-surface .language-tab.active {
+  background: var(--primary-dark);
+  border-color: var(--primary-dark);
+}
+
+body.pro-surface .student-dashboard-skeleton-line,
+body.pro-surface .student-dashboard-skeleton-card,
+body.pro-surface .student-dashboard-skeleton-stat,
+body.pro-surface .student-dashboard-skeleton-band,
+body.pro-surface .student-dashboard-skeleton-pill {
+  background: linear-gradient(
+    90deg,
+    #e2e8f0 0%,
+    #f1f5f9 50%,
+    #e2e8f0 100%
+  );
+  background-size: 200% 100%;
 }
 
 .student-dashboard-grid {
@@ -4883,7 +5100,7 @@ body.student-surface .referenced-in-link {
   font-size: 1.35rem;
   font-weight: 700;
   line-height: 1.25;
-  color: #1e3a8a;
+  color: var(--primary-dark);
 }
 
 .student-welcome-detail {
@@ -5056,7 +5273,7 @@ body.student-surface .referenced-in-link {
 }
 
 .student-exam-card-meta li::before {
-  content: "• ";
+  content: "â€¢ ";
   color: var(--primary);
 }
 
@@ -5167,8 +5384,14 @@ body.student-surface .referenced-in-link {
 }
 
 .student-progress-tab:hover {
-  background: #eef2ff;
-  border-color: #c7d2fe;
+  background: color-mix(in srgb, var(--primary) 8%, #fff);
+  border-color: color-mix(in srgb, var(--primary) 30%, #fff);
+}
+
+body.student-surface .student-progress-tab:hover {
+  background: #f0fdfa;
+  border-color: #99f6e4;
+  color: #115e59;
 }
 
 .student-progress-tab.is-active {
@@ -6149,4 +6372,310 @@ body.student-surface .referenced-in-link {
 
 .published-series-group .question-card {
   margin-left: 0;
+}
+
+/* ======================================================
+STUDENT PRACTICE & EXAM POLISH
+====================================================== */
+
+body.student-surface .container.student-practice {
+  max-width: 720px;
+}
+
+body.student-surface .student-practice-hero {
+  margin-bottom: 4px;
+}
+
+body.student-surface .student-practice-config {
+  border-color: #d1fae5;
+}
+
+body.student-surface .student-practice-control-bar {
+  margin-bottom: 0;
+  align-items: flex-end;
+}
+
+body.student-surface .student-practice-select {
+  min-width: 140px;
+  padding: 10px 12px;
+  border: 1px solid #d1fae5;
+  border-radius: 8px;
+  background: var(--student-card-tint, #fff);
+  color: var(--text);
+  font-size: 0.92rem;
+}
+
+body.student-surface .student-practice-select:focus {
+  border-color: var(--primary);
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 25%, transparent);
+}
+
+body.student-surface .student-practice-toggle {
+  border-color: #d1fae5;
+  background: var(--student-card-tint, #fff);
+}
+
+body.student-surface .student-practice-start-btn {
+  min-width: 160px;
+}
+
+body.student-surface .practice-mode-card {
+  border-radius: var(--radius);
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    background 0.15s ease;
+}
+
+body.student-surface .practice-mode-card:hover {
+  border-color: #99f6e4;
+  background: #f0fdfa;
+}
+
+body.student-surface .practice-mode-card.active {
+  background: linear-gradient(135deg, #f0fdfa 0%, var(--student-card-tint) 100%);
+  border-color: var(--primary);
+}
+
+body.student-surface .practice-topic-progress-card {
+  border-color: #d1fae5;
+  background: var(--student-card-tint);
+}
+
+body.student-surface .student-practice-session-card {
+  border-color: #99f6e4;
+  background: linear-gradient(135deg, #f0fdfa 0%, var(--student-card-tint) 100%);
+}
+
+body.student-surface .student-practice-session-label {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #115e59;
+  line-height: 1.45;
+}
+
+body.student-surface .student-practice-session-progress .student-mastery-bar-fill {
+  background: var(--primary);
+}
+
+body.student-surface .student-practice-question-wrap {
+  border-color: #d1fae5;
+  padding: 0;
+  overflow: hidden;
+}
+
+body.student-surface #practiceArea .practice-question-card {
+  border: none;
+  box-shadow: none;
+  background: transparent;
+  border-radius: 0;
+  padding: 20px;
+}
+
+body.student-surface .practice-option-shield-text {
+  background: #f0fdfa;
+}
+
+body.student-surface .student-practice-results {
+  border-color: #99f6e4;
+  background: var(--student-card-tint);
+  margin-top: 20px;
+}
+
+body.student-surface .student-practice-results .exam-results-stat {
+  background: #f0fdfa;
+  border-color: #99f6e4;
+}
+
+body.student-surface .student-practice-results .exam-results-kicker {
+  color: #115e59;
+  font-weight: 700;
+}
+
+body.student-surface .practice-feedback-card--correct {
+  border-color: #86efac;
+  background: #f0fdf4;
+}
+
+body.student-surface .practice-feedback-card--wrong {
+  border-color: #fca5a5;
+  background: #fef2f2;
+}
+
+/* Exam — student surface */
+body.student-surface.exam-page {
+  background: var(--student-surface-bg);
+  padding: 20px 16px;
+}
+
+body.student-surface.exam-page .exam-wrapper {
+  max-width: 720px;
+}
+
+body.student-surface.exam-page .exam-header {
+  background: var(--student-card-tint);
+  border: 1px solid #d1fae5;
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  box-shadow: var(--shadow);
+}
+
+body.student-surface.exam-page .exam-home-btn {
+  color: var(--primary-dark);
+}
+
+body.student-surface.exam-page .timer-box {
+  background: #f0fdfa;
+  border: 1px solid #99f6e4;
+  color: #115e59;
+}
+
+body.student-surface.exam-page .student-exam-overview {
+  border-color: #99f6e4;
+  background: var(--student-card-tint);
+  padding: 22px;
+}
+
+body.student-surface.exam-page .student-exam-overview .exam-overview-title {
+  margin: 0;
+  font-size: 1.35rem;
+  color: #115e59;
+}
+
+body.student-surface.exam-page .student-exam-overview-meta {
+  padding: 16px;
+  border-radius: 8px;
+  background: #f0fdfa;
+  border: 1px solid #d1fae5;
+}
+
+body.student-surface.exam-page .student-exam-overview-meta dt {
+  color: #0f766e;
+}
+
+body.student-surface.exam-page .student-exam-overview-topics {
+  padding: 14px 16px;
+  border-radius: 8px;
+  background: var(--student-card-tint);
+  border: 1px solid var(--border);
+}
+
+body.student-surface.exam-page .exam-overview-name input {
+  border-color: #d1fae5;
+}
+
+body.student-surface.exam-page .exam-overview-name input:focus {
+  border-color: var(--primary);
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 25%, transparent);
+}
+
+body.student-surface.exam-page .exam-progress-panel {
+  background: var(--student-card-tint);
+  border: 1px solid #d1fae5;
+  border-radius: var(--radius);
+  padding: 12px 14px;
+}
+
+body.student-surface.exam-page .exam-progress-bar {
+  background: #e2e8f0;
+}
+
+body.student-surface.exam-page .exam-progress-label {
+  color: #115e59;
+  font-weight: 600;
+}
+
+body.student-surface.exam-page .exam-content .question-card {
+  border-color: #d1fae5;
+  background: var(--student-card-tint);
+}
+
+body.student-surface.exam-page .exam-step-nav {
+  background: var(--student-card-tint);
+  border: 1px solid #d1fae5;
+  border-radius: var(--radius);
+  padding: 12px;
+}
+
+body.student-surface.exam-page .exam-results-card {
+  border-color: #99f6e4;
+  background: var(--student-card-tint);
+}
+
+body.student-surface.exam-page .exam-results-card .exam-results-stat {
+  background: #f0fdfa;
+  border-color: #99f6e4;
+}
+
+body.student-surface.exam-page .exam-results-score {
+  color: #115e59;
+}
+
+body.student-surface.exam-page .exam-review-fab {
+  background: var(--primary);
+}
+
+body.student-surface.exam-page .loading-state,
+body.student-surface.exam-page .error-state {
+  padding: 20px;
+  border-radius: var(--radius);
+  background: var(--student-card-tint);
+  border: 1px solid #d1fae5;
+}
+
+@media (max-width: 768px) {
+  body.student-surface .practice-mode-grid {
+    grid-template-columns: 1fr;
+  }
+
+  body.student-surface .student-practice-start-btn {
+    width: 100%;
+  }
+
+  body.student-surface .student-practice-control-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  body.student-surface .student-practice-select {
+    width: 100%;
+  }
+}
+
+/* ======================================================
+REDUCED MOTION
+====================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .student-action-card,
+  .student-exam-card,
+  .card,
+  .practice-mode-card,
+  .prepos-app-nav-link,
+  .student-section-nav-chip,
+  .student-progress-tab {
+    transition: none;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .student-action-card:hover,
+    .student-exam-card:hover {
+      transform: none;
+    }
+  }
+
+  .student-dashboard-skeleton-line,
+  .student-dashboard-skeleton-card,
+  .student-dashboard-skeleton-stat,
+  .student-dashboard-skeleton-band,
+  .student-dashboard-skeleton-pill {
+    animation: none;
+    background: #e2e8f0;
+  }
+
+  .note-content-wrap.is-flipping {
+    animation: none;
+  }
 }

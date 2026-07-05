@@ -65,6 +65,8 @@ const practiceProgress = document.getElementById("practiceProgress");
 const practiceProgressBar = document.getElementById("practiceProgressBar");
 const practiceProgressFill = document.getElementById("practiceProgressFill");
 const sessionSummary = document.getElementById("sessionSummary");
+const practiceSetup = document.getElementById("practiceSetup");
+const practiceSessionStrip = document.getElementById("practiceSessionStrip");
 const practiceAssistanceToggle = document.getElementById("practiceAssistanceToggle");
 const topicProgressPanel = document.getElementById("topicProgressPanel");
 
@@ -380,7 +382,17 @@ function getPatternBadgeHtml(question) {
     ? PATTERN_LABELS[pattern].ml
     : PATTERN_LABELS[pattern].en;
 
-  return `<span class="practice-pattern-badge">${escapeHTML(label)}</span>`;
+  return `<span class="student-status-badge student-status-badge--ready practice-pattern-badge">${escapeHTML(label)}</span>`;
+}
+
+function showPracticeSetup() {
+  practiceSetup?.classList.remove("hidden");
+  practiceSessionStrip?.classList.add("hidden");
+}
+
+function showPracticeSession() {
+  practiceSetup?.classList.add("hidden");
+  practiceSessionStrip?.classList.remove("hidden");
 }
 
 function isPracticeFeedbackVisible() {
@@ -560,8 +572,8 @@ function updateProgress() {
 
   practiceProgress.textContent =
     state.currentQuestion
-      ? `${getModeLabel()} | ${getQuestionPositionLabel()} | Correct ${state.correctCount}/${state.answeredCount}`
-      : `${getModeLabel()} | Answered ${state.answeredCount}${state.sessionLimit === Infinity ? "" : ` of ${state.sessionLimit}`} | Correct ${state.correctCount}/${state.answeredCount}`;
+      ? `${getModeLabel()} · ${getQuestionPositionLabel()} · ${state.correctCount}/${state.answeredCount} correct`
+      : `${getModeLabel()} · Answered ${state.answeredCount}${state.sessionLimit === Infinity ? "" : ` of ${state.sessionLimit}`} · ${state.correctCount}/${state.answeredCount} correct`;
 
   practiceProgress.classList.remove("hidden");
 
@@ -949,6 +961,7 @@ function setPracticeMode(mode) {
   optionsContainer.innerHTML = "";
   nextBtn.classList.add("hidden");
   sessionSummary.classList.add("hidden");
+  showPracticeSetup();
   updateProgress();
   syncPracticeAssistanceToggleVisibility();
   refreshTopicProgressPanel();
@@ -1430,6 +1443,7 @@ Session Controls
 ========================================= */
 
 startBtn.addEventListener("click", async () => {
+  showPracticeSession();
   practiceArea.classList.remove("hidden");
   resetSession();
   if (state.mode === "bank") {
@@ -1880,8 +1894,8 @@ async function finishSession(message = "Session finished. Start again for a new 
       : 0;
 
   sessionSummary.innerHTML = `
-    <div class="exam-results-card">
-      <div class="exam-results-kicker">Session Complete</div>
+    <div class="exam-results-card card student-practice-results">
+      <div class="exam-results-kicker">Session complete</div>
       <div class="exam-results-grid mt-20">
         <div class="exam-results-stat">
           <div class="exam-results-stat-label">Answered</div>
@@ -1919,6 +1933,7 @@ async function finishSession(message = "Session finished. Start again for a new 
     </div>
   `;
   sessionSummary.classList.remove("hidden");
+  showPracticeSetup();
 
   let statusMessage = message;
 

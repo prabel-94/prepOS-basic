@@ -80,14 +80,29 @@
       <div class="exam-progress-label" id="examProgressLabel">0 / 0 Answered</div>
     </div>
 
-    <section class="exam-overview card hidden" id="examOverviewSection" aria-label="Exam overview">
+    <section class="exam-overview card student-exam-overview hidden" id="examOverviewSection" aria-label="Exam overview">
 
-      <h2 id="overviewExamTitle" class="exam-overview-title">Exam</h2>
+      <div class="student-exam-overview-head">
+        <div class="student-section-head">
+          <span class="student-section-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="16" y1="2" x2="16" y2="6"></line>
+              <line x1="8" y1="2" x2="8" y2="6"></line>
+              <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+          </span>
+          <div>
+            <h2 id="overviewExamTitle" class="exam-overview-title">Exam</h2>
+            <div class="section-sub mt-5">Review the details below, then start when you are ready.</div>
+          </div>
+        </div>
+      </div>
 
-      <dl class="exam-overview-meta" id="examOverviewMeta"></dl>
+      <dl class="exam-overview-meta student-exam-overview-meta mt-20" id="examOverviewMeta"></dl>
 
-      <div id="examOverviewTopics" class="exam-overview-topics hidden">
-        <div class="exam-overview-topics-label">Topics Covered</div>
+      <div id="examOverviewTopics" class="exam-overview-topics student-exam-overview-topics hidden">
+        <div class="dashboard-section-label">Topics covered</div>
         <ul id="examOverviewTopicsList" class="exam-overview-topics-list"></ul>
       </div>
 
@@ -108,8 +123,8 @@
         </label>
       </div>
 
-      <div id="examNavigationModeRow" class="exam-overview-navigation">
-        <div class="exam-overview-navigation-label">Navigation</div>
+      <div id="examNavigationModeRow" class="exam-overview-navigation student-exam-overview-navigation">
+        <div class="dashboard-section-label">Navigation</div>
         <p class="text-muted exam-overview-navigation-help">
           Choose how you want to move through questions. You can switch anytime during the exam.
         </p>

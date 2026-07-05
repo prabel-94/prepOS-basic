@@ -6,6 +6,7 @@ import { bootPage } from "./core/page-boot.js";
 import { getClient } from "./core/get-client.js";
 import { listBatches } from "./core/batch-management.js";
 import { openLearnerModal, initLearnerDetailsModal } from "./teacher/learner-details.js";
+import { renderDashboardSkeleton } from "./student/student-dashboard-renderer.js";
 
 const MONITORING_FILTER_KEY = "prepos:monitoring-filters";
 
@@ -361,11 +362,24 @@ function exportMonitoringCsv() {
   setStatus("CSV exported.");
 }
 
+function showMonitoringSkeletons() {
+  for (const id of [
+    "monitoringTotalLearners",
+    "monitoringActiveToday",
+    "monitoringActiveWeek",
+    "monitoringInactive",
+  ]) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = "—";
+  }
+  renderDashboardSkeleton(document.getElementById("monitoringLearnerList"), {
+    rows: 4,
+  });
+}
+
 async function refreshMonitoring() {
   const listEl = document.getElementById("monitoringLearnerList");
-  if (listEl) {
-    listEl.innerHTML = '<div class="text-muted">Loading learner activity...</div>';
-  }
+  showMonitoringSkeletons();
 
   setStatus("");
 

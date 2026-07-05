@@ -20,6 +20,7 @@ import {
   selectStudentDistributionSummary,
 } from "./teacher/teacher-selectors.js";
 import { renderTeacherDashboard } from "./teacher/teacher-dashboard-renderer.js";
+import { renderDashboardSkeleton } from "./student/student-dashboard-renderer.js";
 
 const INTEL_FILTER_KEY = "prepos:teacher-intelligence-filters";
 
@@ -86,13 +87,31 @@ async function initBatchFilter() {
   }
 }
 
+function showIntelligenceSkeletons() {
+  renderDashboardSkeleton(document.getElementById("classroomSnapshot"), {
+    variant: "stats",
+  });
+  [
+    "interventionPriorities",
+    "weakTopicDistribution",
+    "difficultConcepts",
+    "questionInsights",
+    "confidenceWarnings",
+    "examInsights",
+  ].forEach((id) => {
+    renderDashboardSkeleton(document.getElementById(id), { rows: 2 });
+  });
+}
+
 async function refreshTeacherIntelligence() {
   readFilterControls();
 
   const statusEl = document.getElementById("teacherIntelFilterStatus");
   if (statusEl) {
-    statusEl.textContent = "Loading classroom intelligence...";
+    statusEl.textContent = "";
   }
+
+  showIntelligenceSkeletons();
 
   try {
     const intelligence = await loadTeacherIntelligence({
