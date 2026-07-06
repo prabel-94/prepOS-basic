@@ -2688,6 +2688,32 @@ APP NAV (Prep Bar)
   background:var(--bg);
 }
 
+body.prep-bar-scroll-reveal-active #app-nav-root.prep-bar-scroll-reveal{
+  position:fixed;
+  left:0;
+  right:0;
+  top:0;
+  transition:transform 0.22s ease, opacity 0.22s ease;
+  will-change:transform;
+}
+
+body.prep-bar-scroll-reveal-active #app-nav-root.prep-bar-scroll-reveal.prep-bar-scroll--hidden{
+  transform:translateY(-100%);
+  opacity:0;
+  pointer-events:none;
+}
+
+body.prep-bar-scroll-reveal-active #app-nav-root.prep-bar-scroll-reveal.prep-bar-scroll--visible{
+  transform:translateY(0);
+  opacity:1;
+}
+
+#prep-bar-spacer{
+  display:block;
+  width:100%;
+  transition:height 0.22s ease;
+}
+
 body.student-surface #app-nav-root{
   background:var(--student-surface-bg, var(--bg));
 }
@@ -6806,6 +6832,11 @@ REDUCED MOTION
 
   .note-content-wrap.is-flipping {
     animation: none;
+  }
+
+  body.prep-bar-scroll-reveal-active #app-nav-root.prep-bar-scroll-reveal,
+  #prep-bar-spacer {
+    transition: none;
   }
 }
 

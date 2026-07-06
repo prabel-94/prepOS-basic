@@ -4,6 +4,7 @@
 
 import { bootPage } from "../core/page-boot.js";
 import { mountAppNav } from "../ui/app-nav.js";
+import { initPrepBarScrollReveal } from "../ui/prep-bar-scroll-reveal.js";
 import { TEACHER_ROLES } from "../core/access.js";
 import { resolveAppPath } from "../core/access.js";
 import {
@@ -493,6 +494,7 @@ export async function bootNoteReader() {
 
   if (runtime) {
     mountAppNav(resolveReaderNav(runtime));
+    initPrepBarScrollReveal();
   }
 
   if (!runtime) {
