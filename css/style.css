@@ -1,4 +1,4 @@
-﻿/* ======================================================
+/* ======================================================
 DESIGN SYSTEM
 ====================================================== */
 
@@ -29,6 +29,10 @@ DESIGN SYSTEM
   --shadow:0 2px 6px rgba(0,0,0,0.05);
 
   --app-shell-width:1120px;
+
+  --prep-bar-sticky-offset:72px;
+  --student-dashboard-sticky-stack-offset:120px;
+  --student-dashboard-jump-offset:128px;
 }
 
 /* ======================================================
@@ -2693,25 +2697,21 @@ body.prep-bar-scroll-reveal-active #app-nav-root.prep-bar-scroll-reveal{
   left:0;
   right:0;
   top:0;
-  transition:transform 0.22s ease, opacity 0.22s ease;
+  transition:transform 0.2s ease;
   will-change:transform;
 }
 
 body.prep-bar-scroll-reveal-active #app-nav-root.prep-bar-scroll-reveal.prep-bar-scroll--hidden{
-  transform:translateY(-100%);
-  opacity:0;
+  transform:translate3d(0, -100%, 0);
   pointer-events:none;
 }
 
 body.prep-bar-scroll-reveal-active #app-nav-root.prep-bar-scroll-reveal.prep-bar-scroll--visible{
-  transform:translateY(0);
-  opacity:1;
+  transform:translate3d(0, 0, 0);
 }
 
-#prep-bar-spacer{
-  display:block;
-  width:100%;
-  transition:height 0.22s ease;
+body.note-reader-page.prep-bar-scroll-reveal-active .container{
+  padding-top:var(--note-prep-bar-inset, 0px);
 }
 
 body.student-surface #app-nav-root{
@@ -5137,12 +5137,12 @@ body.pro-surface .student-dashboard-skeleton-pill {
 }
 
 .student-dashboard-section {
-  scroll-margin-top: 76px;
+  scroll-margin-top: var(--student-dashboard-jump-offset, 128px);
 }
 
 #studentSectionNavRoot {
   position: sticky;
-  top: 0;
+  top: var(--prep-bar-sticky-offset, 72px);
   z-index: 25;
   margin-top: 16px;
   padding: 8px 0 10px;
@@ -5228,7 +5228,7 @@ body.pro-surface .student-dashboard-skeleton-pill {
 
   .student-dashboard-column--insights {
     position: sticky;
-    top: 64px;
+    top: var(--student-dashboard-sticky-stack-offset, 120px);
   }
 }
 
@@ -6834,8 +6834,7 @@ REDUCED MOTION
     animation: none;
   }
 
-  body.prep-bar-scroll-reveal-active #app-nav-root.prep-bar-scroll-reveal,
-  #prep-bar-spacer {
+  body.prep-bar-scroll-reveal-active #app-nav-root.prep-bar-scroll-reveal {
     transition: none;
   }
 }

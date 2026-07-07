@@ -37,6 +37,10 @@ import {
 import { loadTopicNotesSection } from "./notes/note-home.js";
 import { mountAppNav } from "./ui/app-nav.js";
 import {
+  initPrepBarStickyOffsetSync,
+  syncPrepBarStickyOffset,
+} from "./ui/prep-bar-offset.js";
+import {
   bindStudentSectionNav,
   renderStudentSectionNav,
   scrollToStudentSection,
@@ -151,6 +155,7 @@ async function initStudent() {
   mountStudentDashboardNav(runtime);
   renderStudentSectionNav(document.getElementById("studentSectionNavRoot"));
   bindStudentSectionNav();
+  initPrepBarStickyOffsetSync();
   handleNotesHashOnLoad();
 
   document.querySelector('a[href="#topicNotesSection"]')?.addEventListener("click", (event) => {
@@ -160,6 +165,7 @@ async function initStudent() {
 
   const { mountStudentModeNav } = await import("./teacher/linked-learner-ui.js");
   await mountStudentModeNav(runtime);
+  syncPrepBarStickyOffset();
 
   const displayName = await resolveStudentDisplayName(runtime);
 
