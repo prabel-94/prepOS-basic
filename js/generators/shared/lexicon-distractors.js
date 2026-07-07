@@ -40,6 +40,24 @@ function buildExcludedWordList(groups, excludedGroupIds = [], excludedWords = []
 }
 
 /**
+ * Non-excluded groups that contain at least one word in the lexical class.
+ * @param {Record<string, Array<{ lexical_class?: string|null }>>} groups
+ * @param {string[]} excludedGroupIds
+ * @param {string} lexicalClass
+ */
+function countGroupsWithLexicalClass(groups, excludedGroupIds, lexicalClass) {
+  return Object.keys(groups).filter((groupId) => {
+    if (excludedGroupIds.includes(groupId)) {
+      return false;
+    }
+
+    return (groups[groupId] || []).some(
+      (entry) => entry.lexical_class === lexicalClass
+    );
+  }).length;
+}
+
+/**
  * Distractors always come from groups outside excludedGroupIds.
  * @param {{
  *   groups: Record<string, Array<{ word?: string, lexical_class?: string|null }>>,
@@ -72,8 +90,14 @@ export function buildDistractors({
     const sameClassPool = basePool.filter(
       (entry) => entry.lexical_class === preferredLexicalClass
     );
+    const eligibleGroupCount = countGroupsWithLexicalClass(
+      groups,
+      excludedGroupIds,
+      preferredLexicalClass
+    );
 
-    if (sameClassPool.length >= count) {
+    // Require multiple source groups so distractors are not all synonyms of each other.
+    if (sameClassPool.length >= count && eligibleGroupCount >= 2) {
       filteredPool = sameClassPool;
     }
   }

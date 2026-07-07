@@ -1182,16 +1182,25 @@ async function applyExamSurfaceTheme(sb) {
 
     if (!user) {
       document.body.classList.add("student-surface");
+      try {
+        sessionStorage.setItem("prepos:last-surface", "student");
+      } catch (_) {}
       return;
     }
 
     const role = await fetchUserRole(sb, user.id);
     if (!role || !TEACHER_ROLES.includes(role)) {
       document.body.classList.add("student-surface");
+      try {
+        sessionStorage.setItem("prepos:last-surface", "student");
+      } catch (_) {}
     }
   } catch (error) {
     console.warn("[Exam] Surface theme not applied", error);
     document.body.classList.add("student-surface");
+    try {
+      sessionStorage.setItem("prepos:last-surface", "student");
+    } catch (_) {}
   }
 }
 

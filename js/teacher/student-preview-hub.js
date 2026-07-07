@@ -78,6 +78,9 @@ async function initStudentPreviewHub() {
 
   document.body.classList.remove("pro-surface");
   document.body.classList.add("student-surface");
+  try {
+    sessionStorage.setItem("prepos:last-surface", "student");
+  } catch (_) {}
 
   const examsEl = document.getElementById("previewAvailableExams");
   const intelligenceEl = document.getElementById("previewIntelligenceMock");

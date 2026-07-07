@@ -58,8 +58,14 @@ export async function bootPage(options = {}) {
 
   if (runtime.appMode === "student") {
     document.body.classList.add("student-surface");
+    try {
+      sessionStorage.setItem("prepos:last-surface", "student");
+    } catch (_) {}
   } else if (runtime.appMode === "teacher" || runtime.role === "admin") {
     document.body.classList.add("pro-surface");
+    try {
+      sessionStorage.setItem("prepos:last-surface", "pro");
+    } catch (_) {}
     const { bootStudentManagementVisibility } = await import(
       "../teacher/student-management-visibility.js"
     );

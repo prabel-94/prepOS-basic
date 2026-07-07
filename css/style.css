@@ -5,25 +5,70 @@ DESIGN SYSTEM
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
 
 :root{
+  /* Brand */
   --primary:#2563eb;
   --primary-dark:#1d4ed8;
+  --accent:#2563eb;
+  --accent-soft:#eef4ff;
 
-  --bg:#f4f6f8;
-  --card:#ffffff;
+  /* Surfaces */
+  --surface-bg:#f4f6f8;
+  --card-bg:#ffffff;
+  --bg:var(--surface-bg);
+  --card:var(--card-bg);
 
-  --text:#222;
-  --muted:#666;
+  /* Text */
+  --text:#1e293b;
+  --muted:#64748b;
 
-  --border:#e0e0e0;
+  /* Borders */
+  --border:#e2e8f0;
+  --border-strong:#cbd5e1;
 
+  /* Neutral scale (slate) */
+  --neutral-50:#f8fafc;
+  --neutral-100:#f1f5f9;
+  --neutral-200:#e2e8f0;
+  --neutral-300:#cbd5e1;
+  --neutral-400:#94a3b8;
+  --neutral-500:#64748b;
+  --neutral-600:#475569;
+  --neutral-700:#334155;
+  --neutral-800:#1e293b;
+  --neutral-900:#0f172a;
+
+  /* Semantic feedback */
   --success:#16a34a;
   --success-bg:#f0fdf4;
-
   --danger:#dc2626;
   --danger-bg:#fef2f2;
+  --warning:#92400e;
+  --warning-bg:#fef3c7;
+  --warning-border:#fcd34d;
 
   --anchor-note-missing:#b45309;
   --anchor-note-missing-bg:#fffbeb;
+
+  /* Tabs (note reader defaults; surfaces override) */
+  --tab-active-bg:var(--neutral-800);
+  --tab-active-fg:#ffffff;
+  --tab-active-border:var(--neutral-800);
+  --tab-inactive-bg:var(--neutral-50);
+  --tab-inactive-fg:var(--neutral-700);
+  --tab-inactive-border:var(--neutral-200);
+
+  /* Class overlay (presentation layer — independent of app chrome) */
+  --overlay-ink-default:#e11d48;
+  --overlay-border:var(--neutral-300);
+  --overlay-surface:rgba(255, 255, 255, 0.98);
+  --overlay-shadow:rgba(15, 23, 42, 0.2);
+
+  /* Dark mode (reserved — wire per-surface when ready) */
+  --dark-surface-bg:#0f172a;
+  --dark-card-bg:#1e293b;
+  --dark-text:#f1f5f9;
+  --dark-muted:#94a3b8;
+  --dark-border:#334155;
 
   --radius:10px;
   --shadow:0 2px 6px rgba(0,0,0,0.05);
@@ -279,8 +324,8 @@ button:active{
 }
 
 .secondary-btn{
-  background:#f3f4f6;
-  color:#333;
+  background:var(--neutral-100);
+  color:var(--text);
 }
 
 a.secondary-btn,
@@ -2715,11 +2760,11 @@ body.note-reader-page.prep-bar-scroll-reveal-active .container{
 }
 
 body.student-surface #app-nav-root{
-  background:var(--student-surface-bg, var(--bg));
+  background:var(--surface-bg, var(--bg));
 }
 
 body.pro-surface #app-nav-root{
-  background:var(--pro-surface-bg, var(--bg));
+  background:var(--surface-bg, var(--bg));
 }
 
 #app-nav-root .student-preview-banner--inline{
@@ -4801,11 +4846,19 @@ PHASE 1 — STUDENT UI UPGRADE
 body.student-surface {
   --primary: #0d9488;
   --primary-dark: #0f766e;
-  --student-accent: #f59e0b;
-  --student-accent-soft: #fff7ed;
-  --student-surface-bg: #f8f6f2;
-  --student-card-tint: #fffdf9;
-  background: var(--student-surface-bg);
+  --accent: #f59e0b;
+  --accent-soft: #fff7ed;
+  --surface-bg: #f8f6f2;
+  --card-bg: #fffdf9;
+  --bg: var(--surface-bg);
+  --card: var(--card-bg);
+  --tab-active-bg: var(--primary);
+  --tab-active-border: var(--primary);
+  --student-accent: var(--accent);
+  --student-accent-soft: var(--accent-soft);
+  --student-surface-bg: var(--surface-bg);
+  --student-card-tint: var(--card-bg);
+  background: var(--surface-bg);
 }
 
 body.student-surface .prepos-app-nav-kicker {
@@ -4896,8 +4949,9 @@ body.student-surface .exam-progress-fill {
 
 /* Note reader page */
 body.student-surface .canonical-tab.active {
-  background: var(--primary);
-  border-color: var(--primary);
+  background: var(--tab-active-bg);
+  border-color: var(--tab-active-border);
+  color: var(--tab-active-fg);
 }
 
 body.student-surface .note-layer-flip-btn {
@@ -4916,8 +4970,9 @@ body.student-surface .referenced-in-link {
 }
 
 body.student-surface .language-tab.active {
-  background: var(--primary);
-  border-color: var(--primary);
+  background: var(--tab-active-bg);
+  border-color: var(--tab-active-border);
+  color: var(--tab-active-fg);
 }
 
 /* Settings page */
@@ -4944,7 +4999,15 @@ body.student-surface .settings-status {
 body.auth-surface {
   --primary: #0d9488;
   --primary-dark: #0f766e;
-  background: #f8f6f2;
+  --accent: #f59e0b;
+  --accent-soft: #fff7ed;
+  --surface-bg: #f8f6f2;
+  --card-bg: #fffdf9;
+  --bg: var(--surface-bg);
+  --card: var(--card-bg);
+  --tab-active-bg: var(--primary);
+  --tab-active-border: var(--primary);
+  background: var(--surface-bg);
 }
 
 body.auth-surface .container {
@@ -4952,7 +5015,7 @@ body.auth-surface .container {
 }
 
 body.auth-surface .card {
-  background: #fffdf9;
+  background: var(--card-bg);
   border-color: #d1fae5;
 }
 
@@ -4977,28 +5040,36 @@ PRO SURFACE — Teacher / Admin command center
 body.pro-surface {
   --primary: #2563eb;
   --primary-dark: #1d4ed8;
-  --pro-surface-bg: #f8fafc;
-  --pro-card: #ffffff;
-  --pro-border: #e2e8f0;
-  --pro-accent: #6366f1;
-  --pro-radius: 8px;
+  --accent: #6366f1;
+  --accent-soft: #eef2ff;
+  --surface-bg: #f8fafc;
+  --card-bg: #ffffff;
+  --border: var(--neutral-200);
+  --bg: var(--surface-bg);
+  --card: var(--card-bg);
+  --tab-active-bg: var(--primary-dark);
+  --tab-active-border: var(--primary-dark);
+  --pro-surface-bg: var(--surface-bg);
+  --pro-card: var(--card-bg);
+  --pro-border: var(--border);
+  --pro-accent: var(--accent);
   --workbench-padding: 14px;
-  background: var(--pro-surface-bg);
+  background: var(--surface-bg);
 }
 
 body.pro-surface .card {
   background: var(--pro-card);
   border-color: var(--pro-border);
-  border-radius: var(--pro-radius);
+  border-radius: var(--radius);
 }
 
 body.pro-surface .prepos-app-nav-inner {
   border-color: var(--pro-border);
-  border-radius: var(--pro-radius);
+  border-radius: var(--radius);
 }
 
 body.pro-surface .prepos-app-nav-kicker {
-  color: var(--pro-accent);
+  color: var(--accent);
 }
 
 body.pro-surface .prepos-app-nav-link:hover {
@@ -5046,7 +5117,7 @@ body.pro-surface .monitoring-summary-value--inactive {
 body.pro-surface .teacher-intel-stat {
   background: var(--pro-card);
   border-color: var(--pro-border);
-  border-radius: var(--pro-radius);
+  border-radius: var(--radius);
 }
 
 body.pro-surface .teacher-intel-stat-value {
@@ -5054,7 +5125,7 @@ body.pro-surface .teacher-intel-stat-value {
 }
 
 body.pro-surface .teacher-intel-card--featured {
-  border-color: color-mix(in srgb, var(--pro-accent) 40%, #fff);
+  border-color: color-mix(in srgb, var(--accent) 40%, #fff);
   background: linear-gradient(135deg, #eef2ff 0%, #f8fafc 100%);
 }
 
@@ -5082,7 +5153,7 @@ body.pro-surface .monitoring-learner-row {
 }
 
 body.pro-surface .settings-section {
-  border-radius: var(--pro-radius);
+  border-radius: var(--radius);
 }
 
 body.pro-surface.draft-page .card,
@@ -5096,17 +5167,19 @@ body.pro-surface #noteDraftToolbar {
 
 body.pro-surface #noteDraftToolbar .secondary-btn.is-active,
 body.pro-surface #noteDraftToolbar .primary-btn.is-active {
-  outline-color: var(--pro-accent);
+  outline-color: var(--accent);
 }
 
 body.pro-surface .canonical-tab.active {
-  background: var(--primary-dark);
-  border-color: var(--primary-dark);
+  background: var(--tab-active-bg);
+  border-color: var(--tab-active-border);
+  color: var(--tab-active-fg);
 }
 
 body.pro-surface .language-tab.active {
-  background: var(--primary-dark);
-  border-color: var(--primary-dark);
+  background: var(--tab-active-bg);
+  border-color: var(--tab-active-border);
+  color: var(--tab-active-fg);
 }
 
 body.pro-surface .student-dashboard-skeleton-line,
@@ -6845,7 +6918,7 @@ TEACHER HOME — Command center dashboard
 
 .teacher-welcome {
   border: 1px solid color-mix(in srgb, var(--primary) 25%, #fff);
-  border-radius: var(--pro-radius, var(--radius));
+  border-radius: var(--radius);
   background: linear-gradient(
     135deg,
     color-mix(in srgb, var(--primary) 10%, #fff) 0%,
@@ -7031,7 +7104,7 @@ body.pro-surface .teacher-action-card:hover {
   gap: 8px;
   padding: 14px 10px;
   border: 1px solid var(--pro-border, var(--border));
-  border-radius: var(--pro-radius, var(--radius));
+  border-radius: var(--radius);
   background: var(--pro-card, var(--card));
   color: var(--text);
   text-decoration: none;
