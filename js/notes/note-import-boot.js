@@ -6,7 +6,7 @@ import {
   isValidTopicId,
 } from "./note-import-params.js";
 import {
-  pickMarkdownFile,
+  bindMarkdownFileDrop,
   readMarkdownFile,
 } from "./note-import-file.js";
 
@@ -20,6 +20,13 @@ function initMarkdownFileUpload(handlers) {
     return;
   }
 
+  function reportError(message) {
+    if (statusEl) {
+      statusEl.textContent = message;
+      statusEl.classList.add("error");
+    }
+  }
+
   async function ingestFile(file) {
     if (!file) {
       return;
@@ -29,10 +36,7 @@ function initMarkdownFileUpload(handlers) {
       const { text, filename } = await readMarkdownFile(file);
       handlers.loadMarkdown(text, { filename });
     } catch (err) {
-      if (statusEl) {
-        statusEl.textContent = err.message || "Could not load file.";
-        statusEl.classList.add("error");
-      }
+      reportError(err.message || "Could not load file.");
     }
   }
 
@@ -48,32 +52,13 @@ function initMarkdownFileUpload(handlers) {
     return;
   }
 
-  dropZone.addEventListener("dragover", (event) => {
-    event.preventDefault();
-    dropZone.classList.add("import-drag-over");
-  });
-
-  dropZone.addEventListener("dragleave", (event) => {
-    if (!dropZone.contains(event.relatedTarget)) {
-      dropZone.classList.remove("import-drag-over");
-    }
-  });
-
-  dropZone.addEventListener("drop", (event) => {
-    event.preventDefault();
-    dropZone.classList.remove("import-drag-over");
-
-    const file = pickMarkdownFile(event.dataTransfer?.files);
-    if (!file) {
-      if (statusEl) {
-        statusEl.textContent =
-          "Drop a .md, .markdown, or .txt file onto this panel.";
-        statusEl.classList.add("error");
-      }
-      return;
-    }
-
-    ingestFile(file);
+  bindMarkdownFileDrop(dropZone, {
+    dragOverClass: "import-drag-over",
+    rejectMessage: "Drop a .md, .markdown, or .txt file onto this panel.",
+    onError: reportError,
+    onText: ({ text, filename }) => {
+      handlers.loadMarkdown(text, { filename });
+    },
   });
 }
 

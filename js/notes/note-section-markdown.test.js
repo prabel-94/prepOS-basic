@@ -29,10 +29,10 @@ describe("note-section-markdown", () => {
     assert.throws(() => appendSection("", definition, " "), /cannot be empty/);
   });
 
-  it("rejects nested section tags in pasted body", () => {
+  it("rejects nested section tags in pasted or dropped body", () => {
     assert.throws(
       () => validateSectionBody("Line one\n[NARRATIVE]\nMore"),
-      /Remove section tags/
+      /section body only[\s\S]*Remove section tags/
     );
   });
 

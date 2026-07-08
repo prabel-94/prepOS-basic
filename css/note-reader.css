@@ -73,6 +73,12 @@
   resize: vertical;
   box-sizing: border-box;
 }
+.note-add-section-field.note-section-drag-over .note-add-section-textarea,
+.note-add-section-textarea.note-section-drag-over {
+  outline: 2px dashed var(--primary, #4f46e5);
+  outline-offset: 2px;
+  border-color: var(--primary, #4f46e5);
+}
 .note-add-section-hint,
 .note-add-section-preview {
   margin: 0 0 12px;

@@ -11,6 +11,7 @@ import {
   sectionIdToBoundaryTag,
   slugifySectionLabel,
 } from "./note-section-catalog.js";
+import { bindMarkdownFileDrop } from "./note-import-file.js";
 import {
   createCustomSectionDefinition,
   getSectionBody,
@@ -44,7 +45,7 @@ function ensureSectionModalOverlay() {
       <div class="prepos-modal-header">
         <div class="h2" data-section-modal-title>Add section</div>
         <p class="text-muted mt-5" data-section-modal-subtitle>
-          Paste section content — the MSMDF tag is added automatically.
+          Paste or drop a markdown file — the MSMDF tag is added automatically.
         </p>
       </div>
       <div class="prepos-modal-body">
@@ -84,14 +85,14 @@ function ensureSectionModalOverlay() {
         <p class="note-add-section-hint text-muted hidden" data-custom-tag-preview></p>
         <p class="note-add-section-hint text-muted" data-section-hint></p>
 
-        <label class="note-add-section-field" for="noteAddSectionBody">
+        <label class="note-add-section-field" for="noteAddSectionBody" data-section-body-field>
           <span class="note-add-section-label">Section content</span>
           <textarea
             id="noteAddSectionBody"
             class="note-add-section-textarea"
             rows="10"
             spellcheck="false"
-            placeholder="Paste or type markdown for this section…"
+            placeholder="Paste, type, or drop a .md file for this section…"
           ></textarea>
         </label>
         <p class="note-add-section-preview text-muted" data-section-preview>
@@ -229,11 +230,13 @@ export function openSectionModal(options = {}) {
 
   if (mode === "edit") {
     titleEl.textContent = "Edit section";
-    subtitleEl.textContent = "Update section body — the section tag stays in source.";
+    subtitleEl.textContent =
+      "Update section body — paste or drop a .md file; the section tag stays in source.";
     saveBtn.textContent = "Save changes";
   } else {
     titleEl.textContent = "Add section";
-    subtitleEl.textContent = "Paste section content — the section tag is added automatically.";
+    subtitleEl.textContent =
+      "Paste or drop a markdown file — the section tag is added automatically.";
     saveBtn.textContent = "Add section";
   }
 
@@ -450,7 +453,34 @@ export function openSectionModal(options = {}) {
       }
     }
 
+    function applyDroppedMarkdown(text) {
+      if (bodyEl.value.trim()) {
+        const confirmed = window.confirm(
+          "Replace the current section content with the dropped file?"
+        );
+        if (!confirmed) {
+          return;
+        }
+      }
+
+      bodyEl.value = text;
+      updatePreviewLocal();
+    }
+
+    const dropTarget =
+      overlay.querySelector("[data-section-body-field]") ?? bodyEl;
+    const unbindMarkdownDrop = bindMarkdownFileDrop(dropTarget, {
+      dragOverClass: "note-section-drag-over",
+      rejectMessage: "Drop a .md, .markdown, or .txt file into Section content.",
+      onError: (message) => setError(overlay, message),
+      onText: ({ text }) => {
+        setError(overlay, "");
+        applyDroppedMarkdown(text);
+      },
+    });
+
     function cleanup() {
+      unbindMarkdownDrop();
       overlay.querySelectorAll('input[name="noteSectionKind"]').forEach((input) => {
         input.removeEventListener("change", onKindChange);
       });

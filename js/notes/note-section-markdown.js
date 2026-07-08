@@ -52,7 +52,9 @@ export function validateSectionBody(body) {
 
   if (nested.length) {
     throw new Error(
-      `Remove section tags from your paste (${nested.map((t) => `[${t}]`).join(", ")}). The section tag is added automatically.`
+      `Drop or paste section body only, not a full note. Remove section tags (${nested
+        .map((t) => `[${t}]`)
+        .join(", ")}). The section tag is added automatically.`
     );
   }
 

@@ -86,3 +86,93 @@ export function pickMarkdownFile(files) {
 
   return null;
 }
+
+/**
+ * Whether a drag event carries files (vs text selection).
+ * @param {DragEvent} event
+ * @returns {boolean}
+ */
+export function dragEventHasFiles(event) {
+  const types = event?.dataTransfer?.types;
+  if (!types) {
+    return false;
+  }
+
+  return Array.from(types).includes("Files");
+}
+
+/**
+ * Bind drag-and-drop markdown file ingest on a target element.
+ * @param {HTMLElement} target
+ * @param {object} options
+ * @param {(payload: { text: string, filename: string, size: number, file: File }) => void|Promise<void>} options.onText
+ * @param {(message: string) => void} [options.onError]
+ * @param {string} [options.dragOverClass]
+ * @param {string} [options.rejectMessage]
+ * @returns {() => void} cleanup
+ */
+export function bindMarkdownFileDrop(target, options = {}) {
+  if (!target || typeof options.onText !== "function") {
+    return () => {};
+  }
+
+  const dragOverClass = options.dragOverClass || "import-drag-over";
+  const rejectMessage =
+    options.rejectMessage ||
+    "Drop a .md, .markdown, or .txt file onto this panel.";
+
+  function clearDragOver() {
+    target.classList.remove(dragOverClass);
+  }
+
+  function onDragOver(event) {
+    if (!dragEventHasFiles(event)) {
+      return;
+    }
+
+    event.preventDefault();
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = "copy";
+    }
+    target.classList.add(dragOverClass);
+  }
+
+  function onDragLeave(event) {
+    if (!target.contains(event.relatedTarget)) {
+      clearDragOver();
+    }
+  }
+
+  async function onDrop(event) {
+    if (!dragEventHasFiles(event)) {
+      return;
+    }
+
+    event.preventDefault();
+    clearDragOver();
+
+    const file = pickMarkdownFile(event.dataTransfer?.files);
+    if (!file) {
+      options.onError?.(rejectMessage);
+      return;
+    }
+
+    try {
+      const payload = await readMarkdownFile(file);
+      await options.onText({ ...payload, file });
+    } catch (err) {
+      options.onError?.(err.message || "Could not load file.");
+    }
+  }
+
+  target.addEventListener("dragover", onDragOver);
+  target.addEventListener("dragleave", onDragLeave);
+  target.addEventListener("drop", onDrop);
+
+  return () => {
+    target.removeEventListener("dragover", onDragOver);
+    target.removeEventListener("dragleave", onDragLeave);
+    target.removeEventListener("drop", onDrop);
+    clearDragOver();
+  };
+}
