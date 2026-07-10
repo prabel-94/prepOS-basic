@@ -31,6 +31,20 @@ Markdown in this repo is grouped by topic. Root-level files: [README.md](../READ
 | [Teacher_Student_Dual_Identity_Roadmap.md](architecture/teacher/Teacher_Student_Dual_Identity_Roadmap.md) | Teacher ↔ student linked accounts roadmap |
 | [TEACHER_INTELLIGENCE_ORCHESTRATION_REPORT.md](architecture/teacher/TEACHER_INTELLIGENCE_ORCHESTRATION_REPORT.md) | Teacher intelligence orchestration |
 
+### Question format (QCP / parser)
+
+| Document | Description |
+|----------|-------------|
+| [question-format-audit.md](architecture/questions/question-format-audit.md) | Canonical parser behavior audit |
+| [question-format-verification.md](architecture/questions/question-format-verification.md) | Edge-case verification pass |
+| [PrepOS-QFP_v1.0.md](protocols/PrepOS-QFP_v1.0.md) | External LLM / import contract (QFP v1.0) |
+
+### Generators
+
+| Document | Description |
+|----------|-------------|
+| [GENERATOR_ARCHITECTURE_AUDIT.md](architecture/generators/GENERATOR_ARCHITECTURE_AUDIT.md) | English & Malayalam generator architecture audit |
+
 ## Notes system
 
 | Document | Description |
@@ -39,6 +53,15 @@ Markdown in this repo is grouped by topic. Root-level files: [README.md](../READ
 | [Note_Editor_Capabilities_Audit.md](notes/Note_Editor_Capabilities_Audit.md) | Capability matrix |
 | [Note_System_Complete_Audit.md](notes/Note_System_Complete_Audit.md) | Full note system architecture |
 | [Note_Section_Definition_Phase2_Design.md](notes/Note_Section_Definition_Phase2_Design.md) | Custom sections (Phase 2) |
+
+### MSMDF sample notes (fixtures)
+
+Reference markdown used for renderer audits and protocol specimens — not runtime app content.
+
+| Path | Description |
+|------|-------------|
+| [msmdf-samples/english-revolution/](notes/msmdf-samples/english-revolution/) | English Revolution representation samples |
+| [msmdf-samples/american-revolution/](notes/msmdf-samples/american-revolution/) | American Revolution narrative samples |
 
 ## Rendering & semantics
 
@@ -82,6 +105,10 @@ Markdown in this repo is grouped by topic. Root-level files: [README.md](../READ
 | [MSMDF_LX_v1_FULL_Malayalam_English_Revolution.md](protocols/MSMDF_LX_v1_FULL_Malayalam_English_Revolution.md) | MSMDF LX v1 full Malayalam/English |
 | [MSMDF v3.1 – Cognitive Reconstruction Edition.md](protocols/MSMDF%20v3.1%20%E2%80%93%20Cognitive%20Reconstruction%20Edition.md) | MSMDF v3.1 core specification |
 | [MSMDF_Stage8_Canonical_Freeze_Export.md](protocols/MSMDF_Stage8_Canonical_Freeze_Export.md) | MSMDF Stage 8 freeze export |
+| [MSMDF_v2_1_Patched_Canonical_Export.md](protocols/MSMDF_v2_1_Patched_Canonical_Export.md) | MSMDF v2.1 patched export |
+| [PrepOS-QFP_v1.0.md](protocols/PrepOS-QFP_v1.0.md) | Question Format Protocol v1.0 |
+| [MCQ-GP_v2.0.md](protocols/MCQ-GP_v2.0.md) | MCQ generator protocol v2.0 |
+| [MCQ-GP_v2.1.md](protocols/MCQ-GP_v2.1.md) | MCQ generator protocol v2.1 |
 
 ## Previews & assets
 

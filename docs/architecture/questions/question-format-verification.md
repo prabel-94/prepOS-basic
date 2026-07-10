@@ -453,4 +453,4 @@ Answer: B
 | JSON schema migration sketched | ✅ |
 | QFP v1.0 AI contract written | ✅ |
 
-**Recommendation:** Accept [question-format-audit.md](./question-format-audit.md) + this verification document as the canonical PrepOS Question Formatting Specification, with §10 (QFP v1.0) as the external LLM contract.
+**Recommendation:** Accept [question-format-audit.md](./question-format-audit.md) + this verification document as the canonical PrepOS Question Formatting Specification, with [PrepOS-QFP_v1.0.md](../protocols/PrepOS-QFP_v1.0.md) as the external LLM contract.

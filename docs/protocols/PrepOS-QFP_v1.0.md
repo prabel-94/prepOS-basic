@@ -3,8 +3,8 @@
 > **Authority:** This protocol is derived from the active PrepOS runtime parser in `js/core/question-parser.js` (June 2026 audit). When this document conflicts with older examples, comments, or informal notes, **the runtime parser wins**.
 >
 > **Implementation reference:** `js/core/question-parser.js`  
-> **Technical audit:** `docs/question-format-audit.md`  
-> **Edge-case verification:** `docs/question-format-verification.md`
+> **Technical audit:** `docs/architecture/questions/question-format-audit.md`  
+> **Edge-case verification:** `docs/architecture/questions/question-format-verification.md`
 
 ---
 
