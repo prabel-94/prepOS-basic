@@ -124,7 +124,9 @@ async function updatePreview(previewEl, markdown, language) {
 
   const sb = await getClient();
   const linkMap = await buildAnchorNoteLinkMap(sb, trimmed, language);
-  previewEl.innerHTML = renderAnchorNote(trimmed, linkMap);
+  previewEl.innerHTML = renderAnchorNote(trimmed, linkMap, {
+    collapseSections: false,
+  });
 }
 
 function setEditorStatus(overlay, message = "", isError = false) {

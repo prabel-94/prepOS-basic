@@ -4654,6 +4654,58 @@ PREPOS SIDE PANEL OVERLAYS
   padding-left: 1.25em;
 }
 
+.anchor-note-section-heading {
+  margin: 0.85em 0 0.35em;
+  font-size: 0.88rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+}
+
+.anchor-note-details {
+  margin-top: 0.65rem;
+  border-top: 1px solid var(--border);
+  padding-top: 0.45rem;
+}
+
+.anchor-note-details-summary {
+  list-style: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--primary-dark);
+  user-select: none;
+}
+
+.anchor-note-details-summary::-webkit-details-marker {
+  display: none;
+}
+
+.anchor-note-details-summary::before {
+  content: "+";
+  display: inline-block;
+  width: 1rem;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: #94a3b8;
+}
+
+.anchor-note-details[open] > .anchor-note-details-summary::before {
+  content: "\2212";
+}
+
+.anchor-note-details-body {
+  margin-top: 0.55rem;
+}
+
+.anchor-note-details-body .anchor-note-section-heading:first-child {
+  margin-top: 0;
+}
+
 .anchor-note-empty {
   color: var(--anchor-note-missing);
   background: var(--anchor-note-missing-bg);
