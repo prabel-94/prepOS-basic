@@ -4,7 +4,11 @@
  */
 
 import { resolveAppPath } from "../core/access.js";
-import { renderMarkdownEmphasis } from "../anchors/inline-emphasis.js";
+import {
+  boldWrapAroundMatch,
+  maybeWrapBoldHtml,
+  renderMarkdownEmphasis,
+} from "../anchors/inline-emphasis.js";
 
 export function normalizeTopicName(name = "") {
   return String(name).trim().toLowerCase();
@@ -71,27 +75,27 @@ export function resolveTopicLinks(text, topicMap = {}, options = {}) {
   let match;
 
   while ((match = pattern.exec(text)) !== null) {
-    parts.push(escapeHTML(text.slice(lastIndex, match.index)));
+    const wrap = boldWrapAroundMatch(text, match.index, pattern.lastIndex, lastIndex);
+    parts.push(renderMarkdownEmphasis(text.slice(lastIndex, wrap.start)));
 
     const label = match[1].trim();
     const entry = lookupTopicEntry(topicMap, label);
     const display = entry?.title ?? label;
 
+    let token;
     if (entry?.topic_id || entry?.id) {
       const topicId = entry.topic_id ?? entry.id;
       const href = resolveAppPath(
         `note.html?topic=${encodeURIComponent(topicId)}&lang=${encodeURIComponent(preferLanguage)}`
       );
-      parts.push(
-        `<a href="${escapeHTML(href)}" class="topic-link" data-topic-id="${escapeHTML(topicId)}">${escapeHTML(display)}</a>`
-      );
+      token = `<a href="${escapeHTML(href)}" class="topic-link" data-topic-id="${escapeHTML(topicId)}">${escapeHTML(display)}</a>`;
     } else {
-      parts.push(
-        `<span class="topic-link unresolved">${escapeHTML(label)}</span>`
-      );
+      token = `<span class="topic-link unresolved">${escapeHTML(label)}</span>`;
     }
 
-    lastIndex = pattern.lastIndex;
+    parts.push(maybeWrapBoldHtml(token, wrap.bold));
+    lastIndex = wrap.end;
+    pattern.lastIndex = wrap.end;
   }
 
   parts.push(renderMarkdownEmphasis(text.slice(lastIndex)));

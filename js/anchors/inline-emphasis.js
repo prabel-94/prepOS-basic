@@ -14,6 +14,45 @@ function escapeHTML(value = "") {
 const BOLD_PATTERN = /\*\*(.+?)\*\*/g;
 
 /**
+ * Detect `**` immediately wrapping a wiki-link span [matchStart, matchEnd).
+ * Used because wiki links are extracted before bold runs, which would otherwise
+ * leave orphan `**` markers around `**[[Label]]**`.
+ *
+ * @param {string} text
+ * @param {number} matchStart
+ * @param {number} matchEnd
+ * @param {number} [alreadyConsumedThrough=0]
+ * @returns {{ start: number, end: number, bold: boolean }}
+ */
+export function boldWrapAroundMatch(
+  text,
+  matchStart,
+  matchEnd,
+  alreadyConsumedThrough = 0
+) {
+  if (
+    matchStart >= 2 &&
+    alreadyConsumedThrough <= matchStart - 2 &&
+    text.slice(matchStart - 2, matchStart) === "**" &&
+    matchEnd + 2 <= text.length &&
+    text.slice(matchEnd, matchEnd + 2) === "**"
+  ) {
+    return { start: matchStart - 2, end: matchEnd + 2, bold: true };
+  }
+
+  return { start: matchStart, end: matchEnd, bold: false };
+}
+
+/**
+ * @param {string} html
+ * @param {boolean} bold
+ * @returns {string}
+ */
+export function maybeWrapBoldHtml(html, bold) {
+  return bold ? `<strong>${html}</strong>` : html;
+}
+
+/**
  * Render **bold** markers in plain text (HTML-safe).
  * @param {string} text
  * @returns {string}
