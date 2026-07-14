@@ -40,7 +40,9 @@ import {
 } from "./note-variant-history.js";
 import { createLayerFlipReading } from "./layer-flip-reading.js";
 import { initReadingBookmark } from "./reading-bookmark.js";
+import { applyNoteTheme, initNoteThemeControls } from "./note-theme.js";
 import { renderDashboardSkeleton } from "../student/student-dashboard-renderer.js";
+import { syncPreferencesFromServer } from "../core/preferences.js";
 
 function getQueryParam(key) {
   return new URLSearchParams(window.location.search).get(key);
@@ -500,6 +502,11 @@ export async function bootNoteReader() {
   if (!runtime) {
     return null;
   }
+
+  initNoteThemeControls();
+  syncPreferencesFromServer()
+    .then(() => applyNoteTheme())
+    .catch(() => {});
 
   const variantId = getQueryParam("variant");
   const topicId = getQueryParam("topic");

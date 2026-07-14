@@ -74,6 +74,7 @@ async function init() {
 
   bindToggle("prefReadingAutoBookmark", "reading.autoBookmark");
   bindSelect("prefReadingDefaultLanguage", "reading.defaultLanguage");
+  bindSelect("prefReadingColorScheme", "reading.colorScheme");
   bindToggle("prefPracticeAssistance", "practice.assistanceDefault");
   bindToggle("prefPracticeAdaptive", "practice.adaptiveMode");
   bindSelect("prefPracticeSessionLimit", "practice.defaultSessionLimit");

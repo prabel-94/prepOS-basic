@@ -14,6 +14,7 @@ const FLUSH_DEBOUNCE_MS = 800;
 const DEFAULTS = Object.freeze({
   "reading.autoBookmark": true,
   "reading.defaultLanguage": "english",
+  "reading.colorScheme": "light",
   "practice.assistanceDefault": false,
   "practice.adaptiveMode": true,
   "practice.defaultSessionLimit": 10,

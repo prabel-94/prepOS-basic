@@ -597,3 +597,162 @@
     animation: none;
   }
 }
+
+/* ======================================================
+   Note theme toggle FAB (bottom-right)
+   ====================================================== */
+
+.note-theme-toggle {
+  position: fixed;
+  right: max(16px, env(safe-area-inset-right, 0px));
+  bottom: max(20px, env(safe-area-inset-bottom, 0px));
+  z-index: 1100;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+.note-theme-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--card-bg);
+  color: var(--neutral-800);
+  cursor: pointer;
+  box-shadow: 0 4px 18px color-mix(in srgb, var(--neutral-900) 16%, transparent);
+}
+
+.note-theme-toggle-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.note-theme-toggle-btn:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.note-theme-toggle-btn .note-theme-icon {
+  width: 22px;
+  height: 22px;
+  display: block;
+}
+
+.note-theme-toggle-btn .note-theme-icon--sun {
+  display: none;
+}
+
+.note-theme-toggle-btn[aria-pressed="true"] .note-theme-icon--moon {
+  display: none;
+}
+
+.note-theme-toggle-btn[aria-pressed="true"] .note-theme-icon--sun {
+  display: block;
+}
+
+/* ======================================================
+   Explicit dark reading (class only — not OS auto)
+   ====================================================== */
+
+body.note-reader-page.note-theme-dark {
+  color-scheme: dark;
+
+  --surface-bg: #0f172a;
+  --card-bg: #1e293b;
+  --bg: var(--surface-bg);
+  --card: var(--card-bg);
+
+  --text: #f1f5f9;
+  --muted: #94a3b8;
+
+  --border: #334155;
+  --border-strong: #475569;
+
+  --neutral-50: #1e293b;
+  --neutral-100: #334155;
+  --neutral-200: #475569;
+  --neutral-300: #64748b;
+  --neutral-400: #94a3b8;
+  --neutral-500: #94a3b8;
+  --neutral-600: #cbd5e1;
+  --neutral-700: #e2e8f0;
+  --neutral-800: #f1f5f9;
+  --neutral-900: #f8fafc;
+
+  --tab-inactive-bg: #1e293b;
+  --tab-inactive-fg: #e2e8f0;
+  --tab-inactive-border: #334155;
+  --tab-active-fg: #ffffff;
+
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+
+  --student-surface-bg: var(--surface-bg);
+  --student-card-tint: var(--card-bg);
+  --student-tint: #134e4a;
+  --student-tint-border: #2dd4bf;
+  --student-tint-text: #99f6e4;
+  --student-tint-chip: #115e59;
+  --student-mint: #134e4a;
+
+  --pro-surface-bg: var(--surface-bg);
+  --pro-card: var(--card-bg);
+  --pro-border: var(--border);
+
+  --success-bg: #14532d;
+  --success-soft: #166534;
+  --success-border: #4ade80;
+  --success-fg: #bbf7d0;
+
+  --danger-bg: #7f1d1d;
+  --danger-soft: #991b1b;
+  --danger-border: #f87171;
+  --danger-fg: #fecaca;
+
+  --warning-bg: #78350f;
+  --warning-soft: #451a03;
+  --warning-border: #fbbf24;
+  --warning: #fde68a;
+
+  --candidate-soft: #2e1065;
+  --indigo-soft: #1e1b4b;
+  --primary-soft: #1e3a5f;
+  --primary-tint: #172554;
+  --sky-soft: #0c4a6e;
+  --accent-soft: #422006;
+
+  background: var(--surface-bg);
+  color: var(--text);
+}
+
+body.note-reader-page.note-theme-dark .card,
+body.note-reader-page.note-theme-dark .prepos-app-nav-inner,
+body.note-reader-page.note-theme-dark .settings-section {
+  background: var(--card-bg);
+  border-color: var(--border);
+}
+
+body.note-reader-page.note-theme-dark .secondary-btn {
+  background: var(--neutral-100);
+  color: var(--text);
+}
+
+body.note-reader-page.note-theme-dark #noteContent {
+  color: var(--neutral-800);
+}
+
+body.note-reader-page.note-theme-dark .semantic-heading {
+  color: var(--neutral-900);
+}
+
+body.note-reader-page.note-theme-dark .note-theme-toggle-btn,
+body.note-reader-page.note-theme-dark .note-layer-flip-btn {
+  background: var(--card-bg);
+  color: var(--neutral-800);
+  border-color: var(--border-strong);
+}

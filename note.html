@@ -52,10 +52,29 @@
   <span class="note-layer-flip-hint" data-layer-flip-hint></span>
 </div>
 
+<div id="noteThemeToggle" class="note-theme-toggle" aria-label="Reading appearance">
+  <button
+    type="button"
+    class="note-theme-toggle-btn"
+    data-note-theme-toggle
+    aria-pressed="false"
+    aria-label="Switch to dark reading"
+    title="Dark reading"
+  >
+    <svg class="note-theme-icon note-theme-icon--moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+      <path d="M21 14.5A8.5 8.5 0 1 1 9.5 3 7 7 0 0 0 21 14.5z"/>
+    </svg>
+    <svg class="note-theme-icon note-theme-icon--sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+      <circle cx="12" cy="12" r="4"/>
+      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+    </svg>
+  </button>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/config.js?v=20260520"></script>
 <script type="module" src="js/auth.js"></script>
-<script type="module" src="js/notes/note-reader.js?v=20260701"></script>
+<script type="module" src="js/notes/note-reader.js?v=20260714"></script>
 
 </body>
 </html>
