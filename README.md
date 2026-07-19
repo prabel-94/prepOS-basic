@@ -23,6 +23,7 @@ beta testers list and passwords
 301010- Sariga
 301011- Aisvarya
 301012- lekshmi R
+ 90372 20527
 301013- Prabel (prep)
 301014- Akhil Jith
 301015- Asvin nedungolam
