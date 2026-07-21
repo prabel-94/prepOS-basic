@@ -53,6 +53,7 @@ Markdown in this repo is grouped by topic. Root-level files: [README.md](../READ
 | [Note_Editor_Capabilities_Audit.md](notes/Note_Editor_Capabilities_Audit.md) | Capability matrix |
 | [Note_System_Complete_Audit.md](notes/Note_System_Complete_Audit.md) | Full note system architecture |
 | [Note_Section_Definition_Phase2_Design.md](notes/Note_Section_Definition_Phase2_Design.md) | Custom sections (Phase 2) |
+| [Structural_Layer_Parser_Specification.md](notes/Structural_Layer_Parser_Specification.md) | Structural Layer parse / store / render contract |
 
 ### MSMDF sample notes (fixtures)
 
