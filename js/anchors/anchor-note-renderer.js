@@ -1,5 +1,11 @@
 /**
- * Lightweight anchor note rendering (markdown-lite, no MSMDF).
+ * Anchor note rendering with full markdown support + backward compatibility.
+ * Supports:
+ * - Markdown headers (# ## ###)
+ * - Bold/italic (**text**, *text*)
+ * - Lists (- * •)
+ * - Legacy "Label:" format (auto-detected)
+ * - Wiki-style links [[anchor name]]
  */
 
 import { normalizeAnchorName } from "./anchor-normalization.js";
@@ -17,6 +23,11 @@ const KNOWN_SECTION_HEADERS = new Set(
     "main provisions",
     "key ideas",
     "historical significance",
+    "objectives",
+    "key features",
+    "information commissions",
+    "exemptions",
+    "importance",
     "പശ്ചാത്തലം",
     "പ്രധാന ആശയങ്ങൾ",
     "പ്രധാന ആശയ",
@@ -126,7 +137,7 @@ export function renderAnchorNoteLinks(text, linkMap = {}) {
 
     if (entry?.anchor_id) {
       parts.push(
-        `<button type="button" class="semantic-anchor existing-anchor anchor-note-semantic-link" data-anchor-id="${escapeAttr(entry.anchor_id)}" data-normalized-name="${escapeAttr(entry.normalized_name ?? normalizeAnchorName(label))}" data-source-text="${escapeAttr(label)}">${escapeHTML(display)}</button>`
+        `<button type="button" class="semantic-anchor existing-anchor anchor-note-semantic-link" data-anchor-id="${escapeAttr(entry.anchor_id)}" data-normalized-name="${escapeAttr(entry.normalized_name || normalizeAnchorName(display))}">${escapeHTML(display)}</button>`
       );
     } else {
       parts.push(
@@ -141,8 +152,22 @@ export function renderAnchorNoteLinks(text, linkMap = {}) {
   return parts.join("");
 }
 
-function renderInlineLine(line, linkMap) {
-  return renderAnchorNoteLinks(line, linkMap);
+/**
+ * Apply markdown inline formatting: bold, italic, wiki links
+ */
+function applyInlineFormatting(text, linkMap) {
+  if (!text) {
+    return "";
+  }
+
+  // Handle bold: **text**
+  text = text.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+
+  // Handle italic: *text* (but not within bold which is already <strong>)
+  text = text.replace(/\*(.+?)\*/g, "<em>$1</em>");
+
+  // Handle wiki links and escape the rest
+  return renderAnchorNoteLinks(text, linkMap);
 }
 
 function isBulletLine(line) {
@@ -190,11 +215,55 @@ export function isAnchorNoteSectionHeader(line, followingLines = []) {
 }
 
 /**
- * Split new-format notes into prose intro + structured details.
- * Old plain notes return the full text as intro with empty details.
- *
- * @param {string} noteContent
- * @returns {{ intro: string, details: string, hasDetails: boolean }}
+ * Detect if content uses markdown headers (# ## ###)
+ */
+function usesMarkdownHeaders(text) {
+  return /^\s*#{1,6}\s+.+/m.test(text);
+}
+
+/**
+ * Parse markdown headers and return structure with content
+ * Returns: { intro, details, hasDetails, isMarkdown }
+ */
+export function parseMarkdownStructure(text = "") {
+  const content = String(text ?? "").trim();
+  if (!content) {
+    return { intro: "", details: "", hasDetails: false, isMarkdown: false };
+  }
+
+  if (!usesMarkdownHeaders(content)) {
+    return { intro: content, details: "", hasDetails: false, isMarkdown: false };
+  }
+
+  const lines = content.split("\n");
+  let firstH2Index = -1;
+
+  // Find first ## or deeper header
+  for (let i = 0; i < lines.length; i++) {
+    if (/^\s*#{2,6}\s+.+/.test(lines[i])) {
+      firstH2Index = i;
+      break;
+    }
+  }
+
+  if (firstH2Index === -1) {
+    // No structured sections, treat as plain markdown
+    return { intro: content, details: "", hasDetails: false, isMarkdown: true };
+  }
+
+  const intro = lines.slice(0, firstH2Index).join("\n").trim();
+  const details = lines.slice(firstH2Index).join("\n").trim();
+
+  return {
+    intro: intro || "",
+    details,
+    hasDetails: !!details,
+    isMarkdown: true,
+  };
+}
+
+/**
+ * Split legacy "Label:" format notes into prose intro + structured details.
  */
 export function splitAnchorNoteSections(noteContent = "") {
   const text = String(noteContent ?? "").trim();
@@ -227,10 +296,12 @@ export function splitAnchorNoteSections(noteContent = "") {
   return { intro: text, details: "", hasDetails: false };
 }
 
+function renderInlineLine(line, linkMap) {
+  return applyInlineFormatting(line, linkMap);
+}
+
 /**
- * @param {string} noteContent
- * @param {Record<string, { anchor_id?: string, display_name?: string, normalized_name?: string }>} [linkMap]
- * @returns {string}
+ * Legacy: Render legacy "Label:" format blocks
  */
 export function renderAnchorNoteBlocks(noteContent = "", linkMap = {}) {
   const text = String(noteContent ?? "").trim();
@@ -300,6 +371,73 @@ export function renderAnchorNoteBlocks(noteContent = "", linkMap = {}) {
 }
 
 /**
+ * Render markdown content to HTML with anchor note styling
+ */
+export function renderMarkdownContent(markdown = "", linkMap = {}) {
+  if (!markdown) {
+    return "";
+  }
+
+  const text = String(markdown).trim();
+  const lines = text.split("\n");
+  const html = [];
+  let inList = false;
+  let listItems = [];
+  let currentHeadingLevel = 0;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+
+    // Close any open list
+    if (inList && !isBulletLine(line) && trimmed) {
+      html.push(`<ul class="anchor-note-list">${listItems.join("")}</ul>`);
+      inList = false;
+      listItems = [];
+    }
+
+    if (!trimmed) {
+      // Empty line: close list if needed
+      if (inList) {
+        html.push(`<ul class="anchor-note-list">${listItems.join("")}</ul>`);
+        inList = false;
+        listItems = [];
+      }
+      continue;
+    }
+
+    // Handle markdown headers
+    const headerMatch = trimmed.match(/^(#{1,6})\s+(.+)$/);
+    if (headerMatch) {
+      const level = headerMatch[1].length;
+      const content = headerMatch[2].trim();
+      const className = level === 1 ? "anchor-note-title" : "anchor-note-section-heading";
+      html.push(`<h${level} class="${className}">${renderInlineLine(content, linkMap)}</h${level}>`);
+      currentHeadingLevel = level;
+      continue;
+    }
+
+    // Handle bullet lists
+    if (isBulletLine(line)) {
+      const itemText = line.replace(/^\s*([-*•])\s+/, "");
+      listItems.push(`<li>${renderInlineLine(itemText, linkMap)}</li>`);
+      inList = true;
+      continue;
+    }
+
+    // Regular paragraph
+    html.push(`<p class="anchor-note-paragraph">${renderInlineLine(trimmed, linkMap)}</p>`);
+  }
+
+  // Close any remaining list
+  if (inList) {
+    html.push(`<ul class="anchor-note-list">${listItems.join("")}</ul>`);
+  }
+
+  return html.join("");
+}
+
+/**
  * @param {string} noteContent
  * @param {Record<string, { anchor_id?: string, display_name?: string, normalized_name?: string }>} [linkMap]
  * @param {{ collapseSections?: boolean }} [options]
@@ -316,6 +454,29 @@ export function renderAnchorNote(
     return "";
   }
 
+  // Try markdown format first
+  const mdStructure = parseMarkdownStructure(text);
+  if (mdStructure.isMarkdown) {
+    if (!mdStructure.hasDetails || !collapseSections) {
+      return renderMarkdownContent(text, linkMap);
+    }
+
+    // Markdown with collapsible sections
+    const introHtml = renderMarkdownContent(mdStructure.intro, linkMap);
+    const detailsHtml = renderMarkdownContent(mdStructure.details, linkMap);
+
+    return `
+      ${introHtml}
+      <details class="anchor-note-details">
+        <summary class="anchor-note-details-summary">More about this anchor</summary>
+        <div class="anchor-note-details-body">
+          ${detailsHtml}
+        </div>
+      </details>
+    `.trim();
+  }
+
+  // Fall back to legacy format
   if (!collapseSections) {
     return renderAnchorNoteBlocks(text, linkMap);
   }
